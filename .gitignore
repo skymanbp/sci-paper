@@ -1,0 +1,43 @@
+# Generated style artifacts (regenerate from corpus via tools/extract_style.py).
+# Match at any depth so per-field dirs (style-profile/<field>/...) are covered.
+style-profile/**/*.json
+style-profile/**/*.jsonl
+style-profile/**/style_dossier.md
+# Embedding caches built by retrieve_exemplars.py (per model name).
+style-profile/**/exemplar_embeddings_*.npy
+# AI-ism classifier model artifact (regenerate via train_ai_ism_classifier.py).
+style-profile/**/ai_ism_classifier.joblib
+# Auto-extracted negative-sample text (contains user's project file content;
+# privacy-sensitive — do NOT commit). Regenerate via extract_md_negatives.py.
+style-profile/**/ai_ism_negatives_extracted.txt
+
+# Corpus content (copyright-sensitive — DO NOT commit).
+# Blanket-deny everything under tier dirs (PDFs, .tex, .bib, .eps, .ps, .cls,
+# .bbl, .sty, .bst, figure PDFs, arxiv source bundles, …) so a new corpus
+# format can't accidentally leak.
+style-corpus/**/tier-*/**
+# Re-include only structural placeholders so the layout is documented in git.
+!style-corpus/**/tier-*/.gitkeep
+!style-corpus/**/tier-*/README.md
+# Field-root and corpus-root README's are tracked by default.
+!style-corpus/README.md
+!style-corpus/**/README.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.pytest_cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build artefacts from any test runs
+*.aux
+*.log
+*.out
+*.synctex.gz

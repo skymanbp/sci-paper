@@ -1,0 +1,52 @@
+# Hand-written AI-style negative samples for the WGL field classifier.
+# Each blank-line-separated block is one sample paragraph in the style
+# academic LLMs default to: heavy connectives, transitional boilerplate,
+# vague intensifiers, em-dash insertions, "Furthermore"/"Moreover" stacking,
+# generic claims without specific numbers, "this paper presents" voicing.
+#
+# Source: written by Claude (the same family of models we're trying to flag)
+# in deliberate "AI voice" — covers WGL/cluster-lensing topics so the
+# classifier learns *style* not topic.
+#
+# Lines starting with '#' are skipped by the loader; everything else is
+# treated as paragraph content. Blank lines separate paragraphs.
+
+In recent years, weak gravitational lensing has emerged as a powerful and versatile tool for probing the dark matter distribution in galaxy clusters. Furthermore, modern surveys have leveraged advances in CCD technology to enable comprehensive studies of cluster mass profiles across a wide range of redshifts. Importantly, the field has witnessed transformative progress, paving the way for unprecedented insights into structure formation.
+
+This paper presents a novel and robust approach to detecting cluster-scale dark matter halos via weak lensing. Our methodology leverages a comprehensive suite of optimal filtering techniques to shed light on the intricacies of the cluster mass function. Notably, the framework seamlessly integrates state-of-the-art shear measurement algorithms with cutting-edge filtering techniques.
+
+We delve into the rich phenomenology of weak lensing by galaxy clusters, with a particular emphasis on the matched-filter formalism. Moreover, our analysis showcases the holistic nature of the proposed pipeline. Crucially, by leveraging the synergy between optical and shear data, we are able to enhance the signal-to-noise ratio in a robust manner.
+
+It is worth noting that the detection significance of weak-lensing peaks is critically dependent on the choice of filter scale. Furthermore, in order to maximize sensitivity to cluster-mass halos, one must utilize a filter that is matched to the expected NFW shear profile. Additionally, careful treatment of intrinsic galaxy ellipticity noise is essential for robust statistical inference.
+
+Recent advances in machine learning have paved the way for novel approaches to weak-lensing peak detection. In particular, convolutional neural networks have been leveraged to delve into the complex non-linear regime of cluster shear signals. Notably, these methods showcase a comprehensive ability to integrate multi-scale information seamlessly.
+
+Despite significant progress, the systematic effects in weak-lensing measurements remain challenging. To this end, we present a robust pipeline that leverages a holistic approach to PSF correction. Furthermore, our framework facilitates a comprehensive analysis of the various noise contributions, paving the way for more reliable cluster mass estimates.
+
+With the advent of deep imaging surveys, weak gravitational lensing has been transformed into a precision probe of cosmological parameters. In recent years, the field has witnessed unprecedented growth in both the quantity and quality of cosmic shear data. Crucially, this has enabled comprehensive constraints on the matter power spectrum.
+
+Our analysis underscores the critical importance of accurate shear calibration for cluster weak lensing. We delve into the systematic effects associated with detector-level distortions, and we leverage state-of-the-art image-simulation pipelines to characterize their impact. Furthermore, the methodology we present showcases a robust framework for weak-lensing analyses going forward.
+
+Importantly, our results demonstrate that the optimal-filter approach can robustly detect cluster-scale mass concentrations down to S/N thresholds. Notably, this represents a comprehensive improvement over traditional aperture-mass methods. Moreover, the approach paves the way for future surveys.
+
+This study presents a novel and comprehensive analysis of intercluster filaments in nearby cluster systems. We leverage deep imaging data to delve into the weak-lensing signatures of these filamentary structures. Furthermore, our results shed light on the cosmic-web connections between massive clusters, paving the way for a more holistic understanding of large-scale structure formation.
+
+In order to robustly characterize the noise properties of our weak-lensing maps, we utilize a state-of-the-art simulation pipeline. The pipeline seamlessly integrates ray-tracing through cosmological N-body simulations with realistic noise models. Crucially, this allows us to delve into the various systematic effects in a comprehensive manner.
+
+Recent years have witnessed a paradigm shift in our understanding of dark matter substructure. Furthermore, weak-lensing observations have begun to shed light on the elusive nature of subhalos. Importantly, the approaches we describe leverage a comprehensive suite of detection algorithms to address this challenging regime in a robust way.
+
+The framework we present is both novel and powerful, leveraging recent advances in deep learning to enhance weak-lensing peak detection. Notably, the model showcases a robust ability to generalize across different cluster mass regimes. Moreover, the architecture facilitates seamless integration with existing pipeline software.
+
+This paper sheds light on the intricate interplay between baryonic feedback and dark matter substructure detection in weak lensing. We delve into the rich phenomenology of these effects, leveraging a comprehensive suite of hydrodynamical simulations. Furthermore, our analysis paves the way for a more holistic understanding of cluster systematics.
+
+It is worth noting that current weak-lensing surveys provide an unprecedented opportunity to constrain cosmological parameters. In particular, the synergy between cosmic-shear and cluster-counts measurements is crucial. Furthermore, this paper showcases the comprehensive potential of joint analyses leveraging both probes seamlessly.
+
+We present a robust pipeline that delves into the challenging regime of weak-lensing peak statistics. The pipeline leverages a comprehensive set of statistical techniques to maximize signal-to-noise. Importantly, our methodology paves the way for future surveys to robustly extract cosmological information from non-Gaussian features in shear maps.
+
+Despite significant advances, the calibration of weak-lensing shear measurements remains a critical challenge. Furthermore, modern PSF modelling techniques utilize a comprehensive set of basis functions to delve into the complex anisotropies. Notably, these techniques pave the way for sub-percent shear calibration.
+
+In recent years, the integration of machine learning techniques with weak-lensing analyses has emerged as a transformative paradigm. Crucially, deep neural networks have been leveraged to comprehensively delve into the non-linear shear regime. Importantly, this represents a paradigm shift in cluster detection methodology.
+
+The methodology presented herein leverages a robust and comprehensive optimal-filter framework, delving into the intricacies of cluster-scale weak-lensing detection. Furthermore, the approach facilitates seamless integration with existing photometric catalogues, paving the way for synergetic optical-WL analyses.
+
+This paper showcases a novel approach that delves into the challenging regime of triaxial cluster mass estimation. We leverage a comprehensive Bayesian framework to robustly characterize the systematic biases. Importantly, the framework facilitates a holistic understanding of triaxiality systematics in cluster cosmology.
