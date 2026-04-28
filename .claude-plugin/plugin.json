@@ -1,11 +1,13 @@
 {
   "name": "sci-paper",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Scientific paper writing + review pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Includes anti-AI-ism enforcement, sourced-citation review, and a corpus-driven style profile distilled from top journals + curated mentor papers.",
   "author": {
     "name": "skymanbp",
     "email": "skyman.bp@gmail.com"
   },
+  "homepage": "https://github.com/skymanbp/sci-paper",
+  "repository": "https://github.com/skymanbp/sci-paper",
   "keywords": [
     "scientific-writing",
     "paper-review",

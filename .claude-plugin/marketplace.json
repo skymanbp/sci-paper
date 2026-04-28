@@ -1,0 +1,39 @@
+{
+  "name": "sci-paper",
+  "owner": {
+    "name": "skymanbp"
+  },
+  "metadata": {
+    "description": "Single-plugin marketplace for the sci-paper scientific writing + review plugin.",
+    "version": "0.3.0"
+  },
+  "plugins": [
+    {
+      "name": "sci-paper",
+      "source": "./",
+      "description": "Scientific paper writing + review pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Anti-AI-ism enforcement, source-traceable review, corpus-driven style profile.",
+      "version": "0.3.0",
+      "author": {
+        "name": "skymanbp",
+        "email": "skyman.bp@gmail.com"
+      },
+      "homepage": "https://github.com/skymanbp/sci-paper",
+      "repository": "https://github.com/skymanbp/sci-paper",
+      "keywords": [
+        "scientific-writing",
+        "paper-review",
+        "anti-ai-isms",
+        "style-distillation",
+        "astrophysics",
+        "latex"
+      ],
+      "category": "writing",
+      "tags": [
+        "claude-code",
+        "plugin",
+        "academic",
+        "research"
+      ]
+    }
+  ]
+}
