@@ -10,7 +10,8 @@ ApJ / MNRAS / PRD / JCAP / Nature-Physics level.
 | `paper` | Loads paper-writing standards (formula conventions, citation rules, **anti-AI-ism hard rules**, key references). Invoke before drafting. |
 | `paper-review` | Forced source-traceable review pipeline. No memory, no keyword-grep-as-evidence, no guessing. Runs to convergence (0 red / 0 yellow). |
 | `figure-review` | Renders compiled PDF at 150 DPI and reviews each figure as a human reader would actually see it (axis font sizes, legend readability, float placement). |
-| `paper-style` | **NEW.** Loads a *distilled style profile* extracted from your curated corpus (top journals + mentor papers + high-value references) plus retrieves section-typed exemplar paragraphs. Constrains writing/rewriting to match observed human-academic patterns. |
+| `paper-style` | Loads a *distilled style profile* extracted from your curated corpus (top journals + mentor papers + high-value references) plus retrieves section-typed exemplar paragraphs. Constrains writing/rewriting to match observed human-academic patterns. |
+| `brainstorm` | **NEW (v0.4).** Fully-automated radial research-direction explorer. Generates a "phylogenetic-tree" of ideas using 12 framings (first-principles / inversion / cross-disciplinary / adversarial / constraint-shift / scale extrapolation / substitution / office-hours / contrarian / failure-driven / high-risk-high-reward / meta-self-audit), derives each branch rigorously (math + literature + falsifiability), recurses on PROMISING leaves until convergence. Default `--rounds conv` runs until exhausted; cc-enslaver evidence rules enforced throughout. |
 
 ## Quick start
 
@@ -77,7 +78,8 @@ field exists, all tools and skills auto-detect it; with multiple, pass
 │   ├── paper/SKILL.md
 │   ├── paper-review/SKILL.md
 │   ├── figure-review/SKILL.md
-│   └── paper-style/SKILL.md      # NEW; --field aware
+│   ├── paper-style/SKILL.md      # --field aware
+│   └── brainstorm/SKILL.md       # NEW v0.4; radial idea exploration
 ├── style-corpus/                  # user-populated; gitignored content
 │   └── wgl/                       # current default field
 │       ├── tier-1-top/            # top-journal exemplars
@@ -146,13 +148,16 @@ multiple fields are present.
 
 ## Status
 
-**v0.3 — full pipeline.**
+**v0.4 — full pipeline + brainstorm.**
 
-- **Skills (4):** `paper` (writing standards + tier-graded anti-AI-isms with
+- **Skills (5):** `paper` (writing standards + tier-graded anti-AI-isms with
   corpus-empirical frequency caps), `paper-review` (forced-source-traceable
   review with `--summary` density verdict), `figure-review` (150-DPI render),
-  `paper-style` (dossier + exemplar retrieval + Tier-table policy pairing).
-  All four ported from WGL with `[WGL]` markers; remove or replace those
+  `paper-style` (dossier + exemplar retrieval + Tier-table policy pairing),
+  **`brainstorm`** (radial 12-framing idea-tree exploration with
+  per-branch rigorous derivation + cc-enslaver source enforcement; default
+  `--rounds conv` runs until convergence judged by 6 hard criteria).
+  First four ported from WGL with `[WGL]` markers; remove or replace those
   anchors when generalizing to other fields.
 - **Tools (6):** `extract_style.py` (.tex + .pdf via pymupdf blocks),
   `retrieve_exemplars.py` (sentence-transformers cosine + `.npy` cache +

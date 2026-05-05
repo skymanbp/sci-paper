@@ -4,15 +4,15 @@
     "name": "skymanbp"
   },
   "metadata": {
-    "description": "Single-plugin marketplace for the sci-paper scientific writing + review plugin.",
-    "version": "0.3.0"
+    "description": "Single-plugin marketplace for the sci-paper scientific writing + review + ideation plugin.",
+    "version": "0.4.0"
   },
   "plugins": [
     {
       "name": "sci-paper",
       "source": "./",
-      "description": "Scientific paper writing + review pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Anti-AI-ism enforcement, source-traceable review, corpus-driven style profile.",
-      "version": "0.3.0",
+      "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Anti-AI-ism enforcement, source-traceable review, corpus-driven style profile, and fully-automated radial research-direction brainstorm explorer.",
+      "version": "0.4.0",
       "author": {
         "name": "skymanbp",
         "email": "skyman.bp@gmail.com"
@@ -24,6 +24,8 @@
         "paper-review",
         "anti-ai-isms",
         "style-distillation",
+        "brainstorm",
+        "research-ideation",
         "astrophysics",
         "latex"
       ],
