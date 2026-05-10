@@ -1,14 +1,28 @@
 ---
 name: brainstorm
-description: 全自动辐射状研究方向探索器。基于当前研究进度，生成"系统发生树"式的发散思路：每一节点用多种视角（first-principles / 反演 / 跨学科迁移 / 对抗 / 约束变换 / 尺度外推 / office-hours 强迫问题 / contrarian / 失效驱动 等）穷尽 brainstorm，对每个分支进行完整严谨推导（数学/物理/文献核对/可行性/可证伪性），可继续递归发散直到收敛。默认无限轮次直至穷尽（`--rounds conv`）。强制 cc-enslaver 七规则全程证据可追溯。
+description: 全自动辐射状探索器。可用于发散式寻找研究 ideas，也可用于穷尽地寻找解决某个切实难题的途径。以"系统发生树（phylogenetic tree）"为数据模型：root = 起点（topic / 问题 / 当前研究状态）；node = 一个想法；depth = 发散层数（向外扩张的环数）；width = 最终结果数（最外圈弧上的叶节点数）。每一节点用多种视角（first-principles / 反演 / 跨学科迁移 / 对抗 / 约束变换 / 尺度外推 / office-hours 强迫问题 / contrarian / 失效驱动 / high-risk / 元层 等）穷尽 brainstorm，对每个分支进行完整严谨推导（数学/物理/逻辑/文献核对/可行性/可证伪性），递归发散直至每一最深叶节点都被完整推进。默认 width / depth / rounds **全部不限**，由收敛判据终止。**严禁** "defer / 因成本限制 / 因时间限制 / future work / TODO" 等推脱式不完整结果。强制 cc-enslaver 七规则全程证据可追溯。
 disable-model-invocation: false
-argument-hint: "[topic] [--rounds N|conv] [--max-nodes N] [--max-branches N] [--field <name>] [--out <dir>] [--seed <text>] [--no-online] — 不传 topic 则自动从当前项目状态推断"
+argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max-branches N|∞] [--field <name>] [--out <dir>] [--seed <text>] [--no-online] — 不传 topic 则自动从当前项目状态推断"
 ---
 
-# brainstorm — 辐射状研究方向探索（全自动 / 收敛终止）
+# brainstorm — 辐射状发散探索（全自动 / 完整推进 / 收敛终止）
 
-> **本 skill 不是头脑风暴清单。** 是一台递归式的研究方向生成—推导—评估—剪枝—再发散机器。
-> 每个想法必须经过完整推导才有资格存活；每个存活节点必须重新做一次发散直到无新颖性增益。
+> **本 skill 不是头脑风暴清单。** 它是一台递归式的**想法生成—推导—评估—剪枝—再发散**机器，等价于一棵向外扩张的"系统发生树（phylogenetic tree）"。
+> 每个想法必须经过完整推导才有资格存活；每个存活节点必须重新做一次发散直到无新颖性增益；
+> **每一个最深叶节点都必须完整推进到底——禁止 defer / 因成本 / 因时间 / future-work 等不完整结果。**
+
+---
+
+## 0. 数据模型（visual metaphor — width × depth × node）
+
+把整棵探索想象成下面这张径向树（参考用户示例图）：
+
+- **root（圆心）** = 你给定的 topic，或在不显式给定 topic 时由§2 从当前项目状态推断出的起点。
+- **depth（同心环 / "深度"）** = 想法/方向的发散层数。第 1 层（红环）= 从 root 直接产生的 framing 分支；第 2 层（绿环）= 对每个第 1 层节点再各跑一遍 framing 后产生的子分支；以此类推无穷叠。**深度无上限**（除非用户用 `--depth N` 显式封顶）。
+- **node（节点）** = 每一个想法本身。无论位于哪一层、哪一支，**任何一个发散/推导/结果点都是 node**。
+- **width（最外弧 / "宽度"）** = 最终交付的结果数，即树达到收敛/终止时**叶节点（不再扩展的终态节点）**的总数。**宽度无上限**（除非用户用 `--width N` 显式封顶）。
+- **生长准则**：一个 node 若能再开出"不同尝试 / 不同方向"，则**必须**伸出新子节点继续向外（depth + 1）；只有当一个 node 已经被 §4 的 12 字段全部填满、§5 评分定论、且§3 的 12 个 framing pass 在该节点上跑过仍**无新颖增益**时，它才允许作为最终叶（计入 width）。
+- **完整推进准则（硬性，§0.8 强制）**：进入 width 计数的每一片最终叶节点都**必须完整推进**——derivation 走通、predictions 给数、falsifiability 给判据、novelty_vs_literature 给真实文献对比。任何含 "defer / 时间不够 / 算力不够 / future work / 留作 TODO" 字样的节点**不算最终叶**，必须继续推进或被显式标记为 `INCOMPLETE_FORBIDDEN` 并触发再循环。
 
 ---
 
@@ -32,10 +46,24 @@ argument-hint: "[topic] [--rounds N|conv] [--max-nodes N] [--max-branches N] [--
 6. **禁止用户中断决策**——本 skill 是全自动的。
    遇到歧义优先选**信息量最大**的分支继续；只有当 (a) 触及不可逆操作、(b) 触及 §0.7 资源安全阀、(c) 用户原始 topic 完全无法解析时才停下。
 
-7. **资源安全阀**（硬性，超限即停并报告当前树）：
-   - 默认 `--max-nodes 200`（含死分支），`--max-time-min 60`，`--max-branches 8`/节点
-   - 可被 CLI flag 调高，但**不允许 skill 内部自行扩大**
-   - 默认 `--rounds conv` = 无限轮次，由收敛判据终止；其他安全阀仍生效
+7. **资源参数（默认全部不限；caps 仅在用户显式提供数值时生效）**：
+   - `--width N` 默认 ∞ — 最终叶节点总数上限
+   - `--depth N` 默认 ∞ — 树深度上限
+   - `--rounds N|conv` 默认 `conv` — 发散轮次，由§6 收敛判据终止
+   - `--max-branches N` 默认 ∞ — 每节点单轮新增分支上限（注意：§3 强制 12 条 framing pass 各产 ≥1 分支，所以下限实际是 12；该 flag 仅可放大）
+   - **caps 触顶的语义**：当用户**显式**设置了 `--width N` / `--depth N` / `--rounds N` 并触顶时，**已展开的节点必须先全部完整推进到§4 12 字段填满、§5 verdict 定论之后**才允许停止；不允许"刚到上限立即停留下半成品"。报告以 `WIDTH_CAP_REACHED` / `DEPTH_CAP_REACHED` / `ROUNDS_EXHAUSTED` 标记，**但所有可见叶节点必须完整**。
+   - **不允许 skill 内部自行扩大 cap**；也不允许内部自行缩小默认 ∞ 为某个有限值。
+   - 旧版的 `--max-nodes 200` / `--max-time-min 60` 已**移除**。"探索成本太大"不构成停止理由；这是本 skill 与普通 brainstorm 工具的关键区别。
+
+8. **完整推进禁令（hard ban on deferred / incomplete leaves）** —— 见§0 数据模型最后一条：
+   - 任何叶节点的任何字段中含以下字样均视为**违规半成品**，节点状态强制改为 `INCOMPLETE_FORBIDDEN`，必须继续推进至完整：
+     - "defer" / "deferred" / "待定" / "留后"
+     - "因成本限制" / "因算力限制" / "因时间限制" / "时间不够" / "算力不够"
+     - "future work" / "留作 future work" / "TODO" / "FIXME"
+     - "暂不展开" / "略" / "details omitted" / "省略" / "暂略"
+     - "应该" / "大概" / "我相信" / "通常" / "可能"（→ 触发 cc-enslaver rule 01）
+   - 若推导**真的**需要外部资源（特定数据集、特定计算、特定文献全文），必须当轮通过 WebFetch / WebSearch / Bash / Read 获取；获取失败 → 改用§3.X / §3.E（约束变换）派生**替代方案分支**并完整推导。**禁止**留半成品节点声称"算最终叶"。
+   - 这条禁令在**每一个节点**处都强制执行，不分主分支次分支、不分高分低分。
 
 ---
 
@@ -47,21 +75,24 @@ argument-hint: "[topic] [--rounds N|conv] [--max-nodes N] [--max-branches N] [--
 
 **topic 解析**：
 - 显式传入 → 直接采用（原文进 `tree.md` 的 root 节点）
+- 显式传入但形式为"如何解决 X / 怎样实现 Y / 我想 ..."（问题解决型）→ 同样直接采用，§2 baseline 切换到"problem-solving mode"（详§2）
 - 缺省 → 按§2 自动从当前项目状态推断；推断失败 → 报错退出（不允许猜测）
 
 **flags**（全部可选）：
 | flag | 默认 | 含义 |
 |---|---|---|
+| `--width N` | **∞** | 最终叶节点总数上限（最外弧的结果数）；ASCII "inf"、字面 ∞ 与不传均视为不限 |
+| `--depth N` | **∞** | 树深度上限（从 root 起的最大层数）；不传 = 不限 |
 | `--rounds N` | `conv` | 发散轮次上限；`conv` = 不限轮次，由§6 收敛判据终止 |
-| `--max-nodes N` | 200 | 整棵树节点上限（含已剪枝） |
-| `--max-branches N` | 8 | 每节点单轮新增分支上限 |
-| `--max-time-min N` | 60 | 总挂钟时间上限（分钟） |
-| `--field <name>` | 见§1.1 | 与 paper-style 同名 field，用于文献先验 |
+| `--max-branches N` | **∞** | 每节点单轮新增分支上限。注意：§3 强制 12 条 framing pass 各产 ≥1 分支，下限实际为 12；该 flag 仅用于放大（极少需要） |
+| `--field <name>` | 见§1.1 | 与 paper-style 同名 field，用于文献先验加权 |
 | `--out <dir>` | `brainstorm-out/<UTCdate>__<topic-slug>/` | 树输出目录 |
-| `--seed <text>` | 无 | 额外种子提示，会作为 root 节点的 hint |
+| `--seed <text>` | 无 | 额外种子提示，作为 root 节点的 hint |
 | `--no-online` | 关 | 关闭 WebSearch / WebFetch；只用本地 + 已读引用 |
-| `--min-frameworks N` | 5 | 每节点至少跑过的 framing pass 数（§3） |
+| `--min-frameworks N` | 12 | 每节点至少跑过的 framing pass 数（§3）；下限即 §3.A–§3.L 全 12 条 |
 | `--min-novelty-ratio R` | 0.15 | 收敛要求的"近 2 轮新颖比"下限（详§6） |
+
+> **关于"无上限"**：本 skill 的设计哲学是用§6 收敛判据（substantive convergence）而不是用资源 cap（resource exhaustion）来终止。当用户既不传 `--width / --depth / --rounds` 也不触§6 收敛 → 它会一直跑直到收敛，这是预期行为而非 bug。
 
 **§1.1 field 选择**：与 `paper-style` 行为一致 —
 解析 `style-profile/` 下子目录：1 个 → 自动选；多个 → 要求 `--field`；0 个 → 跳过文献先验加权（不阻塞，仅警告）。
@@ -70,9 +101,14 @@ argument-hint: "[topic] [--rounds N|conv] [--max-nodes N] [--max-branches N] [--
 
 ## 2. 第一阶段：基线建立（必做）
 
-**目的**：让 root 节点不是空中楼阁，而是与当前研究真实状态对齐。
+**目的**：让 root 节点不是空中楼阁，而是与"当前真实状态"或"用户给定问题的真实约束"对齐。
 
-执行步骤（顺序、每步必做）：
+**模式判别**（必做，作为§2 的第 0 步）：
+- **Mode A — 研究探索（research mode）**：topic 缺省，或显式 topic 是开放式研究方向（如"weak lensing 中可探索的新方向"）。基线 = 当前项目研究状态。走§2.A 流程。
+- **Mode B — 问题解决（problem-solving mode）**：显式 topic 包含具体待解决问题（如"如何解决 X 的 Y 性能瓶颈"、"怎么实现满足约束 C 的 Z"）。基线 = 问题陈述 + 约束 + 已尝试方案 + 已知失败模式。走§2.B 流程。
+- 两模式不互斥：若 topic 同时是研究方向**且**带具体卡点，**两份基线都做**，root 节点写入合成版。
+
+### §2.A — Research mode 基线步骤（顺序、每步必做）
 
 1. **Read 当前项目根目录的 `CLAUDE.md`、`README.md`** —— 拿到项目自我描述。
 2. **Glob + Read 项目里的 `*.tex` / `*.md` 草稿** —— 识别"目前在写什么、写到哪一步"。如果存在多文件，取最新修改的 3 篇全文 Read；其余 metadata only。
@@ -84,9 +120,25 @@ argument-hint: "[topic] [--rounds N|conv] [--max-nodes N] [--max-branches N] [--
    - **已完成 / 已稳定的部分**（列表，带证据）
    - **未解决 / 卡住的部分**（列表，带证据）
    - **隐含假设**（必列，至少 5 条；用§3.A first-principles framing 强制提取）
+
+### §2.B — Problem-solving mode 基线步骤（顺序、每步必做）
+
+1. **解析 topic 中的"想要 / 必须 / 不能 / 限制于"等程度词**，提取硬约束 / 软偏好 / 成功判据。
+2. **Read / Grep 项目中与该问题最相关的文件**（用 topic 关键词 Grep；若 ≥ 1 hit → 全文 Read 命中文件）。
+3. **WebSearch（除非 `--no-online`）** topic 关键词 + `solution` / `benchmark` / `prior art`，找已知方案与已知失败模式；WebFetch 至少 3 篇关键命中。
+4. **从 1-3 中合成 root 节点描述**：
+   - **问题陈述**（一句话，带 file:line / URL 证据）
+   - **硬约束**（列出，每条带来源）
+   - **软偏好 / 优化目标**（列出）
+   - **已尝试方案**（含本项目内、外部 prior art；带证据）
+   - **已知失败模式**（为什么之前的尝试不行；带证据；缺则标 `[NEEDS VERIFICATION]`）
+   - **成功判据**（具体、可验证；不允许写"work better"这种模糊判据）
+
+### §2 收尾
+
 7. **保存 root 节点到** `<out>/tree.md` 与 `<out>/tree.json`。
 
-如果第 6 步任一项空白：**停止**，向用户报"无法从当前状态推断 root；请显式传 topic"，不进入§3。
+如果 Mode A 第 6 步或 Mode B 第 4 步任一项空白：**停止**，向用户报"无法从当前状态推断 root；请显式传 topic 或补足问题陈述"，不进入§3。
 
 ---
 
@@ -196,6 +248,7 @@ argument-hint: "[topic] [--rounds N|conv] [--max-nodes N] [--max-branches N] [--
 - `derivation` 中含数值时**当轮**用 Bash + python（sympy / numpy）跑一次自检脚本；输出贴入字段；无法跑则在字段最后写 `[unverified — needs symbolic check]`
 - `novelty_vs_literature` 中每篇引用必须 WebFetch arXiv abs / DOI 页确认作者+年份+标题至少匹配；不可仅凭 WebSearch 摘要下结论
 - 任何字段写出 "应该 / 大概 / 我相信 / 通常 / 应当" → 该字段无效，必须重写
+- **§0.8 完整推进禁令在此强制生效**：任何字段含 "defer / 留后 / 待定 / 因成本限制 / 因时间限制 / 因算力限制 / future work / TODO / FIXME / 略 / details omitted / 暂略 / 暂不展开" 之一 → 该字段无效，节点状态强制改为 `INCOMPLETE_FORBIDDEN`，必须继续推进至该字段完整。**不允许把半成品节点提交进 verdict**。
 
 ---
 
@@ -233,15 +286,26 @@ argument-hint: "[topic] [--rounds N|conv] [--max-nodes N] [--max-branches N] [--
 
 > "看起来差不多了"不是收敛证据。下面 6 条同时为真才允许声明 CONVERGED。
 
-1. **所有开放节点 verdict 已定**：树里没有任何节点处于 `verdict_provisional=NEEDS-MORE-INFO` 且未进入"待补充清单"。
+1. **所有节点完整**：树里**没有任何**节点处于 `verdict_provisional=NEEDS-MORE-INFO` 或 `INCOMPLETE_FORBIDDEN`。§0.8 完整推进禁令在此强制生效。
 2. **新颖性比例下降**：最近 2 轮 expand 中，新增节点里 `verdict=PROMISING` 的占比 < `--min-novelty-ratio`（默认 0.15）。
 3. **每条 framing pass 都被触发过 ≥ 1 次**（§3.A–§3.L 全部）。
 4. **所有 PROMISING 叶子至少经过一次再发散尝试**（即每个 PROMISING 都被当作过 root 跑过§3 全 pass，得到的子代或为合并、或为 DEAD-END、或为 MARGINAL；不再产生新的 PROMISING）。
 5. **§3.K 至少产生过 1 个完整探索过的 high-risk 分支**（即使最终 DEAD-END），且不是被 §0.4 强制塞进来后立即剪枝的占位。
-6. **资源未触顶**：若已触 `--max-nodes` / `--max-time-min` → 不算 CONVERGED，必须明确报告 `EARLY_STOP=resource_cap`。
+6. **用户显式 cap 未触顶**：若用户显式设置了 `--width N` / `--depth N` / `--rounds N` 并触顶 → 不算 CONVERGED，按下表报状态；但**所有已展开节点必须完整**（§0.7 后半段 + §0.8）。
 
-CONVERGED 时输出**最终报告**（§7）。
-非 CONVERGED 但 `--rounds N` 已用完 → 输出 `ROUNDS_EXHAUSTED` 报告 + 当前树。
+**终止状态决策表**（执行优先级从上到下）：
+
+| 触发条件 | 报告状态 | 必要前置 |
+|---|---|---|
+| §6 六条全过 | `CONVERGED` | — |
+| `--width N` 触顶且全部叶完整 | `WIDTH_CAP_REACHED` | 所有叶 §4 12 字段填满 + §5 verdict 定论 |
+| `--depth N` 触顶且全部叶完整 | `DEPTH_CAP_REACHED` | 同上 |
+| `--rounds N` 用完且全部叶完整 | `ROUNDS_EXHAUSTED` | 同上 |
+| 任一 cap 触顶但**仍有半成品节点** | **不允许停止** | 必须先把所有 `INCOMPLETE_FORBIDDEN` 推进到完整，再报上面任一 cap 状态 |
+| Topic 完全无法解析 | `EARLY_STOP=topic_unparseable` | 必须在§2 baseline 阶段；进入§3 之后此项不再适用 |
+
+CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**最终报告**（§7）。
+**"资源不够"不构成停止理由**——本 skill 不接受 "exploration cost too high" 之类的隐含 early-stop（与 §0.7 / §0.8 一致）。
 
 ---
 
@@ -281,18 +345,27 @@ CONVERGED 时输出**最终报告**（§7）。
 - **children**: [id1, id2, ...]
 ```
 
-### 7.4 终态报告（CONVERGED 或 ROUNDS_EXHAUSTED）
+### 7.4 终态报告（CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED）
 
 ```
 ## brainstorm 终态报告 — <topic>
 
 ### 状态
-- 状态：CONVERGED / ROUNDS_EXHAUSTED / EARLY_STOP=<reason>
-- 总节点数：N (PROMISING=p, MARGINAL=m, DEAD-END=d, NEEDS-MORE-INFO=u)
+- 状态：CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED / EARLY_STOP=<reason>
+- 模式：research / problem-solving / hybrid
+- 树形：max_depth_reached=D, leaf_count=W (= 最终 width), 总节点数=N
+- 节点分布：PROMISING=p, MARGINAL=m, DEAD-END=d, NEEDS-MORE-INFO=0, INCOMPLETE_FORBIDDEN=0
+  （若上面后两项不为 0 → 报告非法，必须回到§4 把它们推进到完整再发本节）
 - 总轮次：R
 - 触发收敛/停止的判据：…
+- 用户 cap：width=<N|∞>, depth=<N|∞>, rounds=<N|conv>；触顶情况：…
 
-### Top-K 推荐方向（按 score 降序）
+### 最终 width — 所有完整推进的叶节点（按 score 降序）
+（即最外弧上每一片"完整推进到底"的叶；含 PROMISING + MARGINAL + DEAD-END 的终态叶）
+1. [id] <idea_statement> — verdict=…, score=…; 关键判据=…; 第一个实验=…
+2. ...
+
+### Top-K 推荐方向（按 score 降序，仅 PROMISING）
 1. [id] <idea_statement> — score=14; 关键判据=…; 第一个实验=…
 2. ...
 
@@ -300,6 +373,10 @@ CONVERGED 时输出**最终报告**（§7）。
 - 最 weird 分支：…
 - 高风险分支收成：…
 - 元层未能跳出的盲区（坦诚承认）：…
+
+### 完整推进自审（§0.8）
+- 本次报告中所有叶节点已 100% 完整推进，无任何 defer / future-work / TODO 字样：是 / 否
+- 若"否" → 报告非法，必须回到§4 / §5 修复
 
 ### 推荐下一步
 （仅给 1–3 条具体行动，每条带 file:line 或 URL 证据）
@@ -336,7 +413,10 @@ CONVERGED 时输出**最终报告**（§7）。
 - ❌ "WebSearch 找了，没找到，就是新的" — 至少要换 3 种关键词组合 + 检查相邻 field。
 - ❌ "用户没说要并行，我就串行做" — `--rounds conv` 模式下并行是性能必需。
 - ❌ "树太大用户看不动，我手动剪一下" — 用户要的是穷尽，不是好看。
-- ❌ "我跑完了 framing A 到 D 觉得够了" — §3.A–§3.L 全部必跑（除非显式 `--min-frameworks` 调低到 5 + 报告里说明）。
+- ❌ "我跑完了 framing A 到 D 觉得够了" — §3.A–§3.L 全部必跑（`--min-frameworks` 下限即 12）。
+- ❌ **"这条分支留作 future work"** / **"因时间限制暂不展开"** / **"因算力限制 defer 到将来"** / **"细节暂略"** / **"TODO: 进一步推导"** — 全部违反§0.8 完整推进禁令。节点必须完整推进或显式标 `INCOMPLETE_FORBIDDEN` 触发再循环。
+- ❌ "探索成本太高，提前停止" — §0.7 已移除时间 / 节点数硬 cap；只有§6 收敛或用户**显式** width/depth/rounds cap 触顶才能停，且停时所有叶必须完整。
+- ❌ "用户说 problem-solving，我就跳过§3 的某些 framing" — 不允许。研究 mode 与问题求解 mode 都跑全部 12 条 framing；问题求解 mode 只是 baseline 不同。
 
 ---
 

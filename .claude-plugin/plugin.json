@@ -1,7 +1,7 @@
 {
   "name": "sci-paper",
-  "version": "0.4.0",
-  "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Includes anti-AI-ism enforcement, sourced-citation review, a corpus-driven style profile distilled from top journals + curated mentor papers, and a fully-automated radial research-direction brainstorm explorer with 12 framings and cc-enslaver source enforcement.",
+  "version": "0.10.0",
+  "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). v0.10 adds the `final-review` skill — a 5-skill orchestrator that calls paper / paper-review / figure-review / mainline / paper-attack-tree in isolated worktree sub-agents per round and loops until the paper reaches stable convergence (consecutive N rounds with 0 issues across all 5 skills, default N=2). Also extends paper-review with two new dimensions: P (internal development/draft language sweep: placeholders / draft colloquialisms / experiment-log style / internal project codenames / placeholder variable names — replaced with general academic language) and Q (reference completeness + citation precision: missing-key-reference detection + WebFetch verification that each \\cite{} actually supports the citing sentence's claim — CORRECT/WEAK/MISUSED/UNVERIFIABLE judgment). v0.9 (paper-attack-tree), v0.8 (mainline), v0.7 (paper-review N+O), v0.6 (paper-review v3 with K+L+M + isolated MPR), v0.5 (brainstorm) carry over.",
   "author": {
     "name": "skymanbp",
     "email": "skyman.bp@gmail.com"

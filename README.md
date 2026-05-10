@@ -79,7 +79,10 @@ field exists, all tools and skills auto-detect it; with multiple, pass
 │   ├── paper-review/SKILL.md
 │   ├── figure-review/SKILL.md
 │   ├── paper-style/SKILL.md      # --field aware
-│   └── brainstorm/SKILL.md       # NEW v0.4; radial idea exploration
+│   ├── brainstorm/SKILL.md       # v0.5; radial idea/problem tree with width × depth
+│   ├── mainline/SKILL.md         # v0.8; structural spine reinforcer + cold-read sub-agent
+│   ├── paper-attack-tree/SKILL.md # v0.9; brainstorm methodology applied to paper critique
+│   └── final-review/SKILL.md     # v0.10; 5-skill orchestrator with per-skill isolation + stable-convergence loop
 ├── style-corpus/                  # user-populated; gitignored content
 │   └── wgl/                       # current default field
 │       ├── tier-1-top/            # top-journal exemplars
@@ -148,17 +151,68 @@ multiple fields are present.
 
 ## Status
 
-**v0.4 — full pipeline + brainstorm.**
+**v0.10 — new `final-review` orchestrator (5-skill loop with per-skill isolated worktree sub-agents, stable-convergence required); paper-review extended with dimensions P (internal/draft language) and Q (reference precision via WebFetch).**
 
-- **Skills (5):** `paper` (writing standards + tier-graded anti-AI-isms with
+- **Skills (8):** `paper` (writing standards + tier-graded anti-AI-isms with
   corpus-empirical frequency caps), `paper-review` (forced-source-traceable
-  review with `--summary` density verdict), `figure-review` (150-DPI render),
-  `paper-style` (dossier + exemplar retrieval + Tier-table policy pairing),
-  **`brainstorm`** (radial 12-framing idea-tree exploration with
-  per-branch rigorous derivation + cc-enslaver source enforcement; default
-  `--rounds conv` runs until convergence judged by 6 hard criteria).
-  First four ported from WGL with `[WGL]` markers; remove or replace those
-  anchors when generalizing to other fields.
+  review across A–O dimensions, see v0.7 entry below), `figure-review` (150-DPI
+  render), `paper-style` (dossier + exemplar retrieval + Tier-table policy
+  pairing), `brainstorm` (radial 12-framing idea/problem tree with
+  phylogenetic-tree width × depth model and no-defer enforcement, v0.5),
+  **`mainline`** v1 (structural narrative-spine reinforcer; mandatory
+  full-read with no grep-only / no memory / no guessing; audits along
+  7 positive dimensions — spine sharpening / language compression /
+  narrative architecture / isolated readability / derivation completeness /
+  logical soundness / chaining — and 8 negative dimensions — vague
+  definitions / scattered spine / volume-over-precision / disconnected
+  sections / unclear structure / missing academic narrative / context
+  drift / low-information adjectives; explicit brainstorm-divergence
+  consolidation pass; forbids transitional-phrase suturing of logical
+  jumps; mandatory isolated-context cold-read 7-question readability
+  check by an `isolation: worktree` sub-agent; zero-issue convergence
+  hard loop), **`paper-attack-tree`** v0.9 (brainstorm's radial
+  phylogenetic-tree methodology applied to paper critique: each node
+  is one critique attacked via 12 framing passes — first-principles /
+  inversion / cross-disciplinary reviewer / adversarial red-team /
+  constraint variation / scale extrapolation / substitution /
+  office-hours / contrarian / failure-driven / high-risk-fatal / meta;
+  every leaf resolved to CONFIRMED with file:line + proposed_fix /
+  REFUTED with file:line of paper's defense / MARGINAL for author
+  judgment; hard ban on NEEDS-MORE-INFO defer; complements paper-review
+  by covering open-ended adversarial angles a static checklist misses).
+  Complements `paper-review` at multiple layers: `paper-review` covers
+  per-claim correctness (predefined checklist), `mainline` covers
+  structural spine, `paper-attack-tree` covers open-ended divergent
+  critique), **`final-review`** v0.10 (5-skill orchestrator for pre-submission
+  final pass: runs paper / paper-review / figure-review / mainline /
+  paper-attack-tree each in its own `isolation: worktree` sub-agent
+  every round, merges all issues, applies fixes, and loops until
+  consecutive N rounds — default 2 — show 0 issues across all 5 skills;
+  ITER_BUDGET 10 rounds by default with `BREAK_WITH_USER_DECISION` on
+  cap hit; no silent skipping or premature completion allowed).
+  First four skills ported from WGL with `[WGL]` markers;
+  remove or replace those anchors when generalizing to other fields.
+
+- **paper-review v3.2 (v0.10 update):** forced-source-traceable
+  review across **A–Q** dimensions — A–J (math / physics / logic /
+  language / AI-isms / structure / citations / data / interfaces /
+  redundancy / reproducibility), K (host-level `modern-physics-review`
+  M1–M9 merged in-process), L (systemic inconsistency / cross-section
+  context discontinuity), M (mathematical / physical adversarial
+  3-pass), N (deep stale/wrong/redundant/drift sweep across 6 content
+  types + residual-markup grep), O (process-artifact removal with
+  update-not-accumulate hard constraint), **P (internal development /
+  research / draft language sweep — 4-class grep for placeholders /
+  draft colloquialisms / experiment-log style / internal codenames,
+  replaced with general academic language)**, **Q (reference
+  completeness + citation precision — missing-key-reference detection
+  via WebSearch + per-`\cite{}` WebFetch verification that the cited
+  paper actually supports the citing sentence, with
+  CORRECT/WEAK/MISUSED/UNVERIFIABLE judgment)**; zero-issue convergence
+  hard loop with new P=0 / Q-MISUSED=0 / Q-missing-key-ref=0 /
+  Q-UNVERIFIABLE=0 added to the criteria table; mandatory
+  isolated-context `modern-physics-review` final verification via
+  `isolation: worktree` sub-agent.
 - **Tools (6):** `extract_style.py` (.tex + .pdf via pymupdf blocks),
   `retrieve_exemplars.py` (sentence-transformers cosine + `.npy` cache +
   keyword fallback), `ai_ism_lint.py` (tier-graded regex + `--ai-classifier`
