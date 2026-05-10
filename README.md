@@ -224,3 +224,11 @@ multiple fields are present.
 
 See [tools/README.md](tools/README.md) for the per-tool roadmap and
 [EVALUATION.md](EVALUATION.md) for the design rationale.
+
+## License
+
+[MIT](LICENSE) — covers the code, skills, documentation, and tooling
+authored in this repository. The `style-corpus/` directory is user-populated
+and git-ignored (`.gitignore` blanket-denies `style-corpus/**/tier-*/**`),
+so no third-party papers or copyrighted materials are bundled or
+distributed with this plugin.
