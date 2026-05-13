@@ -1,6 +1,6 @@
 ---
 name: figure-review
-description: Review paper figures at print-realistic DPI for readability, consistency, and journal standards. Renders every page of the compiled PDF at 150 DPI (simulating a reader viewing at 100% zoom on a standard monitor) and checks each figure systematically.
+description: Review paper figures at print-realistic DPI for readability, consistency, and journal standards. Renders every page of the compiled PDF at 150 DPI (simulating a reader viewing at 100% zoom on a standard monitor) and checks each figure systematically. Use when 用户说 "查图" / "figure-review" / "图能不能读" / "图够不够清楚" / "导出的 PDF 图字号太小" / 投稿前图表 audit / 用 `\includegraphics` 的 paper.tex 编完后 final 检查。
 ---
 
 > **v0 — ported verbatim from `weak-gravitational-lensing/.claude/skills/figure-review.md`.**

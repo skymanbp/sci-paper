@@ -1,8 +1,8 @@
 ---
 name: paper-review
-description: 严格审查论文。强制溯源、禁止猜测/记忆/关键词检索；按 /paper 标准 + A–J 全维度 + 新增 K（现代物理学审查 M1–M9 内嵌）+ L（系统性不一致 / 上下文断层）+ M（数学物理怀疑式反复 3-pass）逐项审查；硬性零问题收敛闭环；收敛后强制以隔离上下文（Agent worktree）调用 user-level modern-physics-review 做独立二次终验，发现新问题回灌重启。
+description: 严格审查论文。强制溯源、禁止猜测/记忆/关键词检索；按 /paper 标准 + A–R 全维度（A 数学 / B 物理 / C 逻辑 / D 语言+AI-isms / E 结构 / F 引用 / G 数据 / H 接口 / I 冗余 / J 可复现 / K 现代物理学 M1–M9 内嵌 / L 系统性不一致 / M 数学推导怀疑式 3-pass / N 漂移 sweep / O 过程残影 / P 内部草稿语言 / Q 引用精确度 / R 术语 glossary 对齐）逐项审查；硬性零问题收敛闭环；收敛后以隔离上下文（Agent worktree）调用 user-level modern-physics-review 做独立二次终验（被 final-review 嵌套调用时传 `--no-isolated-mpr`，由父级 orchestrator 在主代理层统一跑 MPR）。Use when 用户说 "审论文" / "paper-review" / "review this paper" / "我的 .tex 写完了帮我查" / 投稿前最终自审 / 提交前 audit。
 disable-model-invocation: false
-argument-hint: "<file_path> [--max-iter N] [--no-fix] [--skip-final-mpr] [--field <name>] — 指定论文文件 (.tex/.md)，可选最大迭代轮数 / 只审不改 / 跳过最终 modern-physics-review 隔离终验 / 显式 field"
+argument-hint: "<file_path> [--max-iter N] [--no-fix] [--skip-final-mpr] [--no-isolated-mpr] [--field <name>] — 指定论文文件 (.tex/.md)，可选最大迭代轮数 / 只审不改 / 用户主动跳过最终 modern-physics-review 隔离终验 / **被编排器嵌套调用时跳过 §4.4** (典型由 final-review 传入；规避 Claude Code Agent isolation=worktree 不支持嵌套 sub-agent 的限制；MPR 由父级 orchestrator 在主代理层统一跑) / 显式 field"
 ---
 
 > **v3 — integrates host-level `modern-physics-review` (M1–M9) into in-process review
@@ -668,6 +668,49 @@ grep -nE -i '(we tried|we played with|we messed with|we experimented with|we fid
 
 ---
 
+### R. 术语一致性（**借鉴 mattpocock-skills:grill-with-docs；对照项目 glossary 锁名**）
+
+> 物理论文里同一概念用多个名字（substructure / subhalo / secondary peak / mass concentration）= 主线漂移。
+> 这条维度强制把每个关键物理量的命名 vs 项目 glossary 对齐，剔除别名漂移与多义滥用。
+
+#### R1. 识别 glossary 来源
+
+按下面优先级 Read 第一个存在的：
+- `wgl-suite/FACTS.md` + `wgl-suite/KEY_NUMBERS.md`（WGL 项目的 single source of truth）
+- 项目根的 `CLAUDE.md`
+- `style-profile/<field>/style_dossier.md` 中含 glossary 表的段落
+- 论文自己的"Definitions / Notation"节（兜底；若用作 glossary 则该节本身**不参与本维度检查**，否则循环）
+
+若全部找不到 → 标 `[NEEDS_GLOSSARY]`；只跑 R2 的"自洽"检查，跳 R3 的"对齐"检查；并在 §4.3 报告里建议作者把 glossary 落到 FACTS.md。
+
+#### R2. 自洽性 sweep（不依赖 glossary）
+
+不论是否找到 glossary 都做：
+- 抽取论文里所有大写专有名（多字母缩写） + 频次 ≥3 的关键 noun-phrase（≥2 个单词；用 grep + 词频）。
+- 对每个 term，全文 Read 出**第一次出现**位置 → 该位置是否有定义？无定义 → 🟡。
+- 对每个 term，找**任意两次出现**是否在不同意义下用？若是 → 🔴（多义滥用）。
+- 例：`peak`、`secondary peak`、`substructure`、`subhalo`、`SNR_resolved`、`mass concentration` —— 这几个 noun 在 ACSDM / DBA 论文里常混用，必查。
+
+#### R3. 对齐 glossary（仅当 R1 找到 glossary）
+
+- 论文中每个关键 noun → grep glossary 表：
+  - **EXACT MATCH** → ✓
+  - **ALIAS MATCH**（论文用别名，glossary 有 canonical 名）→ 🟡，建议改为 canonical 名并加 `(aka: "<别名>")` 在首次出现处
+  - **CONFLICT**（论文用法跟 glossary 定义矛盾）→ 🔴，立即停下报作者裁决：是改论文用法 vs glossary 定义，还是改 glossary 收新定义
+  - **MISSING**（glossary 没收，但论文反复用）→ 🟡，建议把定义加进 glossary（不是论文）
+
+#### R4. 物理量符号与 LaTeX 命令对齐
+
+- 每个 LaTeX symbol（如 `\kappa`、`r_{200}`）必须在某处定义；定义跟 glossary 不冲突；前后形式一致（`r_{200}` vs `r_{\mathrm{200}}` vs `r_{200c}` 等不混用）。
+- `\kappa` 在 WGL 是 convergence；在他处可能是 curvature——若论文跨语境 → 必标 `\kappa_{\mathrm{conv}}` 或 `\kappa_{\mathrm{curv}}` 区分。
+
+#### R5. 修复后强制重验
+
+- 任何 R 维度 🔴 / 🟡 修 完后重跑 R2 + R3（不接受 grep 抽样）。
+- 与 §2.D（语言审查）合并：D 管句法 / AI-isms / 风格，R 管 noun-level 锁名——两层在 §4.3 独立计数。
+
+---
+
 ## 3. 第三阶段：交叉验证
 
 每个论文 vs 代码 / 数据要做 4 个对位：
@@ -791,17 +834,25 @@ for iter in 1..∞:
 - ❌ "已经修了大部分，剩余作为 future work"
 - ❌ "用户没时间，提前结束"
 
-### 4.4 隔离上下文 modern-physics-review 终验（**强制，除非 `--skip-final-mpr`**）
+### 4.4 隔离上下文 modern-physics-review 终验（**强制，除非 `--skip-final-mpr` 或 `--no-isolated-mpr`**）
 
 > 用户原话："**最终执行隔离上下文的 modern-physics-review 技能。**"
 > 这一步的意义：本进程的 §2.K 已合并了 M1–M9 的检查项，但**同一进程的审查会带框架偏见**（用同一套上下文找不出自己的盲区）。所以即使 §4.3 已"零问题收敛"，仍必须用**完全独立的子代理在隔离上下文**中再跑一次 modern-physics-review，作为第三方双重验证。
 
 #### 4.4.1 触发条件
 
+**正常单跑路径**：
 - §4.3 已达成进程内零问题收敛（所有硬判据通过）；
-- 用户未传 `--skip-final-mpr`（默认未传）。
+- 用户未传 `--skip-final-mpr`（默认未传）；
+- 调用方未传 `--no-isolated-mpr`（默认未传）。
 
 若 §4.3 未收敛 → **不允许**进入 §4.4（避免把半成品送进独立审）。
+
+**嵌套调用 SKIP 路径（编排器场景）**：
+- 若调用方传 `--no-isolated-mpr` → 跳过本节 §4.4.2 / §4.4.3 / §4.4.4 全部子代理调用，直接进 §4.5；§4.5 报告里 `Isolated MPR status` 行写 `SKIPPED_FOR_ORCHESTRATOR (parent will run it independently at orchestrator level)`。
+- 触发场景：`/sci-paper:final-review` 把 `paper-review` 装进 isolated worktree 调用——Claude Code Agent isolation=worktree **不支持** sub-agent 内再启 sub-agent；所以 `final-review` 主代理负责在自己进程内 isolated 调一次 MPR 作为父级 orchestrator 统一终验。
+- **绝对不允许**：在嵌套上下文中无视 `--no-isolated-mpr` 强行启 Agent → 触发 Claude Code 嵌套限制 → 子代理直接报错 → 整个 final-review 这一轮判 SUBAGENT_FAILURE。
+- **绝对不允许**：把 `--no-isolated-mpr` 当作普通的"跳过 MPR"借口；它只在嵌套场景下合法。**用户单跑** `/sci-paper:paper-review` 不允许传此 flag（传了也按 `--skip-final-mpr` 弱收敛对待并显式警告）。
 
 #### 4.4.2 子代理调用规范
 
@@ -834,15 +885,16 @@ for iter in 1..∞:
 - 这样的"§4.3 ↔ §4.4 往返"上限为 `--max-iter` 的 2 倍（默认 10）
 - 若仍不收敛 → 报告 `NOT CONVERGED (process+isolated)`，列全部残留项；不允许声称完成
 
-### 4.5 最终终态报告（仅当 §4.3 + §4.4 双双通过）
+### 4.5 最终终态报告（仅当 §4.3 通过 + §4.4 通过或被编排器接管）
 
 ```markdown
 # Paper Review v3 — Final Convergence Report
 
 **Target**: <file_path> (N pages)
 **Process-internal iters**: K
-**Isolated MPR re-verifications**: J
-**Final state**: ✅ 0 🔴 / 0 🟡 / 0 LaTeX errors / 0 AI-isms / all M-pass VERIFIED / 0 N (stale/drift) hits / 0 O (process artifact) hits / 0 P (internal/draft language) hits / 0 Q MISUSED + 0 missing-key-ref + 0 UNVERIFIABLE / isolated MPR CONVERGED
+**Isolated MPR re-verifications**: J  (若 SKIPPED_* 则记 0)
+**Isolated MPR status**: <CONVERGED | SKIPPED_FOR_ORCHESTRATOR | SKIPPED_BY_USER>
+**Final state**: ✅ 0 🔴 / 0 🟡 / 0 LaTeX errors / 0 AI-isms / all M-pass VERIFIED / 0 N (stale/drift) hits / 0 O (process artifact) hits / 0 P (internal/draft language) hits / 0 Q MISUSED + 0 missing-key-ref + 0 UNVERIFIABLE / isolated MPR <CONVERGED | SKIPPED_FOR_ORCHESTRATOR>（`SKIPPED_BY_USER` 视为弱收敛——只能由用户显式接受，不允许 paper-review 自行宣告强收敛）
 
 ## A–Q dimension summary
 [每维度一行：PASS + 关键证据]

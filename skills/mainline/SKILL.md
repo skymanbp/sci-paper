@@ -1,6 +1,6 @@
 ---
 name: mainline
-description: 主线增强 / 叙事脊柱锐化器。完整阅读全文（禁止 grep-only / 记忆 / 猜测），从 7 个正向维度（主线锐化 / 语言精简 / 叙事结构 / 隔离可读性 / 推导完整 / 逻辑合理 / 主线串联）和 8 个反向维度（定义模糊 / 主线分散 / 多而不精 / 章节无关联 / 结构不清 / 缺学术叙事 / 上下文不统一 / 低信息量形容语句）双向审查并自动修复；专门处理 brainstorm 发散后的观点收敛与叙事整合；强制隔离上下文 cold-read 可读性二审；零问题收敛硬闭环。与 paper-review 互补（paper-review 管 per-claim 正确性，本 skill 管结构层 spine）。
+description: 主线增强 / 叙事脊柱锐化器。完整阅读全文（禁止 grep-only / 记忆 / 猜测），从 7 个正向维度（主线锐化 / 语言精简 / 叙事结构 / 隔离可读性 / 推导完整 / 逻辑合理 / 主线串联）和 8 个反向维度（定义模糊 / 主线分散 / 多而不精 / 章节无关联 / 结构不清 / 缺学术叙事 / 上下文不统一 / 低信息量形容语句）双向审查并自动修复；专门处理 brainstorm 发散后的观点收敛与叙事整合；强制隔离上下文 cold-read 可读性二审；零问题收敛硬闭环。与 paper-review 互补（paper-review 管 per-claim 正确性，本 skill 管结构层 spine）。Use when 用户说 "主线不清" / "叙事乱" / "结构层审查" / "mainline" / "整合 brainstorm 输出" / "章节衔接有问题" / "story 不顺" / 想做 spine-level 审查（per-claim 已经 paper-review 过）。
 disable-model-invocation: false
 argument-hint: "<file_path> [--max-iter N] [--no-fix] [--skip-isolated-readability] [--from-brainstorm <shortlist>] [--field <name>] — 指定论文 (.tex/.md)，可选迭代上限 / 只审不改 / 跳过隔离可读性二审 / 显式引用 brainstorm shortlist / 显式 field"
 ---

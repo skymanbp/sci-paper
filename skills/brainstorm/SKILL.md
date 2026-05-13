@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: 全自动辐射状探索器。可用于发散式寻找研究 ideas，也可用于穷尽地寻找解决某个切实难题的途径。以"系统发生树（phylogenetic tree）"为数据模型：root = 起点（topic / 问题 / 当前研究状态）；node = 一个想法；depth = 发散层数（向外扩张的环数）；width = 最终结果数（最外圈弧上的叶节点数）。每一节点用多种视角（first-principles / 反演 / 跨学科迁移 / 对抗 / 约束变换 / 尺度外推 / office-hours 强迫问题 / contrarian / 失效驱动 / high-risk / 元层 等）穷尽 brainstorm，对每个分支进行完整严谨推导（数学/物理/逻辑/文献核对/可行性/可证伪性），递归发散直至每一最深叶节点都被完整推进。默认 width / depth / rounds **全部不限**，由收敛判据终止。**严禁** "defer / 因成本限制 / 因时间限制 / future work / TODO" 等推脱式不完整结果。强制 cc-enslaver 七规则全程证据可追溯。
+description: 全自动辐射状探索器。可用于发散式寻找研究 ideas，也可用于穷尽地寻找解决某个切实难题的途径。以"系统发生树（phylogenetic tree）"为数据模型：root = 起点（topic / 问题 / 当前研究状态）；node = 一个想法；depth = 发散层数；width = 最终结果数。每一节点用多种视角（first-principles / 反演 / 跨学科迁移 / 对抗 / 约束变换 / 尺度外推 / office-hours / contrarian / 失效驱动 / high-risk / 元层 等）穷尽 brainstorm，每个分支完整严谨推导（数学/物理/逻辑/文献核对/可行性/可证伪性），递归发散直至每一最深叶节点完整推进。启动时强制 §2.0 glossary grill 预热（与 mattpocock-skills:grill-with-docs 同源），把 root 节点术语锁到项目 FACTS.md。默认 width / depth / rounds **全部不限**，由收敛判据终止。**严禁** "defer / 因成本限制 / future work / TODO" 等推脱式不完整结果。强制 cc-enslaver 七规则全程证据可追溯。Use when 用户说 "brainstorm" / "发散思考" / "找研究方向" / "怎么解决这个难题" / "explore options" / 想穷尽某个研究问题的解法 / 论文 motivation 阶段需要 radial 探索。
 disable-model-invocation: false
 argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max-branches N|∞] [--field <name>] [--out <dir>] [--seed <text>] [--no-online] — 不传 topic 则自动从当前项目状态推断"
 ---
@@ -91,6 +91,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 | `--no-online` | 关 | 关闭 WebSearch / WebFetch；只用本地 + 已读引用 |
 | `--min-frameworks N` | 12 | 每节点至少跑过的 framing pass 数（§3）；下限即 §3.A–§3.L 全 12 条 |
 | `--min-novelty-ratio R` | 0.15 | 收敛要求的"近 2 轮新颖比"下限（详§6） |
+| `--no-grill` | 关 | 跳过 §2.0 glossary grill 预热（弱收敛模式；root 节点术语标 `unverified`） |
 
 > **关于"无上限"**：本 skill 的设计哲学是用§6 收敛判据（substantive convergence）而不是用资源 cap（resource exhaustion）来终止。当用户既不传 `--width / --depth / --rounds` 也不触§6 收敛 → 它会一直跑直到收敛，这是预期行为而非 bug。
 
@@ -103,7 +104,37 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 
 **目的**：让 root 节点不是空中楼阁，而是与"当前真实状态"或"用户给定问题的真实约束"对齐。
 
-**模式判别**（必做，作为§2 的第 0 步）：
+### §2.0 — Glossary grill prelude（**强制；除非传 `--no-grill`**）
+
+> 借鉴 `mattpocock-skills:grill-with-docs` 的"挑战术语 + 锐化模糊语言"模式。
+> brainstorm 的 root 节点用错术语 → 整棵树发散偏方向 → 一千个子节点解决一个不存在的问题。
+> 这一步**先**于 §2.A / §2.B mode 判别——因为术语错了再判 mode 也没用。
+
+**操作**（一次一问、每问给推荐答；用户传 `--no-grill` 才跳过）：
+
+1. **定位 glossary 来源**（按优先级 Read 第一个存在的）：
+   - `wgl-suite/FACTS.md` + `wgl-suite/KEY_NUMBERS.md`（WGL 项目 single source of truth）
+   - 项目根的 `CLAUDE.md`
+   - `style-profile/<field>/style_dossier.md` 中含 glossary 表的段落
+   - 兜底：从最近 git log + .tex / .md draft 抽常见 noun-phrase 自建临时 glossary
+   - 全部找不到 → 标 `[NEEDS_GLOSSARY]`，可继续但 §6 收敛判据加一条警告"未做 glossary grill"
+
+2. **拆解 topic 中的关键 noun**：
+   - 若 topic 是单一抽象词（"WGL 中可探索的新方向"）→ 跳本步直接进 §2.A
+   - 若 topic ≥1 个具体术语（"如何提升 secondary peak detection 的 SNR_resolved"）→ 对每个具体术语做下面 step 3-4
+
+3. **逐 term 对照 glossary**：
+   - **EXACT MATCH** → 默认用 glossary 定义，无须打扰用户，记入 `<out>/glossary-anchors.md`
+   - **ALIAS** → 直接用 canonical 名替换，在 `glossary-anchors.md` 注 `aka: "<别名>"`，无须打扰用户
+   - **MISSING**（glossary 没收）→ 一次性问用户："你说的 X 是不是指 glossary 里的 Y？还是 Z？还是一个 glossary 没收的新概念？" → 给 ≤3 个选项 + 推荐答（按 grill-me 的"一次一问"惯例）
+   - **AMBIGUOUS**（glossary 有 ≥2 条相似条目 A vs B）→ 一次性问 "X 是 A（FACTS.md §3.A）还是 B（FACTS.md §3.B）？" + 推荐答
+   - **CONFLICT**（用户 topic 的用法跟 glossary 已收定义矛盾）→ **立刻停 brainstorm**，等用户裁决：改 brainstorm 用法 vs 改 glossary 收新定义。**不允许**绕过冲突静默继续。
+
+4. **产物**：写 `<out>/glossary-anchors.md`：root 节点用的术语 + 对应 glossary 定义 + file:line 引用。后续每个 framing pass / 每个分支生成时用本文件做术语锁——若新分支引入新 noun，要追加到本文件并 grill 一次。
+
+**跳过 grill 的弱后果**：传 `--no-grill` → root 节点术语状态全标 `unverified` → §6 收敛判据加警告 "未做 glossary grill；不允许声称强收敛"。
+
+**模式判别**（必做，作为§2 的第 0.5 步）：
 - **Mode A — 研究探索（research mode）**：topic 缺省，或显式 topic 是开放式研究方向（如"weak lensing 中可探索的新方向"）。基线 = 当前项目研究状态。走§2.A 流程。
 - **Mode B — 问题解决（problem-solving mode）**：显式 topic 包含具体待解决问题（如"如何解决 X 的 Y 性能瓶颈"、"怎么实现满足约束 C 的 Z"）。基线 = 问题陈述 + 约束 + 已尝试方案 + 已知失败模式。走§2.B 流程。
 - 两模式不互斥：若 topic 同时是研究方向**且**带具体卡点，**两份基线都做**，root 节点写入合成版。
