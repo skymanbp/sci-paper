@@ -27,13 +27,72 @@ The paper should follow a clear three-act structure:
 2. **Method** (Sections 2–4): How does each component work, and why was it designed this way? Physics motivation first, then mathematical formulation, then implementation.
 3. **Validation** (Sections 5–6): What do the results show? How do they compare to existing work? What are the limitations?
 
+### Structural Updates · Forward Narrative / 结构式更新 · 正向叙述
+
+> **每一次写作、修订、纠错都必须把文章重写到"当前真值的最终态"——禁止把"旧态 → 新态"的迁移痕迹留在正文里。**
+> 本节是 `paper-review` §2.O ("update-not-accumulate") 的**写作端对偶**：
+> 审查端默认 *删除* 过程残影；写作端默认 *一开始就不写进去*。
+
+**正向叙述（forward narrative）—— 唯一合法形式**
+
+正文只描述当前科学声明的最终态。读者应看到：
+
+- ✅ "We use method B; the result is X."
+- ✅ "Equation (3) gives Y, which we then evaluate at $z = 0.5$."
+- ✅ "We adopt $H_0 = 67.4\,\mathrm{km\,s^{-1}\,Mpc^{-1}}$."
+
+读者**绝对不该**看到（无论初稿还是修订稿）：
+
+- ❌ "我们一开始尝试了 A，发现 A 不对，所以改用 B"
+- ❌ "We did A, found it gave incorrect results, and therefore switched to B"
+- ❌ "Method A would have suggested X, but in fact ..."（除非这是本文有意做的 baseline 对照，见下"唯一例外"）
+- ❌ "An earlier version of Eq. (5) had a factor-of-2 error; the corrected form is ..."
+- ❌ "Note: the previous draft used $H_0 = 70$; the present analysis uses $H_0 = 67.4$."
+- ❌ "After several iterations we converged on the following architecture."
+
+**Patch（禁）vs Structural（要）—— 修订时的硬区分**
+
+发现错误 / 公式不对 / 数字漂移 / reviewer 指出问题时：
+
+- ❌ **Patch 式修改**：在错误旁注释"原方法 A 错在 …，因此现采用 B"；保留旧公式 + 加 footnote 解释"现已修正"；保留旧数字 + 加括号给"修正后值"；段尾追加"this supersedes our earlier claim that ..."。
+- ✅ **Structural 式修改**：**删掉 A 的所有痕迹**，从段首重写到段尾，让正文呈现为"从一开始就一直是 B"。读者无法从论文本身推断出 A 曾经存在过。
+
+| Patch（禁） | Structural（要） |
+|---|---|
+| "We initially used $H_0 = 70$; later we adopted $H_0 = 67.4$." | "We adopt $H_0 = 67.4$." |
+| "An earlier version of Eq. (5) had a factor-of-2 error; the corrected form is ..." | 只保留 Eq. (5) 的正确形式；下游推导全部 propagate 重写。不提"earlier version"。 |
+| "Method $M_1$ failed due to overfitting; we therefore use $M_2$." | "We use $M_2$." |
+| "After several iterations we converged on the following architecture." | 只描述最终 architecture。 |
+| "上一版图 3 的曲线已更新；新的拟合参数为 ..." | 只展示新图 3 + 新参数。 |
+
+**唯一例外 —— 真正的 baseline 对照**
+
+仅当**全部三条**满足时，可以在正文中保留"方法对照"：
+
+1. 被对照的方法是 **领域内已发表的外部 baseline / prior published method**——**不是作者自己的早期迭代**；
+2. 本文对该对照做了**正式 head-to-head 实验**并给出**数值**；
+3. 呈现方式是 *"contrast with baseline X (Smith+2020) on protocol P → numerical comparison"*，**不是** *"we initially tried X"* 这种第一人称自传式。
+
+判定时若任一条不满足 → 默认按 "Patch（禁）" 处理，重写到只剩当前方法。
+
+**写作时强制自检（每段 / 每次修订执行）**
+
+1. 这段是不是**只**描述了当前最终态？（如果包含过去态，删掉过去态。）
+2. 一个从未参与本研究的读者，看了这段会觉得有别的方案 / 旧版本存在过吗？如果会 → **重写**。
+3. 修订时新增的内容是"重写过的最终态"还是"在旧态上贴的补丁"？是补丁 → **撕掉补丁、重写整段**，不要"补丁 + 解释为什么打补丁"。
+4. 是否出现 *initially / originally / previously / at first / earlier / now / currently / corrected / revised / updated / supersedes* 等过程时间词指向**本文自身研究进程**？任一命中 → **重写**。（指外部科学时间维度的不算，例如 "recent supernova observations" / "previously published catalogs"。）
+
+**与 "Formula Derivation Standards" 中"射箭画靶"的关系**
+
+下节的"No shooting arrow then drawing target / 禁止射箭画靶"是本规则在**公式推导场景的窄特例**（"我想得到 X 结果，所以改了推导步骤"）。本节是更广的写作准则——覆盖正文叙述、方法描述、结果呈现、讨论、结论：**整篇论文的任一段落都适用**。
+
 ### Formula Derivation Standards / 公式推导规范
 
 - **Multi-line derivations**: Use `align`/`gather` environments for complete mathematical derivations, not single-line equations. Show the logical chain: a = b (1), then a = c (2), therefore b = c (3).
 - **Definition completeness**: Every variable, compound term, or logical construct appearing in a formula MUST be either (a) previously defined in the text, or (b) defined/derived immediately near the formula. Never introduce undefined symbols.
 - **No inline formulas for complex expressions**: Any formula longer than ~30 characters must be a displayed equation, not inline text. Short expressions (e.g., `$\kappa \ll 1$`) can remain inline.
 - **Logical flow over format**: Don't force a rigid template. Derivations should flow naturally — define when needed, derive when needed, summarize at the end. The priority is that reasoning is clear and logically connected.
-- **No "shooting arrow then drawing target" / 禁止射箭画靶**: Never write "we wanted X result so we changed to Y approach" or reference historical/deprecated formulas. Present: method → result → conclusion. Do not discuss the iterative path that led to the current approach.
+- **No "shooting arrow then drawing target" / 禁止射箭画靶**: Never write "we wanted X result so we changed to Y approach" or reference historical/deprecated formulas. Present: method → result → conclusion. Do not discuss the iterative path that led to the current approach. *（公式推导场景的窄特例；广义写作准则见上节 "Structural Updates · Forward Narrative"。）*
 - **No outdated content**: Only present current formulas and label definitions. Do not reference deprecated versions in the paper body — at most a brief footnote if essential for context.
 - **Summary block**: After a derivation chain, include a brief summary: "We therefore obtain [final formula], where [key quantities] are [definitions]. This shows [physical conclusion]."
 

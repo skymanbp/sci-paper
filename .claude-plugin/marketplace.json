@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Single-plugin marketplace for the sci-paper scientific writing + review + ideation plugin.",
-    "version": "0.11.0"
+    "version": "0.12.0"
   },
   "plugins": [
     {
       "name": "sci-paper",
       "source": "./",
-      "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). v0.11 fixes the `final-review` nested-sub-agent bug (MPR promoted to main-agent §3.6, paper-review gains `--no-isolated-mpr`), adds R. Glossary dimension to paper-review and §2.0 glossary grill prelude to brainstorm (borrowed from mattpocock-skills:grill-with-docs), and rewrites 6 descriptions with explicit `Use when …` triggers (mattpocock-skills:write-a-skill convention). v0.10 final-review 5-skill orchestrator + paper-review P+Q, v0.9 paper-attack-tree, v0.8 mainline, v0.7 paper-review N+O, v0.6 paper-review v3, v0.5 brainstorm carry over.",
-      "version": "0.11.0",
+      "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). v0.12 adds `/paper` top-level standard \"Structural Updates · Forward Narrative\": every update / correction must rewrite the paper to its current final state; never leave \"tried A, then switched to B\" patch-style residue. Forms the writing-time dual of `paper-review` §2.O (update-not-accumulate). v0.11 fixes the `final-review` nested-sub-agent bug (MPR promoted to main-agent §3.6, paper-review gains `--no-isolated-mpr`), adds R. Glossary dimension to paper-review and §2.0 glossary grill prelude to brainstorm (borrowed from mattpocock-skills:grill-with-docs), and rewrites 6 descriptions with explicit `Use when …` triggers (mattpocock-skills:write-a-skill convention). v0.10 final-review 5-skill orchestrator + paper-review P+Q, v0.9 paper-attack-tree, v0.8 mainline, v0.7 paper-review N+O, v0.6 paper-review v3, v0.5 brainstorm carry over.",
+      "version": "0.12.0",
       "author": {
         "name": "skymanbp",
         "email": "skyman.bp@gmail.com"
