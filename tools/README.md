@@ -11,6 +11,7 @@ Helpers for the `/sci-paper:paper-style` pipeline.
 | `extract_md_negatives.py` | Walk a doc tree (e.g. your project's `.md` notes) and harvest LLM-drafted paragraphs as extra training negatives for `train_ai_ism_classifier.py`. Output: `style-profile/<field>/ai_ism_negatives_extracted.txt` (gitignored — privacy-sensitive). | v0.3 — heuristic AI-ism scoring on regex hits; threshold via `--min-hits`. **Field-aware**. |
 | `ai_ism_lint.py` | Tier-graded anti-AI-ism linter (em-dash, Tier A zero-tolerance, Tier B frequency-capped, stubborn replacements, three-parallel, corpus-derived blacklist, **opt-in classifier `[ai-ish:<score>]`**) with `--summary` aggregate (per-tier counts + Tier B per-section density). | v0.3 — Tier A/B split synced with `/paper` SKILL; corpus blacklist auto-derived from `lexicon.json`; opt-in `--ai-classifier` runs the trained model on each paragraph and tags those above `--ai-threshold` (default 0.7). **Field-aware**: falls back to hand-rules-only when no field profile is available. |
 | `ai_ism_negatives_handcrafted.txt` | Seed negative samples shipped with the plugin (~20 paragraphs). Extend by hand or by running `extract_md_negatives.py`. | Static data file — edit freely. |
+| `validate_plugin.py` | Repo-shape sanity checks: manifests parse + versions match, every `skills/<name>/SKILL.md` has YAML frontmatter with matching `name`, and every `tools/*.py` parses as valid Python. Run before commit; also runs in CI. | Stable. No deps beyond stdlib. |
 
 ## Dependencies
 

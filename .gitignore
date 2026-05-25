@@ -30,6 +30,11 @@ __pycache__/
 .venv/
 .pytest_cache/
 
+# Personal / machine-specific Claude Code project memory.
+# CLAUDE.md is shared (working principles); CLAUDE.local.md is for paths,
+# virtualenvs, machine quirks — never commit it.
+CLAUDE.local.md
+
 # OS / editor
 .DS_Store
 Thumbs.db

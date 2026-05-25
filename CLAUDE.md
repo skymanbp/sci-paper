@@ -40,21 +40,32 @@ fine-tuning, see EVALUATION.md).
 
 ## Cross-project references
 
-- Source project: `D:/Projects/weak-gravitational-lensing/`
-  - Existing skills at `.claude/skills/{paper,paper-review,figure-review}`
-  - These are the v0 inputs to this plugin.
-- The user's writing-quality memory and global rules: `C:/Users/skyma/.claude/CLAUDE.md`
-  (in particular: "**Paper writing: never quote from memory.** Every number,
-  date, coefficient, figure caption, and citation in a manuscript edit must
-  be re-read from its source in the same turn it's pasted.")
+- **Source project:** the sibling `weak-gravitational-lensing` project
+  (sci-paper was extracted from its `.claude/skills/{paper, paper-review,
+  figure-review}`). Those existing skills are the v0 inputs to this plugin.
+  Record your local clone path in `CLAUDE.local.md` (gitignored) if you
+  want an absolute reference handy.
+- **User's global writing-quality memory** lives in the user-level
+  `~/.claude/CLAUDE.md` (Linux/macOS) or `%USERPROFILE%\.claude\CLAUDE.md`
+  (Windows). The rule that matters here, verbatim:
+  > **Paper writing: never quote from memory.** Every number, date,
+  > coefficient, figure caption, and citation in a manuscript edit must
+  > be re-read from its source in the same turn it's pasted.
 
 ## Toolchain
 
-Python: `C:/Users/skyma/AppData/Local/Programs/Python/Python313/python.exe`
-(also on PATH).
+Python ≥ 3.11 on PATH (developed against 3.13; nothing in `tools/` uses
+3.12-only syntax).
 
-Required for full feature build (not yet pinned in `requirements.txt`):
+Required for the full feature build (pinned in `requirements.txt`):
 - `pymupdf` — PDF text extraction
 - `sentence-transformers` — exemplar retrieval embeddings
 - `scikit-learn` — optional sentence classifier
 - `regex` (the third-party one, not stdlib `re`) — Unicode-aware sentence segmentation
+
+## Personal / machine-specific notes
+
+Put paths, virtualenv locations, or anything else that shouldn't go to
+the public repo in `CLAUDE.local.md` next to this file. That filename
+is gitignored on purpose — Claude Code reads both, but only this file
+is shared.
