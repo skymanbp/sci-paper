@@ -4,8 +4,8 @@
 #   - tools/ai_ism_lint.py (regex rules + corpus blacklist)
 #   - tools/extract_style.py on .tex/.txt corpora (no PDF, no exemplar ML)
 #
-# Below are the deps for the full v0.3 pipeline. Each is gracefully
-# degraded if missing — see tools/README.md for the fallback behaviour.
+# Below are the deps for the full pipeline. Each is gracefully degraded
+# if missing — see tools/README.md for the fallback behaviour.
 
 numpy>=1.20                  # used everywhere; sentence-transformers / sklearn dep
 pymupdf>=1.20                # PDF corpus parsing in extract_style.py
