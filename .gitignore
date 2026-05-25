@@ -35,6 +35,10 @@ __pycache__/
 # virtualenvs, machine quirks — never commit it.
 CLAUDE.local.md
 
+# cc-memory plugin local state (per-machine sqlite + private conversation
+# notes + topic/session indexes). Regenerable; never commit.
+memory/
+
 # OS / editor
 .DS_Store
 Thumbs.db

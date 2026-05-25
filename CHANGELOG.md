@@ -3,6 +3,43 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.12.1 — 2026-05-25
+
+Structural cleanup release; **no skill behavior changes**.
+
+- **`CHANGELOG.md`** extracted: per-version history pulled out of the
+  `plugin.json` / `marketplace.json` `description` fields (which had
+  bloated to ~1.4 KB of inline changelog text); both manifests now carry
+  a one-line description pointing here.
+- **`README.md`** drift fixes: skills table now lists all 8 skills (was 5;
+  `mainline` / `paper-attack-tree` / `final-review` were only mentioned in
+  prose); new Tools (7) table replaces hand-counted "Tools (6)" (was missing
+  `build_profile.py` + `extract_md_negatives.py` + the negatives data file);
+  hard-coded `D:/Projects/sci-paper` paths replaced with
+  `<path-to-this-repo>` placeholders.
+- **`CLAUDE.md`** sanitization: dropped three personal Windows absolute
+  paths (`D:/Projects/weak-gravitational-lensing/`, two
+  `C:/Users/skyma/...`) in favour of portable descriptions; documented
+  the new `CLAUDE.local.md` convention.
+- **`CLAUDE.local.md`** added to `.gitignore` (per-machine paths / virtualenvs
+  go there; Claude Code reads both, only `CLAUDE.md` is shared).
+- **`memory/`** added to `.gitignore`: cc-memory plugin local sqlite +
+  private conversation notes. Regenerable; never commit.
+- **`style-profile/README.md`** added: documents the generated-artifact
+  layout, why per-field subdirs appear empty in git, how to rebuild,
+  and the privacy / copyright reason exemplar JSONL is gitignored.
+- **`tools/README.md`** table extended from 4 to 7 rows so it matches
+  what actually lives in `tools/`; new entry for `validate_plugin.py`.
+- **NEW `tools/validate_plugin.py`**: repo-shape sanity checks
+  (manifests parse + versions match, every `skills/<name>/SKILL.md` has
+  YAML frontmatter with matching `name`, every `tools/*.py` parses).
+  stdlib-only; runs in ~50 ms.
+- **NEW `.github/workflows/ci.yml`**: invokes the validator on push to
+  main and on every PR so the README drift / mismatched-version class
+  of bug can't silently reappear.
+- **`requirements.txt`**: drop "v0.3 pipeline" anchor so the comment
+  doesn't need bumping each release.
+
 ## v0.12.0 — 2026-05
 
 - **`paper`** adds top-level writing standard
