@@ -3,6 +3,29 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## Unreleased — hard-set evaluation correction
+
+Corrects a statistically wrong claim in the v0.14.0 evaluation record and reframes the
+author hard set around true provenance instead of perception.
+
+- **Provenance is the hard-set yardstick, not perception.** `hardset_evaluation` now
+  reads `deai_hardset_key.csv` and reports, as the primary metric, the model's AUC for
+  separating true generated-vs-human paragraphs (0.937, bootstrap CI 0.860–0.990). The
+  author's perceptual `ai_feel` rating is demoted to a task-difficulty baseline: it
+  separates the same true provenance only at chance (AUC 0.444, CI 0.304–0.582), showing
+  that single decontextualized paragraphs carry too little signal for reliable human
+  AI-judgement.
+- **Withdrawn claim.** v0.14.0's EVALUATION.md called an AUC of 0.354 (model vs
+  `ai_feel≥4`) "decisive" proof that the model measures field register, not AI-ness. That
+  metric scored the model against the near-chance perceptual axis and, with only 8
+  strong-feel labels, has a bootstrap interval of 0.141–0.588 that straddles 0.5. It is
+  not distinguishable from random and is retained only as a low-power secondary line.
+- **Every hard-set AUC now carries a seeded bootstrap 95% interval** (`_bootstrap_auc_ci`)
+  so small strata cannot be over-read again.
+- L3 remains `degraded`, now on the well-powered field-topic negative-control
+  false-positive rates (§7.4) and the absence of a document-level calibration set, not on
+  the withdrawn perceptual metric.
+
 ## v0.14.0 — 2026-07-12
 
 **Unified scientific-writing feedback contract.** This release supersedes the
@@ -84,11 +107,13 @@ policy or authorship detectors.
   positives grown 3,197 → 13,642) and audited with the new pipeline. Repeated
   source-grouped AUC 0.932 and matched-stratum AUC 0.924 show the separation is not a
   pure topic/length/math artifact, but 32–41% false-positive rates on field-topic and
-  field-jargon-dense AI text, plus an author-hard-set AUC of 0.354 (below random),
-  show the score tracks field register rather than AI-ness. L3 therefore ships
-  `degraded` with no operating point; the full result is in `EVALUATION.md` §7 and the
-  machine-readable `voice_model_evaluation.json`. The 75-paragraph author hard set is
-  now fully labelled and is the reference any future calibration must beat.
+  field-jargon-dense AI text keep L3 `degraded` with no operating point. The full result
+  is in `EVALUATION.md` §7 and the machine-readable `voice_model_evaluation.json`. The
+  75-paragraph author hard set is now fully labelled. **[Correction — see Unreleased
+  above:** this entry originally cited an author-hard-set AUC of 0.354 as decisive proof
+  the model measures field register, not AI-ness; that metric was underpowered
+  (n_pos=8, CI 0.141–0.588) and scored against a near-chance perceptual axis. Against
+  true provenance the model separates AI-vs-human at AUC 0.937.**]**
 
 Published after fresh validator/tests, the 16-finding independent review and fixes, the
 confound-aware learned-model status above, EVALUATION.md update, and clean-checkout

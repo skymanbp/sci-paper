@@ -358,60 +358,164 @@ def split_corpus_cos(X, emb, recs: list[dict], train_indices):
                         "n_centroid_rows": len(rows)}
 
 
-def hardset_evaluation(field_dir: Path, bundle: dict, model_name: str) -> dict:
-    """Score the author-labelled hard set against the shipped model.
+HARDSET_AI_CATEGORIES = frozenset({"clear-AI-raid", "clear-AI-claude"})
+HARDSET_HUMAN_CATEGORIES = frozenset({"your-draft", "human-paper"})
 
-    This is the only stratum whose negatives can be human manuscript prose
-    judged by the author, so it is the calibration path the generated-negative
-    audits structurally cannot provide. Unlabelled rows are reported as
-    unlabelled; they are never counted as zero findings.
+
+def _bootstrap_auc_ci(y_values: list[int], scores: list[float], *,
+                      n_boot: int = 2000, seed: int = 12345) -> dict | None:
+    """Seeded percentile bootstrap CI for an AUC (reproducible, no live RNG).
+
+    Small author-labelled strata have wide sampling error; a point AUC without
+    an interval invites the exact over-reading this hard set previously caused.
+    """
+    point = _auc(y_values, scores)
+    if point is None:
+        return None
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    n = len(y_values)
+    draws: list[float] = []
+    for _ in range(n_boot):
+        idx = rng.integers(0, n, size=n)
+        value = _auc([y_values[i] for i in idx], [scores[i] for i in idx])
+        if value is not None:
+            draws.append(value)
+    draws.sort()
+    return {
+        "auc": point,
+        "ci95_low": _quantile(draws, 0.025) if draws else None,
+        "ci95_high": _quantile(draws, 0.975) if draws else None,
+        "n_bootstrap": len(draws),
+    }
+
+
+def hardset_evaluation(field_dir: Path, bundle: dict, model_name: str) -> dict:
+    """Score the difficult hard set against the shipped model.
+
+    The primary yardstick is the recorded TRUE provenance of each paragraph
+    (deai_hardset_key.csv: generated vs human), not the author's perceptual
+    ai_feel rating. A controlled analysis on this set showed that single
+    decontextualized paragraphs carry too little signal for reliable human
+    AI-judgement, so the perceptual rating is reported only as a task-difficulty
+    baseline, never as the model's yardstick. Every AUC carries a bootstrap CI
+    because the AI-labelled subset is small.
     """
     import csv
     import numpy as np
-    path = field_dir / "hardset" / "deai_hardset_LABEL_ME.csv"
-    if not path.exists():
-        return {"status": "absent", "path": str(path.name)}
-    with path.open(encoding="utf-8-sig", newline="") as handle:
+    label_path = field_dir / "hardset" / "deai_hardset_LABEL_ME.csv"
+    key_path = field_dir / "hardset" / "deai_hardset_key.csv"
+    if not label_path.exists():
+        return {"status": "absent", "path": str(label_path.name)}
+    with label_path.open(encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
-    labelled = [row for row in rows if str(row.get("ai_feel_1to5", "")).strip()]
-    if not labelled:
-        return {"status": "unlabelled", "n_paragraphs": len(rows),
-                "release_consequence": (
-                    "No author-labelled calibration evidence; L3 stays degraded.")}
+    provenance: dict[str, str] = {}
+    if key_path.exists():
+        with key_path.open(encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                provenance[row["id"]] = row.get("category", "")
+
     centroid = df.corpus_centroid(field_dir)
     clf, scaler = bundle["clf"], bundle["scaler"]
-    ids, labels, scores = [], [], []
-    for row in labelled:
+    column = list(clf.classes_).index(1)
+    ids, feel, scores, is_ai = [], [], [], []
+    for row in rows:
         vec = df.features_vector(row["paragraph"], field_profile_dir=field_dir,
                                  model_name=model_name, centroid=centroid)
         x = scaler.transform(np.asarray([vec], float))
-        column = list(clf.classes_).index(1)
         ids.append(row["id"])
-        labels.append(int(float(row["ai_feel_1to5"])))
+        raw_feel = str(row.get("ai_feel_1to5", "")).strip()
+        feel.append(int(float(raw_feel)) if raw_feel else None)
         scores.append(float(clf.predict_proba(x)[0, column]))
-    by_label = {
-        str(level): {
-            "n": sum(1 for value in labels if value == level),
-            "score_mean": (statistics.mean(
-                [s for s, v in zip(scores, labels) if v == level])
-                if any(v == level for v in labels) else None),
+        category = provenance.get(row["id"], "")
+        if category in HARDSET_AI_CATEGORIES:
+            is_ai.append(1)
+        elif category in HARDSET_HUMAN_CATEGORIES:
+            is_ai.append(0)
+        else:
+            is_ai.append(None)
+
+    # Primary: model score against TRUE provenance. Low compatibility should
+    # mean generated, so invert the sign of the curated-reference probability.
+    prov_idx = [i for i, value in enumerate(is_ai) if value is not None]
+    provenance_result: dict = {"status": "absent"}
+    perception_baseline: dict = {"status": "absent"}
+    if prov_idx:
+        y_prov = [is_ai[i] for i in prov_idx]
+        neg_scores = [-scores[i] for i in prov_idx]
+        n_ai = sum(y_prov)
+        provenance_result = {
+            "status": "measured",
+            "n_ai_generated": n_ai,
+            "n_human": len(y_prov) - n_ai,
+            "model_auc_low_compat_predicts_generated": _bootstrap_auc_ci(
+                y_prov, neg_scores),
+            "score_by_provenance": {
+                cat: {
+                    "n": sum(1 for i in prov_idx if provenance.get(ids[i]) == cat),
+                    "score_mean": (statistics.mean(
+                        [scores[i] for i in prov_idx if provenance.get(ids[i]) == cat])
+                        if any(provenance.get(ids[i]) == cat for i in prov_idx) else None),
+                }
+                for cat in sorted(HARDSET_AI_CATEGORIES | HARDSET_HUMAN_CATEGORIES)
+            },
         }
-        for level in sorted(set(labels))
-    }
-    strong_feel = [int(value >= 4) for value in labels]
+        # Task-difficulty baseline: can the author's perception separate the
+        # same true provenance? A low value means the single-paragraph task is
+        # near-impossible for a human, which bounds what any detector's
+        # agreement-with-perception could ever have meant.
+        feel_prov = [(i, feel[i]) for i in prov_idx if feel[i] is not None]
+        if feel_prov:
+            perception_baseline = {
+                "status": "measured",
+                "human_ai_feel_auc_vs_provenance": _bootstrap_auc_ci(
+                    [is_ai[i] for i, _ in feel_prov],
+                    [float(value) for _, value in feel_prov]),
+                "note": ("AUC of the author's ai_feel rating predicting true "
+                         "provenance; a value near 0.5 means single-paragraph "
+                         "human AI-judgement is near chance."),
+            }
+
+    labelled_feel = [(i, feel[i]) for i in range(len(ids)) if feel[i] is not None]
+    perception_secondary: dict = {"status": "unlabelled"}
+    if labelled_feel:
+        strong = [int(value >= 4) for _, value in labelled_feel]
+        perception_secondary = {
+            "status": "labelled",
+            "label_definition": "author ai_feel_1to5; 4-5 treated as strong AI feel",
+            "n_strong": sum(strong),
+            "caveat": ("perception-based and low-power (few strong labels); NOT a "
+                       "model yardstick. See perception_baseline for why."),
+            "auc_low_compat_predicts_strong_feel": _bootstrap_auc_ci(
+                strong, [-scores[i] for i, _ in labelled_feel]),
+            "score_by_feel": {
+                str(level): {
+                    "n": sum(1 for _, value in labelled_feel if value == level),
+                    "score_mean": (statistics.mean(
+                        [scores[i] for i, value in labelled_feel if value == level])
+                        if any(value == level for _, value in labelled_feel) else None),
+                }
+                for level in sorted({value for _, value in labelled_feel})
+            },
+        }
+
     return {
-        "status": "labelled",
-        "n_labelled": len(labelled),
-        "n_total": len(rows),
-        "label_definition": "author ai_feel_1to5; 4-5 treated as strong AI feel",
-        "score_by_label": by_label,
-        # AUC of LOW compatibility predicting strong AI feel: the shipped
-        # score is P(curated-reference class), so invert its sign.
-        "auc_low_score_predicts_strong_ai_feel": _auc(
-            strong_feel, [-value for value in scores]),
+        "status": "measured",
+        "n_paragraphs": len(rows),
+        "primary_provenance": provenance_result,
+        "perception_baseline": perception_baseline,
+        "perception_secondary": perception_secondary,
+        "release_consequence": (
+            "The provenance AUC measures true generated-vs-human separation; the "
+            "perception metrics measure a near-chance single-paragraph human task "
+            "and must not gate L3 alone. L3 stays degraded on the well-powered "
+            "field-topic negative-control false-positive rates and the absence of "
+            "document-level calibration."
+        ),
         "per_paragraph": [
-            {"id": pid, "ai_feel_1to5": label, "compatibility_score": round(score, 6)}
-            for pid, label, score in zip(ids, labels, scores)
+            {"id": ids[i], "provenance": provenance.get(ids[i], ""),
+             "ai_feel_1to5": feel[i], "compatibility_score": round(scores[i], 6)}
+            for i in range(len(ids))
         ],
     }
 

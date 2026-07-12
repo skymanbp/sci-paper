@@ -124,6 +124,26 @@ class VoiceAuditHelperTests(unittest.TestCase):
         measured_zero = training.binary_metrics([1, 1], [0.1, 0.2])
         self.assertEqual(measured_zero["f1_positive"], 0.0)
 
+    def test_hardset_provenance_categories_partition_ai_and_human(self):
+        ai = training.HARDSET_AI_CATEGORIES
+        human = training.HARDSET_HUMAN_CATEGORIES
+        self.assertFalse(ai & human)
+        self.assertIn("clear-AI-claude", ai)
+        self.assertIn("clear-AI-raid", ai)
+        self.assertIn("your-draft", human)
+        self.assertIn("human-paper", human)
+
+    def test_bootstrap_auc_ci_reproducible_and_brackets_point(self):
+        y = [0, 0, 0, 1, 1, 1]
+        scores = [0.1, 0.2, 0.3, 0.7, 0.8, 0.9]
+        first = training._bootstrap_auc_ci(y, scores, n_boot=500, seed=7)
+        second = training._bootstrap_auc_ci(y, scores, n_boot=500, seed=7)
+        self.assertEqual(first, second)                       # seeded => reproducible
+        self.assertEqual(first["auc"], 1.0)                   # perfect separation
+        self.assertLessEqual(first["ci95_low"], first["auc"])
+        self.assertLessEqual(first["auc"], first["ci95_high"] + 1e-9)
+        self.assertIsNone(training._bootstrap_auc_ci([1, 1], [0.2, 0.9]))  # single class
+
     def test_undefined_f1_is_excluded_from_aggregation(self):
         report_with_positives = {"overall": training.binary_metrics(
             [0, 1], [0.2, 0.9])}

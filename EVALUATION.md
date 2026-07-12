@@ -23,7 +23,7 @@ result.
 | L1 UID | degraded | [`style-profile/wgl/uid_baseline.json`](style-profile/wgl/uid_baseline.json) records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
 | L2 sentence structure | measured for deterministic matches; degraded for strength | [`style-profile/wgl/structure_baseline.json`](style-profile/wgl/structure_baseline.json) provides section-level reference fractions. | Calibrated strong-advisory thresholds and author-labelled difficult cases. |
 | L2 document structure | unmeasured for `wgl` | The implementation and complete-document calibration tests exist, but no verified `docstructure_baseline.json` exists. | At least three measurable complete papers, with one observation per paper and leave-one-document-out behavior. |
-| L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, but 32–41% false-positive rate on field-topic AI text and author-hard-set AUC 0.354 (below random). | None for calibration: the audit and hard set show the score measures field register, not AI-ness, so no operating point is justified. |
+| L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, hard-set true-provenance AUC 0.937, but 32–41% false-positive rate on field-topic AI text and no document-level calibration. | Document-level calibration and a field-topic-robust operating point with provenance and uncertainty. |
 | Rewrite scientific fidelity | measured for protected invariants | Unit tests cover preserved invariants, dropped number, dropped citation, and reversed comparison. | Real manuscript before/after demonstration, including scope and stance review. |
 
 A missing baseline is not interpreted as zero findings.
@@ -155,33 +155,46 @@ jargon fools the model 32–41% of the time. The learned score partly measures f
 register, so it is unreliable on the exact distribution — field-topic AI prose — that a
 manuscript de-AI pass must catch.
 
-### 7.3 Author-labelled hard-set calibration — decisive
+### 7.3 Author hard set — true provenance is the yardstick, perception is not
 
-The 75-paragraph author hard set (§10, now fully labelled) is the only stratum whose
-negatives are human-perceived AI-feel judgements rather than generated text, so it is
-the calibration path the generated-negative audits structurally cannot provide. Scoring
-the shipped model against it:
+The 75-paragraph hard set carries recorded **true provenance** in its key file: 21
+generated (14 RAID, 7 Claude) and 54 human (28 author drafts, 26 published papers). The
+author also supplied a perceptual `ai_feel_1to5` rating. These are different signals, and
+the provenance is the meaningful one. Every AUC below is reported with a seeded bootstrap
+95% interval because the generated subset is small (n=21).
 
-| Author `ai_feel_1to5` | n | mean compatibility score |
+| Question | AUC | 95% CI |
 |---|---:|---:|
-| 1 (no AI feel) | 20 | 0.624 |
-| 2 | 28 | 0.701 |
-| 3 | 19 | 0.681 |
-| 4 (strong AI feel) | 8 | 0.796 |
+| Does the **model** score separate true generated from human? (low compatibility = generated) | 0.937 | 0.860–0.990 |
+| Can the **author's `ai_feel`** separate the same true provenance? | 0.444 | 0.304–0.582 |
 
-AUC for "low compatibility predicts strong author AI-feel" is **0.354** — below random.
-The model assigns its *highest* compatibility to the paragraphs the author rated most
-AI-feeling. On the deployment task (flagging AI-feel prose inside a human manuscript) the
-learned score is anti-correlated with human perception.
+The model separates true AI-vs-human prose well (0.94). The author's single-paragraph
+`ai_feel` rating is at chance (0.44, interval spanning 0.5): a decontextualized paragraph
+does not carry enough signal for reliable human AI-judgement. Mean `ai_feel` by true
+source confirms this — author drafts were rated *most* AI-feeling (2.68) and actual
+generated text less so (~2.0), so the perceptual axis does not track provenance.
+
+An earlier version of this section reported an AUC of 0.354 for "low compatibility
+predicts strong `ai_feel`" and called it decisive proof that the model measures field
+register, not AI-ness. That was wrong: it scored the model against the near-chance
+perceptual axis, and with only 8 strong-feel labels its interval is 0.141–0.588, which
+straddles 0.5 and is not distinguishable from random. It is retained only as a low-power
+secondary line in `voice_model_evaluation.json`, not as evidence about the model.
 
 ### 7.4 Release consequence
 
-L3 stays `degraded` with **no operating point**. The confound audit and the author hard
-set together show the learned score tracks curated-field register, not AI-ness, so no
-threshold on it is justified as policy. The model remains useful only as rank-based
-triage evidence that an author reads alongside the deterministic L0 and the descriptive
-L1/L2 axes. [`tools/deai_voice.py`](tools/deai_voice.py) enforces this: an uncalibrated
-bundle emits only rank-ordered triage, never a universal cutoff.
+L3 stays `degraded` with **no operating point** — but for the well-powered reasons, not
+the hard-set perception metric:
+
+1. the field-topic and field-jargon-dense negative controls (§7.2, n=167/81) show a
+   32–41% false-positive rate on exactly the AI prose a manuscript pass must catch;
+2. AI-ness in scientific writing is substantially a document- and cross-paragraph
+   property, and no document-level calibration set exists yet (§9).
+
+The provenance result (0.94) shows the model is a useful field-similarity triage signal,
+not that it is a calibrated AI detector. [`tools/deai_voice.py`](tools/deai_voice.py)
+enforces the degraded posture: an uncalibrated bundle emits only rank-ordered triage,
+never a universal cutoff.
 
 ### 7.5 Known limitations
 
@@ -230,17 +243,22 @@ must not be resampled or relabelled as independent papers to fill this gap.
 ## 10. Hard-set human input
 
 [`style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv`](style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv)
-contains 75 difficult paragraphs. On 2026-07-12 the author supplied all 75
-`ai_feel_1to5` labels (distribution: 20×1, 28×2, 19×3, 8×4; no 5s). The labelled hard
-set is now the calibration path, evaluated in §7.3.
+contains 75 difficult paragraphs with recorded true provenance in
+`deai_hardset_key.csv` (21 generated, 54 human). On 2026-07-12 the author supplied all 75
+perceptual `ai_feel_1to5` labels (distribution: 20×1, 28×2, 19×3, 8×4; no 5s), evaluated
+in §7.3.
 
-The result is decisive and negative: the learned score is anti-correlated with the
-author's AI-feel judgement (AUC 0.354), so:
+The methodological finding is that single-paragraph perceptual labelling has low
+resolution: the author's `ai_feel` separates true provenance only at chance (AUC 0.44),
+so it cannot serve as the model's yardstick. Therefore:
 
-- no isotonic or other label-based calibration is claimed;
-- no measured author-specific operating point exists or is justified;
-- L3 remains `degraded`, and the hard set continues to serve as the reference that any
-  future calibration attempt must beat before an operating point is proposed.
+- provenance, not perception, is the hard-set label of record;
+- no isotonic or other label-based operating point is claimed from this set;
+- L3 remains `degraded` on the well-powered field-topic negative controls (§7.4), not on
+  the perceptual metric;
+- the next calibration effort should build a document-level or multi-paragraph set, where
+  AI-ness signal actually lives, rather than adding more single-paragraph perceptual
+  labels.
 
 ## 11. Real introduction rewrite evaluation
 
