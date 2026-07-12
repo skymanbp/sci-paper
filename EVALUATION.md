@@ -23,7 +23,7 @@ result.
 | L1 UID | degraded | [`style-profile/wgl/uid_baseline.json`](style-profile/wgl/uid_baseline.json) records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
 | L2 sentence structure | measured for deterministic matches; degraded for strength | [`style-profile/wgl/structure_baseline.json`](style-profile/wgl/structure_baseline.json) provides section-level reference fractions. | Calibrated strong-advisory thresholds and author-labelled difficult cases. |
 | L2 document structure | unmeasured for `wgl` | The implementation and complete-document calibration tests exist, but no verified `docstructure_baseline.json` exists. | At least three measurable complete papers, with one observation per paper and leave-one-document-out behavior. |
-| L3 learned field similarity | degraded | A trained logistic-regression bundle and grouped validation metadata exist. The bundle has no calibrated operating point. | Confound-aware evaluation and an operating point with provenance and uncertainty. |
+| L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, but 32–41% false-positive rate on field-topic AI text and author-hard-set AUC 0.354 (below random). | None for calibration: the audit and hard set show the score measures field register, not AI-ness, so no operating point is justified. |
 | Rewrite scientific fidelity | measured for protected invariants | Unit tests cover preserved invariants, dropped number, dropped citation, and reversed comparison. | Real manuscript before/after demonstration, including scope and stance review. |
 
 A missing baseline is not interpreted as zero findings.
@@ -39,10 +39,9 @@ python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The current pre-release working tree passed the validator and all 20 tests before the
-documentation and stale-language sweep. These commands must be rerun after every
-subsequent code or release-metadata change; the final release record must quote the
-fresh output rather than this intermediate result.
+The current pre-release working tree passes the validator and all 36 unit/CLI tests.
+These commands must be rerun after every subsequent code or release-metadata change; the
+final release record must quote the fresh output rather than this intermediate result.
 
 ## 4. L0 behavior
 
@@ -98,54 +97,101 @@ threshold.
 
 The current
 [`style-profile/wgl/voice_model.joblib`](style-profile/wgl/voice_model.joblib) bundle
-contains:
+was retrained on an expanded corpus and evaluated with the confound-aware audit on
+2026-07-12 (cloud run on an RTX PRO 6000 Blackwell GPU; artifacts SHA-256 verified on
+retrieval). The full machine-readable audit is
+[`style-profile/wgl/voice_model_evaluation.json`](style-profile/wgl/voice_model_evaluation.json)
+(schema `sci-paper.voice-model-evaluation.v1`).
 
 | Metadata | Value |
 |---|---:|
 | classifier | logistic regression |
-| positive-class records | 5,949 |
-| negative-class records | 2,265 |
-| total records | 8,214 |
-| grouped validation AUC | 0.9530938210 |
-| grouped validation F1 for the positive class | 0.9291497976 |
-| grouped validation balanced accuracy | 0.8802943008 |
+| positive-class records (curated field + dated arXiv + public human) | 16,394 |
+| negative-class records (generated field + generated public) | 2,265 |
+| total records | 18,659 |
+| primary grouped-split held-out AUC | 0.9414 |
+| primary grouped-split F1 (positive class) | 0.9266 |
+| primary grouped-split balanced accuracy | 0.8580 |
 | feature count | 14 |
 | operating point in bundle | absent |
+| `measurement_status` | degraded |
 
-The metadata were read directly from the current bundle on 2026-07-12. The labels
-represent curated field prose versus generated negative examples. The resulting
-probability is therefore exposed as `field_similarity`, not as a probability that a
-human wrote the paragraph.
+The labels represent curated field prose versus generated negative examples. The
+resulting probability is exposed as `field_similarity`, not a probability that a human
+wrote the paragraph.
 
-### Known limitations
+### 7.1 Repeated source-grouped audit (20 splits)
 
-- The bundle has no `operating_point`, so [`tools/deai_voice.py`](tools/deai_voice.py)
-  reports the axis as `degraded`.
-- Grouping by source paper reduces same-paper leakage but does not establish causal
-  separation from source, section, length, jargon, or mathematical density.
-- The existing feature set includes `word_count`, UID terms, punctuation rates, and
-  corpus cosine. Their independent contribution under matched confound strata has not
-  been evaluated in the current release cycle.
-- Older evaluation text described the output as `P(human)`. That name is retained only
-  in legacy class semantics inside the serialized classifier; user-facing output now
-  calls it field similarity.
-- Held-out classification performance alone is insufficient evidence for rewrite
-  ranking outside the training distribution.
+Every split holds out complete source papers, retrains logistic regression, and
+recomputes `corpus_cos` against a training-only curated centroid so held-out papers
+cannot inflate their own similarity feature. Intervals summarize split-to-split
+variation; they are not independent-sample confidence intervals.
 
-### Required confound-aware evaluation
+| Metric | mean | 2.5% | 97.5% |
+|---|---:|---:|---:|
+| overall AUC (raw UID) | 0.9324 | 0.9220 | 0.9424 |
+| overall balanced accuracy | 0.8515 | 0.8378 | 0.8641 |
+| matched-stratum AUC (section × length × math × field-term) | 0.9242 | 0.9085 | 0.9416 |
+| overall AUC (section-normalized UID) | 0.9366 | 0.9288 | 0.9445 |
 
-The next evaluation must report performance and score distributions stratified by:
+The matched-stratum AUC stays within ~0.01 of the overall AUC, so the separation is not
+merely a topic, length, or mathematical-density artifact. Section-normalizing the UID
+features changes overall AUC by only +0.004 on average, so raw UID is not the dominant
+lever.
 
-1. source paper;
-2. section type;
-3. paragraph length;
-4. mathematical-placeholder density;
-5. jargon density.
+### 7.2 Negative controls — the confound the audit exposes
 
-It must add math-dense and jargon-dense negative controls, compare the current raw UID
-features with a domain-normalized alternative, and state whether the result changes the
-operating point or leaves the axis degraded. Any multi-minute retraining belongs on
-cloud compute; local runs are limited to smoke tests and metadata inspection.
+The false-positive rate is the fraction of generated negatives the model wrongly scores
+as curated-field-like (mean across 20 splits):
+
+| Generated-negative control | false-positive rate |
+|---|---:|
+| public-generic AI text | 0.086 |
+| field-topic AI text | 0.316 |
+| field-jargon-dense AI text | 0.412 |
+
+Generic public AI prose is easy (8.6% FPR), but AI text written in the field's topic and
+jargon fools the model 32–41% of the time. The learned score partly measures field
+register, so it is unreliable on the exact distribution — field-topic AI prose — that a
+manuscript de-AI pass must catch.
+
+### 7.3 Author-labelled hard-set calibration — decisive
+
+The 75-paragraph author hard set (§10, now fully labelled) is the only stratum whose
+negatives are human-perceived AI-feel judgements rather than generated text, so it is
+the calibration path the generated-negative audits structurally cannot provide. Scoring
+the shipped model against it:
+
+| Author `ai_feel_1to5` | n | mean compatibility score |
+|---|---:|---:|
+| 1 (no AI feel) | 20 | 0.624 |
+| 2 | 28 | 0.701 |
+| 3 | 19 | 0.681 |
+| 4 (strong AI feel) | 8 | 0.796 |
+
+AUC for "low compatibility predicts strong author AI-feel" is **0.354** — below random.
+The model assigns its *highest* compatibility to the paragraphs the author rated most
+AI-feeling. On the deployment task (flagging AI-feel prose inside a human manuscript) the
+learned score is anti-correlated with human perception.
+
+### 7.4 Release consequence
+
+L3 stays `degraded` with **no operating point**. The confound audit and the author hard
+set together show the learned score tracks curated-field register, not AI-ness, so no
+threshold on it is justified as policy. The model remains useful only as rank-based
+triage evidence that an author reads alongside the deterministic L0 and the descriptive
+L1/L2 axes. [`tools/deai_voice.py`](tools/deai_voice.py) enforces this: an uncalibrated
+bundle emits only rank-ordered triage, never a universal cutoff.
+
+### 7.5 Known limitations
+
+- Grouping by source paper reduces same-paper leakage; the matched-stratum result adds
+  section/length/math/jargon control, but observational separation is not causal proof.
+- The bundle was trained on the cloud with scikit-learn 1.4.2; loading it under a newer
+  local scikit-learn emits an unpickle-version warning. The model is gitignored and
+  rebuilt per field, so a local rebuild removes the mismatch.
+- Held-out classification performance alone is insufficient for rewrite ranking outside
+  the training distribution; §8 gates ranking on measured calibration.
 
 ## 8. Rewrite eligibility
 
@@ -184,12 +230,17 @@ must not be resampled or relabelled as independent papers to fill this gap.
 ## 10. Hard-set human input
 
 [`style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv`](style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv)
-contains 75 difficult paragraphs. On 2026-07-12, all 75 `ai_feel_1to5` cells were
-blank. Until the user supplies those labels:
+contains 75 difficult paragraphs. On 2026-07-12 the author supplied all 75
+`ai_feel_1to5` labels (distribution: 20×1, 28×2, 19×3, 8×4; no 5s). The labelled hard
+set is now the calibration path, evaluated in §7.3.
+
+The result is decisive and negative: the learned score is anti-correlated with the
+author's AI-feel judgement (AUC 0.354), so:
 
 - no isotonic or other label-based calibration is claimed;
-- no measured author-specific operating point exists;
-- the hard set may be used only as an unlabeled inspection set.
+- no measured author-specific operating point exists or is justified;
+- L3 remains `degraded`, and the hard set continues to serve as the reference that any
+  future calibration attempt must beat before an operating point is proposed.
 
 ## 11. Real introduction rewrite evaluation
 
@@ -247,13 +298,20 @@ the exemplar bank or the the manuscript manuscript before that decision.
 
 ## 12. Release evidence boundary
 
-v0.14.0 is not ready to publish until all of the following are current:
+v0.14.0 release gates and their status on 2026-07-12:
 
-- validator and unit/CLI tests after final edits;
-- independent `code-reviewer` results and fixes;
-- real introduction rewrite evidence;
-- confound-aware learned-model status, including an explicit degraded result if the
-  audit does not support calibration;
-- documentation and release metadata;
-- clean-checkout verification;
-- commit, tag, push, and GitHub release.
+- validator and 36 unit/CLI tests after final edits — met (rerun before tag);
+- independent multi-agent review and fixes — met: an adversarially verified Opus review
+  (4 dimensions × 2 verifiers per finding) confirmed 16 findings, all fixed this cycle;
+- real introduction rewrite evidence — met (§11, proposal-only, author disposition
+  pending);
+- confound-aware learned-model status with an explicit degraded result — met (§7): the
+  audit and author hard set keep L3 degraded with no operating point;
+- documentation and release metadata — updated for this release;
+- clean-checkout verification — performed before tag;
+- commit, tag, push, and GitHub release — performed after the gates above are re-run
+  green.
+
+Author decisions that remain open and do not block the plugin release: accepting or
+rejecting the §11 the manuscript rewrite proposal, and whether to ever propose an L3 operating
+point (the hard set says not yet).

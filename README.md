@@ -202,7 +202,7 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.13.0**. v0.14.0 is under development. Full per-version history is in
+Current: **v0.14.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
 - **Skills (9):** `paper`, `paper-review`, `figure-review`, `paper-style`,

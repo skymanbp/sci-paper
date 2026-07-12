@@ -3,7 +3,7 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
-## v0.14.0 — Unreleased
+## v0.14.0 — 2026-07-12
 
 **Unified scientific-writing feedback contract.** This release supersedes the
 v0.13 de-AI semantics without erasing their historical record. The sole
@@ -79,9 +79,20 @@ policy or authorship detectors.
   checkpoints for cloud runs. `docs/EVALUATION.md` is now a pointer stub to
   the canonical root record.
 
-Release gates still required before publication: fresh validator/tests,
-confound-aware learned-model status, independent code review, clean-checkout
-verification, version bump, tag, push, and GitHub release.
+- **Confound-aware learned-model audit run (cloud, RTX PRO 6000).** The learned model
+  was retrained on an expanded corpus (16,394 positive / 2,265 negative; dated arXiv
+  positives grown 3,197 → 13,642) and audited with the new pipeline. Repeated
+  source-grouped AUC 0.932 and matched-stratum AUC 0.924 show the separation is not a
+  pure topic/length/math artifact, but 32–41% false-positive rates on field-topic and
+  field-jargon-dense AI text, plus an author-hard-set AUC of 0.354 (below random),
+  show the score tracks field register rather than AI-ness. L3 therefore ships
+  `degraded` with no operating point; the full result is in `EVALUATION.md` §7 and the
+  machine-readable `voice_model_evaluation.json`. The 75-paragraph author hard set is
+  now fully labelled and is the reference any future calibration must beat.
+
+Published after fresh validator/tests, the 16-finding independent review and fixes, the
+confound-aware learned-model status above, EVALUATION.md update, and clean-checkout
+verification.
 
 ## v0.13.0 — 2026-07-11
 
