@@ -3,6 +3,86 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.14.0 — Unreleased
+
+**Unified scientific-writing feedback contract.** This release supersedes the
+v0.13 de-AI semantics without erasing their historical record. The sole
+normative authority is `docs/SCIPAPER_STANDARD.md`; corpus profiles, structural
+baselines, UID measurements, and learned models are evidence, not competing
+policy or authorship detectors.
+
+- **Typed consequences and measurement states.** New
+  `sci-paper.feedback.v1` findings distinguish `integrity_blocker`, `l0_target`,
+  and `advisory`, with `measured`, `degraded`, `unmeasured`, and
+  `not_applicable` axis states. Missing calibration is never converted to zero
+  findings.
+- **Feedback, not a universal prose verdict.** The shared workflow is measure →
+  type → rank → edit → re-measure → disposition. Strong advisories require an
+  explicit author disposition; ordinary advisories remain visible without
+  blocking the paper.
+- **Narrow L0 semantics.** Tier A lexical occurrences, prose em-dashes, and only
+  Tier B occurrences above one use per section and word are rewrite targets.
+  `ai_ism_lint.py` exits `0` with no L0 targets, `1` with L0 targets, and `2`
+  for invalid input/configuration/execution; advisories never cause exit `1`.
+- **Structured analysis.** Added deterministic sentence-template analysis and
+  whole-document rhetorical-shape analysis. Complete papers are the independent
+  calibration unit for document structure; paragraph exemplars cannot be
+  relabelled as independent documents.
+- **Claim-first rewrite eligibility.** Rewrite candidates must preserve protected
+  numbers, units, citations, mathematics, acronyms, comparison direction,
+  negation, and causal direction before ranking. Ineligible candidates receive
+  negative infinity and cannot win on style or learned score.
+- **Learned evidence renamed and bounded.** The optional learned model reports
+  field similarity/compatibility for triage and eligible-candidate ranking, not
+  `P(human)`. A bundle without a calibrated operating point remains degraded;
+  source, section, length, jargon, and mathematical-density confounds remain
+  explicit evaluation requirements.
+- **All writing/review skills aligned.** `paper`, `paper-style`, `paper-review`,
+  `figure-review`, `mainline`, `paper-attack-tree`, `rewrite-in-voice`, and
+  `final-review` implement the same consequence, ranking, disposition, and
+  stopping contract. Evidentiary `CONFIRMED` does not automatically mean
+  blocker, and bounded-process `CONVERGED` is not a paper-quality verdict.
+- **Profile/build boundary documented.** `build_profile.py` now identifies
+  itself as a basic descriptive-profile builder. Sentence structure, UID,
+  whole-document shape, learned field similarity, hard-set labels, and policy
+  operating points have explicit independent build/calibration paths.
+- **Validation strengthened.** The repository validator checks manifests,
+  registries, skill frontmatter and standard references, normative/evaluation
+  document authority, Python syntax/imports, CLI help, schema fields/enums,
+  linter exit semantics, Tier B cap behavior, tests, and CI wiring. It rejects
+  an active duplicate `docs/EVALUATION.md`; regression tests cover the shared
+  schema, linter CLI, document structure, and rewrite eligibility.
+- **Real-paper evaluation added.** `EVALUATION.md` records a source-traced,
+  proposal-only the manuscript introduction rewrite that removes an announced-list
+  template while preserving L0=0 and all protected scientific invariants. The
+  manuscript remains unchanged pending author disposition.
+- **Independent-review fixes (16 verified findings).** An adversarially
+  verified multi-agent review confirmed and this release fixes: undefined F1 on
+  positive-free strata now reports `None` and is excluded from aggregation;
+  AUC midrank tie handling is regression-tested; the confound-audit threshold
+  threads through every stratum breakdown; the scoring side now refuses model
+  bundles whose feature names/schema drift from the installed extractor and
+  degrades cleanly on corrupt bundles; the model bundle is written atomically
+  and carries fingerprint provenance surfaced in findings; an explicitly
+  requested unavailable `--field` exits `2`; detector objects carry real
+  version and calibration-asset provenance; `strong_advisory` is derived from
+  the strength enum (single source of truth); rewrite eligibility is
+  bidirectional (invented negation/causal/comparison markers, numbers, units,
+  citations, or acronyms disqualify) and protects semantic LaTeX macros;
+  rewrite ranking is led by specificity/fidelity with the learned score gated
+  to tie-break weight unless its bundle is measured; an uncalibrated voice
+  bundle emits rank-based triage (lowest-scoring paragraphs) instead of a
+  forbidden universal 0.5 cutoff; grouped-split validation recomputes
+  `corpus_cos` against training-only centroids so held-out papers cannot
+  inflate their own similarity feature; and the trainer adds an
+  author-labelled hard-set stratum plus preemption-safe featurization
+  checkpoints for cloud runs. `docs/EVALUATION.md` is now a pointer stub to
+  the canonical root record.
+
+Release gates still required before publication: fresh validator/tests,
+confound-aware learned-model status, independent code review, clean-checkout
+verification, version bump, tag, push, and GitHub release.
+
 ## v0.13.0 — 2026-07-11
 
 **Fundamental (non-keyword) de-AI subsystem** — a four-layer capability that

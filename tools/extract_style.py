@@ -1,30 +1,17 @@
-"""extract_style.py — corpus → style profile (v0.1, stdlib-only).
+"""Extract descriptive, field-scoped writing evidence from a paper corpus.
 
-v0.1 features:
-- Field-aware: reads .tex/.txt from style-corpus/<field>/{tier-1-top,
-  tier-2-mentor, tier-3-reference}/ and writes to style-profile/<field>/.
-  --field auto-detects when only one field is present.
-- Strips LaTeX commands and math environments to plain text.
-- Per-section (best-effort heuristic) sentence-length distribution.
-- Em-dash count per 1000 words.
-- Top transition-word frequencies at paragraph starts.
-- Outputs (under style-profile/<field>/):
-    lexicon.json
-    sentence_stats.json
-    transition_inventory.json
-    style_dossier.md
+The extractor reads standalone ``.tex``, ``.txt``, and ``.pdf`` sources under
+``style-corpus/<field>/tier-*`` and writes descriptive artifacts under
+``style-profile/<field>/``: sentence statistics, paragraph-initial transitions,
+lexical counts, an exemplar JSONL bank, and a compact dossier. PDF ingestion is
+best-effort and requires pymupdf.
 
-Limitations honestly declared:
-- No PDF parsing yet (planned v0.2 via pymupdf).
-- Section detection is heuristic: regex-based pattern matching on the
-  \\section{} title against an ordered keyword list (see SECTION_PATTERNS).
-  Unmatched sections default to "method"; non-LaTeX inputs go to "unknown".
-  Acknowledgments / appendix / bibliography are dropped via the "skip" bucket.
-- Transition whitelist/blacklist crossover with LLM-typical words requires
-  a reference LLM-frequency table; v0.1 uses a hardcoded stopgap list,
-  noted in the dossier output.
-- v0.1 does NOT compose a base profile + per-field overrides; each field
-  is independent. Stacked profiles planned for v0.3 if needed.
+This module does not define consequence classes, authorship, or calibrated
+operating points. Its section detection and PDF block segmentation are
+heuristic; unmatched LaTeX sections default to ``method`` and non-LaTeX input to
+``unknown``. Fix extraction errors in the source or this extractor and
+regenerate rather than hand-editing generated evidence. Normative policy lives
+in ``docs/SCIPAPER_STANDARD.md``.
 """
 
 from __future__ import annotations
@@ -118,8 +105,9 @@ PLACEHOLDER_PARAGRAPH_PREFIXES = (
 )
 PLACEHOLDER_INITIAL_WORDS = {"FIGURE", "MATH", "CITE", "OR"}
 
-# LLM-typical words used as a stopgap LLM-frequency proxy.
-# Replace with a measured frequency table in v0.2.
+# Candidate generated-style terms summarized against the current corpus.
+# This compatibility list is descriptive; normative Tier A/Tier B policy lives
+# in docs/SCIPAPER_STANDARD.md and is not inferred from corpus absence alone.
 LLM_TYPICAL_WORDS = {
     "leverage", "leverages", "leveraging", "leveraged",
     "utilize", "utilizes", "utilizing", "utilized",
@@ -675,11 +663,11 @@ def write_dossier(
     lines.append(f"Built from {n_papers} corpus papers under "
                  f"`style-corpus/{field}/`. Re-run "
                  f"`python tools/extract_style.py --field {field}` after "
-                 f"corpus changes.\n")
-    lines.append("> This file is loaded into Claude's context by "
-                 "`/sci-paper:paper-style`. Hand-edits are preserved across "
-                 "regenerations only if you back them up; the script "
-                 "OVERWRITES this file.\n")
+                 "corpus changes.\n")
+    lines.append("> Descriptive evidence only. Normative policy lives in "
+                 "`docs/SCIPAPER_STANDARD.md`. Do not hand-edit this file: "
+                 "the extractor overwrites it. Fix the source or extractor "
+                 "and regenerate.\n")
 
     lines.append("\n## 1. Sentence length per section\n")
     if not sentence_stats:
@@ -694,19 +682,19 @@ def write_dossier(
                 f"| {st['stdev']:.1f} | {st['p25']:.0f} | {st['p75']:.0f} "
                 f"| {st['p95']:.0f} |"
             )
-        lines.append("\n**Constraint:** when drafting, target the section's "
-                     "median ±2σ. Going outside is a flag; if you're at <p10 "
-                     "or >p95 the sentence likely reads either too clipped or "
-                     "too LLM-baroque.\n")
+        lines.append("\n**Interpretation:** compare a draft with the relevant "
+                     "section distribution, but do not turn a distance alone "
+                     "into a blocker or strong advisory. Strength requires an "
+                     "applicable calibrated operating point.\n")
 
     lines.append("\n## 2. Em-dash usage\n")
     lines.append(f"- Corpus em-dashes per 1000 words: "
                  f"**{em_dash_stats['em_dashes_per_1000_words']:.3f}** "
                  f"(total: {em_dash_stats['total_em_dashes']} across "
                  f"{em_dash_stats['total_words']} words).")
-    lines.append("- LLM defaults: ~5–15 per 1000 words.")
-    lines.append("- **Rule:** zero em-dashes in your draft. Use `,` `;` `:` "
-                 "`(...)` or `--` (en-dash, ranges only).\n")
+    lines.append("- The normative standard treats prose em-dashes as an L0 "
+                 "rewrite target; this corpus count is supporting evidence, "
+                 "not the source of that rule.\n")
 
     lines.append("\n## 3. Paragraph-initial transitions\n")
     if transitions["n_paragraphs"] == 0:
@@ -719,52 +707,59 @@ def write_dossier(
                          f"({entry['freq']*100:.1f}%)")
         lines.append("")
         if transitions["blacklist_absent_from_corpus"]:
-            lines.append("**LLM-typical paragraph openers ABSENT from this "
-                         "corpus (treat as forbidden):**")
+            lines.append("**Candidate generated-style openers absent from this "
+                         "corpus:**")
             lines.append("")
-            for w in transitions["blacklist_absent_from_corpus"]:
-                lines.append(f"- `{w}`")
+            for word in transitions["blacklist_absent_from_corpus"]:
+                lines.append(f"- `{word}`")
             lines.append("")
+            lines.append("Absence is evidence for review, not by itself a new "
+                         "L0 prohibition.\n")
         if transitions["blacklist_present_in_corpus"]:
-            lines.append("**LLM-typical openers found in corpus (rare; use "
-                         "with care, not as default):**")
+            lines.append("**Candidate generated-style openers observed in this "
+                         "corpus:**")
             lines.append("")
-            for w, c in transitions["blacklist_present_in_corpus"]:
-                lines.append(f"- `{w}` — {c}× in corpus")
+            for word, count in transitions["blacklist_present_in_corpus"]:
+                lines.append(f"- `{word}` — {count}× in corpus")
 
-    lines.append("\n## 4. Lexicon — LLM-typical words in this corpus\n")
+    lines.append("\n## 4. Candidate generated-style lexicon in this corpus\n")
     lines.append(f"Corpus total tokens: {lexicon['total_tokens']}.\n")
     lines.append("| Word | Count | Per 1k tokens |")
     lines.append("|---|---|---|")
-    for w, d in sorted(lexicon["llm_typical_word_counts"].items()):
-        lines.append(f"| `{w}` | {d['count']} | {d['freq_per_1k']:.3f} |")
+    for word, data in sorted(lexicon["llm_typical_word_counts"].items()):
+        lines.append(
+            f"| `{word}` | {data['count']} | {data['freq_per_1k']:.3f} |")
     if lexicon["llm_words_absent_from_corpus"]:
         lines.append("")
-        lines.append("**LLM-typical words with ZERO occurrence in corpus "
-                     "(treat as forbidden):**")
-        lines.append(", ".join(f"`{w}`" for w in lexicon["llm_words_absent_from_corpus"]))
+        lines.append("**Candidate terms with zero occurrence in this corpus:**")
+        lines.append(", ".join(
+            f"`{word}`" for word in lexicon["llm_words_absent_from_corpus"]))
+        lines.append("\nZero occurrence does not independently create a "
+                     "normative rule; apply the standard's Tier A/Tier B "
+                     "contract.\n")
 
     lines.append("\n## 5. Top 50 corpus content words\n")
-    lines.append("(For sense-check; not a constraint. Should look like your "
-                 "field's lexicon, not random English.)\n")
-    lines.append(", ".join(f"`{w}`({c})" for w, c in lexicon["top_50_corpus_words"]))
+    lines.append("(Extraction sense-check only; not a writing constraint.)\n")
+    lines.append(", ".join(
+        f"`{word}`({count})" for word, count in lexicon["top_50_corpus_words"]))
 
     lines.append("\n## 6. How `/sci-paper:paper-style` uses this file\n")
     lines.append(
-        "1. The skill loads this dossier into context at invocation.\n"
-        "2. The skill retrieves section-typed exemplar paragraphs from "
-        "`exemplar_paragraphs.jsonl` via "
-        "`python tools/retrieve_exemplars.py --section <s> --topic <t> --k 5`.\n"
-        "3. Drafts/rewrites are constrained to satisfy:\n"
-        "   - Sentence-length distribution within ±2σ of section baseline (§1).\n"
-        "   - Zero em-dashes (§2).\n"
-        "   - Paragraph-initial transitions drawn from §3 whitelist; never §3 blacklist.\n"
-        "   - Zero hits on §4 LLM-typical words.\n"
-        "4. Final lint via `python tools/ai_ism_lint.py <file> --summary` — "
-        "convergence on Tier A / em-dash = 0 hits, Tier B per-section ≤ 1.\n"
+        "1. The skill loads this dossier as descriptive field evidence.\n"
+        "2. It retrieves section- and topic-matched paragraphs from "
+        "`exemplar_paragraphs.jsonl`.\n"
+        "3. It applies `docs/SCIPAPER_STANDARD.md` for consequence classes, "
+        "measurement states, ranking, and dispositions.\n"
+        "4. Distributional or lexical distance from this dossier remains an "
+        "advisory unless the normative L0 list or an integrity rule applies.\n"
+        "5. Missing calibration remains `degraded` or `unmeasured`; it is not "
+        "reported as zero findings.\n"
+        "6. Final feedback is emitted through `python tools/ai_ism_lint.py "
+        "<file> --field <field> --format json`.\n"
     )
 
-    (profile_dir / "style_dossier.md").write_text("\n".join(lines), encoding="utf-8")
+    (profile_dir / "style_dossier.md").write_text(
+        "\n".join(lines), encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:

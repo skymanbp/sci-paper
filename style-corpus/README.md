@@ -1,79 +1,94 @@
 # style-corpus/
 
-This is where you place the source papers used to build the writing-style
-profile consumed by `/sci-paper:paper-style`. **Contents are NOT committed**
-(see `.gitignore`) — the corpus is private and copyright-sensitive.
+Private source papers used to build field-specific writing evidence for
+`/sci-paper:paper-style` and the de-AI analysis tools. Corpus contents are
+copyright-sensitive and gitignored; only the directory scaffold and README
+files belong in the repository.
+
+Corpus evidence is descriptive or calibrational input. It cannot redefine the
+consequence classes in `docs/SCIPAPER_STANDARD.md`, prove authorship, or create a
+universal paper verdict.
 
 ## Layout
 
-```
+```text
 style-corpus/
-└── <field>/                # one field per subdir; v0.1 ships only `wgl/`
-    ├── tier-1-top/         # Top-journal exemplars. Default weight 0.5.
-    ├── tier-2-mentor/      # Mentor's high-quality papers. Default weight 0.3.
-    └── tier-3-reference/   # Other high-value field references. Default weight 0.2.
+└── <field>/
+    ├── tier-1-top/         # top-journal exemplars
+    ├── tier-2-mentor/      # mentor or target-author exemplars
+    └── tier-3-reference/   # other relevant field papers
 ```
 
-A "field" is a writing-style domain — `wgl` for weak-gravitational-lensing
-papers, and you can add `cosmology/`, `ml-methods/`, etc. alongside it. The
-extraction tool builds one independent profile per field. Single-field
-corpora are auto-detected; multi-field corpora require `--field <name>`
-on every tool invocation.
+A field is a writing domain such as `wgl`, `cosmology`, or `ml-methods`. Each
+field produces an independent `style-profile/<field>/`. Tools auto-detect only
+when exactly one field exists; otherwise pass `--field <name>`.
 
-Tier weights are applied in `tools/extract_style.py` when aggregating
-statistics. v0.1 uses fixed defaults (0.5 / 0.3 / 0.2); a `--weights`
-override is on the v0.2 roadmap.
+`tools/extract_style.py` currently aggregates the three tiers with fixed weights
+`0.5 / 0.3 / 0.2`. These weights describe the current implementation, not a
+calibrated consequence rule. Change them only together with an evaluation of how
+the resulting profile behaves.
 
-## What to put here
+## Accepted sources
 
-**Preferred: LaTeX source** (`.tex` + `.bib`). Parsing is exact, sections are
-labelled, citations are clean. If a paper has multiple `.tex` files, put them
-in a subdirectory:
+**Preferred: LaTeX source** (`.tex` plus any required `.bib`). Section boundaries
+and citation removal are more reliable than PDF extraction. A multi-file paper
+may live in its own subdirectory:
 
-```
-wgl/tier-1-top/
+```text
+style-corpus/wgl/tier-1-top/
 └── smith-2024-mnras/
     ├── main.tex
     ├── methods.tex
     └── refs.bib
 ```
 
-**Acceptable: PDF.** Parsed via `pymupdf` text extraction. Section detection
-is heuristic (regex on heading-like lines + font-size jumps) and may
-misclassify boundaries. Inspect the resulting `style-profile/` artifacts
-manually to catch parse errors.
+**Accepted with inspection: standalone PDF.** Extraction uses pymupdf when
+installed. Block segmentation and section detection remain heuristic, so inspect
+the generated evidence for missing columns, merged paragraphs, headers, and
+misclassified sections.
 
-**Do NOT put here:** screenshots, OCR output of unknown quality,
-non-paper documents (slides, theses, reviews are out-of-distribution for the
-journal style).
+Do not use screenshots, uncontrolled OCR, slides, theses, reviews, or other
+document types when the intended reference population is journal prose. Record
+and justify any deliberate expansion of the population in `EVALUATION.md`.
 
-## Recommended corpus size
+## Corpus size
 
-| Tier | Min | Recommended |
-|---|---|---|
+The following is an editorial starting heuristic, not a measured sufficiency
+threshold:
+
+| Tier | Starting point | Broader target |
+|---|---:|---:|
 | 1 (top) | 5 | 15–25 |
 | 2 (mentor) | 3 | 5–10 |
 | 3 (reference) | 0 | 5–15 |
 | **Total** | **8** | **25–50** |
 
-Below 8 total papers, the per-section sentence-length distributions and
-transition inventories will be too noisy to be useful — `extract_style.py`
-will warn but proceed.
+Small corpora produce uncertain per-section distributions. The extractor does
+not currently enforce or guarantee a minimum-paper warning, so downstream
+reports must preserve the actual sample count and use `degraded` or
+`unmeasured` when the intended inference is unsupported.
 
-## After populating
+Whole-document calibration has a stricter unit rule: each observation must be an
+independent complete paper. Do not resample paragraph exemplars as if they were
+independent documents. Pass a verified private complete-document directory
+explicitly to `tools/deai_docstructure.py --calibrate`.
+
+## Build and inspect
 
 ```bash
-python tools/extract_style.py --field wgl
-# (or just `python tools/extract_style.py` while wgl is the only field —
-# tools auto-detect single-field corpora.)
+python tools/extract_style.py --field <name>
 ```
 
-then inspect `style-profile/wgl/style_dossier.md`. Hand-edit if any extracted
-pattern looks wrong; the dossier is the file the skill actually loads
-into Claude's context, so a manual pass is worth it.
+Inspect `style-profile/<field>/style_dossier.md` and the JSON/JSONL artifacts for
+extraction errors. Do **not** hand-edit generated evidence. If a pattern is wrong,
+fix the source selection or extractor and regenerate; otherwise the next rebuild
+will erase the change and provenance will be lost.
+
+For the full asset map and the boundary between basic profile generation and
+calibration, see `style-profile/README.md`.
 
 ## Updating
 
-Add new papers to the appropriate tier and re-run `extract_style.py`.
-The skill checks dossier mtime vs corpus mtime; stale dossiers cause
-the skill to refuse to run.
+Add or remove authorized papers, rerun `extract_style.py`, and re-evaluate any
+calibrated asset that depends on the changed corpus. Missing or stale calibration
+must remain visible as `degraded` or `unmeasured`, never as zero findings.

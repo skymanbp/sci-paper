@@ -1,9 +1,10 @@
-"""deai_features.py — fundamental-feature extractor for the learned voice model.
+"""Feature extraction for the optional learned compatibility model.
 
-Turns a paragraph into a compact vector of the FUNDAMENTAL (non-keyword)
-features that separate human scientific prose from LLM prose. This is the
-input to the Layer D voice/reward model (train_voice_model.py), replacing the
-old word-ngram TF-IDF features that only re-learn the keyword tells.
+The model contrasts curated reference prose with generated negative examples.
+These features measure distribution, UID, punctuation, and corpus similarity;
+they do not identify an author. Audit-only covariates expose mathematical-marker
+and field-term density so evaluation can test known confounds without silently
+adding them to the shipped classifier.
 
 Feature groups (all reuse the existing tooling so they match the corpus):
   distributional (model-free, from extract_style tokenizers):
@@ -12,12 +13,12 @@ Feature groups (all reuse the existing tooling so they match the corpus):
   surprisal / UID (Layer B, local LM):
     mean_surprisal, global_uid, local_uid
   semantic (all-MiniLM-L6-v2, cached corpus centroid):
-    corpus_cos  (cosine similarity of the paragraph embedding to the human
-                 corpus centroid)
+    corpus_cos  (cosine similarity of the paragraph embedding to the curated
+                 reference-corpus centroid)
 
-Human prose: high sent_len_cv, high global_uid/local_uid, higher
-equivocal/paren/semicolon rates, opens_connective≈0. LLM prose: the opposite.
-The learned model weights them; this module just measures.
+The learned model determines how these measurements separate its curated-reference
+and generated-negative classes. This module does not assign authorship semantics to
+any feature or score.
 
 CLI:  python tools/deai_features.py draft.tex --field wgl   # dump per-paragraph
 Lib:  from deai_features import paragraph_features, FEATURE_NAMES, features_vector
@@ -40,6 +41,14 @@ from deai_metrics import CONNECTIVE_OPENERS  # noqa: E402  same reason
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 EMBED_MODEL = "all-MiniLM-L6-v2"
+FEATURE_SCHEMA_VERSION = "sci-paper.voice-features.v1"
+
+_MATH_MARKER_RE = re.compile(
+    r"\[MATH\]|\[math\]|\$[^$]+\$|\\\(.+?\\\)|"
+    r"\\begin\{(?:equation|align|gather|eqnarray|displaymath|multline)\*?\}",
+    re.DOTALL,
+)
+_PLACEHOLDER_RE = re.compile(r"\[(?:MATH|math|CITE|FIGURE-OR-TABLE)\]")
 
 EQUIVOCAL = frozenset({
     "but", "however", "although", "though", "whereas", "yet",
@@ -83,7 +92,8 @@ def corpus_centroid(field_profile_dir: Path) -> "object | None":
     return c
 
 
-def _distributional(plain: str) -> dict:
+def distributional_features(plain: str) -> dict:
+    """Public model-free paragraph-shape features for reuse by L2 tools."""
     sents = [s for s in es.sentences(plain) if es.words(s)]
     lens = [len(es.words(s)) for s in sents]
     wc = sum(lens)
@@ -109,6 +119,33 @@ def _distributional(plain: str) -> dict:
     }
 
 
+def _prose_words(text: str) -> list[str]:
+    plain = _PLACEHOLDER_RE.sub(" ", es.latex_to_plain(text))
+    return [word.lower() for word in es.words(plain)]
+
+
+def math_marker_density(text: str) -> float:
+    """Return LaTeX/placeholder math markers per 100 prose words.
+
+    This is an audit covariate, not a classifier feature. Counting both raw
+    LaTeX delimiters and extractor placeholders makes the value comparable
+    across corpus, arXiv, and generated JSONL records. Placeholder tokens are
+    excluded from the prose-word denominator.
+    """
+    n_words = len(_prose_words(text))
+    if n_words == 0:
+        return 0.0
+    return 100.0 * len(_MATH_MARKER_RE.findall(text)) / n_words
+
+
+def lexicon_density(text: str, lexicon: set[str] | frozenset[str]) -> float:
+    """Return supplied field-lexicon occurrences per 100 prose words."""
+    tokens = _prose_words(text)
+    if not tokens:
+        return 0.0
+    return 100.0 * sum(token in lexicon for token in tokens) / len(tokens)
+
+
 def paragraph_features(
     text: str,
     field_profile_dir: Path | None = None,
@@ -117,7 +154,7 @@ def paragraph_features(
 ) -> dict:
     """Full fundamental-feature dict for one paragraph. `text` may contain LaTeX."""
     plain = es.latex_to_plain(text)
-    feats = _distributional(plain)
+    feats = distributional_features(plain)
     # surprisal / UID (Layer B)
     uid = do.uid_features(do.token_surprisals(plain, model_name))
     if uid is None:  # too short for a stable UID estimate

@@ -2,6 +2,7 @@
 # Match at any depth so per-field dirs (style-profile/<field>/...) are covered.
 style-profile/**/*.json
 style-profile/**/*.jsonl
+style-profile/**/*.csv
 style-profile/**/style_dossier.md
 # Embedding caches built by retrieve_exemplars.py (per model name).
 style-profile/**/exemplar_embeddings_*.npy

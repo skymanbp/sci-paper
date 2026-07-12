@@ -1,23 +1,17 @@
-"""fetch_arxiv_abstracts.py — harvest CLEAN human scientific prose at scale.
+"""Fetch a dated arXiv abstract corpus for field-similarity training.
 
-Pulls astro-ph abstracts from the arXiv API to widen the voice model's HUMAN
-positive set beyond the curated corpus. Two deliberate choices:
+The default 2010--2021 interval supplies a pre-generative-AI reference set, and
+broad astro-ph queries reduce dependence on one narrow topic. The date filter is
+a provenance control, not proof of individual authorship. Records enter the
+curated-field positive class of a compatibility task; the resulting model must
+not be presented as an author detector.
 
-  * PRE-2022 ONLY (default 2010-2021). After ChatGPT, a growing fraction of
-    abstracts are LLM-assisted (Kobak et al., Science Advances 2025: >=10 % of
-    2024 abstracts). Restricting to pre-2022 guarantees the positives are
-    genuinely human — otherwise we would train the voice model on contaminated
-    "human" data.
-  * BROAD subfields (cosmology, galaxies, high-energy, stellar, exoplanets,
-    plus lensing/cluster terms) so the model learns human VOICE across
-    astrophysics, not one narrow topic.
+The legacy output filename is
+``style-profile/<field>/human_abstracts_extra.jsonl`` and each JSONL record has
+``section``, ``text``, ``source``, and ``year`` fields. The file remains local
+and gitignored. Network/API failures are reported explicitly.
 
-Output: style-profile/<field>/human_abstracts_extra.jsonl
-  {"section": "abstract", "text": ..., "source": "arxiv:<id>", "year": <int>}
-
-Stdlib only (urllib + xml.etree); respects the arXiv API 3 s rate guidance.
-
-Run:  python tools/fetch_arxiv_abstracts.py --field wgl --per-query 400
+Run: ``python tools/fetch_arxiv_abstracts.py --field wgl --per-query 400``.
 """
 
 from __future__ import annotations
@@ -53,9 +47,9 @@ QUERIES = [
     'cat:astro-ph.CO AND abs:"mass map"',
 ]
 
-# Authoritative authors: the advisor (Ian Dell'Antonio) + widely-cited
-# weak-lensing / cluster-lensing authors. These are the highest-value HUMAN
-# positives — the voice we actually want the model to recognize as human.
+# Target-author references: the advisor (Ian Dell'Antonio) plus widely cited
+# weak-lensing / cluster-lensing authors. These records broaden the positive
+# curated-field class; they do not turn the training task into authorship proof.
 AUTHOR_QUERIES = [
     "au:Dell_Antonio_I",       # advisor
     "au:Hoekstra_H",
@@ -138,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         for r in recs:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     years = sorted({r["year"] for r in recs})
-    print(f"[fetch] wrote {len(recs)} clean-human abstracts -> {out}")
+    print(f"[fetch] wrote {len(recs)} dated curated-field abstracts -> {out}")
     print(f"[fetch] year span: {years[0] if years else '-'}..{years[-1] if years else '-'}")
     return 0
 

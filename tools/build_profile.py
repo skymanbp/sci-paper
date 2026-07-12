@@ -1,19 +1,21 @@
-"""build_profile.py — one-shot orchestration: extract + train + warm cache.
+"""Build the basic descriptive profile and optional legacy retrieval assets.
 
-Wraps the three independent tools:
-  1. extract_style.py            → dossier + JSON stats + exemplar JSONL
-  2. train_ai_ism_classifier.py  → ai_ism_classifier.joblib (optional)
-  3. retrieve_exemplars.py       → pre-warm sentence-transformer embedding
-                                   cache so the first /paper-style call is
-                                   instant (optional)
+This convenience wrapper runs three independent steps:
 
-Defaults: run all three. Skip any with the corresponding `--no-*` flag.
-Field-aware via the same auto-detect rules; `--field <name>` overrides.
+1. ``extract_style.py`` builds the descriptive dossier, JSON statistics, and
+   exemplar JSONL.
+2. ``train_ai_ism_classifier.py`` optionally builds the legacy word-ngram style
+   classifier.
+3. ``retrieve_exemplars.py`` optionally warms the sentence-transformer cache.
 
-After this you can immediately use:
-  - /sci-paper:paper-style discussion
-  - python tools/retrieve_exemplars.py --section method --topic "..."
-  - python tools/ai_ism_lint.py draft.tex --ai-classifier --summary
+The wrapper does not create calibrated distribution, sentence-structure,
+whole-document, UID, or learned field-similarity policy. Build those assets with
+their dedicated tools and record their provenance in ``EVALUATION.md``. Missing
+assets remain unmeasured or degraded.
+
+Defaults: run all three basic steps. Skip optional steps with ``--no-train`` or
+``--no-warm``. Field resolution follows the delegated tools; ``--field <name>``
+overrides auto-detection.
 """
 
 from __future__ import annotations
@@ -59,9 +61,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="Field name; auto-detected when only one exists.")
     p.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
     p.add_argument("--no-train", action="store_true",
-                   help="Skip ai_ism classifier training.")
+                   help="Skip legacy word-ngram classifier training.")
     p.add_argument("--no-warm", action="store_true",
-                   help="Skip pre-warming the sentence-transformers cache.")
+                   help="Skip pre-warming the sentence-transformer cache.")
     p.add_argument("--warm-section", default="method",
                    help="Section type used for the warm-up retrieval call "
                         "(default: method).")
@@ -70,9 +72,10 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     py = sys.executable
-    extract_cmd = [py, "tools/extract_style.py"]
-    train_cmd = [py, "tools/train_ai_ism_classifier.py"]
-    warm_cmd = [py, "tools/retrieve_exemplars.py",
+    profile_args = ["--profile-root", str(args.profile_root)]
+    extract_cmd = [py, "tools/extract_style.py", *profile_args]
+    train_cmd = [py, "tools/train_ai_ism_classifier.py", *profile_args]
+    warm_cmd = [py, "tools/retrieve_exemplars.py", *profile_args,
                 "--section", args.warm_section, "--k", "1"]
     if args.warm_topic:
         warm_cmd += ["--topic", args.warm_topic]
@@ -83,54 +86,57 @@ def main(argv: list[str] | None = None) -> int:
 
     timings: list[tuple[str, float, bool]] = []
 
-    ok, t = run_step("Step 1/3: extract_style", extract_cmd)
-    timings.append(("extract_style", t, ok))
+    ok, elapsed = run_step("Step 1/3: extract descriptive style profile", extract_cmd)
+    timings.append(("extract_style", elapsed, ok))
     if not ok:
-        print("\n[build_profile] Aborting: extract_style failed; "
-              "fix corpus + retry.", file=sys.stderr)
+        print("\n[build_profile] Aborting: extraction failed; fix the corpus "
+              "or extractor and retry.", file=sys.stderr)
         return 1
 
     if args.no_train:
-        print("\n=== Step 2/3: train_ai_ism_classifier — SKIPPED (--no-train) ===")
+        print("\n=== Step 2/3: legacy word-ngram classifier — "
+              "SKIPPED (--no-train) ===")
     else:
-        ok, t = run_step("Step 2/3: train_ai_ism_classifier", train_cmd)
-        timings.append(("train_classifier", t, ok))
+        ok, elapsed = run_step(
+            "Step 2/3: train legacy word-ngram classifier", train_cmd)
+        timings.append(("legacy_classifier", elapsed, ok))
         if not ok:
-            print("\n[build_profile] WARNING: classifier training failed; "
-                  "continuing without classifier. Lint can still run "
-                  "without --ai-classifier.", file=sys.stderr)
-
-    if args.no_warm:
-        print("\n=== Step 3/3: warm embedding cache — SKIPPED (--no-warm) ===")
-    else:
-        # Suppress retrieve output; we just want the cache to be built.
-        # Send to /dev/null on Unix, NUL on Windows.
-        warm_cmd_quiet = warm_cmd + []  # no extra; output is small for k=1
-        ok, t = run_step("Step 3/3: warm sentence-transformers cache", warm_cmd_quiet)
-        timings.append(("warm_cache", t, ok))
-        if not ok:
-            print("\n[build_profile] WARNING: cache warm-up failed; first "
-                  "real /paper-style call will pay the model-load cost.",
+            print("\n[build_profile] WARNING: legacy classifier training "
+                  "failed; continuing without that optional advisory axis.",
                   file=sys.stderr)
 
+    if args.no_warm:
+        print("\n=== Step 3/3: warm exemplar embedding cache — "
+              "SKIPPED (--no-warm) ===")
+    else:
+        ok, elapsed = run_step(
+            "Step 3/3: warm sentence-transformer exemplar cache", warm_cmd)
+        timings.append(("warm_exemplar_cache", elapsed, ok))
+        if not ok:
+            print("\n[build_profile] WARNING: cache warm-up failed; semantic "
+                  "retrieval remains unavailable until its dependency/model "
+                  "loads successfully.", file=sys.stderr)
+
     print("\n=== build_profile summary ===")
-    total = sum(t for _, t, _ in timings)
-    for label, t, ok in timings:
+    total = sum(elapsed for _, elapsed, _ in timings)
+    for label, elapsed, ok in timings:
         status = "OK " if ok else "FAIL"
-        print(f"  {status}  {label:24s} {t:>6.1f} s")
+        print(f"  {status}  {label:24s} {elapsed:>6.1f} s")
     print(f"  total: {total:.1f} s")
     print()
 
     fields = list_fields(args.profile_root)
     if fields:
-        print(f"Profile(s) ready: {fields}")
+        print(f"Basic profile(s) present: {fields}")
+        print("This command did not create calibrated operating points.")
         print()
         print("Next:")
-        print("  - draft a section: /sci-paper:paper-style discussion")
-        print(f"  - retrieve top-K: python tools/retrieve_exemplars.py "
-              f"--section method --topic \"...\"")
-        print(f"  - lint a draft:    python tools/ai_ism_lint.py "
-              f"<draft.tex> --ai-classifier --summary")
+        print("  - draft with evidence: /sci-paper:paper-style discussion")
+        print("  - retrieve exemplars: python tools/retrieve_exemplars.py "
+              "--section method --topic \"...\"")
+        print("  - unified feedback: python tools/ai_ism_lint.py "
+              "<draft.tex> --field <name> --format json")
+        print("  - calibration map: see style-profile/README.md")
     return 0
 
 

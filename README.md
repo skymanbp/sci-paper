@@ -1,7 +1,13 @@
 # sci-paper
 
-A Claude Code plugin for writing and reviewing scientific papers at the
-ApJ / MNRAS / PRD / JCAP / Nature-Physics level.
+A Claude Code plugin for scientific writing, rewriting, source-traced review,
+figure review, narrative analysis, adversarial critique, and research ideation.
+
+The single normative authority is
+[`docs/SCIPAPER_STANDARD.md`](docs/SCIPAPER_STANDARD.md). It defines scientific
+integrity blockers, narrow L0 rewrite targets, ranked advisories, explicit measurement
+states, author dispositions, and scientific-fidelity requirements. Corpus profiles and
+learned models provide evidence; they do not define a separate paper verdict.
 
 ## What it ships
 
@@ -9,205 +15,208 @@ ApJ / MNRAS / PRD / JCAP / Nature-Physics level.
 
 | Skill | Purpose |
 |---|---|
-| `paper` | Writing standards (formula conventions, citation rules, **anti-AI-ism hard rules**, **forward-narrative structural-update rule**, key references). Invoke before drafting. |
-| `paper-review` | Forced source-traceable review across **A–R** dimensions (math / physics / logic / language / structure / citations / data / interfaces / redundancy / reproducibility / modern-physics-review / systemic inconsistency / adversarial 3-pass / drift sweep / process-artifact removal / draft language / citation precision / glossary alignment). Zero-issue convergence hard loop; isolated-context MPR final verification. |
-| `figure-review` | Renders compiled PDF at 150 DPI and reviews each figure as a human reader would actually see it (axis font sizes, legend readability, float placement). |
-| `paper-style` | Loads a corpus-distilled style profile (top-journal + mentor + high-value-reference papers) plus retrieves section-typed exemplar paragraphs. Constrains writing/rewriting to match observed human-academic patterns. |
-| `brainstorm` | Fully-automated radial research-direction explorer (phylogenetic-tree model). 12 framings (first-principles / inversion / cross-disciplinary / adversarial / constraint-shift / scale extrapolation / substitution / office-hours / contrarian / failure-driven / high-risk-high-reward / meta-self-audit). Recurses on promising leaves until convergence. §2.0 glossary grill prelude locks root-node terms to `FACTS.md`. |
-| `mainline` | Structural narrative-spine reinforcer. Full-read audit on 7 positive + 8 negative structural dimensions; mandatory isolated-context cold-read 7-question readability sub-agent. Complements `paper-review` (per-claim correctness) by covering spine-level issues. |
-| `paper-attack-tree` | `brainstorm`'s radial methodology applied to critique. Each node = one critique attacked by 12 framing passes; every leaf resolved to **CONFIRMED** / **REFUTED** / **MARGINAL** with `file:line` evidence. No `NEEDS-MORE-INFO` defer. Complements `paper-review` (static checklist) with open-ended adversarial coverage. |
-| `final-review` | 5-skill orchestrator for pre-submission final pass. Runs `paper-review` / `figure-review` / `mainline` / `paper-attack-tree` / `modern-physics-review` each in its own `isolation: worktree` sub-agent every round; loops until consecutive N rounds (default 2) show 0 issues across all 5. ITER_BUDGET 10 rounds. |
-| `rewrite-in-voice` | Layer C of the de-AI subsystem. Rebuilds structurally-AI paragraphs from their claim-graph (claim → fill-in skeleton → author-voice regeneration) instead of word-swapping, since AI-ness lives in sentence structure. Best-of-N over a multi-term reward (learned-voice P(human) × number-specificity, gated by claim-fidelity) so genuine voice + preserved meaning win, never detector-evasion. Human-in-the-loop; optional self-distillation. |
+| `paper` | Normative scientific-writing framework: accuracy, formula and citation rules, forward narrative, L0 policy, positive voice guidance, measurement states, and stopping semantics. |
+| `paper-review` | Source-traced A–R review across mathematics, physics, logic, language, structure, citations, data, interfaces, reproducibility, consistency, adversarial three-pass verification, staleness, process artifacts, draft language, citation precision, and glossary alignment. |
+| `figure-review` | Reviews compiled pages at 150 DPI, traces figure/caption/data provenance, and separates scientific/build blockers from readability and aesthetic advisories. |
+| `paper-style` | Loads a field corpus dossier and section-typed exemplars as descriptive evidence and positive anchors. Corpus distance never proves authorship or redefines consequence policy. |
+| `brainstorm` | Radial research-direction explorer with twelve framing passes, source checks, glossary anchoring, recursive branching, and bounded search convergence. |
+| `mainline` | Complete cold-read contribution-graph review. Supports several explicitly related contributions and reports scientific, narrative, and editorial consequences separately. |
+| `paper-attack-tree` | Open-ended adversarial critique tree. Each critique is resolved to CONFIRMED, REFUTED, or MARGINAL on evidence, then independently assigned a consequence and disposition. |
+| `final-review` | Parent orchestrator for isolated paper-review, figure-review, mainline, attack-tree, and modern-physics-review runs. Verifies a stable disposition-complete state rather than zero advisories. |
+| `rewrite-in-voice` | Claim-first reconstruction. Only candidates preserving protected scientific invariants are eligible; structural, distributional, exemplar, and learned evidence rank eligible prose. |
 
-See [CHANGELOG.md](CHANGELOG.md) for the per-version evolution.
+See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 
-### Tools (14)
+### Tools (17)
 
 | Tool | Purpose |
 |---|---|
-| `tools/build_profile.py` | One-shot orchestrator: extract → train classifier → warm exemplar cache. |
-| `tools/extract_style.py` | Corpus → lexicon / sentence-stats / transition-inventory JSON + `style_dossier.md` + section-typed exemplar bank. `.tex` and `.pdf` (pymupdf blocks). |
-| `tools/retrieve_exemplars.py` | Section + topic + field → top-K exemplar paragraphs (sentence-transformers cosine, `.npy` cache, keyword-overlap fallback). |
-| `tools/ai_ism_lint.py` | Tier-graded regex (em-dash, Tier A zero-tolerance, Tier B frequency-capped) + corpus-derived blacklist + opt-in ML classifier (`--ai-classifier`) + `--summary`. |
-| `tools/train_ai_ism_classifier.py` | Trains a paragraph-level logistic-regression classifier on word 1–2 gram TF-IDF. Positives = corpus, negatives = `ai_ism_negatives_handcrafted.txt` (extend with `extract_md_negatives.py`). CV F1 ≈ 0.88 on `wgl`. |
-| `tools/extract_md_negatives.py` | Harvests LLM-drafted prose from your project tree as extra negatives for the classifier. |
-| `tools/ai_ism_negatives_handcrafted.txt` | Seed negatives shipped with the plugin (extend by hand or via `extract_md_negatives.py`). |
-| `tools/deai_metrics.py` | **Layer A** (de-AI subsystem): model-free distributional scorer. Flags paragraphs whose sentence-length burstiness / connective-opener signposting fall outside the human-corpus baseline. Advisory. |
-| `tools/deai_oracle.py` | **Layer B**: per-token surprisal / UID oracle (gpt2-large). Flags paragraphs whose surprisal variance is below the human baseline (LLM prose is smoothed toward uniform information density). Advisory. |
-| `tools/deai_features.py` | 14-dim fundamental-feature extractor (distributional + surprisal/UID + corpus-embedding) feeding the learned voice model — replaces word-ngram TF-IDF, which only re-learns keyword tells. |
-| `tools/deai_voice.py` | **Layer D** scorer: loads `voice_model.joblib`, returns per-paragraph P(human). This score is the reward the rewriter and self-distillation optimize toward. |
-| `tools/train_voice_model.py` | Trains the voice/reward model on the fundamental features (group-split by paper; ships LogisticRegression over gradient-boosting for out-of-distribution robustness — a reward model must stay monotonic on arbitrary rewrites). |
-| `tools/rewrite_reward.py` | **Layer C** best-of-N reward: learned-voice P(human) × number-specificity, gated by relative claim-fidelity, so meaning-drift and detail-loss cannot win. |
-| `tools/fetch_arxiv_abstracts.py` | Harvests clean pre-2022 arXiv abstracts (broad astro + weak-lensing + authoritative authors) as uncontaminated human positives for the voice model. |
+| `tools/build_profile.py` | Builds the basic field profile: extraction, optional legacy classifier, and exemplar-cache warm-up. |
+| `tools/extract_style.py` | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. |
+| `tools/retrieve_exemplars.py` | Retrieves section- and topic-matched exemplar paragraphs with embedding or explicit fallback retrieval. |
+| `tools/ai_ism_lint.py` | Unified L0 and advisory CLI with ranked text/JSON output and exit statuses 0/1/2. |
+| `tools/train_ai_ism_classifier.py` | Trains the legacy word-ngram classifier used only as degraded advisory evidence. |
+| `tools/extract_md_negatives.py` | Harvests candidate generated paragraphs for controlled evaluation/training. |
+| `tools/ai_ism_negatives_handcrafted.txt` | Seed negative examples for the legacy classifier. |
+| `tools/deai_feedback.py` | Implements `sci-paper.feedback.v1`: stable IDs, consequence classes, measurement states, dispositions, ranking, summaries, and rendering. |
+| `tools/deai_metrics.py` | L1 model-free information-distribution findings with explicit calibration state. |
+| `tools/deai_structure.py` | L2 sentence/paragraph construction analysis for enumeration, repeated frames, parallel runs, symmetry, and related templates. |
+| `tools/deai_docstructure.py` | Whole-document rhetorical-shape analysis and complete-document calibration. |
+| `tools/deai_oracle.py` | Optional surprisal/UID evidence; unavailable assets and compatibility thresholds remain explicit. |
+| `tools/deai_features.py` | Reusable distributional, UID, punctuation, embedding, and structural features. |
+| `tools/deai_voice.py` | Optional learned field-similarity triage; a bundle without an operating point is degraded and never an authorship verdict. |
+| `tools/train_voice_model.py` | Trains the optional field-similarity model with source-paper grouping. Confound audits remain mandatory. |
+| `tools/rewrite_reward.py` | Applies hard scientific-fidelity eligibility before ranking rewrite candidates. |
+| `tools/fetch_arxiv_abstracts.py` | Fetches dated abstract corpora for controlled model evaluation/training. |
 
-See [tools/README.md](tools/README.md) for per-tool roadmap and graceful-degradation behaviour.
-The four-layer de-AI subsystem is documented in [docs/DEAI_SUBSYSTEM.md](docs/DEAI_SUBSYSTEM.md).
+The repository validator, `tools/validate_plugin.py`, is a development/release tool and
+is not counted as a shipped product tool. See [tools/README.md](tools/README.md) for the
+complete registry and failure behavior.
+
+## Core feedback model
+
+Every finding uses `sci-paper.feedback.v1` and one consequence class:
+
+- `integrity_blocker`: scientific/source/build contradiction that must be repaired or
+  verified false;
+- `l0_target`: Tier A, em-dash, or Tier B usage above one occurrence per section and
+  word;
+- `advisory`: structural, distributional, learned, rhetorical, clarity, or aesthetic
+  evidence.
+
+Each analysis axis reports `measured`, `degraded`, `unmeasured`, or
+`not_applicable`. Strong advisories require a disposition. Ordinary advisories remain
+visible and do not have to disappear.
+
+The linter exit contract is intentionally narrow:
+
+- `0`: no L0 target; advisories may remain;
+- `1`: at least one L0 target;
+- `2`: invalid input, configuration failure, or execution failure.
 
 ## Quick start
 
 ```bash
-# 1. Install Python deps (numpy + pymupdf + sentence-transformers + sklearn).
+# Install optional full-pipeline dependencies.
 pip install -r requirements.txt
 
-# 2. Drop corpus papers into the field tier dirs:
-#       style-corpus/wgl/tier-1-top/        ← top-journal .tex / .pdf
-#       style-corpus/wgl/tier-2-mentor/     ← mentor's papers
-#       style-corpus/wgl/tier-3-reference/  ← other high-value references
+# Validate the repository contract and run tests.
+python tools/validate_plugin.py
+python -m unittest discover -s tests -v
 
-# 3. Build the profile end-to-end (extract → train → warm cache).
-#    First run downloads the sentence-transformers model (~80 MB; ~30 s).
-python tools/build_profile.py
+# Put field papers under style-corpus/<field>/tier-*/ and build the basic profile.
+python tools/build_profile.py --field wgl
 
-# 4. Register the plugin in your Claude Code session
+# Register the plugin for development.
 claude --plugin-dir <path-to-this-repo>
 
-# 5. Use it
-#    - skill (Claude does the work)        :  /sci-paper:paper-style discussion
-#    - manual exemplar retrieval           :  python tools/retrieve_exemplars.py --section method --topic "..."
-#    - lint a draft (regex + ML classifier):  python tools/ai_ism_lint.py draft.tex --ai-classifier --summary
+# Produce unified feedback.
+python tools/ai_ism_lint.py draft.tex --field wgl \
+  --structure --distribution --document-structure --oracle --voice \
+  --format json --output feedback.json
 ```
 
-## Why `paper-style` instead of "fine-tuning a model"
+Example skill invocations:
 
-Fine-tuning Claude is **not offered** by Anthropic; LoRA-ing an OSS model on a
-small (~10–100 paper) corpus produces a writer strictly worse than Claude raw.
-The realistic path is **explicit style extraction + retrieval-augmented
-exemplars**:
+```text
+/sci-paper:paper
+/sci-paper:paper-style discussion --field wgl
+/sci-paper:rewrite-in-voice draft.tex --field wgl
+/sci-paper:paper-review draft.tex --field wgl
+/sci-paper:final-review draft.tex --field wgl
+```
 
-1. Parse the corpus → quantitative features (section-conditional sentence-length
-   distributions, transition-word inventory, em-dash vs en-dash counts, passive
-   ratio per section, formula:text density, hedge-word frequency, opening
-   patterns).
-2. Compress to a `style_dossier.md` (~2k tokens) loaded into Claude's context
-   when the skill is invoked.
-3. Index representative paragraphs by section type (abstract / intro / method /
-   results / discussion / conclusion); retrieve top-K at write time as positive
-   anchors.
-4. Extend the existing hand-written anti-AI-ism blacklist with **data-driven**
-   evidence (words/phrases the corpus actually never uses).
+## Why explicit profiles and typed feedback
 
-This gives you what fine-tuning would, except: it's transparent (every rule
-traces to a corpus paper), editable (drop in new papers, re-extract), and
-small-data-friendly (RAG dominates fine-tuning at this corpus size).
+A single learned score cannot tell an editor what to change and is vulnerable to field,
+source, section, length, jargon, and mathematical-density confounds. sci-paper instead
+combines:
 
-See [EVALUATION.md](EVALUATION.md) for the full feasibility analysis.
+1. deterministic scientific and L0 rules;
+2. corpus-derived descriptive statistics and exemplars;
+3. sentence and whole-document structural evidence;
+4. optional UID and learned field-similarity evidence;
+5. claim-first rewriting with hard protected-invariant eligibility;
+6. source-traced review and explicit author dispositions.
+
+This design keeps measurements inspectable and replaceable. Missing calibration remains
+visible instead of becoming a nominal score. Current performance and gaps are recorded in
+[EVALUATION.md](EVALUATION.md); implementation details are in
+[docs/DEAI_SUBSYSTEM.md](docs/DEAI_SUBSYSTEM.md).
+
+## Field-aware evidence
+
+A field is one subdirectory under `style-corpus/` with a corresponding directory under
+`style-profile/`. With one field, most tools can auto-detect it; with several fields,
+pass `--field <name>` explicitly.
+
+Corpus contents are read-only, copyright-sensitive inputs. Generated dossiers and
+exemplars may quote source prose and must not be published unless their rights permit it.
+A corpus dossier is descriptive evidence, not a normative standard and not proof of
+human or machine authorship.
+
+Whole-document calibration requires complete papers as independent observations.
+Paragraph exemplars cannot be relabelled as independent documents.
 
 ## Project structure
 
-The plugin is **field-aware**: a "field" is one subfolder under
-`style-corpus/<field>/` and a corresponding `style-profile/<field>/`.
-v0.1 ships only `wgl` (weak gravitational lensing); add fields by creating
-new subdirs alongside it (e.g. `cosmology/`, `ml-methods/`). When only one
-field exists, all tools and skills auto-detect it; with multiple, pass
-`--field <name>` explicitly.
-
-```
+```text
 .
 ├── .claude-plugin/
-│   ├── plugin.json               # plugin manifest
-│   └── marketplace.json          # single-plugin marketplace manifest
+│   ├── plugin.json
+│   └── marketplace.json
+├── docs/
+│   ├── SCIPAPER_STANDARD.md       # sole normative writing/review contract
+│   └── DEAI_SUBSYSTEM.md          # implementation architecture
 ├── skills/
 │   ├── paper/SKILL.md
 │   ├── paper-review/SKILL.md
 │   ├── figure-review/SKILL.md
-│   ├── paper-style/SKILL.md      # --field aware
-│   ├── brainstorm/SKILL.md       # radial idea/problem tree with width × depth
-│   ├── mainline/SKILL.md         # structural spine reinforcer + cold-read sub-agent
-│   ├── paper-attack-tree/SKILL.md # brainstorm methodology applied to paper critique
-│   └── final-review/SKILL.md     # 5-skill orchestrator with per-skill isolation + stable-convergence loop
-├── style-corpus/                  # user-populated; gitignored content
-│   ├── README.md
-│   └── wgl/                       # current default field
-│       ├── tier-1-top/            # top-journal exemplars
-│       ├── tier-2-mentor/         # mentor's high-quality WGL papers
-│       └── tier-3-reference/      # high-value WGL references
-├── style-profile/                 # generated by tools/extract_style.py
-│   ├── README.md
-│   └── wgl/                       # populated on first build_profile.py run
-└── tools/
-    ├── build_profile.py           # one-shot orchestrator: extract → train → warm
-    ├── extract_style.py           # corpus → dossier + JSONL exemplar bank
-    ├── retrieve_exemplars.py      # cosine retrieval (sentence-transformers)
-    ├── ai_ism_lint.py             # tier-graded regex + opt-in ML classifier
-    ├── train_ai_ism_classifier.py # logistic regression on word 1–2 grams
-    ├── extract_md_negatives.py    # harvest LLM-drafted prose for negatives
-    └── ai_ism_negatives_handcrafted.txt
+│   ├── paper-style/SKILL.md
+│   ├── brainstorm/SKILL.md
+│   ├── mainline/SKILL.md
+│   ├── paper-attack-tree/SKILL.md
+│   ├── final-review/SKILL.md
+│   └── rewrite-in-voice/SKILL.md
+├── style-corpus/
+│   └── <field>/tier-{1,2,3}-*/    # user-supplied read-only corpus
+├── style-profile/
+│   └── <field>/                   # generated/calibrated evidence
+├── tests/                         # schema, linter, structure, and fidelity tests
+├── tools/                         # product tools plus repository validator
+├── EVALUATION.md                  # current metrics, gaps, and confounds
+└── CHANGELOG.md
 ```
 
-## Installation (development)
+## Build and calibration boundaries
 
-From this repo:
+`build_profile.py` builds the basic descriptive profile and legacy assets. Optional UID,
+learned field-similarity, sentence-structure, and whole-document calibration have
+separate tools and evidence requirements. Do not claim a measured axis merely because a
+model file exists.
+
+A field policy asset should document:
+
+- the independent sample unit;
+- corpus selection and provenance;
+- sample size;
+- uncertainty method;
+- operating point and applicability;
+- leave-source/document-out human flag behavior;
+- known confounds.
+
+Without that record, the corresponding axis remains degraded or unmeasured.
+
+## Development and release verification
 
 ```bash
-claude --plugin-dir <path-to-this-repo>
+python tools/validate_plugin.py
+python -m unittest discover -s tests -v
 ```
 
-Reload after edits:
+The validator checks release metadata, skill frontmatter, standard references, stale
+contract markers, product registries, Python syntax, runtime imports, CLI entry points,
+schema fields, linter exits, Tier B behavior, tests, and CI wiring.
 
-```
-/reload-plugins
-```
-
-Once invoked, skills appear as `/sci-paper:paper`, `/sci-paper:paper-review`,
-`/sci-paper:figure-review`, `/sci-paper:paper-style`, `/sci-paper:brainstorm`,
-`/sci-paper:mainline`, `/sci-paper:paper-attack-tree`,
-`/sci-paper:final-review` (Claude Code namespaces plugin skills by plugin
-name to prevent conflicts).
-
-## Build the style profile (one-time + on corpus change)
-
-1. Drop papers into `style-corpus/wgl/tier-{1,2,3}-*/` (PDF or `.tex` source —
-   `.tex` is preferred because parsing is exact, but PDF works via text
-   extraction).
-2. Run:
-   ```bash
-   python tools/extract_style.py --field wgl
-   # (or just `python tools/extract_style.py` while wgl is the only field —
-   # tools auto-detect single-field corpora.)
-   ```
-3. Inspect `style-profile/wgl/style_dossier.md` and edit by hand if any
-   extracted pattern looks wrong. The dossier is the file that actually
-   enters Claude's context, so it's worth a manual pass.
-
-## Add a new field later
-
-```bash
-mkdir -p style-corpus/<new-field>/{tier-1-top,tier-2-mentor,tier-3-reference}
-# drop papers
-python tools/extract_style.py --field <new-field>
-```
-
-After this, all tools/skills require explicit `--field <name>` because
-multiple fields are present.
+A release additionally requires independent code review and clean-checkout verification.
 
 ## Status
 
-Current: **v0.13.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.13.0**. v0.14.0 is under development. Full per-version history is in
+[CHANGELOG.md](CHANGELOG.md).
 
 - **Skills (9):** `paper`, `paper-review`, `figure-review`, `paper-style`,
   `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`,
   `rewrite-in-voice`.
-- **Tools (14):** the seven above (`build_profile.py`, `extract_style.py`,
-  `retrieve_exemplars.py`, `ai_ism_lint.py`, `train_ai_ism_classifier.py`,
-  `extract_md_negatives.py`, `ai_ism_negatives_handcrafted.txt`) plus the
-  de-AI subsystem (`deai_metrics.py` = Layer A, `deai_oracle.py` = Layer B,
-  `deai_features.py`, `deai_voice.py` = Layer D, `train_voice_model.py`,
-  `rewrite_reward.py` = Layer C reward, `fetch_arxiv_abstracts.py`). See
-  [docs/DEAI_SUBSYSTEM.md](docs/DEAI_SUBSYSTEM.md).
-- **Field-aware:** auto-detect single field, require `--field <name>` when
-  multiple. v0.13 still ships only `wgl` populated.
-- **WGL anchors:** four ported skills (`paper`, `paper-review`,
-  `figure-review`, and parts of others) carry `[WGL]` markers for the
-  weak-gravitational-lensing project's specifics; remove or replace those
-  anchors when generalizing to other fields.
-
-See [tools/README.md](tools/README.md) for the per-tool roadmap and
-[EVALUATION.md](EVALUATION.md) for the design rationale.
+- **Tools (17):** exact product registry above.
+- **Current calibrated gaps:** no `wgl` complete-document baseline, no learned-model
+  operating point, no completed author hard-set labels, and unresolved learned-model
+  confound audit. These remain explicit in [EVALUATION.md](EVALUATION.md).
+- **Field-specific guidance:** WGL-specific scientific anchors remain marked where
+  applicable. Shared writing/review policy is field-agnostic.
 
 ## License
 
-[MIT](LICENSE) — covers the code, skills, documentation, and tooling
-authored in this repository. The `style-corpus/` directory is user-populated
-and git-ignored (`.gitignore` blanket-denies `style-corpus/**/tier-*/**`),
-so no third-party papers or copyrighted materials are bundled or
-distributed with this plugin.
+[MIT](LICENSE) covers code, skills, documentation, and tooling authored in this
+repository. User-supplied corpus contents and generated excerpts retain their source
+rights and are not covered by this repository license.

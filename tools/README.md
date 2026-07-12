@@ -1,71 +1,88 @@
 # tools/
 
-Helpers for the `/sci-paper:paper-style` pipeline.
+Runtime helpers for the sci-paper profile, feedback, de-AI, rewrite, and validation
+pipeline. Normative policy lives in `docs/SCIPAPER_STANDARD.md`; tools measure and
+serialize evidence but do not define an independent paper verdict.
 
-| Script | Purpose | Status |
+## Registry
+
+| File | Purpose | Calibration / failure behavior |
 |---|---|---|
-| `build_profile.py` | One-shot orchestrator: runs `extract_style.py` → `train_ai_ism_classifier.py` → warms `retrieve_exemplars.py` cache. Run after dropping new papers into `style-corpus/<field>/tier-*/`. | v0.3 — sequences the three downstream tools, propagating `--field` and exiting on first failure. |
-| `extract_style.py` | Ingest `style-corpus/<field>/**/*.{tex,pdf}` → emit lexicon / sentence-stats / transition-inventory JSON + `style_dossier.md` + `exemplar_paragraphs.jsonl`. | v0.3 — `.tex` + `.pdf` (via pymupdf blocks-mode for paragraph segmentation; ALL-CAPS heuristic for thematic section detection) + plain text. Computes em-dash counts, per-section sentence-length stats, transition word frequencies, dossier markdown, and segment-by-paragraph exemplar bank. **Field-aware**: `--field <name>`, auto-detected when only one field exists. **PDF-aware**: standalone PDFs at the immediate tier-dir level are parsed; PDFs nested inside arXiv-source bundles are treated as figures and skipped. |
-| `retrieve_exemplars.py` | Query the exemplar bank by section type + topic + field, return top-K paragraphs as `=== Exemplar i/K ===` blocks for direct context injection. | v0.2 — sentence-transformers cosine retrieval with per-corpus `.npy` cache (rebuilt automatically when JSONL is newer). Falls back to keyword overlap (`--allow-fallback`) if `sentence-transformers` is not installed. Default model: `all-MiniLM-L6-v2`. **Field-aware**. |
-| `train_ai_ism_classifier.py` | Train a paragraph-level AI-ism classifier (logistic regression on word 1–2 gram TF-IDF) using corpus paragraphs as positives and `ai_ism_negatives_handcrafted.txt` as negatives. Save model to `style-profile/<field>/ai_ism_classifier.joblib`. | v0.3 — handcrafted-only negatives (≈20 default; user can extend). 5-fold stratified CV F1 ≈ 0.88 on the wgl corpus. **Field-aware**. |
-| `extract_md_negatives.py` | Walk a doc tree (e.g. your project's `.md` notes) and harvest LLM-drafted paragraphs as extra training negatives for `train_ai_ism_classifier.py`. Output: `style-profile/<field>/ai_ism_negatives_extracted.txt` (gitignored — privacy-sensitive). | v0.3 — heuristic AI-ism scoring on regex hits; threshold via `--min-hits`. **Field-aware**. |
-| `ai_ism_lint.py` | Tier-graded anti-AI-ism linter (em-dash, Tier A zero-tolerance, Tier B frequency-capped, stubborn replacements, three-parallel, corpus-derived blacklist, **opt-in classifier `[ai-ish:<score>]`**) with `--summary` aggregate (per-tier counts + Tier B per-section density). | v0.3 — Tier A/B split synced with `/paper` SKILL; corpus blacklist auto-derived from `lexicon.json`; opt-in `--ai-classifier` runs the trained model on each paragraph and tags those above `--ai-threshold` (default 0.7). **Field-aware**: falls back to hand-rules-only when no field profile is available. |
-| `ai_ism_negatives_handcrafted.txt` | Seed negative samples shipped with the plugin (~20 paragraphs). Extend by hand or by running `extract_md_negatives.py`. | Static data file — edit freely. |
-| `validate_plugin.py` | Repo-shape sanity checks: manifests parse + versions match, every `skills/<name>/SKILL.md` has YAML frontmatter with matching `name`, and every `tools/*.py` parses as valid Python. Run before commit; also runs in CI. | Stable. No deps beyond stdlib. |
+| `build_profile.py` | Builds the basic descriptive profile, optionally trains the legacy classifier, and warms the exemplar cache. | Aborts on extraction failure; reports optional-stage failures and continues. It does not create calibrated L1/L2/L3 policy. |
+| `extract_style.py` | Builds descriptive lexicon, sentence statistics, transition inventory, dossier, and exemplar bank from `.tex`, `.pdf`, or text corpora. | PDF extraction is unavailable without pymupdf; corpus observations do not redefine policy. |
+| `retrieve_exemplars.py` | Retrieves section- and topic-matched exemplar paragraphs. | Uses sentence-transformer cosine when installed; keyword fallback requires `--allow-fallback`. |
+| `train_ai_ism_classifier.py` | Trains the legacy word-ngram paragraph classifier. | Output is degraded L3 advisory evidence, not authorship evidence or an L0 gate. |
+| `extract_md_negatives.py` | Harvests candidate negative paragraphs from a document tree. | Generated data are privacy-sensitive and remain profile-local/gitignored. |
+| `ai_ism_negatives_handcrafted.txt` | Seed negative examples for the legacy classifier. | Data asset, not normative prose policy. |
+| `deai_feedback.py` | Implements `sci-paper.feedback.v1`: stable IDs, consequence classes, measurement states, dispositions, ranking, summaries, text/JSON rendering, and tuple compatibility. | Stdlib-only shared contract. |
+| `ai_ism_lint.py` | Unified L0 and advisory CLI. Emits ranked text or JSON from the same findings. | Exit 0 = no L0 target; 1 = L0 target present; 2 = invalid input/configuration/execution. Advisories never cause exit 1. |
+| `deai_metrics.py` | L1 information-distribution analysis: sentence-length variation and connective-openers. | Strong status requires applicable policy calibration; compatibility heuristics are degraded. |
+| `deai_structure.py` | L2 sentence-template analysis: enumeration, ordinal/modal/parallel runs, setup-list-wrap-up patterns, and balanced closers. | Strong status requires calibrated policy and sufficient reference sample. |
+| `deai_docstructure.py` | L2 whole-document rhetorical-shape analysis and complete-document calibration. | Requires at least three measurable complete documents and sufficient sections/paragraphs; otherwise unmeasured. |
+| `deai_oracle.py` | Optional token-surprisal and UID analysis. | Requires transformers/model assets for measurement; compatibility `FLAG_Z` is degraded until field calibration exists. |
+| `deai_features.py` | Reusable model-free, UID, and embedding features for document analysis and learned field-similarity models. | Optional model features degrade when dependencies/assets are unavailable. |
+| `deai_voice.py` | Optional learned field-similarity triage. | Refuses bundles with drifted feature names/schema and degrades on corrupt bundles. A measured operating point gates threshold findings; an uncalibrated bundle yields rank-based triage of the lowest-scoring paragraphs, never a universal 0.5 cutoff. |
+| `train_voice_model.py` | Trains the optional learned field-similarity/rewrite-ranking model and writes `voice_model_evaluation.json`. | Cache reuse requires a content/model/centroid fingerprint; featurization checkpoints every 500 rows for preemptible runs. Grouped splits recompute `corpus_cos` from training-only centroids; repeated source-group splits audit source, section, length, mathematical-marker, field-term, matched-stratum, and UID-normalization sensitivity, plus the author-labelled hard-set stratum, without creating an operating point. |
+| `rewrite_reward.py` | Evaluates rewrite candidates after hard scientific-fidelity eligibility. | Bidirectional: dropping OR inventing protected numbers, units, citations, math, acronyms, semantic LaTeX macros, comparison direction, negation, or causal direction makes a candidate ineligible (`-inf`). Ranking is led by specificity/fidelity; the learned score is tie-break weight unless its bundle is measured. |
+| `fetch_arxiv_abstracts.py` | Fetches dated arXiv abstract corpora for controlled model evaluation/training. | Network failures are explicit; fetched text is evidence/training data, not policy. |
+| `validate_plugin.py` | Validates manifests, version/count agreement, skill frontmatter and standard references, normative/evaluation document authority, stale review markers, Python syntax, runtime imports, CLI entry points, feedback schema, linter exits, required tests, and CI wiring. | Stdlib-only; rejects active duplicate evaluation records and exits nonzero on contract drift. |
+
+The plugin manifest counts the 17 product tools/data assets above and excludes the
+repository validator itself.
 
 ## Dependencies
 
-Stdlib + numpy (already present on most scientific Python installs) is enough
-for the regex side of `ai_ism_lint.py` and for `extract_style.py` when the
-corpus is `.tex`/`.txt`-only. For PDF corpus papers, semantic retrieval, and
-the ML classifier:
+The shared schema, regex linter, model-free L1/L2 analysis, document structure,
+and validator use the standard library. Optional capabilities add:
 
-```
-pymupdf                # PDF text extraction
-sentence-transformers  # default embedding (~80 MB model on first run)
-scikit-learn + joblib  # AI-ism classifier (already pulled by sentence-transformers)
+```text
+pymupdf                PDF corpus extraction and compiled-page rendering
+sentence-transformers  semantic exemplar retrieval and embedding features
+scikit-learn + joblib  legacy and learned field-similarity models
+transformers + torch   token-surprisal / UID measurement
+numpy                   learned feature/model utilities
 ```
 
-Install when ready:
+Do not install optional dependencies merely to turn an unavailable axis into a
+nominal score. Missing assets remain `unmeasured`; compatibility thresholds remain
+`degraded`.
+
+## Common commands
+
 ```bash
-pip install pymupdf sentence-transformers
-```
+# Validate repository and active contract
+python tools/validate_plugin.py
 
-Graceful degradation:
-- `retrieve_exemplars.py` falls back to keyword overlap (`--allow-fallback`)
-  if sentence-transformers is missing.
-- `extract_style.py` skips `.pdf` corpus rows with a warning if pymupdf is
-  missing.
-- `ai_ism_lint.py` only loads the classifier when `--ai-classifier` is passed;
-  if the model file is missing it prints a clear "train one with…" hint.
+# Run all unit and CLI tests
+python -m unittest discover -s tests -v
 
-Planned (no concrete deadline):
-```
-regex   # Unicode-aware sentence segmentation (v0.4 — minor improvement)
+# Build/update one field profile
+python tools/build_profile.py --field wgl
+
+# Unified feedback report
+python tools/ai_ism_lint.py draft.tex --field wgl \
+  --structure --distribution --document-structure --oracle --voice \
+  --format json --output feedback.json
+
+# Calibrate whole-document shape only from verified complete documents
+python tools/deai_docstructure.py --calibrate <doc1> <doc2> <doc3> \
+  --profile-dir style-profile/<field>
+
+# Rebuild the learned model and repeated source-group confound audit
+python tools/train_voice_model.py --field <field> --refeature --audit-splits 20
 ```
 
 ## Conventions
 
-- All scripts read from `<repo>/style-corpus/<field>/` and write to
-  `<repo>/style-profile/<field>/`.
-- All scripts accept `--field <name>` (auto-detected when only one field
-  exists) plus `--corpus-root` / `--profile-root` overrides.
-- Emit JSON with `indent=2` and stable key ordering for diff-ability.
-- Never print absolute paths from outside the plugin tree (privacy hygiene
-  if the user shares a snippet).
-
-## Roadmap
-
-- [x] v0.2: Embedding-based exemplar retrieval (sentence-transformers + `.npy` cache).
-- [x] v0.2: Tier-graded `ai_ism_lint.py` with `--summary` per-section density.
-- [x] v0.3: PDF parsing via `pymupdf` blocks-mode; ALL-CAPS heuristic for
-      thematic section detection on top of keyword-based detector.
-- [x] v0.3: Paragraph-level AI-ism classifier (logistic regression on word
-      1–2 gram TF-IDF). Positives = corpus paragraphs; negatives = handcrafted
-      AI-style WGL paragraphs in `ai_ism_negatives_handcrafted.txt` (extend
-      to improve quality). CV F1 ≈ 0.88 with 20 negatives. Opt-in via
-      `ai_ism_lint.py --ai-classifier`.
-- [x] v0.2: Multi-field profiles under `style-profile/<field>/` with
-      auto-detection from corpus content (single-field case).
-- [ ] v0.4: Improve negatives by adding LLM-drafted samples from real
-      Claude/GPT outputs (rather than handcrafted by Claude itself).
+- Field corpora live under `style-corpus/<field>/`; generated evidence lives under
+  `style-profile/<field>/`.
+- JSON is UTF-8, indented, and stable enough for reviewable diffs.
+- Human-readable output and JSON are projections of the same structured findings.
+- Missing measurements are never converted to zero findings.
+- Sample counts, operating points, confidence intervals, effect sizes, and model
+  metrics belong in `EVALUATION.md` or profile assets, not the normative standard.
+- Complete documents, not paragraphs from one document, are the independent units
+  for document-level calibration.
+- Learned scores describe field similarity/triage and never prove authorship.
+- Rewrite ranking optimizes faithful scientific prose, not detector evasion.
+- Never print external absolute paths in shareable output.

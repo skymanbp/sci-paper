@@ -1,40 +1,16 @@
-"""rewrite_reward.py — best-of-N reward for the /rewrite-in-voice rewriter (Layer C).
+"""Best-of-N reward with hard scientific-fidelity eligibility (L3-L4).
 
-Given N candidate rewrites of a paragraph and the CLAIM that paragraph must
-preserve, ranks the candidates so the `/sci-paper:rewrite-in-voice` selector can
-pick the best. The reward is DELIBERATELY multi-term so the optimizer targets
-genuine human voice AND meaning / specificity preservation — never
-detector-evasion (docs/DEAI_SUBSYSTEM.md guardrail 3; the AuthorMist->Pangram
-DAMAGE lesson: optimizing bare detector-score yields text that reads worse and
-loses the arms race).
-
-Terms (all reuse existing tooling so they match the corpus):
-  voice        deai_voice P(human) from the learned voice model (Layer D). This
-               single term already folds in Layer A burstiness (sent_len_cv) and
-               Layer B surprisal/UID, since those are its input features.
-  fidelity     cosine(embed(cand), embed(reference)) — meaning preserved.
-  specificity  fraction of the reference's concrete numbers the candidate keeps.
-
-The `reference` MUST be the distilled CLAIM (from the claim-graph, Step 1 of the
-skill), NOT the padded original paragraph. Whole-paragraph cosine to a padded AI
-original conflates de-padding with meaning-drift: measured 2026-07-11, a faithful
-de-padded rewrite scored only 0.30 against the padded original (drift 0.26, i.e.
-indistinguishable) but 0.55 against the claim (drift 0.30, cleanly separated).
-
-Ranking (relative, calibration-free — guardrail 1 forbids absolute thresholds):
-  1. fidelity gate is RELATIVE to the batch: a candidate is "faithful" iff its
-     fidelity is within FIDELITY_BAND cosine of the most-faithful candidate. So
-     genuinely faithful candidates (clustered high) all pass; a drifted one
-     (much lower) is demoted — without ever hardcoding an absolute cosine floor,
-     which is brittle across genres/embedders.
-  2. faithful candidates score `voice * (0.5 + 0.5 * specificity)`; a candidate
-     that washed out the numbers is halved, so it cannot beat a specific one.
-  3. demoted (drifted) candidates get a tiny `0.05 * fidelity` — ranked below
-     every faithful candidate, so meaning-drift can never win on voice alone.
-
-CLI:  python tools/rewrite_reward.py --field wgl --reference claim.txt \
-          --candidates c1.txt c2.txt c3.txt          # ranks + prints best
-Lib:  from rewrite_reward import reward, rank
+Candidates first pass deterministic preservation checks for numbers, units,
+citations, mathematical expressions, named acronyms, semantic LaTeX macros,
+comparison direction, negation, and causal direction. The check is
+bidirectional: dropping a protected invariant AND inventing one the reference
+does not carry both make a candidate ineligible, because specificity never
+licenses invention and an added negation/causal/comparison marker can invert
+meaning while every original token survives. Only eligible candidates are
+ranked; ranking is led by specificity and semantic fidelity, and the learned
+field-similarity score contributes materially only when its bundle carries a
+measured operating point. A style score can never rescue an ineligible
+candidate.
 """
 
 from __future__ import annotations
@@ -43,105 +19,236 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import deai_features as df   # noqa: E402  because resolves only after the sys.path insert
-import deai_voice as dv      # noqa: E402  because resolves only after the sys.path insert
+import deai_features as df  # noqa: E402  sibling import after path setup
+import deai_voice as dv  # noqa: E402  sibling import after path setup
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
+_NUM_RE = re.compile(r"(?<![A-Za-z])[-+]?\d[\d,]*(?:\.\d+)?(?:\s*[×x]\s*10\^?[-+]?\d+)?")
+_CITE_RE = re.compile(r"\\cite\w*\{([^}]+)\}")
+_MATH_RE = re.compile(r"\$([^$]+)\$")
+_ACRONYM_RE = re.compile(r"\b[A-Z][A-Z0-9-]{1,}\b")
+_UNIT_RE = re.compile(
+    r"(?<![A-Za-z])[-+]?\d[\d,]*(?:\.\d+)?\s*(?:\\,)?\s*"
+    r"(\\mathrm\{[^}]+\}|\\text\{[^}]+\}|[%°]|[A-Za-z]+(?:\s*[/-]\s*[A-Za-z]+)*)"
+)
+_DIRECTION_RE = re.compile(
+    r"\b(increase[sd]?|decrease[sd]?|higher|lower|greater|less|above|below|"
+    r"positive|negative|improve[sd]?|worsen(?:ed|s)?|exceed[sd]?|underperform(?:s|ed)?)\b",
+    re.I,
+)
+_NEGATION_RE = re.compile(r"\b(not|no|without|cannot|can't|neither|nor)\b", re.I)
+_CAUSAL_RE = re.compile(r"\b(because|therefore|thus|hence|causes?|leads? to|results? in|due to)\b", re.I)
+_MACRO_RE = re.compile(r"\\([a-zA-Z]+)\*?")
+# Pure-formatting commands whose loss cannot drop scientific content; every
+# other macro may carry a quantity (\Nconfig -> 750) or a semantic object, so it
+# is protected. Citation commands are covered separately by _CITE_RE.
+_FORMATTING_MACROS = frozenset({
+    "emph", "textbf", "textit", "texttt", "textsc", "textrm", "textup",
+    "underline", "mbox", "hbox", "vspace", "hspace", "noindent", "centering",
+    "raggedright", "small", "footnotesize", "scriptsize", "large",
+    "item", "begin", "end", "label", "documentclass", "usepackage",
+    "newcommand", "renewcommand", "left", "right", "par", "linebreak",
+    "newline", "cite", "citep", "citet", "citealt", "citealp",
+    "citeauthor", "citeyear",
+})
+# Meaning can flip when one of these categories GAINS a marker (adding "not",
+# "therefore", or "lower" inverts or invents a claim), so additions there are
+# just as disqualifying as drops.
+_REVERSIBLE_CATEGORIES = (
+    "negation", "comparison_direction", "causal_direction",
+)
 
-# Relative fidelity band (cosine units): a candidate within this much of the
-# most-faithful candidate in the batch counts as faithful. RELATIVE, not an
-# absolute floor — MiniLM paragraph cosines are low and genre-dependent, so an
-# absolute threshold is brittle (guardrail 1). 0.15 separates the measured
-# faithful/drift gap (claim-anchored: 0.55 vs 0.30) with margin to spare.
-FIDELITY_BAND = 0.15
-_NUM_RE = re.compile(r"(?<![A-Za-z])[-+]?\d[\d,]*(?:\.\d+)?")
+
+def _normalized(items) -> set[str]:
+    return {re.sub(r"\s+", "", item).lower() for item in items}
 
 
 def _numbers(text: str) -> set[str]:
-    """Concrete numeric tokens (counts, values, percentages), sans equation guts.
-    Reused for specificity: a rewrite must keep the claim's hard numbers."""
-    plain = df.es.latex_to_plain(text)
-    return set(_NUM_RE.findall(plain))
+    return _normalized(_NUM_RE.findall(df.es.latex_to_plain(text)))
 
 
-def _cosine(a_text: str, b_text: str) -> float:
+def _citations(text: str) -> set[str]:
+    keys = []
+    for group in _CITE_RE.findall(text):
+        keys.extend(key.strip() for key in group.split(",") if key.strip())
+    return set(keys)
+
+
+def _math(text: str) -> set[str]:
+    return _normalized(_MATH_RE.findall(text))
+
+
+def _acronyms(text: str) -> set[str]:
+    return set(_ACRONYM_RE.findall(df.es.latex_to_plain(text)))
+
+
+def _units(text: str) -> set[str]:
+    return _normalized(_UNIT_RE.findall(text))
+
+
+def _macros(text: str) -> set[str]:
+    """Semantic macro names in the RAW text (latex_to_plain would erase them)."""
+    return {name.lower() for name in _MACRO_RE.findall(text)
+            if name.lower() not in _FORMATTING_MACROS}
+
+
+def _markers(pattern: re.Pattern, text: str) -> set[str]:
+    return {match.lower() for match in pattern.findall(df.es.latex_to_plain(text))}
+
+
+def _cosine(left: str, right: str) -> float:
     import numpy as np
-    emb = df._embedder().encode(
-        [df.es.latex_to_plain(a_text), df.es.latex_to_plain(b_text)],
-        normalize_embeddings=True)
-    return float(np.dot(emb[0], emb[1]))
+    embeddings = df._embedder().encode(
+        [df.es.latex_to_plain(left), df.es.latex_to_plain(right)],
+        normalize_embeddings=True,
+    )
+    return float(np.dot(embeddings[0], embeddings[1]))
+
+
+def protected_invariants(text: str) -> dict[str, set[str]]:
+    return {
+        "numbers": _numbers(text),
+        "units": _units(text),
+        "citations": _citations(text),
+        "math": _math(text),
+        "acronyms": _acronyms(text),
+        "latex_macros": _macros(text),
+        "comparison_direction": _markers(_DIRECTION_RE, text),
+        "negation": _markers(_NEGATION_RE, text),
+        "causal_direction": _markers(_CAUSAL_RE, text),
+    }
+
+
+def fidelity_eligibility(candidate: str, reference: str) -> dict[str, Any]:
+    """Bidirectional invariant check.
+
+    ``missing``  = reference invariants the candidate dropped (all categories).
+    ``invented`` = candidate invariants the reference does not carry. These are
+    disqualifying in every category: added numbers/units/citations/macros are
+    unsourced invention, and added negation/causal/comparison markers can invert
+    the claim. A human may re-approve an "invented" candidate only after manual
+    source-tracing outside this deterministic gate.
+    """
+    required = protected_invariants(reference)
+    present = protected_invariants(candidate)
+    missing = {
+        category: sorted(values - present[category])
+        for category, values in required.items()
+        if values - present[category]
+    }
+    invented = {
+        category: sorted(present[category] - required[category])
+        for category in required
+        if present[category] - required[category]
+    }
+    return {
+        "eligible": not missing and not invented,
+        "missing": missing,
+        "invented": invented,
+        "required": {key: sorted(values) for key, values in required.items()},
+        "present": {key: sorted(values) for key, values in present.items()},
+    }
 
 
 def reward(candidate: str, reference: str, field_profile_dir: Path,
-           centroid=None) -> dict:
-    """Raw reward terms for one candidate vs the CLAIM it must preserve.
-
-    Returns voice, fidelity, specificity, n_num_ref, n_num_cand. `combined` is
-    NOT set here — it needs the batch (relative fidelity gate); use rank()."""
+           centroid=None) -> dict[str, Any]:
     if centroid is None:
         centroid = df.corpus_centroid(field_profile_dir)
     voice = dv.voice_score(candidate, field_profile_dir, centroid=centroid)
     voice = 0.0 if voice is None else voice
+    voice_calibrated = dv.bundle_measured(dv.load_voice_model(field_profile_dir))
     fidelity = _cosine(candidate, reference)
-    nums_r, nums_c = _numbers(reference), _numbers(candidate)
-    specificity = (len(nums_r & nums_c) / len(nums_r)) if nums_r else 1.0
-    return {"voice": voice, "fidelity": fidelity, "specificity": specificity,
-            "n_num_ref": len(nums_r), "n_num_cand": len(nums_c)}
+    required_numbers = _numbers(reference)
+    candidate_numbers = _numbers(candidate)
+    specificity = (len(required_numbers & candidate_numbers) / len(required_numbers)
+                   if required_numbers else 1.0)
+    eligibility = fidelity_eligibility(candidate, reference)
+    return {
+        "voice": voice,
+        "voice_calibrated": voice_calibrated,
+        "fidelity": fidelity,
+        "specificity": specificity,
+        "n_num_ref": len(required_numbers),
+        "n_num_cand": len(candidate_numbers),
+        "faithful": eligibility["eligible"],
+        "missing_invariants": eligibility["missing"],
+        "invented_invariants": eligibility["invented"],
+    }
 
 
 def rank(candidates: list[str], reference: str, field_profile_dir: Path
-         ) -> list[tuple[int, dict]]:
-    """(index, reward-dict incl. 'combined') for every candidate, best first.
+         ) -> list[tuple[int, dict[str, Any]]]:
+    """Rank eligible candidates first; ineligible candidates can never win.
 
-    The fidelity gate is relative to the batch (see FIDELITY_BAND): faithful
-    candidates score voice*(0.5+0.5*specificity); drifted ones are demoted."""
+    Specificity and semantic fidelity lead the ranking. The learned L3 score
+    is a low-weight tie-break unless its bundle is measured/calibrated, so an
+    uncalibrated field-similarity model can never be the deciding term
+    (SCIPAPER_STANDARD section 9.5: lower detector visibility is not
+    independently valuable).
+    """
     centroid = df.corpus_centroid(field_profile_dir)
-    rs = [reward(c, reference, field_profile_dir, centroid) for c in candidates]
-    max_fid = max((r["fidelity"] for r in rs), default=0.0)
     scored = []
-    for i, r in enumerate(rs):
-        faithful = r["fidelity"] >= max_fid - FIDELITY_BAND
-        r["faithful"] = faithful
-        r["combined"] = (r["voice"] * (0.5 + 0.5 * r["specificity"])
-                         if faithful else 0.05 * r["fidelity"])
-        scored.append((i, r))
-    scored.sort(key=lambda t: t[1]["combined"], reverse=True)
+    for index, candidate in enumerate(candidates):
+        result = reward(candidate, reference, field_profile_dir, centroid)
+        if result["faithful"]:
+            voice_weight = 0.4 if result["voice_calibrated"] else 0.05
+            result["combined"] = (
+                0.6 * result["specificity"]
+                + 0.3 * result["fidelity"]
+                + voice_weight * result["voice"]
+            )
+        else:
+            result["combined"] = float("-inf")
+        scored.append((index, result))
+    scored.sort(key=lambda item: (
+        item[1]["faithful"], item[1]["combined"], item[1]["fidelity"]),
+        reverse=True)
     return scored
 
 
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--field", required=True)
-    p.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
-    p.add_argument("--reference", type=Path, required=True,
-                   help="file with the CLAIM the paragraph must preserve "
-                        "(from the claim-graph; NOT the padded original)")
-    p.add_argument("--candidates", type=Path, nargs="+", required=True,
-                   help="one file per candidate rewrite")
-    args = p.parse_args(argv)
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--field", required=True)
+    parser.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
+    parser.add_argument("--reference", type=Path, required=True,
+                        help="distilled claim and protected scientific content")
+    parser.add_argument("--candidates", type=Path, nargs="+", required=True)
+    args = parser.parse_args(argv)
     field_dir = args.profile_root / args.field
     if dv.load_voice_model(field_dir) is None:
-        print(f"[rewrite_reward] no voice_model.joblib in {field_dir}; train "
-              f"with `python tools/train_voice_model.py --field {args.field}`.",
-              file=sys.stderr)
+        print(f"[rewrite_reward] no voice_model.joblib in {field_dir}", file=sys.stderr)
         return 2
     reference = args.reference.read_text(encoding="utf-8", errors="replace")
-    cands = [c.read_text(encoding="utf-8", errors="replace") for c in args.candidates]
-    ranked = rank(cands, reference, field_dir)
+    candidates = [path.read_text(encoding="utf-8", errors="replace")
+                  for path in args.candidates]
+    ranked = rank(candidates, reference, field_dir)
     print(f"{'rank':>4} {'cand':>4} {'combined':>9} {'voice':>7} "
-          f"{'fidelity':>9} {'spec':>6} {'faith':>6}  nums(r/c)")
-    for pos, (idx, r) in enumerate(ranked, 1):
-        print(f"{pos:>4} {idx:>4} {r['combined']:>9.3f} {r['voice']:>7.3f} "
-              f"{r['fidelity']:>9.3f} {r['specificity']:>6.2f} "
-              f"{str(r['faithful']):>6}  {r['n_num_ref']}/{r['n_num_cand']}  "
-              f"{args.candidates[idx].name}")
-    best_idx = ranked[0][0]
-    print(f"\n[best] candidate {best_idx}: {args.candidates[best_idx].name}")
+          f"{'fidelity':>9} {'spec':>6} {'eligible':>8}  nums(r/c)")
+    for position, (index, result) in enumerate(ranked, 1):
+        combined = result["combined"]
+        combined_text = "-inf" if combined == float("-inf") else f"{combined:.3f}"
+        print(f"{position:>4} {index:>4} {combined_text:>9} "
+              f"{result['voice']:>7.3f} {result['fidelity']:>9.3f} "
+              f"{result['specificity']:>6.2f} {str(result['faithful']):>8}  "
+              f"{result['n_num_ref']}/{result['n_num_cand']}  "
+              f"{args.candidates[index].name}")
+        if result["missing_invariants"]:
+            print(f"     missing: {result['missing_invariants']}")
+        if result["invented_invariants"]:
+            print(f"     invented: {result['invented_invariants']}")
+    eligible = [item for item in ranked if item[1]["faithful"]]
+    if not eligible:
+        print("\n[rewrite_reward] no candidate preserved all protected invariants",
+              file=sys.stderr)
+        return 2
+    best_index = eligible[0][0]
+    print(f"\n[best] candidate {best_index}: {args.candidates[best_index].name}")
     return 0
 
 

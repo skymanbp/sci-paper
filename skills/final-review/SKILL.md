@@ -1,301 +1,324 @@
 ---
 name: final-review
-description: 最终审阅编排器。完整使用 5 个 skill 作为框架——paper（写作标准基线，主代理本进程加载）/ paper-review（A–R 全维度 checklist 审查，传 `--no-isolated-mpr` 由父级接管 MPR）/ figure-review（图表 150-DPI 关）/ mainline（结构 spine）/ paper-attack-tree（adversarial radial critique），并在 §3.6 由 final-review 主代理在隔离 worktree 中直接调一次 user-level modern-physics-review 作为独立 5th 子代理（修复嵌套 sub-agent bug）。**每个子代理都在 isolation=worktree 中独立运行**，cold-read 论文消除框架偏见。每轮 merge 所有 issue 后修复，循环直至**连续 2 轮 5 个 isolated skill (paper-review/figure/mainline/attack/mpr) 均 0 issue**（稳态收敛）。**严禁** "基本干净 / 大致收敛 / 剩下都是 minor / 用户没时间提前结束"。ITER_BUDGET 默认 10 轮，触顶 BREAK_WITH_USER_DECISION（不允许偷偷宣布完成）。Use when 用户说 "final-review" / "投稿前最终审" / "总审" / "运行所有审查 skill" / submission readiness check。
+description: 投稿前最终审阅编排器。每轮加载 paper 与 SCIPAPER_STANDARD 作为框架，并在独立 worktree 中运行 paper-review、figure-review、mainline、paper-attack-tree 和 parent-level modern-physics-review。合并 sci-paper.feedback.v1 typed findings：科学完整性 blocker 必须解决，L0 target 必须清零，strong advisory 必须 disposition，ordinary advisory 与 unavailable axes 保留报告。连续多轮验证该状态稳定，不把所有 editorial feedback 强行清零，也不输出通用 paper PASS/FAIL。Use for final-review、投稿前总审、submission-readiness evidence gathering 和所有审查 skill 的隔离编排。
 disable-model-invocation: false
-argument-hint: "<file_path> [--max-rounds N] [--skip <skill>[,<skill>...]] [--field <name>] [--out <dir>] [--require-consecutive N] — 指定论文 (.tex/.md)，可选最大轮次（默认 10）/ 跳过某子 skill（如 --skip figure-review）/ 显式 field / 输出目录 / 稳态连续 N 轮（默认 2）"
+argument-hint: "<file_path> [--max-rounds N] [--skip <skill>[,<skill>...]] [--field <name>] [--out <dir>] [--require-consecutive N]"
 ---
 
-> **v1 — 5-skill orchestrator with per-skill isolated context + iterate-to-perfect-convergence.**
-> 用户原话："**加一个"最终审阅"功能，完整使用：1.paper 技能作为框架。2.paper review 技能。3.figure-review 技能。4.mainline 技能。5.paper attack tree 技能。并且循环多次使用，每次都隔离上下文，修改至完美，直至完全收敛。**"
-> 本 skill 是上述需求的**逐字落地**：5 个 skill 全用、每次隔离上下文、循环至完全收敛。
+# final-review — isolated typed-review orchestrator
 
-# final-review — 投稿前最终审阅编排器
+> **Normative authority:** `docs/SCIPAPER_STANDARD.md`.
+> This skill verifies a stable, disposition-complete review state. It does not certify
+> journal acceptance, authorship, aesthetic perfection or a universal paper PASS.
 
-本 skill 不审任何内容**本身**——它**编排**已有的 5 个审查 skill 在隔离上下文中循环运行直至全部收敛。
-适用场景：论文已经过 paper-review / mainline / paper-attack-tree 单独打磨多轮后，准备投稿前的**最终关**。
+The required review components are:
 
----
+1. `/sci-paper:paper` as the writing and L0 framework;
+2. `/sci-paper:paper-review` for A–R source-traced scientific review;
+3. `/sci-paper:figure-review` for compiled-page figure evidence;
+4. `/sci-paper:mainline` for contribution-graph and cold-read narrative feedback;
+5. `/sci-paper:paper-attack-tree` for open-ended adversarial critique;
+6. host-level modern-physics-review, launched by the parent orchestrator to avoid nested agents.
 
-## 0. 顶层禁令（违反即审阅无效）
+## 0. Hard orchestration rules
 
-1. **禁止用记忆 / 缓存 / 历史对话替代任何子 skill 的实际调用。**
-   每轮必须**真的调用** Agent tool 启动 5 个隔离子代理（除非 `--skip <skill>` 显式跳过）；不允许"我记得上轮 paper-review 已经收敛了，跳过本轮"。
+1. **Run, do not remember.** Every round launches fresh isolated reviewers for all non-skipped
+   components. Prior reports are comparison artifacts, not substitutes for current review.
+2. **Isolation is mandatory.** paper-review, figure-review, mainline, attack-tree and MPR run
+   in separate `isolation: worktree` agents. The parent loads `paper` and the standard, merges
+   reports and applies authorized fixes.
+3. **No nested agents.** paper-review receives `--no-isolated-mpr`; the parent launches MPR at
+   the same level as the other reviewers. Any child attempt to spawn an agent is a prompt error.
+4. **Preserve evidence, not verdict authority.** The parent may not discard a child finding,
+   but must verify/deduplicate it and type its consequence. CONFIRMED critique is not
+   automatically an integrity blocker.
+5. **Merge by structured contract.** Each child returns or is normalized to
+   `sci-paper.feedback.v1`; text and JSON derive from the same findings.
+6. **Scientific blockers are non-waivable.** Incorrect math/physics/statistics, source or
+   citation mismatch, leakage, contradiction, broken required build and missing required
+   artifacts must be resolved or verified false positives.
+7. **L0 target is zero.** Tier A, em-dash and Tier B excess must be removed.
+8. **Advisories use dispositions.** Strong advisories must be acted, accepted, rejected as
+   false positives, or pending with a stated reason. Ordinary advisories remain visible and
+   do not have to disappear.
+9. **Measurement states remain explicit.** A skipped, failed or unavailable axis is
+   `unmeasured`/`degraded`, not clean.
+10. **Minimum effective fixes only.** Every edit maps to a finding ID; no opportunistic
+    rewriting or unrelated refactor.
+11. **Stable rounds verify state, not zero suggestions.** `--require-consecutive` rounds must
+    reproduce a disposition-complete state with no new blockers/L0 and no unexplained change
+    in strong advisories.
+12. **Do not expand budget silently.** `--max-rounds` exhaustion returns
+    `BREAK_WITH_USER_DECISION` with the exact unresolved state.
 
-2. **禁止在主代理本进程内直接跑 5 个 skill。**
-   每个子 skill 必须通过 Agent tool `isolation: worktree` 启动隔离子代理；主代理本进程**只做编排 + 合并 issue + 应用修复**，不亲自审。这是用户"每次都隔离上下文"的硬性要求。
+## 1. Invocation and states
 
-3. **禁止主代理覆盖子代理判断。**
-   子代理报 🔴/🟡/CONFIRMED critique → 必须注入修复队列；不允许主代理判"这条不重要丢弃"。子代理之间 disagreement 视为更多 issue（合集，不是交集）。
-
-4. **完全收敛硬约束。**
-   合法终止 = **连续 `--require-consecutive` 轮（默认 2）**所有 5 个 skill（未 skip 的）都返回 0 issue。
-   "1 轮干净就完成" / "4 个 skill 干净 + 1 个还有 1 个 🟡" 一律**未收敛**。
-
-5. **不允许偷偷扩 ITER_BUDGET。**
-   `--max-rounds` 触顶 → `BREAK_WITH_USER_DECISION`，向用户报未收敛清单；不允许内部自行从 10 改 20 继续跑。
-
-6. **修改必须最小有效化（minimum effective change）。**
-   主代理应用修复时禁止顺手重构、禁止"我看不顺眼也改"；每条修改必须可追溯到某子代理报的某条 issue。
-
-7. **每轮独立。**
-   round k+1 不允许带 round k 的"印象"。子代理用 isolation=worktree 已经隔离；主代理在 round 间也要清空缓存——每轮重读论文当前版本，重新启动所有未 skip 的子代理。
-
-8. **禁止子代理嵌套 sub-agent。**
-   `final-review` 主代理是**唯一**有权启动 isolated `Agent` 子代理的层级。`paper-review` SKILL.md §4.4 自己包含一段"isolated MPR sub-agent" 调用——但 Claude Code Agent isolation=worktree **不支持** sub-agent 内再起 sub-agent；强行触发会让子代理报错并整轮 SUBAGENT_FAILURE。
-   修复架构：
-   - 调 `paper-review` 子代理时**强制**传 `--no-isolated-mpr`，让 paper-review 跳过它自身的 §4.4
-   - `final-review` 主代理在 §3.6 由自己**直接** isolated 调一次 user-level `modern-physics-review`，作为父级 orchestrator 层的统一 MPR 终验
-   - 这等价于把 paper-review §4.4 提升到 final-review 主代理层调用，**不削弱** "独立上下文消除框架偏见" 的原始用意——MPR 仍在隔离 worktree 中跑，仍能挑出主进程的盲区
-   - 任何子代理 prompt 漏传 `--no-isolated-mpr` 是 bug，必须在 §3.2 模板里硬写出来
-
----
-
-## 1. 调用语义与 flag
-
-```
+```text
 /sci-paper:final-review <file_path> [flags]
 ```
 
-**file_path**：要审的论文（.tex / .md），必须为绝对路径或项目内相对路径。缺省 → 报错退出。
+Defaults:
 
-**flags**：
+- `--max-rounds 10`
+- `--require-consecutive 2`
+- no skipped reviewers
+- output under `final-review-out/<date>__<slug>/`
 
-| flag | 默认 | 含义 |
-|---|---|---|
-| `--max-rounds N` | 10 | 最大循环轮次；触顶 = BREAK_WITH_USER_DECISION |
-| `--require-consecutive N` | 2 | 连续 N 轮全 skill 0 issue 才算 CONVERGED；提高 N 增强稳态保证 |
-| `--skip <skill>[,<skill>...]` | 无 | 跳过某子 skill（合法值: `paper-review` / `figure-review` / `mainline` / `paper-attack-tree` / `mpr`；`--skip figure-review` 适合纯 .md 草稿；`--skip mpr` 跳过 §3.6 主代理层 isolated MPR 终验）；**默认不允许 skip**——只在用户显式传入时才跳过 |
-| `--field <name>` | 自动 | 与其它 sci-paper skill 一致的 field；会透传给子代理 |
-| `--out <dir>` | `final-review-out/<UTCdate>__<filename-slug>/` | 输出目录 |
+Valid skips: `paper-review`, `figure-review`, `mainline`, `paper-attack-tree`, `mpr`.
+A skip must be user-explicit, remains visible as `unmeasured`, and cannot be described as
+reviewed. A figure-less document normally yields `not_applicable`, not PASS.
 
----
+Workflow states:
 
-## 2. 第一阶段：准备（每次 final-review 启动一次）
+- `IN_PROGRESS`
+- `DISPOSITION_COMPLETE`
+- `BREAK_WITH_USER_DECISION`
+- `SUBAGENT_FAILURE`
+- `PROMPT_VIOLATION`
+- `USER_INTERRUPTED`
 
-1. **Read 论文当前版本全文** —— 让主代理对论文有 baseline 概念（用于 §4 修复时定位 + 决定优先级）。
-2. **解析 field 并 Read `style-profile/<field>/style_dossier.md`（若存在）** —— 同其它 sci-paper skill 单 field 自动选；多 field 要求 `--field`。
-3. **Read 当前 paper / paper-review / figure-review / mainline / paper-attack-tree 5 个 sibling SKILL.md** —— 主代理需要知道每个子 skill 的输出格式（PASS/FAIL / 🔴/🟡 / CONFIRMED/REFUTED/MARGINAL），才能合并 issue。
-4. **建立 round counter `r=1` 和 `consecutive_clean_rounds=0`。**
-5. **创建 `<out>/round-001/` 子目录** —— 每轮的所有子代理报告与 merged issue 列表都进这里。
+## 2. Preparation
 
----
+1. Read the current target manuscript completely.
+2. Read `docs/SCIPAPER_STANDARD.md` and the current SKILL.md files for paper, paper-review,
+   figure-review, mainline and paper-attack-tree.
+3. Resolve field evidence; missing assets remain explicit.
+4. Create the output root and round directory.
+5. Initialize a finding registry keyed by stable finding ID plus semantic deduplication key
+   `(rule, location, evidence)`.
+6. Record target path, current revision/hash, build system and selected field.
 
-## 3. 第二阶段：每轮执行（5 步串行 + 子代理调用全部 isolated）
+## 3. Each review round
 
-### 3.0 Round 进入前
+### 3.1 Load the framework
 
-清空主代理对论文的"假设记忆"——主动 Re-Read 当前版本（处理上轮可能已修改的版本），刷新所有引用位置。
+In the parent context, invoke `/sci-paper:paper` and read the normative standard. Record their
+current versions/paths in `paper-baseline.md`. This provides policy, not a child verdict.
 
-### 3.1 Step 1 — `/sci-paper:paper` 加载写作标准（主代理本进程；非 isolated）
+### 3.2 Isolated paper-review
 
-> 用户原话："**paper 技能作为框架。**"
-> paper 不是审查器，是**标准基线**。每轮开始**主代理本进程 invoke 一次 `/sci-paper:paper`** 加载写作标准（含 Anti-AI-isms tier 表 / 公式约定 / 引用规则 / 关键参考）。
-> 这一步**不**进 Agent isolation——它是给主代理本进程的"评估基线"。
+Launch a worktree agent with a self-contained prompt:
 
-**操作**：主代理执行 `Skill paper`（无 args），把标准加载到 working context；记录此基线版本 ID（`<out>/round-<NNN>/paper-baseline.md`）。
+- cold-read the current target and all sources;
+- invoke `/sci-paper:paper-review <target> --no-isolated-mpr --field <field>`;
+- do not spawn any child agent;
+- return the complete typed report, including A–R coverage, measurement states, blockers,
+  L0 targets, strong/ordinary advisories, dispositions, M-pass state and build evidence;
+- set isolated MPR state to `SKIPPED_FOR_ORCHESTRATOR`.
 
-### 3.2 Step 2 — `/sci-paper:paper-review` 隔离子代理（Agent worktree）
+If it attempts nesting, return `NESTED_AGENT_REJECTED`; the round becomes
+`PROMPT_VIOLATION` and must be reissued with the corrected prompt.
 
-**主代理调用 Agent tool**：
+### 3.3 Isolated figure-review
 
-- `subagent_type`: `general-purpose`
-- `isolation`: `worktree`
-- `description`: `"Round <r> isolated paper-review"`
-- `prompt`（自包含）：
-  > Target file: `<absolute path>`
-  >
-  > **Cold-read context**: You are running in an isolated worktree. You have NEVER seen this paper before. Do NOT rely on prior context, summaries, or "I think I remember". Re-Read every file, re-run every script, re-grep every pattern. cc-enslaver rules apply.
-  >
-  > **Task**: Invoke the sibling skill `/sci-paper:paper-review` on the target file with `--max-iter 5 --no-isolated-mpr` and default flags (do NOT pass `--no-fix`; allow the skill's own auto-fix loop). Run the skill's full A–Q dimension protocol + zero-issue convergence hard loop. **DO NOT** run paper-review §4.4 isolated MPR yourself — `--no-isolated-mpr` makes paper-review skip it; the parent orchestrator (final-review main agent) will run isolated MPR independently in §3.6 to avoid Claude Code's nested-sub-agent limitation. cc-enslaver rules from `/sci-paper:paper-review` SKILL.md apply.
-  >
-  > **Forbidden in this isolated worktree**: do NOT call the `Agent` tool to spawn another sub-agent (you are already a sub-agent; nesting is unsupported). If the paper-review skill instructs an isolated MPR call, the `--no-isolated-mpr` flag should make it skip; if it still tries to spawn an agent, abort with `STATUS=NESTED_AGENT_REJECTED` so the parent can fix the prompt.
-  >
-  > **Report format**: Return the skill's §4.5 final convergence report verbatim, plus a one-line summary: `STATUS=CONVERGED|NOT_CONVERGED; RED=<n>; YELLOW=<n>; UNDER_SCRUTINY=<n>; ISOLATED_MPR=SKIPPED_FOR_ORCHESTRATOR`. Do NOT abbreviate the report. Each unresolved issue must include file:line + current text + suggested fix. The `ISOLATED_MPR` slot **must** read `SKIPPED_FOR_ORCHESTRATOR` because we passed `--no-isolated-mpr`; if it shows anything else, the prompt was not honored and the parent should re-issue.
+Launch a separate worktree agent to invoke `/sci-paper:figure-review` on the current compiled
+paper. It must return:
 
-**回传处理**：把子代理报告保存到 `<out>/round-<NNN>/paper-review.md`；提取 `STATUS` + issue 计数。
+- render/build measurement state;
+- figure inventory and source provenance;
+- typed blockers and advisories;
+- explicit `not_applicable` if no figures exist.
 
-### 3.3 Step 3 — `/sci-paper:figure-review` 隔离子代理
+It must not return literal PASS/WARN as the merge interface.
 
-同 §3.2 模板，prompt 改为调用 `/sci-paper:figure-review`。
+### 3.4 Isolated mainline
 
-**特例处理**：若 `<file>` 是 .md 草稿无 figure 文件 → 子代理自然返回 "no figures present, PASS"。若用户传 `--skip figure-review` → 跳过本 step 但**仍在 round counter 里记录"skipped"**（不当作"通过"，但不阻塞收敛判据）。
+Launch a separate worktree agent to invoke
+`/sci-paper:mainline <target> --orchestrator-isolated`. The flag records that this child is
+already the fresh isolated cold reader and prevents a nested readability agent. It must return:
 
-### 3.4 Step 4 — `/sci-paper:mainline` 隔离子代理
+- root question and contribution graph;
+- relations among multiple contributions;
+- cold-reader confusion evidence;
+- typed narrative findings and dispositions;
+- unavailable measurement states.
 
-同 §3.2 模板，prompt 调用 `/sci-paper:mainline`，传 `--max-iter 5`。子代理会自己跑 mainline 的 §3 cold-read 7-Q questionnaire（mainline 内部已是 isolated cold-read pattern；这里是**双重隔离**，可接受）。
+Do not require the reader to reduce a valid multi-contribution paper to one thread.
 
-### 3.5 Step 5 — `/sci-paper:paper-attack-tree` 隔离子代理
+### 3.5 Isolated paper-attack-tree
 
-同 §3.2 模板，prompt 调用 `/sci-paper:paper-attack-tree`，建议传：
-- `--from-paper-review <out>/round-<NNN>/paper-review.md` — 让 attack-tree 在 paper-review 已找出的 CONFIRMED 基础上继续发散 sub-critique
-- `--width 30 --depth 3 --rounds conv` — 第一轮探索性放宽；后续轮次可缩窄
-- 让子代理跑到 attack-tree 自身收敛（CONVERGED / WIDTH_CAP_REACHED 等）
+Launch a separate worktree agent to invoke `/sci-paper:paper-attack-tree` with
+`--no-subagents`, passing the current paper-review report as seed when available. The child is
+already isolated and must complete all framing passes itself rather than spawning nested agents.
+The attack-tree process may terminate as `CONVERGED` or an explicit cap state; that status
+describes search completion only.
 
-**回传期望**：CONFIRMED critique 数 + 节点分布 + 完整 critique 树。CONFIRMED 全部注入主修复队列。
+For every leaf return:
 
-### 3.6 Step 6 — Isolated MPR final verification（**主代理层调用，不嵌套**）
+- evidentiary verdict: CONFIRMED / MARGINAL / REFUTED;
+- independent consequence kind;
+- measurement status;
+- proposed action and disposition;
+- source trace.
 
-> 这一步是修复 **嵌套 sub-agent bug** 的核心：原本 paper-review §4.4 在自己进程内启 isolated MPR——但 paper-review 已经被 final-review 装进 worktree，再起 sub-agent 会触发 Claude Code 嵌套限制。
-> 解决方案：把 isolated MPR 提升到 **final-review 主代理层** 调用，作为父级 orchestrator 统一终验。
-> 这等价于"独立上下文消除框架偏见"的原始用意——MPR 仍在隔离 worktree 中跑，仍 cold-read 所有源材料；只是发起者从 paper-review 子代理改为 final-review 主代理。
+All verified critiques enter the merge registry. Only their consequence determines whether
+they are blockers, L0 targets or advisories.
 
-**触发条件**：
-- §3.2 paper-review 子代理已返回 `STATUS=CONVERGED` 或 `STATUS=NOT_CONVERGED`（无论哪种，本步都跑——MPR 是独立验证）
-- 用户未传 `--skip mpr`
+### 3.6 Parent-level isolated modern-physics-review
 
-**主代理调用 Agent tool**（直接，不嵌套）：
+Launch a sibling worktree agent, never from inside paper-review. The prompt must instruct it to:
 
-- `subagent_type`: `general-purpose`（modern-physics-review 是 user-level skill，不是 sci-paper 插件 skill；子代理需 general-purpose 然后**显式 Read 加载** SKILL.md）
-- `isolation`: `worktree`（与 §3.2 / §3.3 / §3.4 / §3.5 同级——主代理 → 子代理是 1 层，不嵌套）
-- `description`: `"Round <r> isolated MPR final verification (orchestrator level)"`
-- `prompt`（自包含）：
-  > Target file: `<absolute path>`
-  >
-  > **Cold-read context**: You are running in an isolated worktree. You have NEVER seen this paper before. Re-Read every file, re-run every script, re-grep every pattern. Do NOT rely on prior conversation, summaries, or any "this was already verified" claim from another agent. cc-enslaver rules apply.
-  >
-  > **Task**: Read `C:/Users/skyma/.claude/skills/modern-physics-review/SKILL.md` and follow its full protocol (§0–§5) end-to-end on the target paper. Run modern-physics-review's own automatic fix loop to convergence (its §3 / §4). Do NOT skip phases.
-  >
-  > **Forbidden in this isolated worktree**: do NOT call the `Agent` tool to spawn another sub-agent.
-  >
-  > **Report format**: Return: (a) final status `CONVERGED | NOT_CONVERGED`; (b) any 🔴/🟡 still present with file:line + current text + suggested fix; (c) any disagreements with prior reviews — issues that other agents (paper-review, mainline, attack-tree) marked OK but you find suspicious, with reasoning + file:line.
+- cold-read all current sources;
+- load and execute the host-level modern-physics-review protocol;
+- avoid spawning sub-agents;
+- return each scientific issue with evidence and a proposed consequence class;
+- report disagreements with other reviewers without assuming the other reviewers are wrong;
+- state unavailable checks explicitly.
 
-**回传处理**：保存到 `<out>/round-<NNN>/mpr.md`；提取 `STATUS` + 🔴/🟡 计数 + disagreement 计数。**所有** mpr 报的 disagreement 视为 issue（与其它 skill issue 同级），全部进 §3.7 merge 队列。
+Normalize its output to the shared finding schema. A disagreement is a finding candidate, not
+an automatic blocker; verify the evidence and assign consequence.
 
-**特例**：
-- 用户传 `--skip mpr` → 跳过本 step，但 round counter 记录 `mpr=skipped`，并在 §4.2 final report 显示 `MPR=SKIPPED_BY_USER`。这条路径降级为弱收敛，要用户显式接受。
-- 子代理调用失败 / 超时（连续 2 轮失败）→ `MPR_AGENT_FAILED` → SUBAGENT_FAILURE 状态，向用户报告。
+### 3.7 Merge and verify
 
-### 3.7 Step 7 — Merge & Fix
+Combine all child reports into one registry:
 
-主代理合并 5 个子代理（review / figure / mainline / attack / mpr）的 issue：
-
-```
-all_issues = []
-all_issues += parse_issues(round-NNN/paper-review.md)       # 🔴/🟡 (paper-review 自身报告，§4.4 由本 orchestrator 接管)
-all_issues += parse_issues(round-NNN/figure-review.md)      # FAIL items
-all_issues += parse_issues(round-NNN/mainline.md)           # 🔴/🟡 + Q6 confusion
-all_issues += parse_issues(round-NNN/paper-attack-tree.md)  # CONFIRMED
-all_issues += parse_issues(round-NNN/mpr.md)                # 🔴/🟡 + disagreements (来自 §3.6 主代理层 isolated MPR)
-
-deduplicate_overlapping_issues(all_issues)  # 同一 file:line 不同 skill 报的算一条
-```
-
-**应用修复**：按优先级（CONFIRMED > 🔴 > 🟡 > MPR disagreement）逐条 Edit；每条修改后 re-Read 改动区域；不允许"批量修改不验证"。
-
-**修复完成后保存** `<out>/round-<NNN>/fixes-applied.md`：每条 fix 标 `applied | skipped (with reason) | needs-author`（用户裁决项）。
-
-### 3.8 Step 8 — 判定收敛
-
-```
-n_issues_this_round = sum of all_issues counts
-if n_issues_this_round == 0 AND all 5 skill STATUSes == CONVERGED (mpr 计入):
-    consecutive_clean_rounds += 1
-    if consecutive_clean_rounds >= --require-consecutive (默认 2):
-        return CONVERGED  # 最终终态
-else:
-    consecutive_clean_rounds = 0  # 重置；不允许"基本干净就算稳态"
-
-r += 1
-if r > --max-rounds:
-    return BREAK_WITH_USER_DECISION  # 不允许偷偷宣布完成
+```text
+registry = merge_by_stable_id_and_semantic_key(
+    paper_review,
+    figure_review,
+    mainline,
+    attack_tree,
+    mpr,
+)
 ```
 
----
+For overlaps:
 
-## 4. 第三阶段：收敛终止条件与状态报告
+- retain every source trace and detector;
+- keep the most severe consequence only when evidence supports it;
+- record reviewer disagreement rather than silently choosing one;
+- do not parse JSON from human-readable prose;
+- totals come from the merged structured findings.
 
-### 4.1 终止状态决策表
+The parent verifies any finding before editing its target. A child’s REFUTED result remains a
+positive evidence record; a CONFIRMED editorial critique remains an advisory.
 
-| 触发条件 | 状态 |
-|---|---|
-| 连续 `--require-consecutive` 轮 5 个 skill (paper-review / figure / mainline / attack / mpr) 全部 0 issue + 全部 CONVERGED | `CONVERGED` |
-| 5 个 skill 单轮 0 issue 但稳态轮数未达 N → 继续下一轮 | `IN_PROGRESS` |
-| `--max-rounds` 触顶 | `BREAK_WITH_USER_DECISION` — 列残留 issue 给用户裁决 |
-| 任一子代理调用失败 / 超时（连续 2 轮失败同一 skill） | `SUBAGENT_FAILURE`，要求用户手工诊断 |
-| paper-review 子代理回执 `ISOLATED_MPR ≠ SKIPPED_FOR_ORCHESTRATOR` | `PROMPT_VIOLATION` — `--no-isolated-mpr` 未生效；重发 prompt（不当作收敛） |
-| 任一子代理回执 `STATUS=NESTED_AGENT_REJECTED` | `PROMPT_VIOLATION` — 子代理试图嵌套；按 §0.8 修 prompt 后重发 |
-| 用户中断 | `USER_INTERRUPTED`，保留中间状态 |
+### 3.8 Apply fixes and dispositions
 
-### 4.2 最终终态报告（仅 CONVERGED 时）
+Order work by the unified priority key:
+
+1. integrity blockers;
+2. L0 targets;
+3. strong advisories;
+4. ordinary advisories only when authorized or clearly part of a blocker/L0 repair.
+
+For each action:
+
+- map it to finding IDs;
+- read the target and source evidence;
+- apply the minimum effective edit;
+- re-read affected context;
+- rerun the relevant build, scientific check, figure render, linter or claim-fidelity check;
+- record `acted`, `accepted`, `rejected_as_false_positive` or `pending`.
+
+Subjective strong advisories that require author preference may remain pending with a precise
+question. Do not erase them merely to make counts zero.
+
+## 4. Stable-round criterion
+
+A round is **disposition-complete** when:
+
+- pending integrity blockers = 0;
+- pending L0 targets = 0;
+- critical derivations under scrutiny = 0;
+- required build/artifacts are valid;
+- every strong advisory has a disposition or stated pending reason;
+- ordinary advisories and unmeasured/degraded axes are reported;
+- skipped reviewers are labeled unmeasured;
+- no child report or merge failed.
+
+A stable round additionally requires:
+
+- no new blocker or L0 target relative to the previous complete round;
+- no previously resolved blocker/L0 reappears;
+- strong-advisory set and dispositions are unchanged or the change is explained by new evidence;
+- scientific anchors and build outputs remain current.
+
+Increment `consecutive_stable_rounds` only for stable disposition-complete rounds. Reset it when
+new blockers/L0 targets appear, a required measurement fails, or a disposition changes without
+new evidence. When it reaches `--require-consecutive`, return `DISPOSITION_COMPLETE`.
+
+Attack-tree may continue to generate ordinary advisories; those do not reset stability unless
+they expose a new blocker/L0 or a new strong advisory requiring disposition.
+
+## 5. Failure and budget handling
+
+- Child failure/timeout: retry only after diagnosing the cause; repeated failure returns
+  `SUBAGENT_FAILURE` with that axis unmeasured.
+- Nested-agent attempt or wrong MPR ownership: `PROMPT_VIOLATION`.
+- User skip: record `unmeasured` and continue under explicit limitation.
+- `--max-rounds` exhausted: `BREAK_WITH_USER_DECISION`; list pending blockers, L0 targets,
+  strong advisories, failed/unmeasured axes and options. Do not increase the budget or claim
+  completion.
+- User interruption: preserve all current reports and registry.
+
+## 6. Final report contract
 
 ```markdown
-# Final Review — Convergence Report
+# Final Review — Disposition-Complete Report
+Target: <file> | Revision: <hash> | Field: <field or none>
+Workflow state: DISPOSITION_COMPLETE | BREAK_WITH_USER_DECISION | SUBAGENT_FAILURE
+Rounds: K | Consecutive stable rounds: N
 
-**Target**: <file_path>
-**Total rounds**: K
-**Consecutive clean rounds**: <--require-consecutive 默认 2>
-**Final state**: ✅ CONVERGED
+## Measurement coverage
+| reviewer/axis | status | provenance / limitation |
 
-## Per-skill final status (last round)
-| Skill | Status | 🔴 | 🟡 | CONFIRMED | Disagree | Compile |
-|---|---|---|---|---|---|---|
-| paper-review (with `--no-isolated-mpr`) | CONVERGED | 0 | 0 | — | — | 0 errors |
-| figure-review | PASS | — | — | — | — | — |
-| mainline | CONVERGED | 0 | 0 | — | — | — |
-| paper-attack-tree | CONVERGED | — | — | 0 | — | — |
-| mpr (orchestrator-level isolated) | CONVERGED | 0 | 0 | — | 0 | — |
+## Merged summary
+- integrity blockers: resolved / pending
+- L0 targets: resolved / pending
+- strong advisories: acted / accepted / false-positive / pending
+- ordinary advisories: total / reported
+- M derivations: verified / under scrutiny
+- build and figure render status
 
-## All fixes applied across K rounds
-### Round 1
-[逐条 file:line + 来自哪个 skill + 修改前/后 diff 摘要]
+## Ranked merged findings
+| id | source reviewers | kind | layer | rule | location | evidence | action | disposition |
 
-### Round 2 ...
+## Scientific anchors
+| claim/quantity | manuscript | source | verification |
 
-## Per-skill final convergence reports (verbatim, 不允许摘要)
-### paper-review §4.5 report
-[完整贴入；末行 `Isolated MPR status: SKIPPED_FOR_ORCHESTRATOR`]
+## Reviewer disagreements
+<evidence from each side and final consequence/disposition>
 
-### mainline §4.5 report
-[完整贴入]
+## Residual feedback
+- pending strong advisories and author questions
+- ordinary advisories
+- degraded/unmeasured/not_applicable axes
+- explicit skips
 
-### paper-attack-tree §7.4 report
-[完整贴入]
+## Fix trace by round
+<finding IDs, before/after, verification>
 
-### figure-review report
-[完整贴入]
-
-### mpr (orchestrator-level isolated) report
-[完整贴入；包含 disagreements 段]
-
-## Convergence verification (cc-enslaver rule 06 + rule 07 自答)
-1. 是不是真的解决了问题？✓ (5 个 skill — paper-review/figure/mainline/attack/mpr — 全部 0 issue 连续 2 轮 + 各自隔离 cold-read)
-2. 有没有更好的方法？✓ (chosen orchestration + per-skill isolation + 主代理层 MPR 而非嵌套 MPR；min-effective-change at each fix)
-3. 改动是否经过验证？✓ (每轮重 Read + 子代理 cold-read + 稳态 N 轮)
-4. 验证是否合理？✓ (覆盖 per-claim correctness / 结构 spine / adversarial critique / figure / writing standards / 物理优先 MPR)
-5. (rule 07 覆盖性) 用户原始 5 skill + 隔离上下文 + 循环至完全收敛 全部落实？✓ (MPR 由主代理层承接 paper-review §4.4 的职责，等价不削弱)
-6. (rule 07 标准性) "完整使用 / 每次都隔离 / 修改至完美 / 直至完全收敛" 全部硬动作？✓
-7. (rule 07 忠实性) 无静默 skip / 无 ITER_BUDGET 偷偷扩容 / 无"基本干净宣布完成"？✓
+## Per-reviewer reports
+<links or verbatim reports; preserve structured JSON beside them>
 ```
 
-### 4.3 BREAK_WITH_USER_DECISION 状态（max-rounds 触顶仍未收敛）
+Do not show a per-skill PASS table. “No findings under measured axes” is not proof about
+unmeasured axes.
 
-输出：当前残留 issue 全列表 + 每条建议（继续追加预算 / 接受残留 / 修改 --skip 跳过特定 skill），让用户决定。**不允许**主代理单方面宣布"已完成"。
+## 7. Completion meaning
 
----
+`DISPOSITION_COMPLETE` means the mandated review workflow reached a stable state in which:
 
-## 5. 反模式（绝对避免）
+- scientific blockers were resolved or disproved;
+- L0 targets are zero;
+- strong advisories have explicit author/process dispositions;
+- ordinary residuals and limitations are visible;
+- independent reviewers reproduced that state for the required consecutive rounds.
 
-- ❌ "5 个 skill 跑一遍就好，不必循环。" — 违反 §0.4；用户原话"循环多次使用 / 直至完全收敛"。
-- ❌ "在主代理本进程内直接跑 paper-review 节省时间。" — 违反 §0.2；用户原话"每次都隔离上下文"——必须 Agent worktree。
-- ❌ "round 1 干净了直接宣布完成。" — 违反 §0.4 + §3.7；必须连续 N 轮稳态（默认 2）。
-- ❌ "figure-review 暂时跑不通，先 skip 报告完成。" — 违反 §0.1；除非用户显式 `--skip`，否则必须报 SUBAGENT_FAILURE 给用户。
-- ❌ "paper-attack-tree 输出太多 CONFIRMED，主代理过滤一下。" — 违反 §0.3；子代理 CONFIRMED 必须全部注入修复队列；主代理无权过滤。
-- ❌ "max-rounds 用满 10 轮还有 2 个 🟡，宣布完成。" — 违反 §0.5 + §4.3；ITER_BUDGET 用满 = BREAK_WITH_USER_DECISION。
-- ❌ "round 2 还有 issue，本轮不跑 attack-tree 节省时间。" — 违反 §0.1；每轮必须完整跑所有未 skip 的 skill。
-- ❌ "子代理报告太长，我提炼一下要点贴报告。" — 违反 §4.2 末尾要求"verbatim, 不允许摘要"。
-- ❌ "上轮 paper-review CONVERGED，本轮不必再跑。" — 违反 §0.1 + §0.7；每轮独立，每轮重跑。修复可能引入新问题。
-- ❌ "5 个 skill 中 4 个 CONVERGED + 1 个 NOT_CONVERGED 但只剩 1 个 🟡，作为投稿临界算通过。" — 违反 §0.4；"完全收敛" = 全 5 个 skill (paper-review/figure/mainline/attack/mpr) 全 0 issue。
-- ❌ "调 paper-review 子代理时让它自己跑 §4.4 isolated MPR 节省一次主代理调用。" — **触发 Claude Code 嵌套 sub-agent 限制**；违反 §0.8。必须传 `--no-isolated-mpr`，由主代理在 §3.6 统一跑 MPR。
-- ❌ "paper-review 子代理回 `ISOLATED_MPR=PASS` 我就当 MPR 已经跑过了，§3.6 跳过。" — `--no-isolated-mpr` 应让 paper-review 跳过 §4.4 → 子代理回执必须 `SKIPPED_FOR_ORCHESTRATOR`；若回 `PASS` 则 prompt 没生效或 paper-review SKILL.md 实现有 bug，按 §4.1 `PROMPT_VIOLATION` 处理。
-- ❌ "MPR 跟 paper-review §2.K 内嵌的 M1–M9 重复，主代理跑 §3.6 浪费上下文。" — 错；§2.K 内嵌 + §3.6 主代理层 isolated 是**设计的双重验证**——内嵌 fast-path + isolated cold-read 消除框架偏见。MPR 只在用户显式 `--skip mpr` 时才跳，且降级为弱收敛。
+It does not mean the paper is guaranteed correct, accepted, human-authored, aesthetically
+unique or free of every possible reviewer objection.
 
----
+## 8. Anti-patterns
 
-## 6. 与其他 sci-paper skill 的接口
-
-- **本 skill 是 5 个审查 skill 的编排器**（paper-review / figure-review / mainline / paper-attack-tree / modern-physics-review），本身不审。所有审查决策来自子代理。
-- **使用次序建议**：
-  - 普通流程：先各自单独跑 `paper-review` / `mainline` / `paper-attack-tree` 把大问题清掉
-  - 投稿前最后关：跑 `final-review` 做交叉 + 稳态确认
-- **不要在 final-review 跑到一半时手工编辑论文**：会破坏隔离上下文的 cold-read 前提；如必须手工改 → 中断本次 final-review，改完后重启（round 计数从 1 开始）
-- **不要把 final-review 当作"全自动一键投稿"**：BREAK_WITH_USER_DECISION 路径是设计意图，不是失败——它把用户裁决权保留在最终决策点上
+- Reusing last round’s report without rerunning isolated reviewers.
+- Allowing paper-review to spawn nested MPR.
+- Treating every child CONFIRMED critique as a blocker.
+- Treating every advisory or reviewer disagreement as mandatory prose change.
+- Requiring figure-review to return PASS.
+- Requiring mainline to find exactly one contribution thread.
+- Calling missing calibration a clean result.
+- Resetting or dropping inconvenient findings during deduplication.
+- Declaring completion because all numeric issue counts are zero while axes were skipped.
+- Forcing subjective advisories to disappear instead of recording author disposition.
+- Increasing iteration budget silently.

@@ -1,133 +1,227 @@
 ---
 name: figure-review
-description: Review paper figures at print-realistic DPI for readability, consistency, and journal standards. Renders every page of the compiled PDF at 150 DPI (simulating a reader viewing at 100% zoom on a standard monitor) and checks each figure systematically. Use when 用户说 "查图" / "figure-review" / "图能不能读" / "图够不够清楚" / "导出的 PDF 图字号太小" / 投稿前图表 audit / 用 `\includegraphics` 的 paper.tex 编完后 final 检查。
+description: Review every paper figure from the compiled document at print-realistic 150 DPI. Verify figure/caption/data consistency, required labels, units, references, readability, accessibility, float placement, and cross-figure visual coherence. Report SCIPAPER_STANDARD typed findings: objective figure/build contradictions as integrity blockers and aesthetic or borderline readability concerns as advisories, never a universal PASS/WARN paper verdict. Use after figure changes or before submission.
 ---
 
-> **v0 — ported verbatim from `weak-gravitational-lensing/.claude/skills/figure-review.md`.**
-> Project-specific colour/marker conventions (RdBu_r, GNN/Swin colours) are
-> marked `[WGL]`; replace with your project's palette before running on a
-> different paper.
+# figure-review — compiled-page evidence and typed feedback
 
-# Figure Review Skill
+> **Normative authority:** `docs/SCIPAPER_STANDARD.md`.
+> This skill reviews rendered evidence. Project palettes and journal conventions are
+> contextual references, not independent blocker policy.
 
-## When to invoke
+## 0. Core rules
 
-Use after adding or modifying any figure in the paper, or before submission. This skill ensures all figures meet journal print-quality standards **as seen by a human reader**, not just in a zoomed-in vector view.
+1. **Review the compiled document, not only raw vectors.** Render every page containing a
+   figure at 150 DPI and inspect the rasterized page at normal size. Vector extraction may
+   assist diagnosis but cannot replace the human-scale view.
+2. **Read every actual figure.** A caption alone cannot verify curves, points, error bars,
+   panels, labels or visual hierarchy.
+3. **Trace scientific content.** Figure values, sample definitions, symbols and caption
+   claims must agree with the generating data/script and manuscript.
+4. **Type consequences correctly.**
+   - missing/broken required figure, unreadable required scientific label, wrong unit,
+     caption/figure contradiction, data mismatch, missing panel, broken reference or failed
+     required build → `integrity_blocker`;
+   - borderline font size, whitespace, palette preference, visual balance or nonessential
+     polish → `advisory`;
+   - any textual L0 occurrence follows the shared L0 policy.
+5. **No figure PASS verdict.** Report what was measured, what was not, and the disposition
+   of each finding.
+6. **Do not invent visual thresholds.** Journal rules and intended print size determine
+   applicability. Reference sizes below are review aids, not automatic blocker boundaries.
 
-## Core principle
+## 1. Compile and render
 
-> **Never review figures from the raw PDF or vector source.**
-> Always render the **compiled main.pdf** at **150 DPI** (full page) and review from those rasterised images.
-> This simulates what a reader sees at 100% zoom on a standard monitor.
-> AI can read tiny text in vectors that humans cannot — this DPI check corrects for that bias.
-
-## Review protocol
-
-### Step 1: Compile and render
+Use the paper's authoritative build command. A simple LaTeX fallback is:
 
 ```bash
-# Compile (2 passes for cross-refs)
-pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
-
-# Render every page at 150 DPI
-python -c "
-import pymupdf as fitz
-doc = fitz.open('main.pdf')
-for i in range(len(doc)):
-    mat = fitz.Matrix(150/72, 150/72)
-    pix = doc[i].get_pixmap(matrix=mat)
-    pix.save(f'review_p{i+1:02d}.png')
-"
+pdflatex -interaction=nonstopmode main.tex
+pdflatex -interaction=nonstopmode main.tex
 ```
 
-### Step 2: Per-figure checklist
-
-For each figure page, read the 150-DPI PNG and check:
-
-| # | Item | Pass criterion |
-|---|---|---|
-| 1 | **Axis labels** | Readable without zooming; minimum ~8pt at print size |
-| 2 | **Tick labels** | Minimum ~7pt at print size |
-| 3 | **Legend text** | Minimum ~7pt; legend box doesn't obscure data |
-| 4 | **Title / panel labels** | (a)(b)(c) labels bold and ≥9pt |
-| 5 | **Annotation text** | Any in-figure text ≥6.5pt at print size |
-| 6 | **Line thickness** | Data lines ≥1.0pt; axis lines ≥0.7pt; no "hairline" lines |
-| 7 | **Marker size** | Scatter points distinguishable (no sub-pixel markers) |
-| 8 | **Colour contrast** | All colours distinguishable in greyscale (for B&W printing) |
-| 9 | **Colour bar** | Present if using colour mapping; label + tick labels readable |
-| 10 | **Aspect ratio** | Square data shown square; no unintended stretching |
-| 11 | **White space** | No large empty regions within the figure boundary |
-| 12 | **Caption** | Fully self-contained; all symbols defined; correct cross-refs |
-| 13 | **Float placement** | Figure appears near its first text reference, not pages away |
-| 14 | **Consistency** | Font family, colour palette, line styles match across all figures |
-| 15 | **Single vs double column** | `figure` for ≤3.4" wide; `figure*` for >3.4" wide |
-
-### Step 3: Cross-figure consistency
-
-After reviewing individual figures, check across all figures:
-
-- **Font family**: all serif (Times/CM) or all sans — no mixing
-- **Colour palette**: accent colours reused consistently
-- **Axis label style**: consistent format throughout
-- **Line width / marker size**: similar data density → similar visual weight
-- **Colormap**: same physical quantity → same colormap
-
-### Step 4: Float placement scan
+Render every page at 150 DPI:
 
 ```python
-# Scan for sparse pages (potential float displacement)
-for i in range(len(doc)):
-    pix = doc[i].get_pixmap(matrix=fitz.Matrix(1,1))
-    img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, -1)
-    ink = np.any(img < 240, axis=2).mean()
-    if ink < 0.10:
-        print(f'  p{i+1}: coverage={ink:.2f} -- check for displaced float')
+import pymupdf as fitz
+
+doc = fitz.open("main.pdf")
+for index in range(len(doc)):
+    pix = doc[index].get_pixmap(matrix=fitz.Matrix(150 / 72, 150 / 72))
+    pix.save(f"review_p{index + 1:02d}.png")
 ```
 
-### Step 5: Report
+Record:
 
-Output a markdown table:
+- build command and result;
+- compiled PDF path and timestamp/hash when available;
+- page-to-figure mapping;
+- pages or assets that could not be rendered;
+- measurement state for rendering and source tracing.
 
+A build or render failure is an execution failure; if it prevents a required figure from
+appearing, also emit an `integrity_blocker`.
+
+## 2. Per-figure scientific checks
+
+For each figure, inspect the 150-DPI page and the source asset where useful.
+
+### 2.1 Required content
+
+- all referenced panels exist and panel labels match the caption;
+- axes, units, legends, color bars and symbol definitions needed to interpret the result
+  are present;
+- figure numbering and `\ref{}` target the correct object;
+- caption describes the plotted quantity, sample, statistic and uncertainty correctly;
+- stated scales, cuts, normalization, sign convention and color mapping match the data;
+- no clipping, accidental crop, overlap or rendering corruption hides scientific content.
+
+Failures that change or prevent scientific interpretation are `integrity_blocker`.
+
+### 2.2 Readability at intended size
+
+Inspect without zooming:
+
+- axis and tick labels;
+- legend and annotation text;
+- panel labels;
+- line and contour separation;
+- marker visibility;
+- error bars;
+- color-bar ticks and labels;
+- dense table-like cells inside figures.
+
+Reference ranges for a conventional two-column paper are approximately 8 pt for axis labels,
+7 pt for ticks/legend, 9 pt for panel labels and 6.5 pt for nonessential annotations. Use the
+journal template and actual final width where available. A slightly smaller but clearly
+readable annotation is an advisory, not an automatic blocker. An unreadable label required to
+identify a quantity, sample or panel is a blocker.
+
+### 2.3 Accessibility and encoding
+
+- important distinctions survive grayscale when the venue requires print accessibility;
+- color is not the sole carrier of class, sign or model identity when readers need the
+  distinction;
+- palettes are perceptually appropriate for sequential/diverging/categorical data;
+- identical physical quantities use consistent range and mapping unless the difference is
+  explicitly signaled;
+- line styles, markers or labels provide redundant encoding where needed.
+
+Accessibility that blocks interpretation is a blocker; stronger redundancy or palette polish
+is advisory.
+
+### 2.4 Geometry and placement
+
+- aspect ratio does not distort coordinates or images;
+- square physical maps remain square when required;
+- subpanels align and use consistent margins;
+- whitespace does not bury the data or create accidental emphasis;
+- the float appears near its first substantive reference;
+- single/double-column choice matches the information density.
+
+Wrong geometry that changes scientific interpretation is a blocker. Placement, whitespace and
+balance are normally advisories.
+
+## 3. Source and manuscript cross-check
+
+For every figure:
+
+1. identify the live generator and upstream data;
+2. verify the figure asset was produced from the current source rather than a stale copy;
+3. compare caption and manuscript numerical claims with plotted data/output;
+4. verify all samples, cuts, units, uncertainty definitions and color conventions;
+5. inspect any figure-derived values quoted in abstract, results or conclusion;
+6. record file/line or data-cell provenance.
+
+Do not rerun a heavy multi-minute pipeline locally when project rules require cloud execution.
+Use current verified artifacts or the authorized compute environment.
+
+## 4. Cross-figure consistency
+
+Compare all figures for:
+
+- font family and math typography;
+- notation and terminology;
+- palette semantics;
+- line/marker identity for recurring methods or samples;
+- axis-label grammar and unit formatting;
+- panel-label sequence;
+- color-bar placement and scale behavior;
+- relative visual weight for comparable data density.
+
+Inconsistency that maps the same visual encoding to conflicting scientific meanings is a
+blocker. Pure styling variation is advisory.
+
+Project-specific conventions may be loaded from the manuscript repository, figure scripts or
+style guide. Verify them from current files rather than relying on values copied into this skill.
+
+## 5. Fix and re-review
+
+For authorized edits:
+
+1. rank findings by the unified standard;
+2. repair scientific blockers at the generating source when possible, not by covering them in
+   LaTeX or caption text;
+3. apply the minimum visual change for readability/advisory findings;
+4. regenerate the asset using the live script;
+5. rebuild the paper;
+6. re-render the affected full page at 150 DPI;
+7. re-inspect the figure, caption, references and dependent manuscript claims;
+8. report residual advisories and unavailable measurements.
+
+Do not upscale a raster to simulate real resolution, edit a stale exported asset while leaving
+the generator wrong, or change data limits solely to make the plot look cleaner.
+
+## 6. Report contract
+
+```markdown
+# Figure Review — Typed Feedback Report
+Target: <main file> | Compiled PDF: <path>
+Workflow state: DISPOSITION_COMPLETE | REVIEW_ONLY | EXECUTION_FAILURE
+
+## Measurement state
+| axis | status | provenance / limitation |
+
+## Figure inventory
+| figure | page | asset | generator/data provenance | rendered |
+
+## Ranked findings
+| id | kind | rule | figure/page | evidence | source trace | action | disposition |
+
+## Per-figure observations
+### Figure N
+- scientific content and caption agreement
+- readability at 150 DPI
+- accessibility and geometry
+- residual advisories
+
+## Cross-figure observations
+<typed findings and evidence>
+
+## Author decisions required
+<strong advisories or unavailable evidence>
 ```
-| Fig # | Page | Status | Issues |
-|-------|------|--------|--------|
-| 1     | 4    | PASS   | --     |
-| 2     | 5    | WARN   | cell text 5.5pt, borderline |
-| ...   |      |        |        |
-```
 
-## Font size reference (at print)
+Do not use a `PASS`/`WARN` status column. A figure with no current findings is recorded as
+“no findings under measured axes”, not as proof that every unmeasured property is correct.
 
-For a two-column article on letter paper (text width ~3.4" per column, ~7" for figure*):
+## 7. Stopping rule
 
-| Element | Minimum pt | Recommended pt |
-|---------|-----------|----------------|
-| Axis labels | 8 | 10 |
-| Tick labels | 7 | 8.5 |
-| Legend | 7 | 8 |
-| Panel labels (a)(b)(c) | 9 | 10 |
-| In-figure annotations | 6.5 | 8 |
-| Colorbar label | 8 | 9 |
+Figure review is disposition-complete when:
 
-## Float parameters (recommended for `article` class)
+- all figure-related integrity blockers are resolved or verified false positives;
+- applicable textual L0 targets are zero;
+- every strong figure advisory is acted, accepted, rejected as false positive, or pending with
+  a stated reason;
+- ordinary aesthetic advisories and unmeasured axes are reported;
+- affected pages have been rebuilt and re-rendered at 150 DPI.
 
-```latex
-\renewcommand{\topfraction}{0.95}
-\renewcommand{\bottomfraction}{0.95}
-\renewcommand{\textfraction}{0.05}
-\renewcommand{\floatpagefraction}{0.80}
-\renewcommand{\dbltopfraction}{0.95}
-\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
-\setlength{\floatsep}{8pt plus 2pt minus 2pt}
-\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
-```
+## 8. Anti-patterns
 
-Use `[!htb]` instead of `[htbp]` to prevent float-page displacement.
-
-## Style guide for this project [WGL — replace per project]
-
-- **S/N maps**: `RdBu_r` colormap, `vmin=-3.5, vmax=4.5`, with shared colorbar labelled "$S/N$"
-- **GT markers**: black `+` for main, green `×` for sub-halo
-- **Model accent colours**: GNN = `#1f6f9a` (blue), Swin = `#7e3a8e` (purple), Per-peak = `#c0561f` (orange)
-- **Serif font**: Times New Roman / DejaVu Serif, `mathtext.fontset = 'cm'`
-- **Figure generation**: project-specific Python scripts, each producing `.pdf` + `.png`
+- Reviewing only the raw PDF/vector source.
+- Reading captions without viewing the actual figure.
+- Treating every font-size recommendation as a blocker.
+- Treating palette preference as scientific failure.
+- Calling a figure PASS because no issue was noticed.
+- Fixing a data mismatch in the caption instead of the generator/data.
+- Ignoring a broken or missing figure because the prose describes it.
+- Relying on color alone for a required distinction without checking accessibility.

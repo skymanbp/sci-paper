@@ -1,264 +1,160 @@
 ---
 name: paper-style
-description: Apply a corpus-distilled writing-style profile (top journals + mentor papers + high-value references) when drafting or rewriting paper sections. Loads the compact style dossier and retrieves section-typed exemplar paragraphs to anchor in-context style; complements the rule-based anti-AI-ism enforcement in /paper. Invoke before writing any new section, rewriting an existing section, or doing a final style polish pass. Field-aware: pick a field with --field <name>, or omit when only one field exists (current default = wgl).
+description: Apply a corpus-distilled field and genre style profile when drafting or rewriting scientific prose. Loads a descriptive dossier and section-typed exemplars, then uses the unified SCIPAPER_STANDARD feedback contract. The corpus supplies evidence and positive anchors; it never defines blocker or paper-verdict policy. Invoke before drafting, rewriting, or a final style pass.
 disable-model-invocation: false
-argument-hint: "<section_type> [--field <name>] [target_file] — section_type ∈ {abstract, intro, method, results, discussion, conclusion}; --field defaults to the single populated field if exactly one exists"
+argument-hint: "<section_type> [--field <name>] [target_file] — section_type ∈ {abstract, intro, method, results, discussion, conclusion}"
 ---
 
-# paper-style — corpus-driven writing style enforcement
+# paper-style — descriptive corpus evidence for scientific writing
 
-> **What this skill does — and what it does NOT do.**
->
-> This skill **does not** fine-tune any model. Anthropic does not offer Claude
-> fine-tuning. Instead it implements **style-as-context-engineering**: a curated
-> corpus of papers is reduced to (a) a compact `style_dossier.md` that fits in
-> a prompt, and (b) a section-typed exemplar bank for retrieval. At invocation
-> time both are loaded and Claude conditions on them while writing.
->
-> See `EVALUATION.md` at the plugin root for the full reasoning on why this is
-> the correct path vs. literal fine-tuning.
-
----
+> **Normative authority:** `docs/SCIPAPER_STANDARD.md`.
+> `style_dossier.md`, baselines, lexicons, and exemplars are empirical evidence.
+> They do not redefine `integrity_blocker`, `l0_target`, `advisory`, ranking,
+> disposition, measurement-state, or stopping semantics.
 
 ## 0. Hard rules
 
-1. **Never imitate corpus content, only corpus style.** Retrieval exemplars are
-   for rhythm, register, transition patterns, and lexical choice. Do not
-   plagiarize, paraphrase claims, or re-use specific results from the corpus
-   in the user's draft.
-2. **Numbers are non-negotiable.** Per the user's global instruction (see
-   `~/.claude/CLAUDE.md`: "Paper writing: never quote from memory"), every
-   number/date/coefficient/citation in the user's draft must be re-read from
-   its actual source the same turn it's pasted. The style skill does not
-   relax this.
-3. **Style profile may be stale.** If `style-corpus/<field>/` has been edited
-   but `style-profile/<field>/style_dossier.md` is older than the newest
-   corpus file under that field, stop and tell the user to re-run
-   `python tools/extract_style.py --field <field>`. Do not silently proceed
-   with stale style.
-4. **Anti-AI-isms still binding.** The hand-written blacklist in `/paper` is
-   a strict superset of what the dossier contributes. Both apply. If they
-   conflict (rare), the hand-written rule wins.
-5. **Field selection.** If the user did not pass `--field`, list the fields
-   under `style-profile/`. If exactly one, use it (and announce which).
-   If zero, refuse (no profile built yet). If more than one, ask the user
-   which field to use; never guess.
+1. **Imitate style, never content.** Exemplars may guide rhythm, register,
+   information distribution, and transition practice. Do not copy wording, claims,
+   citations, data, or distinctive argument structure.
+2. **Re-read scientific sources.** Every number, date, coefficient, citation, and
+   scientific claim inserted into the user's draft must be verified from its source
+   in the same turn. A style profile cannot supply manuscript facts.
+3. **Report profile freshness and coverage.** If the corpus is newer than its derived
+   profile, stop and regenerate with `tools/extract_style.py`. Missing or weak
+   calibration is `unmeasured` or `degraded`, not evidence of conformity.
+4. **Apply the unified consequence model.** Tier A, em-dash, and Tier B occurrences
+   above the standard's cap are L0 targets. Corpus distances and positive-style
+   mismatches are advisories unless scientific integrity is affected.
+5. **Resolve field explicitly.** One available field may be selected automatically;
+   multiple fields require `--field`; zero fields means corpus guidance is unavailable,
+   but the core writing standard can still be used with that limitation reported.
+6. **No universal style verdict.** A document may differ from the corpus for a valid
+   genre, authorial, or scientific reason. Measure the difference and recommend an
+   action; do not infer authorship or reject the paper from style distance.
 
----
+## 1. Preconditions
 
-## 1. Preconditions check
+Verify in order:
 
-At invocation, verify in order:
+- the target section type and file;
+- `style-profile/<field>/style_dossier.md` exists and is not older than the newest
+  relevant source under `style-corpus/<field>/`;
+- `exemplar_paragraphs.jsonl` exists before attempting retrieval;
+- the profile's declared field and provenance match the selected field;
+- any required baseline or `deai_policy.json` exists before calling a result
+  calibrated or strong;
+- `docs/SCIPAPER_STANDARD.md` and `/sci-paper:paper` are loaded alongside the profile.
 
-- [ ] **Field resolved.** Apply Hard Rule 5 to determine `<field>`.
-  Currently the only populated field is `wgl`.
-- [ ] `style-profile/<field>/style_dossier.md` exists and is newer than the
-  newest file in `style-corpus/<field>/**`. If stale or missing → instruct
-  user to run `python tools/extract_style.py --field <field>` and exit.
-- [ ] `style-profile/<field>/exemplar_paragraphs.jsonl` exists. If missing →
-  same. (v0.1: this file is not yet generated by `extract_style.py`; the
-  retrieval step is a stub. Use the dossier alone for now.)
-- [ ] **Both `/paper` Anti-AI-isms tables AND the dossier are loaded together.**
-  The dossier provides the *data* (frequencies, sentence stats); the
-  `/paper` SKILL provides the *policy* (Tier A absolute-forbid, Tier B
-  frequency-capped, replacement targets). Loading only one is insufficient:
-  dossier alone has no replacement guidance; `/paper` alone has no current
-  corpus evidence. Read both before drafting.
+If an optional asset is absent, continue with available axes and report the missing
+axis. Do not silently replace a missing field baseline with a fixed threshold.
 
----
+## 2. Load evidence
 
-## 2. Pipeline
+1. Read `docs/SCIPAPER_STANDARD.md` for policy.
+2. Read the `/sci-paper:paper` writing guidance, especially scientific accuracy,
+   forward narrative, formula standards, citations, and canonical L0 examples.
+3. Read `style-profile/<field>/style_dossier.md` in full.
+4. Read `lexicon.json`, `sentence_stats.json`, `transition_inventory.json`, or other
+   baseline files only when needed for the current finding.
+5. Retrieve section-typed exemplars when the bank is available:
 
-### 2a. Load style context (always — both data and policy)
+   ```bash
+   python tools/retrieve_exemplars.py --field <field> \
+     --section <abstract|intro|method|results|discussion|conclusion> \
+     --topic "<verified one-sentence topic>" --k 5
+   ```
 
-The dossier and the `/paper` Anti-AI-isms tables are a **paired artifact**:
-the dossier reports what the corpus does (frequencies, sentence stats,
-top-K openers), while `/paper` translates those observations into policy
-(Tier A forbidden, Tier B capped, replacement table). Either alone is
-insufficient. Load both, in order:
+Read every returned exemplar. Record provenance. Treat a complete paper as one
+calibration observation for document-level shape; never treat its paragraphs as
+independent papers.
 
-1. **Read `skills/paper/SKILL.md` Anti-AI-isms section** (the whole subtree
-   from "Anti-AI-isms" down through the grep block). The Tier A and Tier B
-   tables tell you *what to enforce*; the substitution targets tell you
-   *what to write instead*.
-2. **Read `style-profile/<field>/style_dossier.md`** in full (≤ ~2k tokens).
-   The dossier's first heading announces the field; cross-check it matches
-   the resolved `<field>`. §1 (sentence-length per section), §2 (em-dash
-   baseline), §3 (paragraph-initial transition inventory + LLM-blacklist
-   absent/present split), §4 (lexicon LLM-typical word frequencies) are
-   the load-bearing parts.
-3. **Read `style-profile/<field>/lexicon.json`** for the relevant section's
-   per-word counts when you need finer granularity than the dossier table
-   shows. Most drafting passes don't need this; reach for it only when a
-   borderline Tier B word is in dispute.
+## 3. Draft or rewrite
 
-### 2b. Retrieve section-typed exemplars
+Use the source-verified scientific content as the immutable input. Apply corpus
+evidence to:
 
-```bash
-python tools/retrieve_exemplars.py \
-    --field <field> \
-    --section <abstract|intro|method|results|discussion|conclusion> \
-    --topic "<one-sentence summary of what the user is writing about>" \
-    --k 5
-```
+- sentence-length variation and local information distribution;
+- paragraph openings and transitions;
+- field register and accepted terminology;
+- section-appropriate density of definitions, citations, equations, and results;
+- document-level variation in paragraph and section arcs;
+- positive author/field voice anchors.
 
-(`--field` may be omitted when only one field is populated; auto-detect
-will pick it.)
+Do not mechanically force every sentence into a reference interval. Preserve a
+scientifically motivated short definition, long derivation, list, or parallel frame
+when it carries real structure. Record a residual advisory if it remains distant from
+the baseline.
 
-This emits 5 paragraphs from the corpus, indexed by section type and ranked by
-topic-embedding cosine similarity. **Read all five.** They serve as positive
-style anchors — the model imitates their rhythm, sentence structure, transition
-patterns, and register, not their content.
+After any rewrite, protect numbers, units, citations, mathematics, acronyms,
+comparison and causal direction, negation, named entities, scope, and stance. Use
+`tools/rewrite_reward.py` for deterministic eligibility when generating alternatives,
+then verify the remaining semantic invariants manually.
 
-### 2c. Drafting / rewriting pass
+## 4. Mandatory measurement
 
-Constrain output to satisfy *all* of:
-
-| Constraint | Severity | Source |
-|---|---|---|
-| Sentence-length distribution within ±2σ of the section's corpus baseline | 🟡 each outlier | dossier §1 |
-| Paragraph-initial transitions drawn only from the dossier §3 whitelist | 🔴 if word is in §3 absent-list | dossier §3 |
-| Zero em-dashes (`—`, `---`, `\textemdash`) | 🔴 each occurrence | `/paper` Anti-AI-isms |
-| **Tier A: zero hits**. Words in `/paper` Tier A list (delve / leverages / pave / shed / showcase / utilizing / seamless / holistic / comprehensively / crucially …); same for Tier A paragraph openers (Recent advances / Despite significant / In recent years / It is worth noting / paragraph-start Crucially / Importantly / Notably / Interestingly) | 🔴 each hit | `/paper` Tier A + dossier §4 absent-list |
-| **Tier B: per-section ≤ 1–2 hits**. Words in `/paper` Tier B list (Furthermore / Moreover / Additionally / robust(ly) / comprehensive / utilize / utilized / leverage / mid-line Importantly / Interestingly / Notably). Density >1 / section reads as LLM-typical even when individual hits are corpus-attested. | 🟡 per excess hit | `/paper` Tier B + dossier §4 |
-| Tense convention per section (methods present, results past, discussion present) | 🟡 each violation | `/paper` |
-| Lexical-substitution table applied (Tier A replacements, plus `In order to → To`, `aim to → direct verb`, `facilitate → enable`) | 🟡 each survivor | `/paper` |
-| Mathematical/notation conventions per `/paper` formula standards | 🟡 each violation | `/paper` |
-
-If a constraint conflicts with the user's intent (e.g. they ask for an em-dash
-because of an editor's specific request), surface the conflict and ask. Don't
-silently override.
-
-### 2d. Lint pass (mandatory after any draft/rewrite)
+Run the shared report after drafting or rewriting:
 
 ```bash
-python tools/ai_ism_lint.py <target_file> --field <field> --summary
+python tools/ai_ism_lint.py <target_file> --field <field> \
+  --structure --distribution --document-structure --oracle --voice \
+  --format json --output <scratch>/style-feedback.json
 ```
 
-(`--field` may be omitted; the linter uses the same single-field auto-detect
-and falls back to hand-written rules if no field profile is available.
-`--summary` is highly recommended — it appends per-tier counts and Tier B
-density per `\section{}` so you can read off whether to iterate.)
+Interpretation:
 
-The linter combines:
-- Tier A / Tier B regex rules from `/paper` (em-dash, LLM verbs, paragraph
-  openers, frequency-capped Tier B words). Per-line hits tagged
-  `[em-dash]`, `[tier-a:<word>]`, `[tier-a:opener]`,
-  `[tier-a:paragraph-start:<W>]`, `[tier-b:<word>]`, `[stubborn:<word>]`,
-  `[three-parallel]`.
-- Corpus-derived additions: words/phrases with **0 corpus occurrences**
-  in `style-profile/<field>/lexicon.json` are flagged
-  `[corpus-blacklist:<word>]` (overlap with Tier A is expected and good).
-- `--summary` aggregate: counts by tier + Tier B per-section density
-  (cap = 1 occurrence/section/word). Read the verdict's
-  `🟡 N Tier B excess` and `🔴 Tier A / em-dash hits present` lines to
-  decide what to rewrite.
+- exit 0: no L0 targets; advisories may remain;
+- exit 1: at least one L0 target;
+- exit 2: input, configuration, or execution failure;
+- `measured`, `degraded`, `unmeasured`, and `not_applicable` must remain distinct;
+- details may be truncated with `--top`, but summary totals must not change.
 
-**Convergence criterion:** zero hits. If any remain, rewrite the offending
-sentences and re-lint. Match the convergence loop in `/paper-review`.
+Use the ranked report to act:
 
----
+1. resolve all integrity blockers outside this style skill;
+2. remove applicable L0 targets;
+3. act on or explicitly disposition strong advisories;
+4. report ordinary advisories and unavailable axes.
 
-## 3. Workflow examples
+Do not reconstruct JSON by parsing printed messages. Do not treat zero L0 targets as
+proof that the prose is natural, scientifically correct, or ready for submission.
 
-### Example A — drafting a new Discussion section (single-field, auto-detect)
+## 5. Output
 
-```
-User: /sci-paper:paper-style discussion
+For each changed section, return:
 
-Claude (this skill):
-1. List style-profile/ subdirs. Only one ('wgl') exists → use it.
-2. Read style-profile/wgl/style_dossier.md.
-3. Ask user for the discussion's topic in one sentence.
-4. Run retrieve_exemplars.py --field wgl --section discussion --topic "<topic>" --k 5.
-5. Read all 5 exemplars.
-6. Draft ~3-5 paragraphs of Discussion satisfying all constraints.
-7. Run ai_ism_lint.py <draft> --field wgl. Iterate until zero hits.
-8. Present the cleaned draft. The user reviews / accepts / asks for revisions.
-```
+- selected field and profile provenance;
+- measurement-state table;
+- source-verified scientific anchors;
+- retrieved exemplar IDs, never copied text unless needed for immediate comparison;
+- before/after prose;
+- ranked findings affected by the edit;
+- author dispositions for residual strong advisories;
+- ordinary residual advisories and unmeasured axes.
 
-### Example B — explicit field on a multi-field corpus
+A style pass is complete when the unified standard's stopping rule is met, not when a
+binary style PASS line is reached.
 
-```
-User: /sci-paper:paper-style intro --field cosmology
+## 6. Anti-patterns
 
-Claude:
-1. Validate cosmology profile exists at style-profile/cosmology/.
-2. Same flow as Example A but with --field cosmology throughout.
-```
+- Copying or lightly paraphrasing an exemplar.
+- Quoting a manuscript number or citation from the dossier or memory.
+- Calling a compatibility threshold calibrated.
+- Treating every corpus-zero word as an automatic L0 target.
+- Treating every sentence-length outlier as an error.
+- Requiring every advisory to disappear.
+- Declaring a paper human-authored or AI-authored from a learned score.
+- Using a stale profile or silently selecting among multiple fields.
+- Loading corpus evidence without the unified standard, or policy without current
+  empirical evidence when making a corpus-specific claim.
 
-### Example C — final-pass style polish on an existing draft
+## 7. References
 
-```
-User: /sci-paper:paper-style polish path/to/main.tex
-
-Claude:
-1. Resolve field (auto or --field).
-2. Read style-profile/<field>/style_dossier.md.
-3. For each section in main.tex (abstract, intro, methods, ...):
-   a. Identify section type from \section{} headers.
-   b. Retrieve top-5 exemplars for that section type and field.
-   c. Re-read the section, comparing rhythm and transitions vs exemplars.
-   d. Propose targeted edits (NOT a full rewrite) — flag specific sentences
-      that violate sentence-length, transition, or anti-AI-ism rules; suggest
-      replacements that preserve the user's claims and numbers exactly.
-4. Run ai_ism_lint.py over the whole file with --field; iterate.
-5. Present a unified diff for user approval before applying.
-```
-
-### Example D — unsupported request
-
-```
-User: "Train me a custom model on my mentor's papers."
-
-Claude (this skill):
-"That's not what this skill does and it's not feasible — see EVALUATION.md.
-What I can do is regenerate the style profile from the current corpus
-(`python tools/extract_style.py --field <field>`) so the style dossier
-reflects any new mentor papers you've added to
-`style-corpus/<field>/tier-2-mentor/`. Want me to run that?"
-```
-
----
-
-## 4. Anti-patterns
-
-- ❌ "I'll write in an academic-sounding voice" without loading the dossier.
-  Sounding academic ≠ matching this corpus. Load the dossier or refuse.
-- ❌ Loading the dossier but skipping retrieval. The dossier is summary;
-  exemplars are the high-resolution signal. Both are needed.
-- ❌ **Loading the dossier without `/paper` Tier A/B tables, or vice versa.**
-  Dossier-only: you have frequencies but no policy interpretation —
-  `Furthermore` shows up at 0.143/1k tokens, but the skill needs to know
-  that translates to "≤ 1 paragraph-start per section". `/paper`-only:
-  you have policy but no current corpus evidence, so any `/paper` claim
-  about Tier B caps becomes detached from data. Always pair them.
-- ❌ Copying phrasing verbatim from an exemplar. That's plagiarism, not style.
-  Imitate rhythm and structure; rewrite all content as the user's own.
-- ❌ Treating "0 anti-AI-ism hits" as the success criterion. Zero hits is
-  necessary on **Tier A**, not sufficient: the draft must also match
-  Tier B density caps AND the corpus's positive style signals (sentence
-  length, transitions, register).
-- ❌ Silently using a stale dossier when corpus has new files.
-
----
-
-## 5. When this skill should NOT run
-
-- If the corpus is empty (no papers in `style-corpus/`): tell the user the
-  skill needs ≥ 5 papers (preferably ≥ 15) to produce a meaningful profile.
-- If the user's draft is in a field with no corpus coverage: warn that the
-  profile may not transfer. Offer to skip the skill for this section.
-- If `tools/extract_style.py` has never run: instruct the user to run it
-  first.
-
----
-
-## 6. References
-
-- `EVALUATION.md` — full feasibility analysis (why no fine-tuning).
-- `/sci-paper:paper` — the writing standards this skill complements.
-- `/sci-paper:paper-review` — the review pipeline this skill writes for.
-- `tools/extract_style.py` — the corpus → profile pipeline.
-- `tools/retrieve_exemplars.py` — section-typed nearest-neighbour retrieval.
-- `tools/ai_ism_lint.py` — extended linter (hand rules + corpus-derived).
+- `docs/SCIPAPER_STANDARD.md` — normative policy.
+- `EVALUATION.md` — empirical results and limitations.
+- `docs/DEAI_SUBSYSTEM.md` — subsystem design.
+- `/sci-paper:paper` — writing guidance.
+- `/sci-paper:rewrite-in-voice` — claim-first structural rewrite.
+- `tools/extract_style.py` — corpus-to-profile pipeline.
+- `tools/retrieve_exemplars.py` — section-typed retrieval.
+- `tools/ai_ism_lint.py` — shared structured report.

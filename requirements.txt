@@ -1,14 +1,15 @@
-# sci-paper plugin runtime dependencies.
+# sci-paper optional runtime dependencies.
 #
-# stdlib alone is enough to run:
-#   - tools/ai_ism_lint.py (regex rules + corpus blacklist)
-#   - tools/extract_style.py on .tex/.txt corpora (no PDF, no exemplar ML)
-#
-# Below are the deps for the full pipeline. Each is gracefully degraded
-# if missing — see tools/README.md for the fallback behaviour.
+# The shared feedback schema, deterministic L0 linter, model-free distribution /
+# sentence-structure / document-structure axes, and repository validator use the
+# Python standard library. Install the packages below only for the corresponding
+# optional capabilities. Missing dependencies must remain visible as unmeasured
+# or degraded evidence; they must not be replaced by nominal zero findings.
 
-numpy>=1.20                  # used everywhere; sentence-transformers / sklearn dep
-pymupdf>=1.20                # PDF corpus parsing in extract_style.py
-sentence-transformers>=2.0   # embedding-based retrieval in retrieve_exemplars.py
-scikit-learn>=1.0            # AI-ism classifier in train_ai_ism_classifier.py
-joblib>=1.0                  # classifier serialization (already a sklearn dep)
+numpy>=1.20                  # learned feature vectors, caches, and rewrite scoring
+pymupdf>=1.20                # PDF corpus extraction and compiled-page inspection
+sentence-transformers>=2.0   # semantic exemplar retrieval and embedding features
+scikit-learn>=1.2            # class_weight support in HistGradientBoostingClassifier
+joblib>=1.0                  # local model-bundle serialization
+transformers                 # optional token-surprisal / UID measurement
+torch                        # tensor/model runtime used by deai_oracle.py

@@ -1,199 +1,268 @@
-# De-AI subsystem — design & build plan (v0.13.0)
+# De-AI subsystem architecture (v0.14.0)
 
-**Goal.** Make drafts read like a human scientist, not a machine — at the
-*root* level (sentence architecture, argument shape, information
-distribution), not by scrubbing keywords. Keyword lint stays as a backstop;
-it is not the mechanism.
+## 1. Purpose
 
-## 0. Thesis (the one signal)
+The subsystem improves scientific prose without treating authorship detection as
+the objective. It analyzes how information is distributed, how sentences and
+paragraphs are built, how sections relate across a document, and whether a rewrite
+preserves the scientific claim.
 
-Every AI-vs-human text signal in the literature — perplexity, burstiness,
-DetectGPT curvature, Binoculars cross-perplexity, GLTR token-rank, GPT-who
-UID — is a different lens on **one property: the distribution of per-token
-surprisal**. Human writing is *bursty* (high surprisal variance, sharp local
-spikes, tail-drawn tokens); MLE-trained LLM writing is *smoothed* toward
-Uniform Information Density and its own high-probability region. Swapping
-words does not change that distribution, which is why keyword de-AI is
-cosmetic and AI prose is "hard to remove."
+The normative authority is [`SCIPAPER_STANDARD.md`](SCIPAPER_STANDARD.md). This
+document explains the implementation. Corpus dossiers, learned models, thresholds,
+and evaluation results are evidence. They cannot redefine the standard.
 
-Two feature tiers, weighted differently:
+## 2. Design constraints
 
-- **Fundamental (hard to spoof) — the "voice":** surprisal/UID variance,
-  sentence-length variance, syntactic-structure variety, probability
-  curvature, cross-perplexity. Model-free syntactic projections
-  (sentence-length variance, dependency/constituent variety) are the most
-  *robust* because they need only a tokenizer/parser.
-- **Keyword (brittle, gameable) — "tells to avoid":** the corpus-derived
-  excess-vocabulary list (delve/underscore/…). Kept as a backstop only.
+1. **Scientific integrity outranks style.** A rewrite that changes a number, unit,
+   citation, equation, comparison direction, negation, causal direction, or other
+   protected claim content is ineligible.
+2. **Feedback drives action.** Prose does not receive a universal PASS/FAIL or
+   human/AI verdict. The workflow measures, types, ranks, edits, re-measures, and
+   records a disposition.
+3. **Unavailable evidence remains visible.** Missing calibration or model assets
+   produce `unmeasured` or `degraded`, never an implicit zero.
+4. **Calibration uses the right independent unit.** Paragraph evidence calibrates
+   paragraph axes. Complete papers calibrate document axes. Paragraphs from one
+   paper must not be represented as independent papers.
+5. **Learned scores are field-similarity evidence.** They may prioritize inspection,
+   but they do not prove authorship and do not determine L0 status.
+6. **The implementation is shared.** Writing, review, rewriting, final review, and
+   adversarial review consume the same feedback vocabulary and consequence rules.
 
-## 1. Four guardrails (non-negotiable; from the research caveats)
+## 3. Consequence model
 
-1. **Calibrate against the human reference corpus, per genre. Never
-   hard-code absolute thresholds.** Direction and magnitude of nearly every
-   feature drift by genre and model generation (hedging is *down* in AI
-   essays but *up* in AI abstracts; lexical diversity no longer separates
-   modern LLMs). All thresholds derive from `style-profile/<field>/`.
-2. **Diagnostic, not gate.** Surprisal / detector scores flag *which
-   paragraphs to rewrite*; they never become a pass/fail convergence
-   criterion. Reasons: (a) formal science prose is formulaic and
-   false-positives on likelihood detectors; (b) optimizing to beat a
-   detector is a losing arms race (Pangram's DAMAGE re-detects 19
-   humanizers).
-3. **Optimize for genuine voice / specificity / stance** — real qualities
-   that are robust because they are real — not for detector evasion.
-4. **The excess-vocabulary lexicon is data to re-derive**, not a frozen
-   constant. Re-estimate as models/corpus change.
+Every finding uses one of three consequence classes.
 
-## 2. Three layers
+### `integrity_blocker`
 
-### Layer A — distributional scorer (model-free, ships first)
-`tools/deai_metrics.py`. Reuses `extract_style.py` tokenizers
-(`sentences`, `words`, `paragraph_initial_words`, `split_into_sections`,
-`classify_section`, `latex_to_plain`) so a draft's distributions are
-directly comparable to the corpus reference. Per section, scores vs
-`style-profile/<field>/{sentence_stats,transition_inventory,
-distribution_baselines}.json`:
+A scientific contradiction, unsupported value, source mismatch, invalid statistic,
+broken required build, leakage, or missing required artifact. These are mandatory
+repairs or explicit user decisions. They are never waived as style preferences.
 
-- **Burstiness / sentence-length variance** (Desaire, GPTZero, Muñoz-Ortiz):
-  flag sections whose sentence-length coefficient-of-variation is below the
-  human reference.
-- **Opener over-signposting:** fraction of paragraphs opening with a
-  connective (Furthermore/Moreover/However/…). Human corpus ≈ 0.1–0.2 %;
-  flag over-use.
-- **Desaire science features:** paragraph length (sentences/para), equivocal
-  connective density (but/however/although), punctuation richness
-  (parentheses, semicolons, question marks) — all vs corpus baselines
-  emitted by an extended `extract_style.py`.
+### `l0_target`
 
-Emits `(line, rule, excerpt)` hits into `ai_ism_lint.lint()`'s aggregation
-(the `[ai-ish:*]` path is the template) so it auto-propagates into
-`paper-style §2d` and `paper-review §2.D` loops. New `severity_order`
-bucket. **Diagnostic 🟡, never a 🔴 gate.**
+A narrow deterministic rewrite target:
 
-### Layer B — surprisal / UID + detector oracle (local, GPU)
-`tools/deai_oracle.py`. torch 2.8 + CUDA present.
+- Tier A lexical occurrence;
+- em-dash occurrence;
+- Tier B occurrence above the cap of one occurrence per section and word.
 
-- **UID feature vector** (GPT-who, arXiv 2310.06202): per-token surprisal
-  under a local LM → global UID (surprisal variance) + local UID
-  (consecutive-token surprisal jumps). The operational core of "voice."
-- **Detector score:** RADAR (IBM, Apache-2.0, single RoBERTa forward pass,
-  fully local, paraphrase-robust) as the per-paragraph AI-ness flag;
-  optionally Binoculars (cross-perplexity of two small models) as a second,
-  orthogonal signal.
-- **Embedding-manifold distance:** reuse the cached
-  `exemplar_embeddings_all-MiniLM-L6-v2.npy` to measure a paragraph's
-  distance from the corpus manifold.
+The target count is reduced to zero during editing, but an L0 target does not imply
+that the manuscript is scientifically invalid.
 
-Calibrated against the 31-paper corpus's own paragraph score distribution
-(flag paragraphs *more uniform / lower-surprisal-variance than the human
-corpus*), validated on RAID's ArXiv-Abstracts domain before trust.
-**Diagnostic only.**
+### `advisory`
 
-### Layer C — claim-graph → skeleton → voice regeneration (the deep fix)
-New skill `/sci-paper:rewrite-in-voice` (+ orchestration). You cannot
-launder AI prose — the AI-ness lives in the sentence structure, so we don't
-edit it, we rebuild from the argument:
+Evidence about information distribution, sentence construction, document shape,
+field similarity, clarity, rhetoric, or aesthetics. Strong advisories require an
+author disposition. Ordinary advisories remain visible and may be acted on,
+accepted, or rejected as false positives.
 
-1. Extract the **claim-graph** from the draft (claims, evidence, causal
-   links) — ignore the prose.
-2. Emit a **fill-in skeleton** (same mechanism as the the manuscript paper skeleton)
-   — forces human sentence construction; the AI skeleton cannot survive.
-3. Regenerate each slot in the **author's own voice**: condition on the
-   author's prior human paragraphs (`retrieve_exemplars.py`, already
-   embedding-based) as few-shot anchors + constraints (commit to a claim,
-   ≥1 specific number/detail per paragraph, forbid meta-commentary, hit the
-   sentence-length-variance target).
-4. Score with Layers A+B; iterate the worst paragraphs.
+## 4. Shared data contract
 
-Voice-transfer machinery to borrow: StyleRemix (EMNLP24, style-axis LoRA),
-STRAP (EMNLP20, style-transfer-as-paraphrase), DIPPER control codes
-(NeurIPS23).
+[`../tools/deai_feedback.py`](../tools/deai_feedback.py) implements
+`sci-paper.feedback.v1`. A finding carries:
 
-**Auto-writing systems — verified: none handle voice/AI-tell** (checked
-STORM, AI-Scientist v1/v2, gpt-researcher, PaperQA2, gpt-researcher,
-data-to-paper, Agent Laboratory — all optimize grounding or automated
-review-score, never human-likeness). So the voice layer is a genuine gap,
-and these systems are *complementary substrates* to borrow from, not
-competitors:
+- a stable content-derived `finding_id`;
+- consequence `kind` and analysis `layer`;
+- `rule`, `scope`, and source `location`;
+- observed and reference evidence;
+- normalized distance and confidence where applicable;
+- `measurement_status`;
+- strength and strong-advisory state;
+- deterministic priority;
+- recommended action and detector provenance;
+- source trace, disposition, and before/after evidence.
 
-- **PaperQA2** (Apache-2.0) RCS re-rank+contextual-summarize retrieval — the
-  grounding substrate so a voice rewrite never fabricates a citation.
-- **data-to-paper** (MIT) backward numeric traceability — voice-editing must
-  keep every number click-traceable (our R2). 
-- **STORM** (MIT) perspective-guided simulated-conversation outline — the
-  antidote to flat/templated AI *structure* (itself a tell); feeds Layer C's
-  claim-graph with non-generic section logic.
-- **AI-Scientist v1** ensemble review-and-revise loop — reuse the
-  *iterate-until-rubric-passes* shape, with the rubric = Layers A+B (this is
-  the de-AI convergence engine of `/rewrite-in-voice`).
-- **Agent Laboratory / Co-STORM** staged human-in-the-loop checkpoints — pause
-  at section boundaries for author steering (keeps the human's voice in).
+Allowed measurement states are:
 
-### Layer D — learned voice model + self-improvement loop
-The heuristic scorers (A) and off-the-shelf oracles (B) are the floor. The
-ceiling is a model that **learns real hand-written scientific voice from the
-corpus and keeps improving**.
+- `measured`;
+- `degraded`;
+- `unmeasured`;
+- `not_applicable`.
 
-- **Learned voice model (reward model).** Train on the human corpus
-  (positives: `exemplar_paragraphs.jsonl`, 31 papers) vs harvested LLM
-  drafts (negatives: `extract_md_negatives.py`). Features are the
-  **fundamental** ones — Layer A distributional stats + Layer B surprisal/UID
-  + sentence embeddings — **not** word-ngram TF-IDF (which just re-learns the
-  keyword tells and is the current classifier's ceiling). Output: a
-  calibrated per-paragraph *human-voice score*. This score is the **reward**.
-- **Self-improvement, three rungs (increasing cost):**
-  1. **Best-of-N (no training, ships first).** The rewriter generates N
-     candidates; the voice model + semantic-fidelity (embedding sim to the
-     claim) + specificity (carries a number) pick the best. "Poor-man's RL,"
-     high ROI, no GPU training.
-  2. **Self-distillation (ongoing).** Human-accepted rewrites → new positives
-     → periodically retrain the voice model and optionally SFT a small
-     generator (LoRA). The plugin gets better the more it is used.
-  3. **DPO / RL fine-tune (ceiling, GPU).** DPO on (accepted, rejected)
-     rewrite pairs against the voice reward; StyleRemix-style style-axis LoRA.
-     Sequenced last, on a *validated* reward.
-- **Reward-design guardrail (critical, from the research):** the target is
-  *match the human-voice distribution + preserve meaning / specificity /
-  stance*, **never "evade a detector"** — detector-as-reward yields evasion
-  that reads worse and loses an arms race (AuthorMist → Pangram DAMAGE
-  re-detects 19 humanizers). Hold out papers and add a diversity penalty to
-  avoid overfitting to the 31 authors' tics (mode collapse).
+Allowed author dispositions are:
 
-## 3. Verified external resources (2026-07-11)
+- `pending`;
+- `acted`;
+- `accepted`;
+- `rejected_as_false_positive`.
 
-| Use | Resource | Note |
-|---|---|---|
-| Local detector oracle | RADAR — github.com/IBM/RADAR (Apache-2.0) | single RoBERTa pass, local, paraphrase-robust |
-| Zero-shot oracle (2nd) | Binoculars — github.com/ahans30/Binoculars (BSD-3) | cross-perplexity; two ~7B models, GPU |
-| UID feature defs | GPT-who — arXiv 2310.06202 | 44-dim surprisal-variance vector |
-| Science-prose features | Desaire — arXiv 2303.16352 | model-free, 99% on science paragraphs |
-| Excess-vocab lexicon | Kobak — arXiv 2406.07016 / sciadv.adt3813 | re-derivable science avoid-word set |
-| Voice transfer | StyleRemix EMNLP24 / STRAP EMNLP20 / DIPPER NeurIPS23 | style-axis / paraphrase transfer |
-| Calibration test-bed | RAID ArXiv-Abstracts — arXiv 2405.07940 | the only public science-prose bench |
+Findings are ranked lexicographically by consequence, strength, layer, reader
+exposure, calibrated distance, confidence, and a stable source tie-break. The same
+ranked report drives both text and JSON output.
 
-## 4. Integration points (verified, file:line)
+## 5. Measurement layers
 
-- `tools/ai_ism_lint.py:335` `lint()` — add distributional + oracle passes
-  emitting into the `hits` list; `:287` `severity_order` — add buckets.
-- `tools/extract_style.py:514` `aggregate_sentence_stats`, `:562`
-  `aggregate_transitions`, `:644` `aggregate_lexicon` — add
-  `distribution_baselines` (CV, paragraph length, punctuation, equivocal,
-  connective-opener rate) + OOD/excess-vocab discovery.
-- `tools/train_ai_ism_classifier.py:128` — swap TF-IDF word-ngram features
-  for distributional+embedding features; enlarge negatives via
-  `extract_md_negatives.py`.
-- Skills: `paper/SKILL.md` (new fundamental tier + fix N=16→N=31 drift),
-  `paper-style §2d` / `paper-review §2.D/§O4` / `mainline §B8` /
-  `final-review` (register the new diagnostic dimension).
+### L0: lexical and punctuation targets
 
-## 5. Phased build → release
+[`../tools/ai_ism_lint.py`](../tools/ai_ism_lint.py) implements the canonical
+Tier A, em-dash, and Tier B cap rules. Corpus-zero vocabulary is advisory because a
+field corpus can be incomplete.
 
-1. ✅ research (done + auto-writing re-run)
-2. Layer A (scorer + extract_style baselines + ai_ism_lint integration + tests)
-3. Layer B (oracle, weights download, calibration on corpus + RAID)
-4. Layer C (rewrite-in-voice skill + orchestration)
-5. Skills/docs update (+ dossier drift fix, EVALUATION)
-6. Release **v0.13.0**: bump `plugin.json` + `marketplace.json`, CHANGELOG,
-   `git tag v0.13.0`, GitHub release.
+The command-line exit contract is deliberately narrow:
 
-Version now: 0.12.1 → **0.13.0** (feature release).
+- `0`: no L0 target, regardless of remaining advisories;
+- `1`: one or more L0 targets;
+- `2`: invalid input, configuration failure, or execution failure.
+
+### L1: information distribution
+
+[`../tools/deai_metrics.py`](../tools/deai_metrics.py) measures section-aware
+sentence-length variation and paragraph-opening connective density. A compatibility
+heuristic may produce degraded evidence. A strong advisory requires an applicable
+calibrated policy and sufficient reference support.
+
+[`../tools/deai_oracle.py`](../tools/deai_oracle.py) optionally measures token
+surprisal and Uniform Information Density features. Missing model assets leave the
+axis unmeasured. The compatibility `FLAG_Z` remains degraded until field calibration
+provides an operating point with provenance and uncertainty.
+
+### L2: sentence and paragraph construction
+
+[`../tools/deai_structure.py`](../tools/deai_structure.py) detects deterministic
+structural patterns that keyword replacement cannot repair:
+
+- announced enumeration and ordinal runs;
+- repeated modal frames;
+- parallel or anaphoric runs;
+- setup, list, and wrap-up symmetry;
+- balanced closers;
+- repeated paragraph templates.
+
+These are advisories. A detector match identifies a construction to inspect; it does
+not establish that the construction is wrong or machine-generated.
+
+### L2: whole-document rhetorical shape
+
+[`../tools/deai_docstructure.py`](../tools/deai_docstructure.py) measures:
+
+- `within_section_similarity`;
+- `cross_section_similarity`;
+- `section_arc_similarity`.
+
+Document calibration records one observation per verified complete paper, bootstrap
+uncertainty, leave-one-document-out human flag behavior, and empirical percentiles.
+If the corpus does not contain enough complete and measurable papers, the axis is
+`unmeasured`. The implementation must not synthesize a document baseline from
+paragraph exemplars.
+
+### L3: learned field similarity
+
+[`../tools/deai_features.py`](../tools/deai_features.py) exposes reusable
+model-free, UID, and embedding features.
+[`../tools/train_voice_model.py`](../tools/train_voice_model.py) trains the optional
+model, and [`../tools/deai_voice.py`](../tools/deai_voice.py) reports its result as
+field-similarity triage.
+
+A bundle without a documented calibrated operating point is degraded. Evaluation
+must separate source-paper groups and audit mathematical-placeholder density,
+jargon density, section type, and paragraph length. The mathematical-density
+confound is unresolved until the evidence in `EVALUATION.md` demonstrates otherwise.
+
+## 6. Claim-first rewriting
+
+The `/sci-paper:rewrite-in-voice` skill does not polish the original sentence in
+place by default. It reconstructs prose from the scientific argument:
+
+1. extract claims, evidence, scope, stance, and logical relations;
+2. build a prose-independent skeleton;
+3. generate candidates using field exemplars as descriptive anchors;
+4. reject candidates that fail scientific-fidelity eligibility;
+5. rank eligible candidates with specificity, structural, distributional, and
+   optional learned evidence;
+6. re-measure the selected rewrite and record before/after findings;
+7. disposition every strong advisory and retain ordinary residual advisories.
+
+[`../tools/rewrite_reward.py`](../tools/rewrite_reward.py) protects numbers, units,
+citations, inline mathematics, uppercase acronyms, comparison direction, negation,
+and causal direction. An ineligible candidate receives a combined score of negative
+infinity and cannot win. If no candidate is eligible, rewriting stops instead of
+selecting a scientifically altered sentence.
+
+## 7. Skill integration
+
+All active writing and review skills implement the same standard:
+
+- `paper` writes against the consequence and measurement vocabulary;
+- `paper-style` treats corpus profiles as descriptive evidence;
+- `rewrite-in-voice` uses claim-first reconstruction and hard fidelity eligibility;
+- `paper-review` emits typed, source-traced findings across its review dimensions;
+- `mainline` reviews contribution relations and cold-reader comprehension without
+  requiring exactly one narrative spine;
+- `figure-review` separates scientific/build contradictions from readability and
+  aesthetic advisories;
+- `paper-attack-tree` separates evidentiary verdict from consequence;
+- `final-review` merges stable findings from isolated reviewers and verifies a
+  disposition-complete state rather than demanding zero advisories.
+
+`CONFIRMED`, `REFUTED`, and `MARGINAL` in the attack tree describe whether a critique
+survived evidentiary verification. They do not select its consequence class.
+`CONVERGED` may describe the completion of a bounded search or review process. It is
+not a claim of perfect prose, human authorship, scientific infallibility, or journal
+acceptance.
+
+## 8. Isolation architecture
+
+`final-review` owns isolated child execution. Nested agents are unsupported, so the
+parent passes explicit interface flags:
+
+- `paper-review --no-isolated-mpr`;
+- `mainline --orchestrator-isolated`;
+- `paper-attack-tree --no-subagents`.
+
+The parent launches the modern-physics reviewer as a sibling isolated agent. Child
+review coverage is preserved in the current isolated process rather than silently
+reduced.
+
+## 9. Calibration artifacts
+
+A field profile may contain:
+
+- descriptive corpus statistics and exemplars;
+- L1/L2 calibrated reference distributions;
+- a complete-document structure baseline;
+- learned-model bundles and operating points;
+- `deai_policy.json` with provenance, sample unit, uncertainty, and applicability.
+
+A policy asset must state what was measured, the independent unit, the corpus
+selection rule, sample size, uncertainty method, and validation behavior. If any
+required provenance is absent, the consumer reports degraded or unmeasured evidence.
+
+Current effect sizes, model scores, corpus counts, and threshold performance belong
+in [`../EVALUATION.md`](../EVALUATION.md), not this architecture or the normative
+standard.
+
+## 10. Validation and release boundary
+
+[`../tools/validate_plugin.py`](../tools/validate_plugin.py) checks:
+
+- manifest, README, and CHANGELOG version agreement;
+- skill frontmatter and standard references;
+- stale review-contract markers;
+- README and manifest skill/tool counts;
+- exact README product-tool registry;
+- Python syntax and core imports;
+- core command-line entry points;
+- shared schema fields and allowed enums;
+- linter exit and Tier B cap semantics;
+- required tests and CI wiring.
+
+CI also runs the unit and CLI test suite. A release additionally requires an
+independent code review, a clean-checkout verification, release metadata updates,
+and successful tag/push/release operations.
+
+## 11. Evidence still required for v0.14.0
+
+The implementation can ship with explicit unavailable axes, but it must not imply
+that missing evidence exists. Before release, the evaluation record must state the
+status of:
+
+1. a real introduction rewrite with before/after structural findings and protected
+   invariant verification;
+2. learned-model audits for mathematics, jargon, section, length, and source-paper
+   confounds;
+3. complete-document calibration, or an explicit `unmeasured` document axis if a
+   verified corpus is unavailable;
+4. UID and learned-model operating points, including degraded status when not
+   calibrated;
+5. author labels and editorial dispositions that remain external human inputs.

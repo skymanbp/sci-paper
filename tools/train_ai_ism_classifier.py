@@ -1,28 +1,19 @@
-"""train_ai_ism_classifier.py — train a paragraph-level AI-ism classifier.
+"""Train the legacy word-ngram generated-style compatibility classifier.
 
-Trains a binary classifier (logistic regression on word 1–2 gram TF-IDF)
-that scores a paragraph's probability of being LLM-style academic prose.
+The logistic-regression model contrasts corpus paragraphs with controlled
+handcrafted examples of connective stacking, generic intensifiers, and lexical
+AI-isms. Its score is optional advisory evidence about resemblance to that
+negative set, not an authorship probability and not an L0 gate.
 
-Positives: corpus paragraphs from `style-profile/<field>/exemplar_paragraphs.jsonl`.
-Negatives: hand-written AI-style paragraphs in
-`tools/ai_ism_negatives_handcrafted.txt`. Free-form AI-voiced WGL prose
-covering distributional patterns regex alone misses (heavy connective
-stacking, generic intensifier sequences, "shed light on" / "paving the way"
-phrasings).
+The legacy design deliberately avoids synthetic one-token mutations of corpus
+paragraphs: those examples remain nearly identical in word 1--2-gram space and
+previously degraded cross-validation below the majority baseline. The broader
+v0.14 field-similarity model lives in ``train_voice_model.py``; this file remains
+for backward-compatible ``--ai-classifier`` analysis.
 
-Why hand-written only (no synthetic mutations): mutations of corpus
-paragraphs (swap `use` → `leverage`, prepend `Furthermore,`) sit ~95%
-identical to positives at the n-gram level — the classifier overfits to
-noise, generalizes worse than majority-class predictor (empirically: train
-acc 0.70, CV acc 0.51 vs baseline 0.56). Handcrafted-only with word 1–2
-grams gives CV F1 ≈ 0.88 with 20 negatives + 1957 positives.
-
-To improve quality further: append more paragraphs to
-`ai_ism_negatives_handcrafted.txt` and re-train. Diminishing returns past
-~100 handcrafted samples; class_weight="balanced" handles imbalance.
-
-Model saves to `style-profile/<field>/ai_ism_classifier.joblib` (field-
-aware). Run: `python tools/train_ai_ism_classifier.py [--field <name>]`.
+The model is written to
+``style-profile/<field>/ai_ism_classifier.joblib``. Run
+``python tools/train_ai_ism_classifier.py [--field <name>]``.
 """
 
 from __future__ import annotations

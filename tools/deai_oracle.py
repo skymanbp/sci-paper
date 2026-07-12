@@ -1,31 +1,24 @@
-"""deai_oracle.py — Layer B: surprisal / Uniform-Information-Density oracle.
+"""Layer B surprisal and uniform-information-density (UID) evidence.
 
-The single deepest AI-vs-human signal is the DISTRIBUTION of per-token
-surprisal (information content). Human scientific prose is *bursty*: high
-surprisal variance, large jumps between consecutive tokens, words drawn from
-the model's tail. LLM prose is smoothed toward Uniform Information Density
-(UID) and the model's own high-probability region. This module computes that
-signal with a local causal LM and flags paragraphs whose UID sits below the
-human corpus reference for their genre.
+A local causal language model measures each token's surprisal. The resulting
+mean, dispersion, and token-to-token variation describe information flow in a
+paragraph. The tool compares those measurements with a curated reference corpus
+for the same section type. It does not infer authorship, and a low-variation
+paragraph is not independently a rewrite instruction.
 
-Features per paragraph (GPT-who / UID literature, arXiv 2310.06202 & 2109.11635):
-  mean_surprisal  -- mean -log p(token)  (perplexity proxy)
-  global_uid      -- stdev of per-token surprisal   (HUMAN high, AI low)
-  local_uid       -- mean |surprisal[i] - surprisal[i-1]|  (HUMAN high, AI low)
+Features per paragraph:
+  mean_surprisal  -- mean -log p(token), a perplexity-related summary
+  global_uid      -- standard deviation of per-token surprisal
+  local_uid       -- mean absolute change between adjacent surprisals
 
 Usage:
-  # 1. build the human reference (once per corpus; GPU):
-  python tools/deai_oracle.py --calibrate --field wgl [--model gpt2]
+  # 1. build the curated reference (once per corpus; optional model runtime):
+  python tools/deai_oracle.py --calibrate --field wgl [--model gpt2-large]
   # 2. score a draft (advisory):
   python tools/deai_oracle.py draft.tex --field wgl
 
-Library:
-  from deai_oracle import paragraph_hits
-  hits = paragraph_hits(text, field_profile_dir)   # [(line, rule, msg)]
-
-DIAGNOSTIC only (docs/DEAI_SUBSYSTEM.md guardrail 2): flags WHICH paragraphs
-read as mechanically uniform; never a pass/fail gate. Off by default in
-ai_ism_lint (needs a model + GPU); opt in with --oracle there.
+DIAGNOSTIC only: findings remain advisories and the compatibility operating
+point remains degraded until field-policy calibration is documented.
 """
 
 from __future__ import annotations
@@ -38,6 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_metrics as dm  # noqa: E402  resolves only after the sys.path insert above
 import extract_style as es  # noqa: E402  same reason
 
@@ -45,15 +39,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 BASELINE_NAME = "uid_baseline.json"
 
-# gpt2-large (774M) separates human vs LLM surprisal markedly better than
-# gpt2 (124M) on formal science prose — measured 2026-07-11: an LLM-style
-# paragraph's global_uid was 2.73 vs human 3.4-6.2 under gpt2-large, a much
-# cleaner gap than gpt2's. The detection literature uses 2.7B-7B scoring
-# models; gpt2-large is the quality/speed knee for a local, always-available
-# oracle. Override with --model (e.g. a 1-3B model) for still-better signal.
+# Retained for compatibility with the recorded UID baseline and learned bundle.
+# The model is configurable; model choice is part of measurement provenance.
 DEFAULT_MODEL = "gpt2-large"
-MIN_TOKENS = 25          # UID is noisy on short spans
-FLAG_Z = 1.3             # flag if a UID feature is >1.3 sigma below human mean
+MIN_TOKENS = 25          # UID is unstable on very short spans
+FLAG_Z = 1.3             # degraded compatibility heuristic, not calibrated policy
 
 _MODEL_CACHE: dict[str, tuple] = {}
 
@@ -105,8 +95,7 @@ def uid_features(surp: list[float]) -> dict | None:
 # ---------------------------------------------------------------- calibrate --
 
 def calibrate(field_profile_dir: Path, model_name: str = DEFAULT_MODEL) -> dict:
-    """Run the LM over the corpus paragraphs, cache the human UID reference
-    (per-section mean/stdev of global_uid & local_uid) -> uid_baseline.json."""
+    """Cache per-section UID summaries for the curated reference corpus."""
     exemplars = field_profile_dir / "exemplar_paragraphs.jsonl"
     if not exemplars.exists():
         raise FileNotFoundError(f"no exemplar_paragraphs.jsonl in {field_profile_dir}")
@@ -170,60 +159,75 @@ def _ref_for(baseline: dict, bucket: str, key: str) -> dict:
     return baseline.get("pooled", {}).get(key, {"mean": 0.0, "stdev": 0.0})
 
 
-def paragraph_hits(
-    text: str, field_profile_dir: Path | None, model_name: str | None = None
-) -> list[tuple[int, str, str]]:
-    """Return [(line_no, rule, message)] for paragraphs whose UID is below the
-    human corpus reference. Empty if no baseline (call --calibrate first)."""
+def uid_axis_status(field_profile_dir: Path | None) -> dict:
+    if load_baseline(field_profile_dir) is None:
+        return feedback.axis_status(
+            "L1.uid", "unmeasured", reason="uid_baseline.json is unavailable",
+            detector="deai_oracle")
+    return feedback.axis_status(
+        "L1.uid", "degraded",
+        reason="the compatibility z operating point has not yet been field-policy calibrated",
+        detector="deai_oracle")
+
+
+def uid_findings(
+    text: str, field_profile_dir: Path | None, model_name: str | None = None,
+    path: str | Path | None = None,
+) -> list[dict]:
+    """Structured UID findings with observed/reference values and provenance."""
     baseline = load_baseline(field_profile_dir)
     if baseline is None:
         return []
     model_name = model_name or baseline.get("model", DEFAULT_MODEL)
-    hits: list[tuple[int, str, str]] = []
+    findings: list[dict] = []
     lines = text.splitlines()
     for start, end, raw_label in dm.section_line_ranges(text):
         bucket = dm._bucket_for(raw_label)
-        seg = "\n".join(lines[start - 1:end])
-        # paragraph = blank-line separated block; keep its start line for the hit
-        line_no = start
-        buf: list[str] = []
-        buf_start = start
-        blocks: list[tuple[int, str]] = []
-        for off, ln in enumerate(seg.splitlines()):
-            cur = start + off
-            if ln.strip():
-                if not buf:
-                    buf_start = cur
-                buf.append(ln)
-            elif buf:
-                blocks.append((buf_start, "\n".join(buf)))
-                buf = []
-        if buf:
-            blocks.append((buf_start, "\n".join(buf)))
-
-        for p_line, block in blocks:
+        segment = "\n".join(lines[start - 1:end])
+        for paragraph_start, paragraph_end, block in dm.paragraph_line_ranges(
+                segment, start):
             plain = es.latex_to_plain(block)
-            feats = uid_features(token_surprisals(plain, model_name))
-            if feats is None:
+            values = uid_features(token_surprisals(plain, model_name))
+            if values is None:
                 continue
-            for key, human_label in (("global_uid", "surprisal variance"),
-                                     ("local_uid", "token-to-token jumps")):
-                ref = _ref_for(baseline, bucket, key)
-                mu, sd = ref["mean"], ref["stdev"]
-                if sd <= 0:
+            for key, label in (("global_uid", "surprisal variance"),
+                               ("local_uid", "token-to-token jumps")):
+                reference = _ref_for(baseline, bucket, key)
+                mean, stdev = reference["mean"], reference["stdev"]
+                if stdev <= 0:
                     continue
-                z = (feats[key] - mu) / sd
-                if z < -FLAG_Z:
-                    hits.append((
-                        p_line,
-                        f"uid-low:{bucket}",
-                        f"paragraph ({bucket}): {human_label} "
-                        f"{feats[key]:.2f} vs human {mu:.2f}±{sd:.2f} "
-                        f"(z={z:+.1f}) — reads as uniform/low-surprisal; add "
-                        f"specificity and vary phrasing, don't smooth it.",
-                    ))
-                    break  # one flag per paragraph is enough
-    return hits
+                z_score = (values[key] - mean) / stdev
+                if z_score >= -FLAG_Z:
+                    continue
+                findings.append(feedback.make_finding(
+                    kind="advisory", layer="L1", rule=f"uid-low:{bucket}",
+                    scope="paragraph", line=paragraph_start, end_line=paragraph_end,
+                    section=raw_label, path=path, detector="deai_oracle",
+                    detector_version=model_name,
+                    calibration_asset=BASELINE_NAME,
+                    measurement_status="degraded", strength="ordinary",
+                    observed={key: values[key], "z_score": z_score,
+                              "token_count_minimum": MIN_TOKENS},
+                    reference={"mean": mean, "stdev": stdev,
+                               "section_bucket": bucket, "model": model_name,
+                               "operating_point_z": -FLAG_Z,
+                               "provenance": BASELINE_NAME},
+                    normalized_distance=(-FLAG_Z) - z_score,
+                    confidence={"value": min(1.0, reference.get("n", 0) / 30.0),
+                                "basis": f"reference n={reference.get('n', 0)}"},
+                    message=(f"Paragraph {label} is {values[key]:.2f} versus "
+                             f"reference {mean:.2f}±{stdev:.2f} (z={z_score:+.1f})."),
+                    action="Add source-backed specificity or vary phrasing only where the scientific argument permits.",
+                    evidence=[key, round(values[key], 8), round(z_score, 8)],
+                ))
+                break
+    return findings
+
+
+def paragraph_hits(
+    text: str, field_profile_dir: Path | None, model_name: str | None = None
+) -> list[tuple[int, str, str]]:
+    return feedback.tuple_hits(uid_findings(text, field_profile_dir, model_name))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -237,8 +241,8 @@ def main(argv: list[str] | None = None) -> int:
                    help=f"HF causal LM for surprisal (default {DEFAULT_MODEL} / "
                         "the model recorded in uid_baseline.json).")
     p.add_argument("--calibrate", action="store_true",
-                   help="Build the human UID reference from the corpus and "
-                        "cache it to style-profile/<field>/uid_baseline.json.")
+                   help="Build the curated-reference UID summary and cache it "
+                        "to style-profile/<field>/uid_baseline.json.")
     args = p.parse_args(argv)
 
     # Resolve field dir.
@@ -272,18 +276,13 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 2
     text = args.file.read_text(encoding="utf-8", errors="replace")
-    hits = paragraph_hits(text, field_dir, args.model)
-    if not hits:
-        if load_baseline(field_dir) is None:
-            print(f"[deai_oracle] no uid_baseline.json in {field_dir}; run "
-                  f"--calibrate first.", file=sys.stderr)
-            return 2
-        print(f"[deai_oracle] {args.file}: 0 UID flags.")
-        return 0
-    print(f"[deai_oracle] {args.file}: {len(hits)} UID flag(s)\n")
-    for line_no, rule, msg in hits:
-        print(f"  L{line_no:>5}  [{rule}]  {msg}")
-    return 1
+    report = feedback.build_report(
+        path=args.file,
+        findings=uid_findings(text, field_dir, args.model, args.file),
+        axes=[uid_axis_status(field_dir)],
+    )
+    print(feedback.render_text(report))
+    return 0
 
 
 if __name__ == "__main__":

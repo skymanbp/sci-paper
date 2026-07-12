@@ -1,37 +1,9 @@
-"""deai_metrics.py — model-free distributional de-AI scorer (Layer A).
+"""Model-free information-distribution feedback for scientific prose (L1).
 
-The fundamental AI-vs-human signal is the DISTRIBUTION of information across
-the text, not any word list. This scorer compares a draft's per-section
-distributions to the human corpus reference
-(`style-profile/<field>/{sentence_stats,transition_inventory}.json`) and
-emits calibrated, DIAGNOSTIC flags. It is NOT a hard gate — see
-`docs/DEAI_SUBSYSTEM.md` guardrail 2 (formal science prose false-positives
-on absolute thresholds, and detector-evasion is an arms race).
-
-It reuses `extract_style.py`'s tokenizers (`sentences`, `words`,
-`paragraph_initial_words`, `latex_to_plain`, `classify_section`) so a draft's
-distributions are byte-for-byte comparable to how the corpus reference was
-built. No re-implementation of the canonical tokenizers.
-
-Signals (all calibrated to the human reference for the section's genre):
-
-  [burstiness-low:<bucket>]   — the section's sentence-length coefficient of
-                                variation (stdev/mean) is well below the human
-                                corpus's for that genre. AI prose is smoothed
-                                to uniform sentence length; humans are bursty.
-  [opener-signposting:<bucket>] — too large a fraction of the section's
-                                paragraphs open with a connective
-                                (Furthermore / Moreover / However / ...). The
-                                human corpus opens paragraphs this way ~0.2 %
-                                of the time; over-signposting is a structural
-                                AI tell.
-
-Both are 🟡 diagnostics: they tell the writer WHICH sections to vary, they
-do not fail a convergence gate.
-
-Standalone:  python tools/deai_metrics.py draft.tex [--field wgl]
-Library:     from deai_metrics import distribution_hits
-             hits = distribution_hits(text, field_profile_dir)   # [(line,rule,msg)]
+The structured API is :func:`distribution_findings`. The legacy
+:func:`distribution_hits` adapter remains for callers that consume
+``(line, rule, message)`` tuples. Findings are advisory; the standalone CLI
+returns success when measurement completes even when feedback is present.
 """
 
 from __future__ import annotations
@@ -42,26 +14,18 @@ import re
 import statistics
 import sys
 from pathlib import Path
+from typing import Any
 
-# Reuse the canonical tokenizers so a draft's distributions match the corpus
-# builder exactly. The sys.path insert must precede the import because
-# extract_style is a sibling module in tools/, not an installed package, so
-# the import below is intentionally after it (E402 is expected here).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import extract_style as es  # noqa: E402  because extract_style resolves only after the sys.path insert above
+import deai_feedback as feedback  # noqa: E402  sibling tool import after path setup
+import extract_style as es  # noqa: E402  canonical tokenizer import after path setup
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
-
-# Section header scan (line-numbered) — same shape as extract_style.RE_SECTION
-# but kept local so this module has no circular import with ai_ism_lint.
 RE_SECTION_HEADER = re.compile(
     r"\\(section|subsection|chapter)\*?\{([^}]+)\}", re.IGNORECASE
 )
 
-# Connectives that read as over-signposting when they OPEN a paragraph.
-# Structural openers a human uses freely (Finally, First, Another, Overall as
-# a genuine summary lead) are deliberately excluded; these are the AI ones.
 CONNECTIVE_OPENERS = frozenset({
     "furthermore", "moreover", "additionally", "however", "therefore",
     "thus", "hence", "consequently", "nevertheless", "nonetheless",
@@ -70,68 +34,106 @@ CONNECTIVE_OPENERS = frozenset({
     "accordingly", "besides",
 })
 
-# Calibration constants (soft, diagnostic). Documented, not magic:
-BURSTINESS_RATIO = 0.60   # flag if draft CV < 0.60 x human CV for the genre
-MIN_SENTENCES = 5         # need enough sentences for a stable CV
-SIGNPOST_FRAC = 0.20      # flag if >20% of paragraph openers are connectives
-MIN_PARAGRAPHS = 3        # ... and the section has at least a few paragraphs
+# Compatibility defaults used only when a profile has no explicit
+# deai_policy.json. Such findings are marked degraded and never strong.
+DEFAULT_BURSTINESS_RATIO = 0.60
+DEFAULT_SIGNPOST_FRAC = 0.20
+MIN_SENTENCES = 5
+MIN_PARAGRAPHS = 3
 
 
-def load_reference(field_profile_dir: Path | None) -> dict | None:
-    """Load {cv, pooled_cv, corpus_signpost} from the profile, or None."""
+def load_reference(field_profile_dir: Path | None) -> dict[str, Any] | None:
     if field_profile_dir is None:
         return None
-    ss = field_profile_dir / "sentence_stats.json"
-    if not ss.exists():
+    stats_path = field_profile_dir / "sentence_stats.json"
+    if not stats_path.exists():
         return None
     try:
-        sent = json.loads(ss.read_text(encoding="utf-8"))
+        sent = json.loads(stats_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return None
-    ti_path = field_profile_dir / "transition_inventory.json"
-    trans = {}
-    if ti_path.exists():
+    transition_path = field_profile_dir / "transition_inventory.json"
+    trans: dict[str, Any] = {}
+    if transition_path.exists():
         try:
-            trans = json.loads(ti_path.read_text(encoding="utf-8"))
+            trans = json.loads(transition_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             trans = {}
-    # Per-genre human CV, excluding the noisy "unknown" bucket.
-    cv = {}
-    for bucket, s in sent.items():
+    cv: dict[str, float] = {}
+    for bucket, values in sent.items():
         if bucket == "unknown":
             continue
-        m, sd = s.get("mean", 0), s.get("stdev", 0)
-        if m > 0:
-            cv[bucket] = sd / m
-    pooled_cv = statistics.median(cv.values()) if cv else 0.55
-    # Corpus paragraph-opener connective rate (context for the message).
-    n_par = trans.get("n_paragraphs", 0)
+        mean = values.get("mean", 0)
+        stdev = values.get("stdev", 0)
+        if mean > 0:
+            cv[bucket] = stdev / mean
+    pooled_cv = statistics.median(cv.values()) if cv else 0.0
+    n_paragraphs = trans.get("n_paragraphs", 0)
     present = trans.get("blacklist_present_in_corpus", [])
-    conn_par = sum(c for _, c in present) if present else 0
-    corpus_signpost = (conn_par / n_par) if n_par else 0.0
-    return {"cv": cv, "pooled_cv": pooled_cv, "corpus_signpost": corpus_signpost}
+    connective_paragraphs = sum(count for _, count in present) if present else 0
+    corpus_signpost = connective_paragraphs / n_paragraphs if n_paragraphs else 0.0
+    return {
+        "cv": cv,
+        "pooled_cv": pooled_cv,
+        "corpus_signpost": corpus_signpost,
+        "assets": [str(stats_path), str(transition_path)],
+    }
+
+
+def load_policy(field_profile_dir: Path | None) -> dict[str, Any] | None:
+    if field_profile_dir is None:
+        return None
+    path = field_profile_dir / "deai_policy.json"
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    return data.get("distribution", data)
 
 
 def section_line_ranges(text: str) -> list[tuple[int, int, str]]:
-    """[(start_line, end_line, raw_label)] over \\section headers. Whole doc
-    as one range if there are none."""
+    """Return section ranges with one-based inclusive line numbers."""
     lines = text.splitlines()
     if not lines:
         return []
-    heads: list[tuple[int, str]] = []
-    for i, line in enumerate(lines, start=1):
-        m = RE_SECTION_HEADER.search(line)
-        if m:
-            heads.append((i, m.group(2).strip()))
-    if not heads:
+    headers: list[tuple[int, str]] = []
+    for line_no, line in enumerate(lines, start=1):
+        match = RE_SECTION_HEADER.search(line)
+        if match:
+            headers.append((line_no, match.group(2).strip()))
+    if not headers:
         return [(1, len(lines), "(document)")]
-    out: list[tuple[int, int, str]] = []
-    if heads[0][0] > 1:
-        out.append((1, heads[0][0] - 1, "(preamble)"))
-    for idx, (start, name) in enumerate(heads):
-        end = heads[idx + 1][0] - 1 if idx + 1 < len(heads) else len(lines)
-        out.append((start, end, name))
-    return out
+    ranges: list[tuple[int, int, str]] = []
+    if headers[0][0] > 1:
+        ranges.append((1, headers[0][0] - 1, "(preamble)"))
+    for index, (start, name) in enumerate(headers):
+        end = headers[index + 1][0] - 1 if index + 1 < len(headers) else len(lines)
+        ranges.append((start, end, name))
+    return ranges
+
+
+def paragraph_line_ranges(text: str, start_line: int = 1
+                          ) -> list[tuple[int, int, str]]:
+    """Return blank-line paragraph ranges with one-based inclusive lines."""
+    lines = text.splitlines()
+    ranges: list[tuple[int, int, str]] = []
+    buffer: list[str] = []
+    paragraph_start = start_line
+    for offset, line in enumerate(lines):
+        line_no = start_line + offset
+        if line.strip():
+            if not buffer:
+                paragraph_start = line_no
+            buffer.append(line)
+        elif buffer:
+            ranges.append((paragraph_start, line_no - 1, "\n".join(buffer)))
+            buffer = []
+    if buffer:
+        ranges.append((paragraph_start, start_line + len(lines) - 1,
+                       "\n".join(buffer)))
+    return ranges
 
 
 def _bucket_for(raw_label: str) -> str:
@@ -142,89 +144,142 @@ def _bucket_for(raw_label: str) -> str:
 
 
 def _sentence_lengths(plain: str) -> list[int]:
-    return [len(es.words(s)) for s in es.sentences(plain) if es.words(s)]
+    return [len(es.words(sentence)) for sentence in es.sentences(plain)
+            if es.words(sentence)]
 
 
-def distribution_hits(
-    text: str, field_profile_dir: Path | None
-) -> list[tuple[int, str, str]]:
-    """Return [(line_no, rule, message)] diagnostic hits. Empty if no
-    reference profile is available (graceful, like the corpus blacklist)."""
-    ref = load_reference(field_profile_dir)
-    if ref is None:
+def distribution_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
+    reference = load_reference(field_profile_dir)
+    if reference is None:
+        return feedback.axis_status(
+            "L1.distribution", "unmeasured",
+            reason="sentence_stats.json reference is unavailable",
+            detector="deai_metrics",
+        )
+    if load_policy(field_profile_dir) is None:
+        return feedback.axis_status(
+            "L1.distribution", "degraded",
+            reason="using documented compatibility heuristics; deai_policy.json is unavailable",
+            detector="deai_metrics",
+        )
+    return feedback.axis_status("L1.distribution", "measured",
+                                detector="deai_metrics")
+
+
+def distribution_findings(text: str, field_profile_dir: Path | None,
+                          path: str | Path | None = None
+                          ) -> list[dict[str, Any]]:
+    reference = load_reference(field_profile_dir)
+    if reference is None:
         return []
-    hits: list[tuple[int, str, str]] = []
+    policy = load_policy(field_profile_dir)
+    measured = policy is not None
+    burstiness_ratio = float((policy or {}).get(
+        "burstiness_ratio", DEFAULT_BURSTINESS_RATIO))
+    signpost_frac = float((policy or {}).get(
+        "signpost_fraction", DEFAULT_SIGNPOST_FRAC))
+    status = "measured" if measured else "degraded"
+    findings: list[dict[str, Any]] = []
     lines = text.splitlines()
-    for start, end, raw_label in section_line_ranges(text):
-        seg = "\n".join(lines[start - 1:end])
-        plain = es.latex_to_plain(seg)
-        bucket = _bucket_for(raw_label)
-        ref_cv = ref["cv"].get(bucket, ref["pooled_cv"])
 
-        # --- burstiness (sentence-length CV) ---
-        lens = _sentence_lengths(plain)
-        if len(lens) >= MIN_SENTENCES:
-            m = statistics.mean(lens)
-            sd = statistics.pstdev(lens)
-            draft_cv = sd / m if m else 0.0
-            if ref_cv > 0 and draft_cv < BURSTINESS_RATIO * ref_cv:
-                hits.append((
-                    start,
-                    f"burstiness-low:{bucket}",
-                    f"section {raw_label!r} ({bucket}): sentence-length CV "
-                    f"{draft_cv:.2f} vs human {ref_cv:.2f} "
-                    f"(ratio {draft_cv / ref_cv:.2f}, n={len(lens)}) — "
-                    f"vary sentence lengths (mix short punchy + long).",
+    for start, end, raw_label in section_line_ranges(text):
+        segment = "\n".join(lines[start - 1:end])
+        plain = es.latex_to_plain(segment)
+        bucket = _bucket_for(raw_label)
+        ref_cv = reference["cv"].get(bucket, reference["pooled_cv"])
+
+        lengths = _sentence_lengths(plain)
+        if len(lengths) >= MIN_SENTENCES and ref_cv > 0:
+            mean = statistics.mean(lengths)
+            draft_cv = statistics.pstdev(lengths) / mean if mean else 0.0
+            ratio = draft_cv / ref_cv
+            if ratio < burstiness_ratio:
+                findings.append(feedback.make_finding(
+                    kind="advisory", layer="L1", rule=f"burstiness-low:{bucket}",
+                    scope="section", line=start, end_line=end, section=raw_label,
+                    path=path, detector="deai_metrics", measurement_status=status,
+                    strength="strong" if measured else "ordinary",
+                    strong_advisory=measured,
+                    observed={"sentence_length_cv": draft_cv,
+                              "sentence_count": len(lengths), "ratio": ratio},
+                    reference={"field_profile": str(field_profile_dir),
+                               "section_bucket": bucket,
+                               "sentence_length_cv": ref_cv,
+                               "operating_point_ratio": burstiness_ratio,
+                               "provenance": reference["assets"]},
+                    normalized_distance=burstiness_ratio - ratio,
+                    confidence={"value": min(1.0, len(lengths) / 20.0),
+                                "basis": f"{len(lengths)} sentences"},
+                    message=(f"Section {raw_label!r} has sentence-length CV "
+                             f"{draft_cv:.2f} versus reference {ref_cv:.2f} "
+                             f"(ratio {ratio:.2f})."),
+                    action="Vary sentence length where the argument permits; do not add arbitrary irregularity.",
+                    evidence=[round(draft_cv, 6), round(ref_cv, 6), len(lengths)],
                 ))
 
-        # --- opener over-signposting ---
         openers = es.paragraph_initial_words(plain)
         if len(openers) >= MIN_PARAGRAPHS:
-            n_conn = sum(1 for w in openers if w.lower() in CONNECTIVE_OPENERS)
-            frac = n_conn / len(openers)
-            if frac > SIGNPOST_FRAC:
-                hits.append((
-                    start,
-                    f"opener-signposting:{bucket}",
-                    f"section {raw_label!r} ({bucket}): {n_conn}/{len(openers)} "
-                    f"paragraphs ({frac:.0%}) open with a connective vs "
-                    f"~{ref['corpus_signpost']:.1%} in the human corpus — "
-                    f"let logical flow carry the reader; cut roadmap openers.",
+            n_connective = sum(
+                1 for word in openers if word.lower() in CONNECTIVE_OPENERS)
+            fraction = n_connective / len(openers)
+            if fraction > signpost_frac:
+                findings.append(feedback.make_finding(
+                    kind="advisory", layer="L1",
+                    rule=f"opener-signposting:{bucket}", scope="section",
+                    line=start, end_line=end, section=raw_label, path=path,
+                    detector="deai_metrics", measurement_status=status,
+                    strength="strong" if measured else "ordinary",
+                    strong_advisory=measured,
+                    observed={"connective_openers": n_connective,
+                              "paragraphs": len(openers), "fraction": fraction},
+                    reference={"field_profile": str(field_profile_dir),
+                               "section_bucket": bucket,
+                               "corpus_fraction": reference["corpus_signpost"],
+                               "operating_point_fraction": signpost_frac,
+                               "provenance": reference["assets"]},
+                    normalized_distance=fraction - signpost_frac,
+                    confidence={"value": min(1.0, len(openers) / 10.0),
+                                "basis": f"{len(openers)} paragraphs"},
+                    message=(f"Section {raw_label!r} opens {n_connective}/"
+                             f"{len(openers)} paragraphs with connectives "
+                             f"({fraction:.0%}); reference corpus rate is "
+                             f"{reference['corpus_signpost']:.1%}."),
+                    action="Remove roadmap openers that restate the logical connection already carried by the argument.",
+                    evidence=[n_connective, len(openers), round(fraction, 6)],
                 ))
-    return hits
+    return findings
+
+
+def distribution_hits(text: str, field_profile_dir: Path | None
+                      ) -> list[tuple[int, str, str]]:
+    return feedback.tuple_hits(distribution_findings(text, field_profile_dir))
 
 
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("file", type=Path)
-    p.add_argument("--field", default=None)
-    p.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
-    args = p.parse_args(argv)
-
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("file", type=Path)
+    parser.add_argument("--field", default=None)
+    parser.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
+    args = parser.parse_args(argv)
     if not args.file.exists():
         print(f"[deai_metrics] file not found: {args.file}", file=sys.stderr)
         return 2
-    # Field auto-detect: single field dir, else require --field.
-    field_dir = None
-    if args.field:
-        field_dir = args.profile_root / args.field
-    else:
-        fields = [d for d in args.profile_root.iterdir()
-                  if d.is_dir() and not d.name.startswith(".")] \
-            if args.profile_root.exists() else []
+    field_dir = args.profile_root / args.field if args.field else None
+    if field_dir is None and args.profile_root.exists():
+        fields = [path for path in args.profile_root.iterdir()
+                  if path.is_dir() and not path.name.startswith(".")]
         if len(fields) == 1:
             field_dir = fields[0]
     text = args.file.read_text(encoding="utf-8", errors="replace")
-    hits = distribution_hits(text, field_dir)
-    if not hits:
-        print(f"[deai_metrics] {args.file}: 0 distributional flags.")
-        return 0
-    print(f"[deai_metrics] {args.file}: {len(hits)} distributional flag(s)\n")
-    for line_no, rule, msg in hits:
-        print(f"  L{line_no:>5}  [{rule}]  {msg}")
-    return 1
+    findings = distribution_findings(text, field_dir, args.file)
+    report = feedback.build_report(
+        path=args.file, findings=findings,
+        axes=[distribution_axis_status(field_dir)],
+    )
+    print(feedback.render_text(report))
+    return 0
 
 
 if __name__ == "__main__":

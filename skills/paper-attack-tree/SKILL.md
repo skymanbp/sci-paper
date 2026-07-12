@@ -1,12 +1,17 @@
 ---
 name: paper-attack-tree
-description: 用 brainstorm 的辐射状探索方法对论文做 critique tree 审查。每个 node = 一个 critique；用 12 条 framing pass（first-principles / 反演 / 跨学科 reviewer / 对手红队 / 约束变换 / 尺度外推 / 替换 / office-hours / contrarian / 失效驱动 / high-risk 致命攻击 / 元层）从多角度攻击每条 claim；每个 critique 必须完整推进至 CONFIRMED（有 file:line 证据 + 具体修复方案）/ REFUTED（有 file:line 证据证明论文已处理）/ MARGINAL（依赖解读，列入作者判断）。**严禁** "defer / NEEDS-MORE-INFO 滞留 / 因成本 / 因时间 / future work / 可能存在该问题待确认" 等推脱式不完整 verdict；递归发散直至无新颖增益；强制 cc-enslaver 七规则全程证据可追溯。与 paper-review 互补（paper-review 是预设 checklist 静态审查；本 skill 是开放式 adversarial radial 探索）。Use when 用户说 "attack tree" / "adversarial review" / "对抗审查" / "找 reviewer 会挑什么刺" / "audit this claim" / 用 paper-review 跑完仍想 open-ended 攻击关键 claim / rebuttal 准备阶段。
+description: 用 brainstorm 的辐射状探索方法对论文做 open-ended critique tree。12 条 framing pass 从 first principles、反演、跨学科、红队、约束、尺度、替换、failure 和 meta 等角度攻击 claims；每条 critique 完整推进到 CONFIRMED、REFUTED 或 MARGINAL。该 verdict 只表示证据状态，随后必须按 SCIPAPER_STANDARD 独立赋予 integrity_blocker、l0_target 或 advisory consequence 和 disposition。与 A–R typed paper-review 互补。Use for attack tree、adversarial review、rebuttal 准备和 checklist 之外的高风险批评探索。
 disable-model-invocation: false
-argument-hint: "<file_path> [--width N|∞] [--depth N|∞] [--rounds N|conv] [--focus <section|claim|equation>] [--field <name>] [--from-paper-review <report>] [--out <dir>] [--no-online] [--max-branches N|∞] — 指定论文 (.tex/.md)，可选树宽/深度/轮次上限 / 聚焦某节或某 claim / 显式 field / 与已跑过的 paper-review 报告联合 / 输出目录 / 离线模式 / 每节点分支上限"
+argument-hint: "<file_path> [--width N|∞] [--depth N|∞] [--rounds N|conv] [--focus <section|claim|equation>] [--field <name>] [--from-paper-review <report>] [--out <dir>] [--no-online] [--no-subagents] [--max-branches N|∞] — 指定论文 (.tex/.md)，可选树宽/深度/轮次上限 / 聚焦某节或某 claim / 显式 field / 与已跑过的 paper-review 报告联合 / 输出目录 / 离线模式 / 禁止嵌套代理 / 每节点分支上限"
 ---
 
 # paper-attack-tree — 辐射状论文 critique 探索（全自动 / 完整推进 / 收敛终止）
 
+> **Normative authority:** `docs/SCIPAPER_STANDARD.md`.
+> Attack-tree convergence describes completion of the critique-search process, not a
+> paper-quality PASS. `CONFIRMED` / `REFUTED` / `MARGINAL` are evidentiary verdicts;
+> consequence class, priority and author disposition are assigned separately.
+>
 > **本 skill 不是 lint，不是 checklist 审查。** 它是一台**递归式的 critique 生成—溯源—验证—剪枝—再发散**机器，等价于一棵从论文向外扩张的"攻击树（attack tree）"。
 > 每个 critique 必须经过完整溯源（file:line + 论文实际内容）才有资格存活；
 > 每个存活 critique 必须重新做一次发散（用 12 framing pass 攻击该 critique 本身）直到无新颖增益。
@@ -39,7 +44,10 @@ argument-hint: "<file_path> [--width N|∞] [--depth N|∞] [--rounds N|conv] [-
    每个新 critique 必须能给出**至少一个**与父 critique 和兄弟 critique 都不同的：(a) 具体被攻击位置（file:line + 引用片段），或 (b) 不同的 falsification 路径，或 (c) 不同的修复方案。否则合并到最相近的兄弟节点并标 `MERGED_INTO`。
 
 3. **禁止跳过溯源**——任何 critique 的"看起来有问题"都不算 CONFIRMED。
-   **CONFIRMED 必要条件**：(a) `paper_position` 字段含真实存在的 file:line + Read 验证过的引用片段；(b) `proposed_fix` 给出具体改动建议（不是"重新考虑此处"这种空话）；(c) `severity` ≥ 2（cosmetic 不上 CONFIRMED）。三条缺一即 → MARGINAL 或 REFUTED。
+   **CONFIRMED 必要条件**：(a) `paper_position` 字段含真实存在的 file:line + Read 验证过的引用片段；(b) `proposed_fix` 给出具体改动建议（不是"重新考虑此处"这种空话）；(c) evidence 足以让独立 reviewer 复现。三条缺一即 → MARGINAL 或 REFUTED。
+   **CONFIRMED 不等于 blocker。** 证据 verdict 确定后，再根据 claim/evidence 影响赋予
+   `integrity_blocker`、`l0_target` 或 `advisory`；纯 editorial critique 可以 CONFIRMED
+   且仍是 advisory。
 
 4. **禁止避险**——不允许只生成"安全、保守、显然"的 critique。
    每个 framing pass 必须至少产出 **1 个 high-severity** critique（如"central claim 站不住"、"数据 leakage"、"推导有循环"等致命级）并完整探索；否则该 pass 无效。
@@ -95,6 +103,7 @@ argument-hint: "<file_path> [--width N|∞] [--depth N|∞] [--rounds N|conv] [-
 | `--from-paper-review <path>` | 无 | 与已跑过的 paper-review 报告联合：已 CONFIRMED 的问题不重复，但每条要作为 critique 树的种子拓展 sub-critique |
 | `--out <dir>` | `attack-tree-out/<UTCdate>__<filename-slug>/` | 树输出目录 |
 | `--no-online` | 关 | 关闭 WebSearch / WebFetch；只用本地 + 已读引用做文献核对 |
+| `--no-subagents` | 关 | 当前进程已由 parent orchestrator 隔离时禁止再启动 Agent；仍须在当前隔离上下文完成全部 framing pass |
 | `--min-frameworks N` | 12 | 每节点至少跑过的 framing pass 数（下限 = §3.A–§3.L 全 12 条） |
 | `--min-confirmed-ratio R` | 0.15 | 收敛要求的"近 2 轮 CONFIRMED 占比"下限（详§6） |
 
@@ -114,7 +123,11 @@ argument-hint: "<file_path> [--width N|∞] [--depth N|∞] [--rounds N|conv] [-
 3. **Read 项目根 `CLAUDE.md` / `README.md`**（若存在）—— 拿到论文领域 / project 背景，用于 §3.C 跨学科 + §3.I contrarian 的 field-aware 加权。
 4. **Read `style-profile/<field>/style_dossier.md`（若存在）** —— 拿到 field 知识基线 + 该 field 的常见 reviewer 关注点。
 5. **Read 论文的 `references.bib`** —— 拿到论文自己引用的文献集，用于 §3.D 检查"引用是否真支持论点"，以及 §3.C 跨学科批判前先确认论文是否已引用相关外部文献。
-6. **若传 `--from-paper-review <path>` → Read 该 report**：把其中标记的 🔴/🟡 issue 提取为 root 的"已知 critique"种子集；本 skill 在此基础上**继续发散**而非重审。已知 critique 作为深度 1 的 "已 CONFIRMED" 节点直接入树，并对每条用 12 framing pass 攻击其 sub-critique（深度 2+）。
+6. **若传 `--from-paper-review <path>` → Read 该 report**：从
+   `sci-paper.feedback.v1` 提取 unresolved blockers、L0 targets 和 ranked advisories 作为
+   种子；本 skill 在此基础上继续发散而非重审。原报告中的 finding kind、measurement
+   state 和 disposition 必须保留。它们只有在证据已独立验证时才能作为 CONFIRMED
+   节点；否则先走本 skill 的溯源流程。
 7. **生成 root 节点描述**（必填，缺项不允许进入§3）：
    - **论文核心 claim**（一句话 + file:line 证据；从 abstract / introduction / conclusion 三处对位提取）
    - **论文方法骨架**（一句话 + file:line 证据；method 节首段或图）
@@ -229,7 +242,10 @@ argument-hint: "<file_path> [--width N|∞] [--depth N|∞] [--rounds N|conv] [-
 | `proposed_fix` | 若 CONFIRMED，给具体修复建议（改某行 / 改某公式 / 跑某 ablation / 加某假设说明）；不接受"作者应重新考虑此处"的空话 | 必填（CONFIRMED 时硬性） |
 | `external_check` | §3.X 找到的代码对位 / 文献核实结果；带具体路径 / URL；标注是否实际验证过 | `--no-online` 时部分可空 |
 | `sub_critique_potential` | 这条 critique 若成立，能再发散出哪些 sub-critique？给 ≥ 2 条 hint | 必填（用于决定是否进一步递归） |
-| `verdict_provisional` | `CONFIRMED` / `MARGINAL` / `REFUTED` / `INCOMPLETE_FORBIDDEN` | 必填，由§5 决定是否升级为 final |
+| `verdict_provisional` | `CONFIRMED` / `MARGINAL` / `REFUTED` / `INCOMPLETE_FORBIDDEN` | 必填，由§5决定 |
+| `consequence_kind` | `integrity_blocker` / `l0_target` / `advisory` / `not_applicable` | verdict 完成后必填；不得从 CONFIRMED 自动推导 |
+| `measurement_status` | `measured` / `degraded` / `unmeasured` / `not_applicable` | 必填 |
+| `disposition` | `pending` / `acted` / `accepted` / `rejected_as_false_positive` | final report 必填；初始通常 pending |
 
 **深度执行约束**：
 - `evidence` 中含数值时**当轮**用 Bash + python（sympy / numpy）跑一次自检脚本；输出贴入字段；无法跑则在字段最后写 `[unverified — needs symbolic check]` 并强制 §5 verdict 不能为 CONFIRMED（最多 MARGINAL）
@@ -328,6 +344,9 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 ### <id>  <critique_statement[:80]>
 - **parent**: <parent_id> | **framing**: §3.X | **score**: S=_ P=_ R=_ F=_ B=_ → total=_
 - **verdict**: CONFIRMED / MARGINAL / REFUTED / DEAD-END
+- **consequence**: integrity_blocker / l0_target / advisory / not_applicable
+- **measurement_status**: measured / degraded / unmeasured / not_applicable
+- **disposition**: pending / acted / accepted / rejected_as_false_positive
 - **paper_position**: <file:line> — `<引用片段>`
 - **evidence**: …（或 `→ nodes/<id>.md`）
 - **assumptions**: …
@@ -355,14 +374,16 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 - 触发收敛/停止的判据：…
 - 用户 cap：width=<N|∞>, depth=<N|∞>, rounds=<N|conv>；触顶情况：…
 
-### 主交付 — CONFIRMED critiques（按 severity 降序）
-1. [id] <critique_statement> — score=14, S=3, paper_position=<file:line>
+### 主交付 — CONFIRMED critiques（先按 consequence，再按 severity 排序）
+1. [id] <critique_statement> — consequence=<kind>, score=..., paper_position=<file:line>
    - evidence: …
    - proposed_fix: …
+   - disposition: …
 2. ...
 
-### MARGINAL critiques（作者判断清单 — 不能直接修，需作者裁决）
-1. [id] <critique_statement> — score=9; 论文部分回应见 <file:line>；建议作者澄清 …
+### MARGINAL critiques（作者判断清单）
+1. [id] <critique_statement> — consequence=<usually advisory>; 论文部分回应见
+   <file:line>；建议 disposition …
 2. ...
 
 ### REFUTED critiques（论文已正面应答 — 正面记录，对作者答辩 reviewer 有用）
@@ -379,9 +400,10 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 - 若"否" → 报告非法，必须回到§4 / §5 修复
 
 ### 推荐下一步
-- 给作者：CONFIRMED 全列表 + 修复优先级
-- 给 reviewer / referee：MARGINAL 清单可作为 reviewer report 的具体提问
-- 与 paper-review 联合：建议把 CONFIRMED 注入 paper-review 的 🔴 队列重跑收敛
+- 给作者：按 consequence 和 unified priority 排序的 CONFIRMED/MARGINAL 列表
+- 给 reviewer / referee：MARGINAL 清单可作为具体提问
+- 与 paper-review 联合：只把 `integrity_blocker` 和 `l0_target` 注入必须解决队列；
+  strong advisories 进入 disposition 队列，ordinary advisories 保留在 residual feedback
 ```
 
 ---
@@ -395,11 +417,12 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 | paper_defense 查找 | Grep 全文 + Read 每个命中段 | 只查相邻段 |
 | 数学/数值 critique 自检 | Bash + python(sympy/numpy) | "易证 / 显然" |
 | 文献引用核对 | WebFetch arXiv abs / DOI | WebSearch 摘要做结论 |
-| 平行 critique 探索 | Agent(Explore / general-purpose) 子代理；多分支可并行 | 串行偷懒 |
+| 平行 critique 探索 | 默认可用 Agent(Explore / general-purpose) 并行；`--no-subagents` 时由当前隔离进程逐 pass 完整执行 | 未经授权嵌套 Agent / 因禁用并行而裁剪 framing |
 | 代码 / CSV 对位 | Read / Bash 重跑脚本 | 凭"我记得脚本输出 X" |
 
 **子代理使用建议**：
-- 当树宽度 ≥ 5 时，把每个 framing pass 派给一个 Explore subagent 并行；汇总后由主 agent 做§5 评估
+- standalone 且未传 `--no-subagents`：树宽度 ≥ 5 时可把 framing pass 派给 Explore subagent 并行；汇总后由主 agent 做§5 评估
+- parent-orchestrated 且传 `--no-subagents`：当前进程已在独立 worktree，禁止再启动 Agent；在当前上下文完成同一套 12-pass 覆盖，不能静默降级
 - 子代理 prompt 必须自包含（论文片段 + 当前 critique + 该 pass 的硬要求）
 - 子代理返回的引用，主 agent 必须再 verify（cc-enslaver rule 04）
 
@@ -421,17 +444,16 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 - ❌ "探索成本太高，提前停止" — §0.7 默认 ∞ 上限；只有§6 收敛或用户**显式** cap 触顶才能停，且停时所有叶必须完整。
 - ❌ "用户只要点评，不必给 proposed_fix" — CONFIRMED 必填 proposed_fix；没有 fix 的 CONFIRMED 自动降级为 MARGINAL。
 - ❌ "REFUTED 不重要，删掉省事" — REFUTED 是正面记录；保留对作者答辩 reviewer 有用，删除等于丢失"论文已处理某攻击角度"的证据。
-- ❌ "把 paper-review 已 CONFIRMED 的问题再列一遍" — 用 `--from-paper-review` 时已知 critique 直接入树作种子，重点是发散 sub-critique，不是重审。
+- ❌ "把 paper-review finding 一律当 CONFIRMED blocker" — 先保留原 finding kind、measurement status 和 disposition；只有独立证据充分时才赋 CONFIRMED verdict，且 CONFIRMED advisory 仍不是 blocker。
 
 ---
 
 ## 10. 与其他 sci-paper skill 的接口
 
 - **与 `/sci-paper:paper-review`**：互补关系——
-  - `paper-review` = **预设 checklist** 静态审查（A–O 维度逐项 PASS/FAIL）；适合"修到零问题"流程
-  - `paper-attack-tree` = **开放式 adversarial radial** 探索；适合"作者准备 rebuttal 前自检最坏批评"或"找 checklist 不覆盖的 weird 攻击角度"
-  - **建议次序**：先 `paper-review` 把 checklist 项收敛到零；再 `paper-attack-tree --from-paper-review <report>` 在已干净的 baseline 上找 reviewer 仍可能挑出的非 checklist 问题
-  - 反之亦可：先 `paper-attack-tree` 发现一批 critique，再用 `paper-review` 在每条 critique 涉及的具体维度上做静态验证
+  - `paper-review` = A–R source-traced typed review：科学 blockers、L0 targets、ranked advisories、measurement states 和 dispositions
+  - `paper-attack-tree` = 开放式 adversarial radial 探索，寻找 checklist 未覆盖的 weird 或 high-risk critique
+  - 建议先取得 paper-review structured baseline，再用 `--from-paper-review` 发散；attack-tree 的新 critique 回流时保留 evidentiary verdict 与 consequence class 的区分
 
 - **与 `/sci-paper:brainstorm`**：本 skill **就是** brainstorm 的方法学在论文 critique 上的应用；二者在 width/depth/node/12-framing/完整推进禁令上**结构同构**。若同时跑两个 skill：brainstorm 用于"该写什么新论文"（前向探索），paper-attack-tree 用于"已写的论文哪些会被批"（后向探索）。
 

@@ -1,13 +1,14 @@
 ---
 name: paper
-description: Load paper writing standards, formula derivation conventions, citation rules, and key references for ApJ/MNRAS/PRD-level astrophysics papers. Use when writing or reviewing paper content.
+description: Load the unified SCIPAPER_STANDARD writing guidance, formula derivation conventions, scientific-integrity rules, canonical L0 examples, and field-specific reference anchors for ApJ/MNRAS/PRD-level papers. Use when writing or reviewing scientific content.
 disable-model-invocation: false
 ---
 
-> **v0 — ported verbatim from `weak-gravitational-lensing/.claude/skills/paper/SKILL.md`.**
-> Project-specific anchors (NFW, ACSDM, escnn, LoVoCCS) are marked `[WGL]` for
-> later generalization. Keep them as-is for now since the primary user is
-> still writing in this domain.
+> **Normative authority:** `docs/SCIPAPER_STANDARD.md`.
+> This skill supplies concrete scientific-writing guidance and canonical L0
+> examples. It does not define an independent paper verdict. If this file, a
+> style profile, or a workflow conflicts with the unified standard, the unified
+> standard wins. Project-specific anchors remain marked `[WGL]`.
 
 ## Paper Writing Standards / 论文写作标准
 
@@ -21,11 +22,21 @@ Target: **Top-tier astrophysics journals** (ApJ, MNRAS, A&A level).
 
 ### Structure and Narrative
 
-The paper should follow a clear three-act structure:
+A motivation → method → validation arc is a useful default for many empirical
+papers, not a universal document template. Theory papers, methods papers, data
+releases, and multi-contribution papers may require a different shape. In every
+case, make the contribution graph explicit: explain how the claims relate, place
+definitions before use, and ensure that each conclusion is supported by the
+presented argument or evidence.
 
-1. **Motivation** (Introduction): Why is the problem important? What are the limitations of existing methods? What gap does this work fill?
-2. **Method** (Sections 2–4): How does each component work, and why was it designed this way? Physics motivation first, then mathematical formulation, then implementation.
-3. **Validation** (Sections 5–6): What do the results show? How do they compare to existing work? What are the limitations?
+When the three-part arc fits:
+
+1. **Motivation**: identify the scientific problem, prior limitations, and the
+   specific gap addressed.
+2. **Method**: present physical motivation, mathematical formulation, and
+   implementation in dependency order.
+3. **Validation**: state what the results establish, compare like with like, and
+   delimit the evidence and limitations.
 
 ### Structural Updates · Forward Narrative / 结构式更新 · 正向叙述
 
@@ -126,78 +137,84 @@ The paper should follow a clear three-act structure:
 
 ### Anti-AI-isms / 去 AI 表达规范
 
-LLM 生成的学术写作有一组明显的 tell；学术 reviewer 一眼可识，必须清除或限频。
-本节规则按 **corpus 实证频率分级**——参见 `style-profile/<field>/style_dossier.md` §4
-的 lexicon 表与 §3 的段落首词清单。第一级（Tier A）顶刊 corpus 中 0 出现，
-绝对禁止；第二级（Tier B）顶刊偶用，但 LLM 滥用，需限频。
-**dossier 是数据真值；本节是 dossier 的 prose 解释 + 阻塞 grep 实现**。
+LLM 生成的学术写作有一组明显的 tell；本节保留既有 L0 词汇与标点
+目标，同时把结构、信息分布和 learned field-similarity 信号纳入统一反馈协议。
+`style-profile/<field>/style_dossier.md`、lexicon 和 baseline 是可更新的经验
+证据，不是独立政策，也不能把论文判为 AI 或非 AI。后续动作由
+`docs/SCIPAPER_STANDARD.md` 的 consequence class、measurement state、ranking
+和 disposition 规则决定。
 
 **根本层（fundamental）—— 结构性 AI 味，关键词 lint 抓不到。** 上面的
-Tier A/B 是**词汇层**（lexical），必要但不充分：一篇文章可以 0 关键词命中却
-仍通篇 AI 味，因为真正的 tell 活在**句子结构**里——per-token surprisal 被抹平
-（LLM 趋向均匀信息密度 UID）、句长同质（低 burstiness）、段落 signposting。
-这一层由 de-AI 子系统度量（`docs/DEAI_SUBSYSTEM.md`）：
-- `python tools/ai_ism_lint.py <file> --field <field> --distribution --oracle --voice`
-  在词汇 lint 之外附加**结构诊断**（burstiness / UID / learned-voice P(human)），
-  全部 advisory（不是 pass/fail 门，guardrail 2）。
-- 命中的结构性 AI 段用 `/sci-paper:rewrite-in-voice` **从论点重建**（claim-graph
-  → 骨架 → 作者嗓音 best-of-N），而非替换词语——词语替换去不掉结构性 AI 味。
-词汇层与结构层**都要过**：Tier A / em-dash 清零是地板，结构层收敛是根本。
+Tier A/B 是**词汇层**（lexical），必要但不充分：一篇文章可以 0 关键词命中、
+甚至逐段读着都像人，却仍通篇 AI 味。真正的 tell 活在结构里，分两个尺度：
 
-**最强 tell：em-dash (`—` / `\textemdash` / `---`)**
-- 学术写作的破折号传统上用 `--` (en-dash, 范围) 或 `,` / `;` / `:` / `(...)` (插入语)。
-- 顶刊 corpus 实测：0.213 / 1000 词（dossier §2，N=31 wgl corpus 实测
-  49 em-dashes 跨 230 006 词）；LLM 默认 5–15 / 1000 词，差 25–70 倍。
-- **0 残留**：写作时禁用 em-dash；review 时必须 grep `—` / `---` / `\textemdash` 清零。如必须做插入，用逗号或括号；如做范围（页码、年份），用 `--` (en-dash)。
+1. **信息分布层**（token / 句长）：过度均匀的信息密度、句长同质、重复的
+   signposting 和缺少局部节奏变化。由 distribution 与 UID axes 度量。
+2. **句式与文档形状层**：句子或段落的构造被重复模板化。需要重点检查：
+   - **报数式枚举**：`rests on five elements. First, ... Fifth, ...` /
+     `there are three reasons`。
+   - **先设数目 → 列举 → 收尾**：`inherits three obligations. [A][B][C].
+     These three requirements ...`。
+   - **排比 / 首语重复**：≥3 句同一开头或同一模态（`must ... must ... must`）。
+   - **对称收尾**：`A is one limit of it, and B another`。
+   - **段落或章节同形**：多个段落重复相同的主题句、展开和收束几何。
 
-**Tier A — 真零容忍（顶刊 corpus 0 出现 → 100% LLM tell）**
+这些模式不是单次出现即错误。它们在适用 baseline 下构成测量证据；阈值、样本量、
+置信度和效应量属于 `EVALUATION.md` 或 profile calibration，不写死在规范里。
 
-正文中 grep 命中 = 🔴 必改。这类词在顶刊 wgl corpus 里**完全不存在**，
-LLM 默认会用，是最强 lexical tell。
+这一层由 de-AI 子系统统一度量（`docs/DEAI_SUBSYSTEM.md`）：
+
+```bash
+python tools/ai_ism_lint.py <file> --field <field> \
+  --structure --distribution --document-structure --oracle --voice \
+  --format json --output <scratch>/writing-feedback.json
+```
+
+- Tier A、em-dash 和超过每节每词 cap 的 Tier B 是 `l0_target`。
+- 句式模板、burstiness、UID、document shape 与 learned field-similarity 是
+  advisory；必须保留 `measured` / `degraded` / `unmeasured` / `not_applicable`
+  区别，不能把缺失测量当作零命中。
+- 命中的段可用 `/sci-paper:rewrite-in-voice` 从 claim graph 重建，而不是做
+  同义词替换。任何候选先通过 scientific-fidelity eligibility，再比较风格证据。
+- 强 advisory 必须行动或显式 disposition；普通 advisory 可以保留并报告。
+
+因此，Tier A / em-dash 清零与 Tier B cap 是 L0 地板；结构和信息分布信号用于
+排序后续动作，不构成必须全部归零的通用 prose gate。
+
+**最强 L0 标点目标：em-dash (`—` / `\textemdash` / `---`)**
+
+- 正文目标为 0。插入语改用逗号、括号、分号或独立句；范围使用 `--`。
+- 该规则是项目锁定的 L0 policy。当前 corpus 频率及比较值只在 profile 和
+  `EVALUATION.md` 中维护，避免把会漂移的测量写进规范。
+
+**Tier A — L0 target**
+
+正文命中必须重写。canonical set：
 
 | 类别 | 词 |
 |---|---|
-| 动词类 | `delve / delves / delving / delved`, `leverages / leveraging / leveraged`, `pave / paves / paving`, `shed / sheds / shedding`（含 "shed light on" 短语）, `showcase / showcases / showcasing`, `utilizing / utilizes` |
+| 动词类 | `delve / delves / delving / delved`, `leverages / leveraging / leveraged`, `pave / paves / paving`, `shed / sheds / shedding`（含 "shed light on"）, `showcase / showcases / showcasing`, `utilizing / utilizes` |
 | 形容词/副词 | `seamless / seamlessly`, `holistic / holistically`, `comprehensively`, `crucially` |
-| 段首套话（dossier §3 0 出现）| `Recent advances in...`, `Despite significant progress...`, `With the advent of...`, `In recent years,...`, `It is worth noting`, 段首 `Crucially,`, 段首 `Importantly,`, 段首 `Notably,`, 段首 `Interestingly,` |
+| 段首套话 | `Recent advances in...`, `Despite significant progress...`, `With the advent of...`, `In recent years,...`, `It is worth noting`, 段首 `Crucially,`, `Importantly,`, `Notably,`, `Interestingly,` |
 
-替换原则：
-- `delve / dive into` → `examine` / `analyze` / `study`
-- `leverages X to Y` → `uses X to Y` 或 `Y by means of X`
-- `pave the way for` → `enable` / 删
-- `shed light on` → `clarify` / `show`
-- `showcase` → `demonstrate` / `present`
-- `seamless / seamlessly` → 删（或具体描述）
-- `holistic` → `complete` / 删
-- `comprehensively` → 替换为可量化形容词 + 范围（"covering X, Y, Z"）
+替换原则：使用直接、具体、可核验的动词或范围，不做机械同义词交换。例如
+`leverages X to Y` → `uses X to Y`，`pave the way for` → `enable`，
+`comprehensively` → 明确列出覆盖范围。
 
-**Tier B — 顶刊偶用，每节限频**
+**Tier B — per-section/per-word cap**
 
-这类词在 corpus 中**有出现**（频率 ≤ 0.15 / 1000 tokens，参见 dossier §4），
-不构成必删依据，但 LLM 远超此频率使用。规则：**用，但每节 ≤ 1–2 次**，
-review 时 grep 出超频段落标 🟡。
-
-下表频率基于 N=31 篇 wgl corpus（230 006 tokens）。**最新数据见
-`style-profile/wgl/style_dossier.md` §4**——corpus 扩充后此表会过时，
-但 Tier 划分（哪些词在 Tier B vs Tier A）从 12 篇到 31 篇完全稳定。
-
-| 词 | corpus 频率（N=31） | LLM 默认行为 | 规则 |
-|---|---|---|---|
-| `Furthermore,` | 31 / 230k = 0.135 / 1k tokens | 每段开头都用 | 段落首词每节 ≤ 1 次（dossier §3：corpus 中段首仅出现个位数次） |
-| `Moreover,` | 27 / 230k = 0.117 / 1k | 同上 | 同上 |
-| `Additionally,` | 17 / 230k = 0.074 / 1k | 同上 | 同上 |
-| `robust / robustly` | 16+4 = 20 / 230k = 0.087 / 1k | 形容方法/结果几乎必出现 | 每段 ≤ 1 处；首选具体描述（"survives a 5σ cut"，"recovered within 10%"） |
-| `comprehensive` | 7 / 230k = 0.030 / 1k | 形容综述/数据集 | 每节 ≤ 1 处；优先量化（"covering 50 clusters from z=0.1 to 0.5"） |
-| `utilize / utilized` | 3+1 = 4 / 230k = 0.017 / 1k | 替代 `use` | 默认改 `use`；保留 utilize 仅当确有形式语调需要 |
-| `leverage`（单数）| 1 / 230k = 0.004 / 1k | 替代 `use` | 默认改 `use`；leverage 极少在 corpus 中出现 |
-| `Importantly,` | 8 / 230k = 0.035 / 1k | 句首强调 | 段落开头 0 次（dossier §3 zero）；正文中每节 ≤ 1 次 |
-| `Interestingly,` | 4 / 230k = 0.017 / 1k | 同上 | 同上 |
-| `Notably,` | 3 / 230k = 0.013 / 1k | 同上 | 同上 |
+Tier B 可以使用，但同一个 Tier B 词在同一 section 最多出现 1 次。第 2 次及
+以后是 `l0_target`；cap 内的出现不是 finding。当前词表由 linter 与 profile
+共同维护，常见项包括 `Furthermore`, `Moreover`, `Additionally`,
+`robust/robustly`, `comprehensive`, `utilize/utilized`, `leverage`,
+`Importantly`, `Interestingly`, `Notably`。经验频率只从当前 profile 读取，不在
+本文件复制。优先用直接陈述或可验证数字，但不要为了避词而损害准确性。
 
 **模糊量化 / 修饰词**
-- 替换为具体数字或删除：`a wide range of`, `a variety of`, `a number of`, `several`, `numerous`, `many`。
-  注：corpus 段首 `Several` 出现 10 次，**不是绝对禁忌**——但优先具体数字。
-- 删除（除非有量化定义）：`cutting-edge`, `state-of-the-art`, `novel`, `powerful`。
+- `a wide range of`, `a variety of`, `a number of`, `several`, `numerous`,
+  `many`：有可核验数量时写数量；没有时检查该模糊程度是否科学必要。
+- `cutting-edge`, `state-of-the-art`, `novel`, `powerful`：需要明确比较对象和证据，
+  否则删除。它们是 claim-quality advisories，不因单词本身自动成为 L0 target。
 
 **自指与套话**
 - `This paper presents...` / `In this work, we...` 类 boilerplate 每段最多 1 处。
@@ -208,10 +225,14 @@ review 时 grep 出超频段落标 🟡。
 - `In order to` → `To`
 - `aim to` → `we [verb]`（直接动词）
 
-**结构 tell**
-- 三平行结构 (`not only X, but also Y, and furthermore Z`)：每节 ≤ 1 处。
-- 过度规整的列表（每项都 X-word + 冒号 + 完整句）—— 学术写作的 list 应混用整句与短语。
-- "X — that is, Y" 重述模式：em-dash + 重述双重 tell，必须重写。
+**结构 tell（L2 advisory）**
+- repeated parallel frames，例如连续三句相同首语或 modal；
+- announced enumeration 与 setup/list/wrap-up symmetry；
+- 多段重复相同开场、展开和收束几何；
+- `X — that is, Y` 同时触发 em-dash L0 target 与可能的冗余 advisory。
+
+结构模式必须结合 section、样本量、calibration 和科学功能判断。技术列表若编码真实
+分类，不应为了制造参差而破坏可读性。
 
 **punctuation / 排版**
 - 数字与单位之间用 `\,`（thin space），不要 LLM 习惯的普通空格。
@@ -227,24 +248,21 @@ grep -n -E '—|---|\\textemdash' main.tex
 # Tier A（必删；正文中不允许出现，包括变体）
 grep -n -E -i '(delve|leveraged|leverages|leveraging|paved?|paves|paving|shed[s]?|shedding|showcase[sd]?|showcasing|seamless(ly)?|holistic(ally)?|comprehensively|crucially|utilizes|utilizing|recent advances|despite significant|with the advent|in recent years|it is worth)' main.tex
 
-# Tier B（限频，必须人工核对每段命中数）
-grep -n -E -i '^|^\s*(Furthermore|Moreover|Additionally|Importantly|Interestingly|Notably),' main.tex   # 段首位置
-grep -n -E -i '\b(robust|robustly|comprehensive|utilize[sd]?|leverage|leverages|leveraging|leveraged)\b' main.tex   # 全文频率
+# Tier B（定位；是否超过每节每词 cap 由 linter 按 section 计算）
+grep -n -E -i '^\s*(Furthermore|Moreover|Additionally|Importantly|Interestingly|Notably),' main.tex
+grep -n -E -i '\b(robust|robustly|comprehensive|utilize[sd]?|leverage|leverages|leveraging|leveraged)\b' main.tex
 
 # 顽固替换组（不分级）
 grep -n -E -i '\b(in order to|aim to|facilitate)\b' main.tex
 ```
 
-**Tier A 残留** = 🔴 必改，不接受"语境合适保留"。
-**Tier B 超频** = 🟡 标记每段命中次数，超 1 次 / 节即重写。
+**Tier A / em-dash 残留** = `l0_target`。
+**Tier B 超频** = 同词在同 section 的第 2 次及以后为 `l0_target`。
 
-> **Companion check from `paper-style`:** the corpus dossier at
-> `style-profile/<field>/style_dossier.md` is the **data source** for this
-> tiered list. When the corpus changes, re-run `python tools/extract_style.py`
-> and re-derive Tier A / Tier B from §4 of the new dossier. This file
-> (`paper/SKILL.md`) should be re-aligned manually, but the linter
-> (`tools/ai_ism_lint.py`) auto-loads the corpus blacklist from
-> `style-profile/<field>/lexicon.json` so it always reflects the latest data.
+> **Companion evidence from `paper-style`:** corpus assets supply descriptive
+> frequencies and calibration. Re-run `python tools/extract_style.py` when the
+> corpus changes. They may suggest future policy changes, but do not silently
+> redefine the current consequence classes or cap.
 
 ### Citation Standards
 
