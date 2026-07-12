@@ -3,6 +3,50 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.13.0 — 2026-07-11
+
+**Fundamental (non-keyword) de-AI subsystem** — a four-layer capability that
+detects and removes the *structural* AI-ness (smoothed per-token surprisal,
+homogeneous sentence length, paragraph signposting) that survives keyword
+cleaning. Design + guardrails: [docs/DEAI_SUBSYSTEM.md](docs/DEAI_SUBSYSTEM.md).
+
+- **Layer A — `tools/deai_metrics.py`** (model-free): flags sentence-length
+  burstiness / connective-opener signposting outside the human-corpus baseline.
+- **Layer B — `tools/deai_oracle.py`** (gpt2-large): per-token surprisal / UID
+  oracle; flags below-baseline surprisal variance. Calibrated per section.
+- **Layer C — `skills/rewrite-in-voice/` + `tools/rewrite_reward.py`**: new
+  `/sci-paper:rewrite-in-voice` skill rebuilds flagged paragraphs from their
+  claim-graph (claim → fill-in skeleton → author-voice regeneration) instead of
+  word-swapping. Best-of-N over a multi-term reward (learned-voice P(human) ×
+  number-specificity, gated by relative claim-fidelity) so genuine voice +
+  preserved meaning win, never detector-evasion (the AuthorMist→Pangram DAMAGE
+  lesson). Human-in-the-loop; optional self-distillation.
+- **Layer D — `tools/deai_voice.py` + `tools/train_voice_model.py`**: a learned
+  voice/reward model on the *fundamental* features (distributional + surprisal/
+  UID + corpus-embedding), not word-ngram TF-IDF. Held-out AUC 0.953 on `wgl`;
+  ships LogisticRegression over gradient-boosting for out-of-distribution
+  robustness (a reward that scores arbitrary rewrites must stay monotonic — the
+  tree model scored a hand-crafted LLM paragraph P(human)=0.99, LR gave 0.003).
+- **Training data** scaled + diversified to ~8.2k paragraphs: curated corpus +
+  clean pre-2022 arXiv abstracts (broad astro + weak-lensing + authoritative
+  authors, via new `tools/fetch_arxiv_abstracts.py`) as human positives;
+  Claude-generated 6-register + multi-model RAID abstracts as LLM negatives. A
+  controlled source ablation caught and excluded a poisoning source: our own
+  de-AI-reviewed drafts read partly human, so mislabeling them AI dropped
+  held-out AUC 0.953→0.920 and crossed an OOD fixture to the wrong side.
+- **`ai_ism_lint.py`** gains `--distribution` / `--oracle` / `--voice` advisory
+  passes, kept out of the exit-code gate (guardrail 2: diagnostic, not gate).
+- **Skill integration**: `paper` gains a fundamental-tier note; `paper-review`
+  gains dimension **D4** (structural AI-ness → rewrite-in-voice); `mainline` B8
+  gains the structural complement; `final-review` inherits D4 via `paper-review`.
+- **`paper/SKILL.md` drift fix**: anti-AI-ism corpus provenance re-derived from
+  the current 31-paper dossier (was N=16 / 203,251 tokens → N=31 / 230,006;
+  em-dash 0.098→0.213 per 1k words, Tier-B frequency table refreshed).
+- **`.gitignore`**: trained model artifacts + feature caches (`*.joblib` /
+  `*.npz`) ignored per-field (regenerate via `train_*.py`); the
+  copyright/privacy-sensitive corpus jsonl stays local, so voice models built on
+  unpublished drafts never leak.
+
 ## v0.12.1 — 2026-05-25
 
 Structural cleanup release; **no skill behavior changes**.

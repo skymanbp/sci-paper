@@ -23,8 +23,17 @@ Tiered output (matches `/sci-paper:paper` Anti-AI-isms section):
                       logistic-regression model at
                       `style-profile/<field>/ai_ism_classifier.joblib`.
                       Soft signal that supplements regex hits.
+- `[burstiness-low:<bucket>]` / `[opener-signposting:<bucket>]` — Layer A
+                      distributional diagnostics (default on; --no-distribution
+                      to disable) from `deai_metrics.py`: a section's
+                      sentence-length variance is below, or its paragraph-opener
+                      connective rate above, the corpus reference for that
+                      genre. ADVISORY — reported but never affects the exit
+                      code (a fundamental-signal diagnostic, not a keyword gate).
 
-Output: line-numbered hits to stdout, exit code 0 if zero hits, 1 otherwise.
+Output: line-numbered keyword hits to stdout, exit code 0 if zero KEYWORD
+hits, 1 otherwise. Distributional diagnostics are advisory and do not change
+the exit code.
 
 Optional `--summary` adds an aggregate breakdown after the per-line list:
 counts by rule, Tier B density per `\\section{}`, and a verdict line. The
@@ -41,6 +50,12 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
+
+# Layer A distributional scorer lives in the same tools/ dir. The sys.path
+# insert lets `import deai_metrics` resolve whether ai_ism_lint is run as a
+# script or imported; the import is deliberately after it (E402 expected).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import deai_metrics  # noqa: E402  because deai_metrics resolves only after the sys.path insert above
 
 
 def list_fields(profile_root: Path) -> list[str]:
@@ -338,6 +353,9 @@ def lint(
     summary: bool = False,
     ai_classifier: bool = False,
     ai_threshold: float = 0.7,
+    distribution: bool = True,
+    oracle: bool = False,
+    voice: bool = False,
 ) -> int:
     if not path.exists():
         print(f"[ai_ism_lint] file not found: {path}", file=sys.stderr)
@@ -409,21 +427,61 @@ def lint(
                         excerpt,
                     ))
 
+    # Layer A: distributional diagnostics (burstiness / opener over-signposting
+    # vs the corpus reference). ADVISORY — deliberately kept OUT of `hits` so
+    # the keyword convergence exit code is unchanged (docs/DEAI_SUBSYSTEM.md
+    # guardrail 2: the fundamental signal flags what to rewrite, it is never a
+    # 0-gate; formal science prose false-positives on absolute thresholds).
+    advisory: list[tuple[int, str, str]] = []
+    if distribution:
+        advisory += deai_metrics.distribution_hits(text, field_profile_dir)
+    if oracle:
+        try:
+            import deai_oracle
+            advisory += deai_oracle.paragraph_hits(text, field_profile_dir)
+        except Exception as e:  # surface, don't crash the linter on a model/oracle error
+            print(f"[ai_ism_lint] --oracle unavailable ({e}); skipping UID "
+                  f"pass. Calibrate with `python tools/deai_oracle.py "
+                  f"--calibrate --field <f>`.", file=sys.stderr)
+    if voice:
+        try:
+            import deai_voice
+            advisory += deai_voice.paragraph_hits(text, field_profile_dir)
+        except Exception as e:  # surface, don't crash the linter on a model error
+            print(f"[ai_ism_lint] --voice unavailable ({e}); skipping voice-model "
+                  f"pass. Train with `python tools/train_voice_model.py "
+                  f"--field <f>`.", file=sys.stderr)
+    advisory.sort(key=lambda h: h[0])
+
+    def _print_advisory() -> None:
+        if not (distribution or oracle):
+            return
+        print()
+        if advisory:
+            print(f"[ai_ism_lint] fundamental-signal diagnostics "
+                  f"(advisory — not a gate): {len(advisory)}")
+            for a_line, a_rule, a_msg in advisory:
+                print(f"  L{a_line:>5}  [{a_rule}]  {a_msg}")
+        else:
+            print("[ai_ism_lint] fundamental-signal diagnostics: 0 (advisory).")
+
     if not hits:
         scope = field_profile_dir.parent.name + "/" + field_profile_dir.name if field_profile_dir else "hand-rules-only"
-        print(f"[ai_ism_lint] {path}: 0 hits ({scope}). Clean.")
+        print(f"[ai_ism_lint] {path}: 0 keyword hits ({scope}). Clean.")
+        _print_advisory()
         if summary:
             print()
-            print("=== summary ===\nNothing to summarise. 0 hits.")
+            print("=== summary ===\nNothing to summarise. 0 keyword hits.")
         return 0
 
-    print(f"[ai_ism_lint] {path}: {len(hits)} hits\n")
+    print(f"[ai_ism_lint] {path}: {len(hits)} keyword hits\n")
     for line_no, rule, excerpt in hits:
         # truncate excerpt for readability
         e = (excerpt[:120] + "...") if len(excerpt) > 120 else excerpt
         print(f"  L{line_no:>5}  [{rule}]  {e}")
     print()
-    print(f"[ai_ism_lint] convergence criterion = 0 hits. Currently {len(hits)}.")
+    print(f"[ai_ism_lint] convergence criterion = 0 keyword hits. Currently {len(hits)}.")
+    _print_distribution()
     if summary:
         print()
         summarize(hits, text)
@@ -460,6 +518,24 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ai-threshold", type=float, default=0.7,
                    help="Threshold for [ai-ish:*] tagging. Default 0.7 "
                         "(P(AI-ish) ≥ 0.7 flagged).")
+    p.add_argument("--distribution", action=argparse.BooleanOptionalAction,
+                   default=True,
+                   help="Layer A distributional diagnostics (sentence-length "
+                        "burstiness + opener over-signposting vs the corpus "
+                        "reference). ADVISORY: reported but never affects the "
+                        "exit code. Default on; --no-distribution to disable.")
+    p.add_argument("--oracle", action="store_true",
+                   help="Layer B surprisal/UID oracle (deai_oracle.py): flags "
+                        "paragraphs whose per-token surprisal variance is below "
+                        "the human corpus reference. Needs a local LM + the "
+                        "uid_baseline.json (run deai_oracle.py --calibrate). "
+                        "ADVISORY, off by default (heavy: loads a model).")
+    p.add_argument("--voice", action="store_true",
+                   help="Layer D learned voice model (deai_voice.py): flags "
+                        "paragraphs whose P(human) from the trained voice model "
+                        "is below threshold. Needs voice_model.joblib (train via "
+                        "tools/train_voice_model.py). ADVISORY, off by default "
+                        "(heavy: loads an LM + embedder + the model).")
     args = p.parse_args(argv)
 
     field = resolve_field(args.field, args.profile_root)
@@ -470,6 +546,9 @@ def main(argv: list[str] | None = None) -> int:
         summary=args.summary,
         ai_classifier=args.ai_classifier,
         ai_threshold=args.ai_threshold,
+        distribution=args.distribution,
+        oracle=args.oracle,
+        voice=args.voice,
     )
 
 

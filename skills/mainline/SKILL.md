@@ -208,6 +208,12 @@ grep -nE -i '\b(insights?|implications?|aspects?|dimensions?|considerations?|nua
 
 **B8 命中必须全部 Read 复核后判定**；不允许仅凭 grep 命中数下判（避免 false positive）；但**判定为低信息后必须全部修复**（不允许只修一部分）。
 
+**结构性 AI 味（补充，`docs/DEAI_SUBSYSTEM.md`）：** B8 抓**词汇层**低信息形容；
+更深的 AI 味活在**句子结构**（句长同质 / per-token surprisal 平滑）。可选附加
+`python tools/ai_ism_lint.py <file> --field <field> --distribution --oracle --voice`
+取 `[burstiness-low]` / `[uid-low]` / `[voice-low]` 结构信号；命中段用
+`/sci-paper:rewrite-in-voice` **从论点重建**（非替换词语）。全部 advisory，人在环。
+
 ### §2.C brainstorm 发散收敛（**强制 — 即使未传 `--from-brainstorm`**）
 
 > 用户原话："**由于 brainstorm 技能会发散性思考，你也可以检查是否有过于分散的观点，并尝试让这些方向集中起来，让叙事更加完整。**"

@@ -5,8 +5,13 @@ style-profile/**/*.jsonl
 style-profile/**/style_dossier.md
 # Embedding caches built by retrieve_exemplars.py (per model name).
 style-profile/**/exemplar_embeddings_*.npy
-# AI-ism classifier model artifact (regenerate via train_ai_ism_classifier.py).
-style-profile/**/ai_ism_classifier.joblib
+# Trained model artifacts + feature caches (regenerate per-field via the
+# train_*.py tools + --refeature). The plugin ships the tools + skills; each
+# field rebuilds its own from its (also-ignored) corpus — so voice models built
+# on unpublished drafts never leak. Covers ai_ism_classifier.joblib,
+# voice_model.joblib, and voice_features_cache.npz.
+style-profile/**/*.joblib
+style-profile/**/*.npz
 # Auto-extracted negative-sample text (contains user's project file content;
 # privacy-sensitive — do NOT commit). Regenerate via extract_md_negatives.py.
 style-profile/**/ai_ism_negatives_extracted.txt

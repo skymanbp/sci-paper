@@ -1,7 +1,7 @@
 {
   "name": "sci-paper",
-  "version": "0.12.1",
-  "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Ships 8 skills (paper, paper-review, figure-review, paper-style, brainstorm, mainline, paper-attack-tree, final-review) and 7 corpus-driven style tools. See CHANGELOG.md for per-version history.",
+  "version": "0.13.0",
+  "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Ships 9 skills (paper, paper-review, figure-review, paper-style, brainstorm, mainline, paper-attack-tree, final-review, rewrite-in-voice) and 14 tools, including a four-layer fundamental de-AI subsystem (surprisal/UID oracle + learned voice model + claim-graph voice rewriter). See CHANGELOG.md for per-version history.",
   "author": {
     "name": "skymanbp",
     "email": "skyman.bp@gmail.com"

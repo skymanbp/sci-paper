@@ -132,10 +132,22 @@ LLM 生成的学术写作有一组明显的 tell；学术 reviewer 一眼可识�
 绝对禁止；第二级（Tier B）顶刊偶用，但 LLM 滥用，需限频。
 **dossier 是数据真值；本节是 dossier 的 prose 解释 + 阻塞 grep 实现**。
 
+**根本层（fundamental）—— 结构性 AI 味，关键词 lint 抓不到。** 上面的
+Tier A/B 是**词汇层**（lexical），必要但不充分：一篇文章可以 0 关键词命中却
+仍通篇 AI 味，因为真正的 tell 活在**句子结构**里——per-token surprisal 被抹平
+（LLM 趋向均匀信息密度 UID）、句长同质（低 burstiness）、段落 signposting。
+这一层由 de-AI 子系统度量（`docs/DEAI_SUBSYSTEM.md`）：
+- `python tools/ai_ism_lint.py <file> --field <field> --distribution --oracle --voice`
+  在词汇 lint 之外附加**结构诊断**（burstiness / UID / learned-voice P(human)），
+  全部 advisory（不是 pass/fail 门，guardrail 2）。
+- 命中的结构性 AI 段用 `/sci-paper:rewrite-in-voice` **从论点重建**（claim-graph
+  → 骨架 → 作者嗓音 best-of-N），而非替换词语——词语替换去不掉结构性 AI 味。
+词汇层与结构层**都要过**：Tier A / em-dash 清零是地板，结构层收敛是根本。
+
 **最强 tell：em-dash (`—` / `\textemdash` / `---`)**
 - 学术写作的破折号传统上用 `--` (en-dash, 范围) 或 `,` / `;` / `:` / `(...)` (插入语)。
-- 顶刊 corpus 实测：0.098 / 1000 词（dossier §2，N=16 wgl corpus 实测
-  20 em-dashes 跨 203 251 词）；LLM 默认 5–15 / 1000 词，差 50–150 倍。
+- 顶刊 corpus 实测：0.213 / 1000 词（dossier §2，N=31 wgl corpus 实测
+  49 em-dashes 跨 230 006 词）；LLM 默认 5–15 / 1000 词，差 25–70 倍。
 - **0 残留**：写作时禁用 em-dash；review 时必须 grep `—` / `---` / `\textemdash` 清零。如必须做插入，用逗号或括号；如做范围（页码、年份），用 `--` (en-dash)。
 
 **Tier A — 真零容忍（顶刊 corpus 0 出现 → 100% LLM tell）**
@@ -165,22 +177,22 @@ LLM 默认会用，是最强 lexical tell。
 不构成必删依据，但 LLM 远超此频率使用。规则：**用，但每节 ≤ 1–2 次**，
 review 时 grep 出超频段落标 🟡。
 
-下表频率基于 N=16 篇 wgl corpus（203 251 tokens）。**最新数据见
+下表频率基于 N=31 篇 wgl corpus（230 006 tokens）。**最新数据见
 `style-profile/wgl/style_dossier.md` §4**——corpus 扩充后此表会过时，
-但 Tier 划分（哪些词在 Tier B vs Tier A）从 12 篇到 16 篇完全稳定。
+但 Tier 划分（哪些词在 Tier B vs Tier A）从 12 篇到 31 篇完全稳定。
 
-| 词 | corpus 频率（N=16） | LLM 默认行为 | 规则 |
+| 词 | corpus 频率（N=31） | LLM 默认行为 | 规则 |
 |---|---|---|---|
-| `Furthermore,` | 29 / 203k = 0.143 / 1k tokens | 每段开头都用 | 段落首词每节 ≤ 1 次（dossier §3：corpus 中段首仅出现个位数次） |
-| `Moreover,` | 25 / 203k = 0.123 / 1k | 同上 | 同上 |
-| `Additionally,` | 13 / 203k = 0.064 / 1k | 同上 | 同上 |
-| `robust / robustly` | 13+4 = 17 / 203k = 0.084 / 1k | 形容方法/结果几乎必出现 | 每段 ≤ 1 处；首选具体描述（"survives a 5σ cut"，"recovered within 10%"） |
-| `comprehensive` | 6 / 203k = 0.030 / 1k | 形容综述/数据集 | 每节 ≤ 1 处；优先量化（"covering 50 clusters from z=0.1 to 0.5"） |
-| `utilize / utilized` | 4 / 203k = 0.020 / 1k | 替代 `use` | 默认改 `use`；保留 utilize 仅当确有形式语调需要 |
-| `leverage`（单数）| 1 / 203k = 0.005 / 1k | 替代 `use` | 默认改 `use`；leverage 极少在 corpus 中出现 |
-| `Importantly,` | 6 / 203k = 0.030 / 1k | 句首强调 | 段落开头 0 次（dossier §3 zero）；正文中每节 ≤ 1 次 |
-| `Interestingly,` | 4 / 203k = 0.020 / 1k | 同上 | 同上 |
-| `Notably,` | 2 / 203k = 0.010 / 1k | 同上 | 同上 |
+| `Furthermore,` | 31 / 230k = 0.135 / 1k tokens | 每段开头都用 | 段落首词每节 ≤ 1 次（dossier §3：corpus 中段首仅出现个位数次） |
+| `Moreover,` | 27 / 230k = 0.117 / 1k | 同上 | 同上 |
+| `Additionally,` | 17 / 230k = 0.074 / 1k | 同上 | 同上 |
+| `robust / robustly` | 16+4 = 20 / 230k = 0.087 / 1k | 形容方法/结果几乎必出现 | 每段 ≤ 1 处；首选具体描述（"survives a 5σ cut"，"recovered within 10%"） |
+| `comprehensive` | 7 / 230k = 0.030 / 1k | 形容综述/数据集 | 每节 ≤ 1 处；优先量化（"covering 50 clusters from z=0.1 to 0.5"） |
+| `utilize / utilized` | 3+1 = 4 / 230k = 0.017 / 1k | 替代 `use` | 默认改 `use`；保留 utilize 仅当确有形式语调需要 |
+| `leverage`（单数）| 1 / 230k = 0.004 / 1k | 替代 `use` | 默认改 `use`；leverage 极少在 corpus 中出现 |
+| `Importantly,` | 8 / 230k = 0.035 / 1k | 句首强调 | 段落开头 0 次（dossier §3 zero）；正文中每节 ≤ 1 次 |
+| `Interestingly,` | 4 / 230k = 0.017 / 1k | 同上 | 同上 |
+| `Notably,` | 3 / 230k = 0.013 / 1k | 同上 | 同上 |
 
 **模糊量化 / 修饰词**
 - 替换为具体数字或删除：`a wide range of`, `a variety of`, `a number of`, `several`, `numerous`, `many`。

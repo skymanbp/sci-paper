@@ -196,6 +196,20 @@ Tier B 各 `\section{}` 密度（cap = 1 / section / word）+ verdict 行。
 - 比较句长分布 vs dossier 中各章节基线（>2σ 偏离 → 标 🟡）
 - 比较段间过渡词使用 vs dossier whitelist；用了 dossier blacklist 的词 → 🔴
 
+**D4. 结构性 AI 味（fundamental — 关键词 lint 抓不到；`docs/DEAI_SUBSYSTEM.md`）：**
+
+D2/D3 是**词汇层**（必要不充分）——一段可以 0 关键词命中却仍结构性 AI（per-token
+surprisal 被抹平 / 句长同质 / 段落 signposting）。强制附加结构诊断：
+```bash
+python tools/ai_ism_lint.py <file>.tex --field <field> --distribution --oracle --voice
+```
+- `[burstiness-low]`（句长 CV < 人类 corpus 基线）/ `[uid-low]`（surprisal 方差低于
+  人类基线）/ `[voice-low]`（learned voice P(human) < 0.5）命中 → 标 🟡「结构性 AI 段」。
+- 全部 **advisory**（不是 pass/fail 门，guardrail 2）；命中段落**不靠替换词语**修，
+  而是 `/sci-paper:rewrite-in-voice` **从论点重建**（claim-graph → 骨架 → 作者嗓音
+  best-of-N）。审查只标记 + 建议，重建由作者认领（人在环）。
+- 阈值全部相对 corpus 人类基线校准（guardrail 1），无写死绝对值。
+
 ### E. 结构审查
 
 - [ ] **三幕**：动机 → 方法 → 验证。
@@ -736,7 +750,7 @@ grep -nE -i '(we tried|we played with|we messed with|we experimented with|we fid
 
 ### A–Q 各维度
 [逐项 PASS / FAIL，FAIL 项给具体行号 + 证据 + 建议修改]
-- A 数学 / B 物理 / C 逻辑 / D 语言 / D2 AI-isms / D3 Corpus-style
+- A 数学 / B 物理 / C 逻辑 / D 语言 / D2 AI-isms / D3 Corpus-style / D4 结构性 AI 味（burstiness/UID/voice → rewrite-in-voice）
 - E 结构 / F 引用 / G 数据 / G2 跨章节数据一致 / H 接口 / I 冗余（轻量） / J 可复现
 - K1–K9 现代物理学审查（M1–M9 内嵌）
 - L1–L6 系统性不一致 / 上下文断层

@@ -5,7 +5,7 @@ ApJ / MNRAS / PRD / JCAP / Nature-Physics level.
 
 ## What it ships
 
-### Skills (8)
+### Skills (9)
 
 | Skill | Purpose |
 |---|---|
@@ -17,10 +17,11 @@ ApJ / MNRAS / PRD / JCAP / Nature-Physics level.
 | `mainline` | Structural narrative-spine reinforcer. Full-read audit on 7 positive + 8 negative structural dimensions; mandatory isolated-context cold-read 7-question readability sub-agent. Complements `paper-review` (per-claim correctness) by covering spine-level issues. |
 | `paper-attack-tree` | `brainstorm`'s radial methodology applied to critique. Each node = one critique attacked by 12 framing passes; every leaf resolved to **CONFIRMED** / **REFUTED** / **MARGINAL** with `file:line` evidence. No `NEEDS-MORE-INFO` defer. Complements `paper-review` (static checklist) with open-ended adversarial coverage. |
 | `final-review` | 5-skill orchestrator for pre-submission final pass. Runs `paper-review` / `figure-review` / `mainline` / `paper-attack-tree` / `modern-physics-review` each in its own `isolation: worktree` sub-agent every round; loops until consecutive N rounds (default 2) show 0 issues across all 5. ITER_BUDGET 10 rounds. |
+| `rewrite-in-voice` | Layer C of the de-AI subsystem. Rebuilds structurally-AI paragraphs from their claim-graph (claim → fill-in skeleton → author-voice regeneration) instead of word-swapping, since AI-ness lives in sentence structure. Best-of-N over a multi-term reward (learned-voice P(human) × number-specificity, gated by claim-fidelity) so genuine voice + preserved meaning win, never detector-evasion. Human-in-the-loop; optional self-distillation. |
 
 See [CHANGELOG.md](CHANGELOG.md) for the per-version evolution.
 
-### Tools (7)
+### Tools (14)
 
 | Tool | Purpose |
 |---|---|
@@ -31,8 +32,16 @@ See [CHANGELOG.md](CHANGELOG.md) for the per-version evolution.
 | `tools/train_ai_ism_classifier.py` | Trains a paragraph-level logistic-regression classifier on word 1–2 gram TF-IDF. Positives = corpus, negatives = `ai_ism_negatives_handcrafted.txt` (extend with `extract_md_negatives.py`). CV F1 ≈ 0.88 on `wgl`. |
 | `tools/extract_md_negatives.py` | Harvests LLM-drafted prose from your project tree as extra negatives for the classifier. |
 | `tools/ai_ism_negatives_handcrafted.txt` | Seed negatives shipped with the plugin (extend by hand or via `extract_md_negatives.py`). |
+| `tools/deai_metrics.py` | **Layer A** (de-AI subsystem): model-free distributional scorer. Flags paragraphs whose sentence-length burstiness / connective-opener signposting fall outside the human-corpus baseline. Advisory. |
+| `tools/deai_oracle.py` | **Layer B**: per-token surprisal / UID oracle (gpt2-large). Flags paragraphs whose surprisal variance is below the human baseline (LLM prose is smoothed toward uniform information density). Advisory. |
+| `tools/deai_features.py` | 14-dim fundamental-feature extractor (distributional + surprisal/UID + corpus-embedding) feeding the learned voice model — replaces word-ngram TF-IDF, which only re-learns keyword tells. |
+| `tools/deai_voice.py` | **Layer D** scorer: loads `voice_model.joblib`, returns per-paragraph P(human). This score is the reward the rewriter and self-distillation optimize toward. |
+| `tools/train_voice_model.py` | Trains the voice/reward model on the fundamental features (group-split by paper; ships LogisticRegression over gradient-boosting for out-of-distribution robustness — a reward model must stay monotonic on arbitrary rewrites). |
+| `tools/rewrite_reward.py` | **Layer C** best-of-N reward: learned-voice P(human) × number-specificity, gated by relative claim-fidelity, so meaning-drift and detail-loss cannot win. |
+| `tools/fetch_arxiv_abstracts.py` | Harvests clean pre-2022 arXiv abstracts (broad astro + weak-lensing + authoritative authors) as uncontaminated human positives for the voice model. |
 
 See [tools/README.md](tools/README.md) for per-tool roadmap and graceful-degradation behaviour.
+The four-layer de-AI subsystem is documented in [docs/DEAI_SUBSYSTEM.md](docs/DEAI_SUBSYSTEM.md).
 
 ## Quick start
 
@@ -173,19 +182,20 @@ multiple fields are present.
 
 ## Status
 
-Current: **v0.12.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.13.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
-- **Skills (8):** `paper`, `paper-review`, `figure-review`, `paper-style`,
-  `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`.
-- **Tools (7):** `build_profile.py` (orchestrator), `extract_style.py`
-  (`.tex` + `.pdf`), `retrieve_exemplars.py` (sentence-transformers
-  cosine + `.npy` cache + keyword fallback), `ai_ism_lint.py` (tier-graded
-  regex + `--ai-classifier` + `--summary`), `train_ai_ism_classifier.py`
-  (LR on word 1–2 grams; CV F1 ≈ 0.88 on `wgl`), `extract_md_negatives.py`
-  (harvest negatives from your doc tree), `ai_ism_negatives_handcrafted.txt`
-  (seed negatives).
+- **Skills (9):** `paper`, `paper-review`, `figure-review`, `paper-style`,
+  `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`,
+  `rewrite-in-voice`.
+- **Tools (14):** the seven above (`build_profile.py`, `extract_style.py`,
+  `retrieve_exemplars.py`, `ai_ism_lint.py`, `train_ai_ism_classifier.py`,
+  `extract_md_negatives.py`, `ai_ism_negatives_handcrafted.txt`) plus the
+  de-AI subsystem (`deai_metrics.py` = Layer A, `deai_oracle.py` = Layer B,
+  `deai_features.py`, `deai_voice.py` = Layer D, `train_voice_model.py`,
+  `rewrite_reward.py` = Layer C reward, `fetch_arxiv_abstracts.py`). See
+  [docs/DEAI_SUBSYSTEM.md](docs/DEAI_SUBSYSTEM.md).
 - **Field-aware:** auto-detect single field, require `--field <name>` when
-  multiple. v0.12 still ships only `wgl` populated.
+  multiple. v0.13 still ships only `wgl` populated.
 - **WGL anchors:** four ported skills (`paper`, `paper-review`,
   `figure-review`, and parts of others) carry `[WGL]` markers for the
   weak-gravitational-lensing project's specifics; remove or replace those
