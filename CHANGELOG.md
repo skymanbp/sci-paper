@@ -29,13 +29,24 @@ the paragraph-level detectors structurally cannot see.
   where the argument demands it; both AI failure modes (uniform and forced-ragged) vary
   it at random with respect to rhetorical role. Per-document permutation-normalized
   eta-squared over two role factors (which-section, has-math × has-cite; split-half
-  selection rejected in-section position as chance). Full-set AUC: natural 0.810,
-  de-AI'd 0.842, adversarial 0.888 (CI 0.847–0.926) — the shape adversary that narrows
+  selection rejected in-section position as chance). Held-out confirmation AUC: natural
+  0.846, de-AI'd 0.833, adversarial 0.850, skeleton 0.715 (full-set adversarial 0.888,
+  CI 0.847–0.926, with residual selection optimism) — the shape adversary that narrows
   the manifold's margin is this axis's strongest tier, because random variety cannot
   fake role-coupling. The manifold+role union flags 0.68–0.80 of AI tiers at ~0.10
-  human in-sample cost, and the two 5% tails are near-independent on humans
+  human in-sample cost, and the two 5% flag sets are exactly disjoint on the 507 humans
   (EVALUATION.md §9.4). Structure cloning evades role-coupling (0.658) but is caught by
-  the manifold (§9.3): the axes cover each other.
+  the manifold (§9.3): the axes cover each other. Known quantified bias: flagged human
+  papers skew short (median 38 vs 60 paragraphs).
+- **Post-review hardening of the role axis** (multi-agent adversarial review; the
+  verifier stage hit session limits, so every finding was manually re-verified against
+  the code): NaN/inf feature columns no longer bypass the eta-squared guard via
+  `min(1.0, NaN) == 1.0`; unequal-length paragraph vectors raise instead of silently
+  truncating under `zip`; a baseline whose `scoring_factors` differ from the current
+  code disables the role finding instead of comparing against mismatched thresholds;
+  the math marker regex no longer counts escaped dollars (`\$`) or row breaks
+  (`\\[5pt]`) as math. Baseline regenerated; all discrimination numbers re-measured
+  (unchanged within rounding).
 - **Fixed: baseline quantile CIs were zero-width.** The "deterministic balanced"
   resampler indexed `(iter*17 + idx*31) % n`, a full permutation whenever
   gcd(31, n) = 1 — every bootstrap CI in the document baseline was degenerate and

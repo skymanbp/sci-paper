@@ -322,10 +322,14 @@ are in-sample):
 | role-decoupling | 0.051 | 0.179 | 0.333 | 0.447 | 0.083 |
 | union | 0.103 | 0.679 | 0.800 | 0.737 | 0.333 |
 
-The near-additive union (0.051 + 0.051 ≈ 0.103 on humans) confirms the two axes are
-close to independent on human papers while overlapping heavily on AI ones. Below
-`MIN_MANIFOLD_DOCUMENTS` reference papers the manifold is honestly omitted and the
-per-feature flags remain the primary (strong) findings.
+On the human corpus the two flag sets are exactly disjoint (0 of 507 papers flagged by
+both; independence would predict an overlap of ~1.3 papers, so disjointness is
+consistent with, though not proof of, independence), while on AI tiers they overlap
+heavily — the union column shows the joint coverage. The human rows are in-sample and
+therefore anchored near the nominal 5% by construction; the held-out analogue is each
+flag's LOO rate (manifold 0.063, role 0.053). Below `MIN_MANIFOLD_DOCUMENTS` reference
+papers the manifold is honestly omitted and the per-feature flags remain the primary
+(strong) findings.
 
 ### 9.2 Honest limits of this validation
 
@@ -398,21 +402,27 @@ document_role_coupling`): per paragraph, the existing 11 model-free shape featur
 per role factor, a one-way eta-squared per feature, normalized as a z-score against a
 seeded within-document permutation null (200 label shuffles) — raw eta-squared
 inflates with group count and shrinks with paragraph count, and the permutation null
-removes both biases, making scores comparable across documents. No reference fit is
-needed per document, so validation has no train/test leakage by construction. Three
-factors are measured: which section (`section`), first/middle/last in section
-(`position`), has-math × has-cite (`content`).
+removes both biases *under the null*. Under the alternative the z of a fixed true
+coupling still grows with paragraph count (the null spread shrinks), so scores are
+comparable for testing "no coupling" but not magnitude-calibrated across lengths:
+measured on the 507 humans, r(score, paragraphs) = 0.353 and the low-tail-flagged
+papers have median 38 paragraphs versus 60 corpus-wide. Short human papers are
+over-represented among false flags; this is a known, quantified bias of the operating
+point, not of the AUC. No reference fit is needed per document, so score validation
+has no train/test leakage. Three factors are measured: which section (`section`),
+first/middle/last in section (`position`), has-math × has-cite (`content`).
 
 Factor selection was split-half to avoid post-hoc optimism: on one seeded human half
 (253 papers) plus AI-tier halves, `section+content` maximizes mean AUC (0.786) and
-beats the 3-factor composite (0.766) because `position` is at chance; the held-out
-half confirms the selected composite at natural 0.846, de-AI'd 0.833, adversarial
-0.850, skeleton 0.715. Full-set AUC of the shipped composite (human high; selection
-used only half A):
+beats the 3-factor composite (0.766) because `position` is at chance. The unbiased
+headline is therefore the held-out confirmation half: **natural 0.846, de-AI'd 0.833,
+adversarial 0.850, skeleton 0.715** (n_ai = 14/8/19/12). Full-set AUC of the shipped
+composite is reported for narrower intervals but includes the selection half, so it
+carries residual selection optimism:
 
-| tier | AUC | CI95 | n |
+| tier | full-set AUC | CI95 | n |
 |---|---|---|---|
-| natural | 0.810 | 0.751–0.864 | 28 |
+| natural | 0.811 | 0.751–0.864 | 28 |
 | de-AI'd | 0.842 | 0.762–0.913 | 15 |
 | adversarial | **0.888** | 0.847–0.926 | 38 |
 | skeleton | 0.658 | 0.561–0.748 | 24 |
@@ -420,8 +430,17 @@ used only half A):
 The adversarial tier — the manifold's hardest — is role-coupling's strongest, as the
 frontier note predicted: random variety cannot fake role-coupling. The shipped finding
 (`document-role-decoupling`, strong advisory) fires on the low tail of the 507-paper
-human reference (threshold −0.039, CI [−0.078, 0.006], LOO false-flag 0.053); flag
-rates and the near-independent union with the manifold are tabulated in 9.1.
+human reference (threshold −0.039, CI [−0.073, 0.006], LOO false-flag 0.053); flag
+rates and the disjoint union with the manifold are tabulated in 9.1.
+
+Detection is deliberately one-sided (low tail only). The high side is a constructible
+evasion: rigidly repeating one shape within each section while varying it across
+sections drives coupling z far above the human range — but that construction walks
+directly into the pre-existing `within_section_similarity` strong finding (95th
+percentile of the same baseline), which flags exactly repeated within-section shape.
+No measured AI tier sits high (adversarial median z = −0.02), so a high threshold
+would add human false flags with no demonstrated power; the high tail stays
+unthresholded until an adversary tier actually lands there.
 
 Honest limits: (a) skeleton clones transfer part of the coupling — forcing a real
 paper's per-section shape skeleton onto AI text reproduces some section-coupled
@@ -429,7 +448,9 @@ variance (0.658 AUC, flag rate 0.083), so role-coupling is partially fakeable by
 structure cloning, which the manifold catches instead (paired 0.934, 9.3) — the two
 axes cover each other's evasion; (b) one field, one generator family; (c) the
 `content` factor keys on surface markers (math/cite presence), not semantic roles;
-(d) AI-tier n per cell is modest (15–38), so tier CIs are wide.
+(d) AI-tier n per cell is modest (15–38), so tier CIs are wide; (e) the flagged-paper
+length bias quantified above; (f) 1 of 507 reference papers has only one defined
+scoring factor (its score pools a different null spread) — measured and negligible.
 
 ## 10. Hard-set human input
 

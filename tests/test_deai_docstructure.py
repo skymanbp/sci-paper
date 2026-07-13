@@ -158,6 +158,55 @@ class DocumentStructureTests(unittest.TestCase):
         constant = deai_features.role_coupling_z([[2.0]] * 30, labels)
         self.assertIsNone(constant["mean_z"])
 
+    def test_role_coupling_guards(self):
+        labels = [0] * 15 + [1] * 15
+        # NaN column: min(1.0, NaN) is 1.0 in CPython, which used to bypass
+        # the ss_total guard and report eta-squared 1.0; must be undefined.
+        nan_result = deai_features.role_coupling_z(
+            [[float("nan")]] * 30, labels)
+        self.assertIsNone(nan_result["mean_z"])
+        # unequal-length vectors must raise, not silently truncate under zip
+        with self.assertRaises(ValueError):
+            deai_features.role_coupling_z([[1.0, 2.0], [1.0]], [0, 1])
+        # escaped dollars and row breaks are not math markers
+        self.assertIsNone(
+            docstructure._MATH_MARKER_RE.search("cost \\$5 total"))
+        self.assertIsNone(
+            docstructure._MATH_MARKER_RE.search("value \\\\[5pt] more"))
+        self.assertIsNotNone(
+            docstructure._MATH_MARKER_RE.search("inline $x$ math"))
+        self.assertIsNotNone(
+            docstructure._MATH_MARKER_RE.search("display \\[ x \\] math"))
+
+    def test_role_baseline_factor_drift_disables_finding(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            coupled_doc = (
+                f"\\section{{Introduction}}\n\n{SHORT_PARAGRAPH}\n\n{SHORT_PARAGRAPH}"
+                f"\n\n\\section{{Methods}}\n\n{LONG_PARAGRAPH}\n\n{LONG_PARAGRAPH}"
+                f"\n\n\\section{{Results}}\n\n{REPEATED_PARAGRAPH}\n\n{REPEATED_PARAGRAPH}\n")
+            sources = []
+            for index in range(4):
+                path = root / f"human-{index}.tex"
+                path.write_text(coupled_doc, encoding="utf-8")
+                sources.append(path)
+            docstructure.calibrate(sources, root, strong_percentile=0.9)
+            baseline_path = root / docstructure.BASELINE_NAME
+            baseline = __import__("json").loads(
+                baseline_path.read_text(encoding="utf-8"))
+            baseline["role_coupling"]["scoring_factors"] = ["section"]
+            baseline_path.write_text(__import__("json").dumps(baseline),
+                                     encoding="utf-8")
+            decoupled_doc = (
+                f"\\section{{Introduction}}\n\n{SHORT_PARAGRAPH}\n\n{LONG_PARAGRAPH}"
+                f"\n\n\\section{{Methods}}\n\n{REPEATED_PARAGRAPH}\n\n{SHORT_PARAGRAPH}"
+                f"\n\n\\section{{Results}}\n\n{LONG_PARAGRAPH}\n\n{REPEATED_PARAGRAPH}\n")
+            findings = docstructure.document_findings(decoupled_doc, root)
+            self.assertFalse(
+                [f for f in findings if f["rule"] == "document-role-decoupling"],
+                "mismatched scoring_factors must disable the role axis, not "
+                "compare against thresholds fit on a different quantity")
+
     def test_document_role_coupling_states(self):
         shape = docstructure.document_shape(document([
             REPEATED_PARAGRAPH, SHORT_PARAGRAPH, LONG_PARAGRAPH,

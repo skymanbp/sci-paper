@@ -86,8 +86,11 @@ MIN_MANIFOLD_DOCUMENTS = 3 * len(DISPERSION_FEATURE_NAMES)
 ROLE_FACTORS = ("section", "position", "content")
 ROLE_SCORING_FACTORS = ("section", "content")
 ROLE_LOW_PERCENTILE = 0.05
+# Negative lookbehinds: an escaped dollar (\$, a literal currency sign) and a
+# LaTeX row break with optional spacing (\\[5pt]) are not math delimiters.
 _MATH_MARKER_RE = re.compile(
-    r"\$|\\\(|\\\[|\\begin\{(equation|align|gather|eqnarray|math|multline)")
+    r"(?<!\\)\$|(?<!\\)\\\(|(?<!\\)\\\["
+    r"|\\begin\{(equation|align|gather|eqnarray|math|multline)")
 
 
 def _paragraph_modelfree(text: str) -> list[float]:
@@ -662,6 +665,12 @@ def document_findings(text: str, field_profile_dir: Path | None,
     # (EVALUATION.md section 9.4), because random variety cannot fake
     # role-coupling. Detection is the LOW tail of the permutation z.
     role_reference = baseline.get("role_coupling")
+    # Drift guard: a baseline calibrated with different scoring factors would
+    # compare a current-code score against thresholds fit on another quantity;
+    # skip the axis instead (same pattern as the voice-model schema guard).
+    if role_reference and (role_reference.get("scoring_factors")
+                           != list(ROLE_SCORING_FACTORS)):
+        role_reference = None
     if role_reference:
         role = document_role_coupling(shape)
         role_values = role_reference.get("values", [])

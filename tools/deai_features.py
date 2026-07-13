@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import random
 import re
 import statistics
@@ -284,7 +285,10 @@ def _eta_squared_columns(columns: list[list[float]],
     for column in columns:
         total = sum(column)
         ss_total = sum(v * v for v in column) - total * total / n
-        if ss_total <= 0:
+        # isfinite guard: with a NaN/inf value ss_total is NaN, "NaN <= 0" is
+        # False, and min(1.0, NaN) returns 1.0 in CPython — the ratio would
+        # silently become eta-squared 1.0 instead of undefined.
+        if not math.isfinite(ss_total) or ss_total <= 0:
             out.append(None)
             continue
         group_sum: dict[int, float] = {}
@@ -315,6 +319,10 @@ def role_coupling_z(
     """
     if len(paragraph_vectors) != len(role_labels):
         raise ValueError("one role label per paragraph vector is required")
+    if paragraph_vectors and any(len(vector) != len(paragraph_vectors[0])
+                                 for vector in paragraph_vectors):
+        raise ValueError("paragraph vectors must have equal length "
+                         "(zip would silently drop trailing features)")
     columns = [list(map(float, column)) for column in zip(*paragraph_vectors)]
     observed = _eta_squared_columns(columns, role_labels)
     if all(value is None for value in observed):

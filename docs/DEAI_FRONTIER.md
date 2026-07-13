@@ -36,10 +36,13 @@ scale (impossible at n=14). Model-free, no GPU. *The adversary cannot fake
 role-coupling without actually reasoning about the content.*
 *Shipped 2026-07-13 as `document-role-decoupling` (permutation-normalized η²
 z, split-half factor selection kept section+content and rejected position as
-chance): adversarial AUC 0.888 (CI 0.847–0.926) — the manifold's hardest tier
-is this axis's strongest, exactly as predicted. Manifold+role union covers
-0.68–0.80 of AI tiers at ~0.10 human cost; the residual gap is structure
-cloning (0.658 here, caught by the manifold at 0.934). EVALUATION.md §9.4.*
+chance): held-out confirmation AUC 0.846/0.833/0.850/0.715 across the four AI
+tiers (full-set adversarial 0.888, CI 0.847–0.926) — the manifold's hardest
+tier is this axis's strongest, exactly as predicted. Manifold+role union
+covers 0.68–0.80 of AI tiers at ~0.10 human cost with exactly disjoint human
+flag sets; the residual gap is structure cloning (0.658 here, caught by the
+manifold at 0.934). Post-review hardened (NaN guard, length guard, factor
+drift guard, math-marker lookbehinds). EVALUATION.md §9.4.*
 
 **2. Promote claim-anchoring to a primary axis.** Unfalsifiable hedged
 generality ("demonstrates strong performance" with no number, citation,
