@@ -9,6 +9,7 @@ TOOLS = Path(__file__).resolve().parents[1] / "tools"
 sys.path.insert(0, str(TOOLS))
 
 import deai_docstructure as docstructure
+import deai_features
 
 
 REPEATED_PARAGRAPH = (
@@ -81,6 +82,11 @@ class DocumentStructureTests(unittest.TestCase):
             self.assertTrue((root / docstructure.BASELINE_NAME).exists())
             for metric in docstructure.METRIC_NAMES:
                 self.assertEqual(len(baseline["metrics"][metric]["values"]), 3)
+            # role-coupling reference is stored alongside the dispersion band
+            self.assertIn("role_coupling", baseline)
+            self.assertEqual(baseline["role_coupling"]["scoring_factors"],
+                             list(docstructure.ROLE_SCORING_FACTORS))
+            self.assertEqual(len(baseline["role_coupling"]["values"]), 3)
 
     def test_document_shape_reports_cross_paragraph_dispersion(self):
         shape = docstructure.document_shape(document([
@@ -133,6 +139,70 @@ class DocumentStructureTests(unittest.TestCase):
                 [f for f in ragged
                  if f["rule"].startswith("document-overdispersion:")],
                 "an over-dispersed document should flag the high tail")
+
+    def test_role_coupling_z_separates_coupled_from_decoupled(self):
+        # 30 paragraphs, one feature; two role groups with distinct means.
+        coupled_vectors = [[1.0 + 0.05 * (i % 3)] if i < 15
+                           else [5.0 + 0.05 * (i % 3)] for i in range(30)]
+        labels = [0] * 15 + [1] * 15
+        coupled = deai_features.role_coupling_z(coupled_vectors, labels)
+        self.assertIsNotNone(coupled["mean_z"])
+        self.assertGreater(coupled["mean_z"], 2.0)
+        # Same value spread, but placed independently of the role labels.
+        decoupled_vectors = [[1.0 + 0.05 * (i % 3)] if i % 2 == 0
+                             else [5.0 + 0.05 * (i % 3)] for i in range(30)]
+        decoupled = deai_features.role_coupling_z(decoupled_vectors, labels)
+        self.assertIsNotNone(decoupled["mean_z"])
+        self.assertLess(decoupled["mean_z"], coupled["mean_z"] / 2)
+        # Constant feature: eta-squared undefined, honestly unmeasured.
+        constant = deai_features.role_coupling_z([[2.0]] * 30, labels)
+        self.assertIsNone(constant["mean_z"])
+
+    def test_document_role_coupling_states(self):
+        shape = docstructure.document_shape(document([
+            REPEATED_PARAGRAPH, SHORT_PARAGRAPH, LONG_PARAGRAPH,
+            SHORT_PARAGRAPH, LONG_PARAGRAPH, REPEATED_PARAGRAPH,
+        ]))
+        role = docstructure.document_role_coupling(shape)
+        self.assertEqual(role["status"], "measured")
+        self.assertIsNotNone(role["score"])
+        self.assertEqual(set(role["factors"]), set(docstructure.ROLE_FACTORS))
+        # an unmeasurable document degrades honestly
+        short = docstructure.document_shape(
+            "\\section{Introduction}\n\n" + REPEATED_PARAGRAPH)
+        self.assertEqual(docstructure.document_role_coupling(short)["status"],
+                         "unmeasured")
+
+    def test_role_decoupled_document_flags_low_tail(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            # Reference: paragraph shape strongly follows section identity
+            # (each section repeats its own shape).
+            coupled_doc = (
+                f"\\section{{Introduction}}\n\n{SHORT_PARAGRAPH}\n\n{SHORT_PARAGRAPH}"
+                f"\n\n\\section{{Methods}}\n\n{LONG_PARAGRAPH}\n\n{LONG_PARAGRAPH}"
+                f"\n\n\\section{{Results}}\n\n{REPEATED_PARAGRAPH}\n\n{REPEATED_PARAGRAPH}\n")
+            sources = []
+            for index in range(4):
+                path = root / f"human-{index}.tex"
+                path.write_text(coupled_doc, encoding="utf-8")
+                sources.append(path)
+            baseline = docstructure.calibrate(sources, root, strong_percentile=0.9)
+            self.assertIn("role_coupling", baseline)
+            # Target: identical shape spread, shuffled against the sections.
+            decoupled_doc = (
+                f"\\section{{Introduction}}\n\n{SHORT_PARAGRAPH}\n\n{LONG_PARAGRAPH}"
+                f"\n\n\\section{{Methods}}\n\n{REPEATED_PARAGRAPH}\n\n{SHORT_PARAGRAPH}"
+                f"\n\n\\section{{Results}}\n\n{LONG_PARAGRAPH}\n\n{REPEATED_PARAGRAPH}\n")
+            findings = docstructure.document_findings(decoupled_doc, root)
+            self.assertTrue(
+                [f for f in findings if f["rule"] == "document-role-decoupling"],
+                "a role-decoupled document should flag the low tail")
+            coupled_findings = docstructure.document_findings(coupled_doc, root)
+            self.assertFalse(
+                [f for f in coupled_findings
+                 if f["rule"] == "document-role-decoupling"],
+                "a role-coupled document matching the reference must not flag")
 
     def test_over_uniform_document_is_flagged_but_varied_is_not(self):
         with tempfile.TemporaryDirectory() as temporary:

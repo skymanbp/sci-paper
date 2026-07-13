@@ -286,27 +286,44 @@ two stages:
    adversarial contrast to AUC 0.801 (CI 0.733–0.867)** while keeping natural at 0.894
    and de-AI'd at 0.932 — on the same held-out protocol.
 
-The shipped detector implements the band view at two levels, calibrated over **497
-complete human papers** (the bulk full-text fetch; the reference grew 14 → 497 in one
-day):
+The shipped detector implements the band view at three levels, calibrated over **507
+complete human papers** (the bulk full-text fetch; the reference grew 14 → 507 within
+two days):
 
 1. **Joint manifold statistic (primary).** The per-document vector of log dispersion
    ratios is scored by Mahalanobis distance against the human center and covariance
    (pure-stdlib 11-D implementation, ridge-stabilized, clipped log ratios). One
    calibrated aggregate finding (`document-dispersion-manifold`, 95th-percentile
-   threshold, leave-one-paper-out false-flag 0.060) replaces the correlated per-feature
-   "strong" flag spray; per-feature band findings demote to ordinary context when the
-   manifold is present. Held-out validation (242 reference / 242 never-touched test
-   humans): natural AI AUC **0.917** (CI 0.874–0.951), de-AI'd **0.931** (CI
-   0.888–0.965), and — decisively — shape-adversarial **0.895** (CI 0.855–0.930),
-   versus 0.80 for the marginal two-sided statistic and chance for the one-sided score.
-   The joint geometry catches what independent marginals cannot: the adversary lands
-   plausible per-feature spreads with the wrong covariance.
-2. **Per-feature band flags (context).** Low/high tails at the 5th/95th percentile
-   (`document-uniformity` / `document-overdispersion`), LOO false-flag 0.052/0.056.
+   threshold 4.256, leave-one-paper-out false-flag 0.063) replaces the correlated
+   per-feature "strong" flag spray; per-feature band findings demote to ordinary
+   context when the manifold is present. Held-out validation (242 reference / 242
+   never-touched test humans): natural AI AUC **0.917** (CI 0.874–0.951), de-AI'd
+   **0.931** (CI 0.888–0.965), and — decisively — shape-adversarial **0.895** (CI
+   0.855–0.930), versus 0.80 for the marginal two-sided statistic and chance for the
+   one-sided score. The joint geometry catches what independent marginals cannot: the
+   adversary lands plausible per-feature spreads with the wrong covariance.
+2. **Role-coupling statistic (orthogonal axis).** Section 9.4: shape variance
+   explained by rhetorical role, permutation-normalized per document
+   (`document-role-decoupling`, 5th-percentile low tail −0.039, LOO false-flag 0.053).
+3. **Per-feature band flags (context).** Low/high tails at the 5th/95th percentile
+   (`document-uniformity` / `document-overdispersion`), median LOO false-flag
+   0.051/0.051.
 
-At the shipped 95% threshold the held-out human flag rate is 0.10 and the AI flag rates
-are 0.75 (natural), 0.80 (de-AI'd), 0.50 (adversarial). Below
+Corpus quantile CIs in the baseline come from a seeded with-replacement bootstrap; an
+earlier "deterministic balanced" resampler was a full permutation whenever
+gcd(31, n) = 1, so every CI it produced was zero-width — that overstatement is fixed
+and the baseline regenerated. At the shipped operating points the per-tier flag rates
+of the two strong document findings (measurable docs, 507-paper baseline; human rates
+are in-sample):
+
+| flag | human | natural | de-AI'd | adversarial | skeleton |
+|---|---|---|---|---|---|
+| manifold | 0.051 | 0.607 | 0.600 | 0.447 | 0.292 |
+| role-decoupling | 0.051 | 0.179 | 0.333 | 0.447 | 0.083 |
+| union | 0.103 | 0.679 | 0.800 | 0.737 | 0.333 |
+
+The near-additive union (0.051 + 0.051 ≈ 0.103 on humans) confirms the two axes are
+close to independent on human papers while overlapping heavily on AI ones. Below
 `MIN_MANIFOLD_DOCUMENTS` reference papers the manifold is honestly omitted and the
 per-feature flags remain the primary (strong) findings.
 
@@ -365,6 +382,54 @@ survives exact format matching: it measures how prose texture varies across para
 within a fixed structure, not the structure itself. Limits: 17 pairs is a wide-CI
 sample; one generator; sentence counts were requested per paragraph but compliance was
 enforced only at the section/paragraph level.
+
+### 9.4 Role-coupled dispersion (frontier idea 1): variation must be explained
+
+The adversarial arc in 9.1 proved dispersion *magnitude* is gameable: forced variety
+lands inside (or past) the human band. What forced variety cannot do without actually
+reasoning about the content is couple the variation to the argument. Humans vary
+paragraph shape *where the argument demands it* — across sections, and between
+citing/derivation/prose paragraphs — so part of each paper's shape variance is
+explained by rhetorical role. Both AI failure modes (uniform AND forced-ragged) vary
+shape at random with respect to role.
+
+Statistic (`deai_features.role_coupling_z` + `deai_docstructure.
+document_role_coupling`): per paragraph, the existing 11 model-free shape features;
+per role factor, a one-way eta-squared per feature, normalized as a z-score against a
+seeded within-document permutation null (200 label shuffles) — raw eta-squared
+inflates with group count and shrinks with paragraph count, and the permutation null
+removes both biases, making scores comparable across documents. No reference fit is
+needed per document, so validation has no train/test leakage by construction. Three
+factors are measured: which section (`section`), first/middle/last in section
+(`position`), has-math × has-cite (`content`).
+
+Factor selection was split-half to avoid post-hoc optimism: on one seeded human half
+(253 papers) plus AI-tier halves, `section+content` maximizes mean AUC (0.786) and
+beats the 3-factor composite (0.766) because `position` is at chance; the held-out
+half confirms the selected composite at natural 0.846, de-AI'd 0.833, adversarial
+0.850, skeleton 0.715. Full-set AUC of the shipped composite (human high; selection
+used only half A):
+
+| tier | AUC | CI95 | n |
+|---|---|---|---|
+| natural | 0.810 | 0.751–0.864 | 28 |
+| de-AI'd | 0.842 | 0.762–0.913 | 15 |
+| adversarial | **0.888** | 0.847–0.926 | 38 |
+| skeleton | 0.658 | 0.561–0.748 | 24 |
+
+The adversarial tier — the manifold's hardest — is role-coupling's strongest, as the
+frontier note predicted: random variety cannot fake role-coupling. The shipped finding
+(`document-role-decoupling`, strong advisory) fires on the low tail of the 507-paper
+human reference (threshold −0.039, CI [−0.078, 0.006], LOO false-flag 0.053); flag
+rates and the near-independent union with the manifold are tabulated in 9.1.
+
+Honest limits: (a) skeleton clones transfer part of the coupling — forcing a real
+paper's per-section shape skeleton onto AI text reproduces some section-coupled
+variance (0.658 AUC, flag rate 0.083), so role-coupling is partially fakeable by
+structure cloning, which the manifold catches instead (paired 0.934, 9.3) — the two
+axes cover each other's evasion; (b) one field, one generator family; (c) the
+`content` factor keys on surface markers (math/cite presence), not semantic roles;
+(d) AI-tier n per cell is modest (15–38), so tier CIs are wide.
 
 ## 10. Hard-set human input
 

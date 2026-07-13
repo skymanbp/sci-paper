@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import re
 import statistics
 import sys
@@ -255,6 +256,90 @@ def cross_paragraph_dispersion(
         for index, name in enumerate(names)
         if index < len(columns)
     }
+
+
+# Role-coupled dispersion (frontier idea 1): humans vary paragraph shape WHERE
+# THE ARGUMENT DEMANDS IT, so shape variance is partly explained by rhetorical
+# role; both AI failure modes (uniform and forced-ragged) vary shape at random
+# with respect to role. Raw eta-squared inflates with group count and shrinks
+# with paragraph count, so the observed value is normalized against a seeded
+# within-document permutation null (shuffling role labels), giving a z that is
+# comparable across documents of different lengths and section structures.
+ROLE_COUPLING_PERMUTATIONS = 200
+ROLE_COUPLING_SEED = 20260713
+
+
+def _eta_squared_columns(columns: list[list[float]],
+                         labels: list[int]) -> list[float | None]:
+    """One-way eta-squared of each feature column grouped by ``labels``.
+
+    Returns None for a column with zero total variance (eta-squared undefined)
+    or when fewer than two groups are present.
+    """
+    n = len(labels)
+    groups = sorted(set(labels))
+    if n < 3 or len(groups) < 2:
+        return [None] * len(columns)
+    out: list[float | None] = []
+    for column in columns:
+        total = sum(column)
+        ss_total = sum(v * v for v in column) - total * total / n
+        if ss_total <= 0:
+            out.append(None)
+            continue
+        group_sum: dict[int, float] = {}
+        group_n: dict[int, int] = {}
+        for value, label in zip(column, labels):
+            group_sum[label] = group_sum.get(label, 0.0) + value
+            group_n[label] = group_n.get(label, 0) + 1
+        ss_between = sum(s * s / group_n[g] for g, s in group_sum.items())
+        ss_between -= total * total / n
+        out.append(max(0.0, min(1.0, ss_between / ss_total)))
+    return out
+
+
+def role_coupling_z(
+    paragraph_vectors: list[list[float]],
+    role_labels: list[int],
+    n_permutations: int = ROLE_COUPLING_PERMUTATIONS,
+    seed: int = ROLE_COUPLING_SEED,
+) -> dict[str, float | None]:
+    """Permutation-normalized role coupling of paragraph shape for one factor.
+
+    ``role_labels`` assigns each paragraph an integer role group (e.g. section
+    index). Returns ``{"mean_z": ..., "n_features_defined": ...}`` where
+    ``mean_z`` averages, over feature columns with defined eta-squared, the z
+    of the observed value against the label-permutation null. Positive z =
+    shape coupled to role beyond chance; near-zero or negative = decoupled.
+    ``mean_z`` is None when no feature has a defined, permutation-stable z.
+    """
+    if len(paragraph_vectors) != len(role_labels):
+        raise ValueError("one role label per paragraph vector is required")
+    columns = [list(map(float, column)) for column in zip(*paragraph_vectors)]
+    observed = _eta_squared_columns(columns, role_labels)
+    if all(value is None for value in observed):
+        return {"mean_z": None, "n_features_defined": 0}
+    rng = random.Random(seed)
+    null_values: list[list[float]] = [[] for _ in columns]
+    shuffled = list(role_labels)
+    for _ in range(n_permutations):
+        rng.shuffle(shuffled)
+        for index, value in enumerate(_eta_squared_columns(columns, shuffled)):
+            if value is not None:
+                null_values[index].append(value)
+    z_scores = []
+    for index, obs in enumerate(observed):
+        null = null_values[index]
+        if obs is None or len(null) < max(10, n_permutations // 2):
+            continue
+        spread = statistics.pstdev(null)
+        if spread == 0:
+            continue
+        z_scores.append((obs - statistics.mean(null)) / spread)
+    if not z_scores:
+        return {"mean_z": None, "n_features_defined": 0}
+    return {"mean_z": statistics.mean(z_scores),
+            "n_features_defined": len(z_scores)}
 
 
 def main(argv: list[str] | None = None) -> int:

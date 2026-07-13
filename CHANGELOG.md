@@ -20,11 +20,27 @@ the paragraph-level detectors structurally cannot see.
   low/high tails, demoted to ordinary context when the manifold is present). `calibrate`
   takes `(name, text)` or `Path`; multi-file papers are concatenated into one
   observation.
-- **Calibrated over 497 complete human `wgl` papers** (new bulk arXiv full-text channel
+- **Calibrated over 507 complete human `wgl` papers** (new bulk arXiv full-text channel
   in `fetch_arxiv_abstracts.py --fulltext`: 475 papers fetched politely from local-ID
-  candidates); manifold leave-one-paper-out false-flag rate 0.060, per-feature tails
-  0.052/0.056. `L2.document_structure` is `measured`; every finding states only the
+  candidates); manifold leave-one-paper-out false-flag rate 0.063, per-feature tails
+  0.051 median. `L2.document_structure` is `measured`; every finding states only the
   measured deviation from the human corpus, not an AI verdict.
+- **Role-coupled dispersion (`document-role-decoupling`).** Humans vary paragraph shape
+  where the argument demands it; both AI failure modes (uniform and forced-ragged) vary
+  it at random with respect to rhetorical role. Per-document permutation-normalized
+  eta-squared over two role factors (which-section, has-math × has-cite; split-half
+  selection rejected in-section position as chance). Full-set AUC: natural 0.810,
+  de-AI'd 0.842, adversarial 0.888 (CI 0.847–0.926) — the shape adversary that narrows
+  the manifold's margin is this axis's strongest tier, because random variety cannot
+  fake role-coupling. The manifold+role union flags 0.68–0.80 of AI tiers at ~0.10
+  human in-sample cost, and the two 5% tails are near-independent on humans
+  (EVALUATION.md §9.4). Structure cloning evades role-coupling (0.658) but is caught by
+  the manifold (§9.3): the axes cover each other.
+- **Fixed: baseline quantile CIs were zero-width.** The "deterministic balanced"
+  resampler indexed `(iter*17 + idx*31) % n`, a full permutation whenever
+  gcd(31, n) = 1 — every bootstrap CI in the document baseline was degenerate and
+  overstated certainty. Replaced with a seeded with-replacement bootstrap; baseline
+  regenerated.
 - **Held-out validation** (242 reference / 242 never-touched humans): natural AI AUC
   0.917 (CI 0.874–0.951), de-AI-rewritten 0.931 (CI 0.888–0.965) — a 22%-of-text
   paragraph-level de-AI rewrite barely moves the document signal — and a deliberate

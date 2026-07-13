@@ -5,8 +5,9 @@ Status: design note, 2026-07-13. Produced by a six-lens divergent ideation
 evaluation science, contrarian) after the keystone validation and its measured
 adversarial limit. Complements [`DEAI_ARCHITECTURE_ROADMAP.md`](DEAI_ARCHITECTURE_ROADMAP.md)
 (ranks 2–8 there remain valid engineering work). Implemented so far: idea 5
-(shipped, `deai_docstructure.fit_dispersion_manifold`) and idea 7 (executed,
-signal survives — EVALUATION.md §9.3).
+(shipped, `deai_docstructure.fit_dispersion_manifold`), idea 7 (executed,
+signal survives — EVALUATION.md §9.3), and idea 1 (shipped,
+`document-role-decoupling` — EVALUATION.md §9.4).
 
 ## The unifying theme
 
@@ -33,6 +34,12 @@ has-number/[CITE]/[MATH]/\ref); compute between-role over total variance
 (an F-ratio); calibrate one-observation-per-paper. Only measurable at corpus
 scale (impossible at n=14). Model-free, no GPU. *The adversary cannot fake
 role-coupling without actually reasoning about the content.*
+*Shipped 2026-07-13 as `document-role-decoupling` (permutation-normalized η²
+z, split-half factor selection kept section+content and rejected position as
+chance): adversarial AUC 0.888 (CI 0.847–0.926) — the manifold's hardest tier
+is this axis's strongest, exactly as predicted. Manifold+role union covers
+0.68–0.80 of AI tiers at ~0.10 human cost; the residual gap is structure
+cloning (0.658 here, caught by the manifold at 0.934). EVALUATION.md §9.4.*
 
 **2. Promote claim-anchoring to a primary axis.** Unfalsifiable hedged
 generality ("demonstrates strong performance" with no number, citation,
@@ -102,8 +109,8 @@ backbone every other idea's operating point stands on.
 prerequisite; η² (1), the covariance manifold (5), and conformal calibration
 (8) are the detection core the scaled corpus newly enables; claim-anchoring
 (2), partition operators (3), the personal baseline (6), and the provenance
-ledger (4) are the cooperative-tool layer. Progress: 7 done (pass), 5 done;
-next in queue are 1 and 8.
+ledger (4) are the cooperative-tool layer. Progress: 7 done (pass), 5 done,
+1 done (shipped); next in queue is 8.
 
 ## Notable discards (with reasons)
 

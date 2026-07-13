@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import random
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -70,6 +72,22 @@ MANIFOLD_CLIP = 6.0        # clip |log ratio| so zero-variance features cannot d
 MANIFOLD_RIDGE = 0.05      # relative diagonal ridge for a stable inverse
 MANIFOLD_PERCENTILE = 0.95
 MIN_MANIFOLD_DOCUMENTS = 3 * len(DISPERSION_FEATURE_NAMES)
+
+# Role-coupled dispersion (frontier idea 1): shape variance explained by
+# rhetorical role, permutation-normalized per document (deai_features.
+# role_coupling_z). Three cheap model-free role factors are measured; the
+# detection score averages only the two that survived split-half selection
+# (chosen on one human half + AI tiers, confirmed on the held-out half:
+# natural 0.846 / de-AI'd 0.833 / adversarial 0.850 / skeleton 0.715 AUC —
+# EVALUATION.md section 9.4). "position" (first/middle/last in section) is at
+# chance and would dilute the composite; it stays reported as context only.
+# Humans couple shape to role; both AI failure modes (uniform and
+# forced-ragged) decouple it, so detection is LOW-tail.
+ROLE_FACTORS = ("section", "position", "content")
+ROLE_SCORING_FACTORS = ("section", "content")
+ROLE_LOW_PERCENTILE = 0.05
+_MATH_MARKER_RE = re.compile(
+    r"\$|\\\(|\\\[|\\begin\{(equation|align|gather|eqnarray|math|multline)")
 
 
 def _paragraph_modelfree(text: str) -> list[float]:
@@ -138,6 +156,9 @@ def document_shape(text: str) -> dict[str, Any]:
                 "end_line": p_end,
                 "vector": _shape_vector(block),
                 "modelfree": _paragraph_modelfree(block),
+                # cheap content-role markers for role-coupled dispersion
+                "has_cite": "\\cite" in block,
+                "has_math": bool(_MATH_MARKER_RE.search(block)),
             })
         if len(paragraphs) >= MIN_PARAGRAPHS_PER_SECTION:
             sections.append({"label": label, "start_line": start,
@@ -189,6 +210,49 @@ def document_shape(text: str) -> dict[str, Any]:
     }
 
 
+def document_role_coupling(shape: dict[str, Any]) -> dict[str, Any]:
+    """Permutation-normalized role coupling of paragraph shape (frontier 1).
+
+    Computed from a ``document_shape`` result. Three one-way factors, each an
+    integer label per paragraph: ``section`` (which section), ``position``
+    (first/middle/last within its section), ``content`` (has-math x has-cite).
+    Factors degenerate to one group on some documents (e.g. every paragraph
+    cites); those are honestly skipped and the score averages the defined
+    factors. Score is None when no factor is defined.
+    """
+    if shape.get("status") != "measured":
+        return {"status": "unmeasured", "score": None, "factors": {}}
+    vectors: list[list[float]] = []
+    section_labels: list[int] = []
+    position_labels: list[int] = []
+    content_labels: list[int] = []
+    for section_index, section in enumerate(shape["sections"]):
+        paragraphs = section["paragraphs"]
+        last = len(paragraphs) - 1
+        for para_index, paragraph in enumerate(paragraphs):
+            vectors.append(paragraph["modelfree"])
+            section_labels.append(section_index)
+            position_labels.append(
+                0 if para_index == 0 else (2 if para_index == last else 1))
+            content_labels.append(
+                2 * int(paragraph["has_math"]) + int(paragraph["has_cite"]))
+    labels = {"section": section_labels, "position": position_labels,
+              "content": content_labels}
+    factors: dict[str, float | None] = {}
+    for name in ROLE_FACTORS:
+        result = features.role_coupling_z(vectors, labels[name])
+        factors[name] = result["mean_z"]
+    scoring = [factors[name] for name in ROLE_SCORING_FACTORS
+               if factors[name] is not None]
+    return {
+        "status": "measured" if scoring else "unmeasured",
+        "score": statistics.mean(scoring) if scoring else None,
+        "scoring_factors": list(ROLE_SCORING_FACTORS),
+        "factors": factors,
+        "n_paragraphs": len(vectors),
+    }
+
+
 def _percentile(values: list[float], observed: float) -> float:
     """One-sided empirical percentile with add-one smoothing."""
     return (1 + sum(value <= observed for value in values)) / (len(values) + 1)
@@ -208,14 +272,23 @@ def _quantile(values: list[float], probability: float) -> float:
 
 
 def _bootstrap_quantile_ci(values: list[float], probability: float,
-                           iterations: int = 500) -> list[float] | None:
-    """Deterministic balanced resampling CI for a corpus quantile."""
+                           iterations: int = 500,
+                           seed: int = 20260713) -> list[float] | None:
+    """Seeded with-replacement bootstrap CI for a corpus quantile.
+
+    The previous "deterministic balanced" scheme indexed with
+    ``(iteration*17 + index*31) % n``, which is a full permutation whenever
+    gcd(31, n) == 1 — every resample was the whole corpus, so the CI was
+    always zero-width and overstated certainty. A genuine with-replacement
+    bootstrap (seeded, still reproducible) replaces it.
+    """
     if len(values) < 3:
         return None
-    estimates = []
+    rng = random.Random(seed)
     n = len(values)
-    for iteration in range(iterations):
-        sample = [values[(iteration * 17 + index * 31) % n] for index in range(n)]
+    estimates = []
+    for _ in range(iterations):
+        sample = [values[rng.randrange(n)] for _ in range(n)]
         estimates.append(_quantile(sample, probability))
     return [_quantile(estimates, 0.025), _quantile(estimates, 0.975)]
 
@@ -376,7 +449,8 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
         if result["status"] != "measured":
             continue
         records.append({"source": name, "metrics": result["metrics"],
-                        "dispersion": result.get("dispersion", {})})
+                        "dispersion": result.get("dispersion", {}),
+                        "role_coupling": document_role_coupling(result)["score"]})
     if len(records) < 3:
         raise ValueError("document-structure calibration needs at least 3 measurable complete documents")
     baseline: dict[str, Any] = {
@@ -429,6 +503,23 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
         for record in records
     ]
     baseline["dispersion_manifold"] = fit_dispersion_manifold(manifold_rows)
+    # Role-coupled dispersion reference (frontier idea 1): both AI failure
+    # modes decouple paragraph shape from rhetorical role, so detection is a
+    # LOW tail on the permutation-normalized coupling z.
+    role_values = [float(record["role_coupling"]) for record in records
+                   if record.get("role_coupling") is not None]
+    if len(role_values) >= 3:
+        baseline["role_coupling"] = {
+            "scoring_factors": list(ROLE_SCORING_FACTORS),
+            "values": role_values,
+            "low_percentile": ROLE_LOW_PERCENTILE,
+            "low_threshold": _quantile(role_values, ROLE_LOW_PERCENTILE),
+            "bootstrap_95_ci": _bootstrap_quantile_ci(
+                role_values, ROLE_LOW_PERCENTILE),
+            "leave_one_document_out_flag_rate":
+                _leave_one_document_out_low_flag_rate(
+                    role_values, ROLE_LOW_PERCENTILE),
+        }
     output = field_profile_dir / BASELINE_NAME
     output.write_text(json.dumps(baseline, indent=2), encoding="utf-8")
     return baseline
@@ -562,6 +653,61 @@ def document_findings(text: str, field_profile_dir: Path | None,
                         "shape dimensions depart, then adjust only where the "
                         "argument permits."),
                 evidence=["manifold", round(distance, 6)],
+            ))
+    # Role-coupled dispersion (orthogonal to the manifold): humans vary
+    # paragraph shape where the argument demands it, so shape variance is
+    # partly explained by rhetorical role. Both AI failure modes — uniform
+    # AND forced-ragged — decouple shape from role; the shape adversary that
+    # narrows the manifold's margin scores at 0.850 held-out AUC here
+    # (EVALUATION.md section 9.4), because random variety cannot fake
+    # role-coupling. Detection is the LOW tail of the permutation z.
+    role_reference = baseline.get("role_coupling")
+    if role_reference:
+        role = document_role_coupling(shape)
+        role_values = role_reference.get("values", [])
+        low_threshold = role_reference.get("low_threshold")
+        if (role["score"] is not None and low_threshold is not None
+                and role_values and role["score"] < float(low_threshold)):
+            percentile = _percentile(role_values, float(role["score"]))
+            findings.append(feedback.make_finding(
+                kind="advisory", layer="L2", rule="document-role-decoupling",
+                scope="document", line=1, section=section_label, path=path,
+                detector="deai_docstructure",
+                detector_version="sci-paper.docstructure-baseline.v2",
+                calibration_asset=BASELINE_NAME,
+                measurement_status="measured", strength="strong",
+                observed={"role_coupling_z": role["score"],
+                          "factors": role["factors"],
+                          "empirical_percentile": percentile,
+                          "n_sections": shape["n_sections"],
+                          "n_paragraphs": shape["n_paragraphs"]},
+                reference={"n_documents": len(role_values),
+                           "low_percentile": role_reference.get("low_percentile"),
+                           "low_threshold": low_threshold,
+                           "bootstrap_95_ci": role_reference.get("bootstrap_95_ci"),
+                           "leave_one_document_out_flag_rate": role_reference.get(
+                               "leave_one_document_out_flag_rate"),
+                           "scoring_factors": role_reference.get("scoring_factors"),
+                           "provenance": BASELINE_NAME},
+                normalized_distance=float(low_threshold) - float(role["score"]),
+                confidence={"value": min(1.0, len(role_values) / 100.0),
+                            "basis": (f"{len(role_values)} complete reference "
+                                      "documents; permutation-normalized within "
+                                      "each document, validated held-out against "
+                                      "natural, de-AI'd, and shape-adversarial "
+                                      "AI document sets")},
+                message=(f"Paragraph-shape variation is decoupled from rhetorical "
+                         f"role: coupling z is {role['score']:.2f}, below the "
+                         f"human 5th-percentile threshold "
+                         f"{float(low_threshold):.2f}. Human papers vary "
+                         "paragraph shape where the argument demands it (across "
+                         "sections and between citing/derivation/prose "
+                         "paragraphs); here the variation is unrelated to role. "
+                         "This is a measured deviation, not an AI verdict."),
+                action=("Where the argument changes register (setup vs "
+                        "derivation vs results), let the paragraph shape follow "
+                        "it; do not add variety at random, tie it to content."),
+                evidence=["role_coupling", round(float(role["score"]), 6)],
             ))
     for feature_name, reference in baseline.get("dispersion", {}).items():
         observed = dispersion.get(feature_name, {}).get(DISPERSION_STAT)
