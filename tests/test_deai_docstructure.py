@@ -82,6 +82,46 @@ class DocumentStructureTests(unittest.TestCase):
             for metric in docstructure.METRIC_NAMES:
                 self.assertEqual(len(baseline["metrics"][metric]["values"]), 3)
 
+    def test_document_shape_reports_cross_paragraph_dispersion(self):
+        shape = docstructure.document_shape(document([
+            REPEATED_PARAGRAPH, SHORT_PARAGRAPH, LONG_PARAGRAPH,
+            SHORT_PARAGRAPH, LONG_PARAGRAPH, REPEATED_PARAGRAPH,
+        ]))
+        self.assertEqual(shape["status"], "measured")
+        self.assertIn("dispersion", shape)
+        # every model-free feature has a std dispersion entry
+        for name in docstructure.DISPERSION_FEATURE_NAMES:
+            self.assertIn(name, shape["dispersion"])
+            self.assertIn(docstructure.DISPERSION_STAT, shape["dispersion"][name])
+
+    def test_over_uniform_document_is_flagged_but_varied_is_not(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            # Human reference: ragged documents that mix paragraph shapes.
+            sources = []
+            for index in range(4):
+                path = root / f"human-{index}.tex"
+                path.write_text(document([
+                    REPEATED_PARAGRAPH, SHORT_PARAGRAPH, LONG_PARAGRAPH,
+                    SHORT_PARAGRAPH, LONG_PARAGRAPH, REPEATED_PARAGRAPH,
+                ]), encoding="utf-8")
+                sources.append(path)
+            docstructure.calibrate(sources, root, strong_percentile=0.9)
+            # An over-uniform document (every paragraph identical) must draw at
+            # least one over-uniformity finding; the varied reference shape must not.
+            uniform = docstructure.document_findings(
+                document([REPEATED_PARAGRAPH]), root)
+            uniformity_hits = [f for f in uniform
+                               if f["rule"].startswith("document-uniformity:")]
+            self.assertTrue(uniformity_hits, "over-uniform document should flag")
+            varied = docstructure.document_findings(document([
+                REPEATED_PARAGRAPH, SHORT_PARAGRAPH, LONG_PARAGRAPH,
+                SHORT_PARAGRAPH, LONG_PARAGRAPH, REPEATED_PARAGRAPH,
+            ]), root)
+            self.assertFalse(
+                [f for f in varied if f["rule"].startswith("document-uniformity:")],
+                "a document matching the human reference shape should not flag")
+
 
 if __name__ == "__main__":
     unittest.main()

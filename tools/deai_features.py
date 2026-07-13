@@ -178,6 +178,85 @@ def features_vector(text: str, **kw) -> list[float]:
     return [f[name] for name in FEATURE_NAMES]
 
 
+# Cross-paragraph dispersion: the document-scale, confound-orthogonal signal.
+# Field register shifts the LEVEL (mean) of per-paragraph features; AI-uniformity
+# compresses their SPREAD across a document. A per-paragraph score sees only
+# levels, so it is fooled by on-topic AI prose (the 32-41% field-topic FPR). The
+# spread of the same features across a whole document is orthogonal to topic and
+# is where a human paper's list/argument/result paragraphs differ from an evenly
+# drafted AI section. See docs/DEAI_ARCHITECTURE_ROADMAP.md.
+DISPERSION_STATS = ("std", "cv", "iqr", "lag1_autocorr", "min_gap")
+
+
+def _lag1_autocorr(series: list[float]) -> float | None:
+    """Lag-1 autocorrelation along document order, or None if undefined."""
+    n = len(series)
+    if n < 3:
+        return None
+    mean = statistics.mean(series)
+    denom = sum((value - mean) ** 2 for value in series)
+    if denom == 0:  # a perfectly constant feature has no defined autocorrelation
+        return None
+    numer = sum((series[i] - mean) * (series[i + 1] - mean) for i in range(n - 1))
+    return numer / denom
+
+
+def feature_dispersion(values: list[float]) -> dict[str, float | None]:
+    """Dispersion statistics of one feature across a document's paragraphs.
+
+    Lower dispersion means a more uniform (AI-drafted) document. ``cv`` is the
+    scale-free spread; ``min_gap`` is the smallest adjacent absolute change and
+    is an over-uniformity indicator; ``lag1_autocorr`` captures smooth drift.
+    """
+    n = len(values)
+    if n < 2:
+        return {stat: None for stat in DISPERSION_STATS}
+    std = statistics.pstdev(values)
+    mean = statistics.mean(values)
+    ordered = sorted(values)
+    q1 = _quantile_sorted(ordered, 0.25)
+    q3 = _quantile_sorted(ordered, 0.75)
+    gaps = [abs(values[i + 1] - values[i]) for i in range(n - 1)]
+    return {
+        "std": std,
+        "cv": (std / abs(mean)) if mean != 0 else None,
+        "iqr": q3 - q1,
+        "lag1_autocorr": _lag1_autocorr(values),
+        "min_gap": min(gaps) if gaps else None,
+    }
+
+
+def _quantile_sorted(ordered: list[float], probability: float) -> float:
+    position = probability * (len(ordered) - 1)
+    low = int(position)
+    high = min(low + 1, len(ordered) - 1)
+    fraction = position - low
+    return ordered[low] * (1 - fraction) + ordered[high] * fraction
+
+
+def cross_paragraph_dispersion(
+    paragraph_vectors: list[list[float]],
+    feature_names: list[str] | None = None,
+) -> dict[str, dict[str, float | None]]:
+    """Per-feature cross-paragraph dispersion for one complete document.
+
+    ``paragraph_vectors`` are per-paragraph feature vectors in document order.
+    Returns ``{feature_name: {std, cv, iqr, lag1_autocorr, min_gap}}``. Any
+    feature set may be passed; the model-free subset needs no GPU, so the
+    document detector can calibrate locally and add surprisal/embedding
+    dispersion when those are available.
+    """
+    names = feature_names if feature_names is not None else FEATURE_NAMES
+    if not paragraph_vectors:
+        return {name: {stat: None for stat in DISPERSION_STATS} for name in names}
+    columns = list(zip(*paragraph_vectors))
+    return {
+        name: feature_dispersion([float(value) for value in columns[index]])
+        for index, name in enumerate(names)
+        if index < len(columns)
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
