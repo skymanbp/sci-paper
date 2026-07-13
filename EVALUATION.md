@@ -267,14 +267,31 @@ human 1.08): **paragraph-level de-AI does not fix a document-level signal**, bec
 rewriting each paragraph toward a "more human" target still leaves the paragraphs uniform
 relative to each other.
 
-The stronger attack — AI explicitly instructed to vary paragraph shape to defeat a
-uniformity detector — is partially effective and defines the detector's limit. It fully
-games the length-based dispersion (all-11 AUC 0.643, interval touching chance), because an
-author can consciously swing paragraph length on command. It does **not** fully fake the
-finer punctuation and clause-rhythm dispersion (length-independent AUC 0.846, interval
-lower bound 0.66 still above chance). The detector therefore has real but bounded power:
-length variation is cheap to fake, the rhythm signal is stickier, and this is stated as a
-limit, not hidden.
+The shape adversary's story required the corpus scale-up to resolve, and it resolved in
+two stages:
+
+1. **Against the 14 curated papers** the adversary looked only partially effective
+   (length-independent AUC 0.846). **Against 195 heterogeneous held-out human papers**
+   (the honest protocol: reference median fit on half the humans, AUC computed on the
+   never-touched other half) the one-sided low-tail score collapses to **chance**
+   (all-features 0.436, CI 0.344–0.534; length-independent 0.512, CI 0.412–0.610),
+   while natural AI stays separable (0.928, CI 0.880–0.968) and de-AI'd AI likewise
+   (0.946, CI 0.901–0.982). The earlier "bounded power" was an artifact of the narrow
+   curated reference. Marginal dispersion *magnitude* is fully gameable.
+2. The collapse itself carried the tell: the all-features AUC fell *below* 0.5 — the
+   adversary **overshoots**, varying paragraph length more than real humans do. Humans
+   occupy a **band** of dispersion; natural AI leaves it on the uniform side, the forced
+   adversary leaves it on the over-dispersed side. A two-sided statistic (mean robust z
+   of per-feature log dispersion ratios from the human center) **recovers the
+   adversarial contrast to AUC 0.801 (CI 0.733–0.867)** while keeping natural at 0.894
+   and de-AI'd at 0.932 — on the same held-out protocol.
+
+The shipped detector implements the band view: per-feature low- and high-tail thresholds
+(5th/95th percentile), with `document-uniformity` and `document-overdispersion` findings
+respectively, calibrated over **249 complete human papers** (the bulk full-text fetch)
+with leave-one-paper-out false-flag rates of 0.052/0.056 — at the nominal 5%. The
+covariance-aware version of the band distance (frontier idea 5, a Mahalanobis residual)
+is the natural next refinement.
 
 ### 9.2 Honest limits of this validation
 

@@ -94,6 +94,26 @@ class DocumentStructureTests(unittest.TestCase):
             self.assertIn(name, shape["dispersion"])
             self.assertIn(docstructure.DISPERSION_STAT, shape["dispersion"][name])
 
+    def test_over_dispersed_document_flags_high_tail(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            # Reference: consistently UNIFORM human stand-ins (narrow band).
+            sources = []
+            for index in range(4):
+                path = root / f"human-{index}.tex"
+                path.write_text(document([REPEATED_PARAGRAPH]), encoding="utf-8")
+                sources.append(path)
+            docstructure.calibrate(sources, root, strong_percentile=0.9)
+            # A wildly varied document departs the band on the HIGH side.
+            ragged = docstructure.document_findings(document([
+                REPEATED_PARAGRAPH, SHORT_PARAGRAPH, LONG_PARAGRAPH,
+                SHORT_PARAGRAPH, LONG_PARAGRAPH, REPEATED_PARAGRAPH,
+            ]), root)
+            self.assertTrue(
+                [f for f in ragged
+                 if f["rule"].startswith("document-overdispersion:")],
+                "an over-dispersed document should flag the high tail")
+
     def test_over_uniform_document_is_flagged_but_varied_is_not(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

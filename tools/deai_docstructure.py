@@ -46,7 +46,14 @@ DISPERSION_FEATURE_NAMES = (
     "semicolon_rate", "comma_rate", "template_score",
 )
 DISPERSION_STAT = "std"          # primary dispersion statistic used for detection
-DISPERSION_LOW_PERCENTILE = 0.05  # over-uniform = below the human low tail
+# Human documents occupy a BAND of cross-paragraph dispersion. Both departures
+# are measured deviations: below the low tail = over-uniform (natural AI
+# drafting); above the high tail = over-dispersed (measured on text written to
+# force raggedness, which overshoots the human band). Held-out validation at
+# n=195 human papers: one-sided low-tail scoring is at chance against a
+# deliberate shape adversary, while two-sided band distance recovers AUC 0.80.
+DISPERSION_LOW_PERCENTILE = 0.05
+DISPERSION_HIGH_PERCENTILE = 0.95
 
 
 def _paragraph_modelfree(text: str) -> list[float]:
@@ -247,6 +254,7 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
         "n_documents": len(records),
         "strong_percentile": strong_percentile,
         "dispersion_low_percentile": DISPERSION_LOW_PERCENTILE,
+        "dispersion_high_percentile": DISPERSION_HIGH_PERCENTILE,
         "dispersion_stat": DISPERSION_STAT,
         "documents": [record["source"] for record in records],
         "metrics": {},
@@ -262,9 +270,8 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
             "leave_one_document_out_flag_rate": _leave_one_out_flag_rate(
                 values, strong_percentile),
         }
-    # Per-feature human dispersion distribution. Over-uniform (AI-drafted)
-    # documents fall BELOW the low tail, so the operating point is the low
-    # percentile and detection fires when a document's dispersion is under it.
+    # Per-feature human dispersion BAND. Detection fires on either departure:
+    # below the low tail (over-uniform) or above the high tail (over-dispersed).
     for name in DISPERSION_FEATURE_NAMES:
         values = [float(record["dispersion"][name][DISPERSION_STAT])
                   for record in records
@@ -275,9 +282,14 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
         baseline["dispersion"][name] = {
             "values": values,
             "low_threshold": _quantile(values, DISPERSION_LOW_PERCENTILE),
+            "high_threshold": _quantile(values, DISPERSION_HIGH_PERCENTILE),
             "bootstrap_95_ci": _bootstrap_quantile_ci(values, DISPERSION_LOW_PERCENTILE),
+            "bootstrap_95_ci_high": _bootstrap_quantile_ci(
+                values, DISPERSION_HIGH_PERCENTILE),
             "leave_one_document_out_flag_rate": _leave_one_document_out_low_flag_rate(
                 values, DISPERSION_LOW_PERCENTILE),
+            "leave_one_document_out_high_flag_rate": _leave_one_out_flag_rate(
+                values, DISPERSION_HIGH_PERCENTILE),
         }
     output = field_profile_dir / BASELINE_NAME
     output.write_text(json.dumps(baseline, indent=2), encoding="utf-8")
@@ -356,22 +368,42 @@ def document_findings(text: str, field_profile_dir: Path | None,
                     "needless rhetorical symmetry while preserving logical organization."),
             evidence=[metric_name, round(float(observed), 8)],
         ))
-    # Over-uniformity findings: a feature whose cross-paragraph dispersion is
-    # below the human low tail means the document varies that feature less than
-    # a human paper. This is the confound-orthogonal document-scale signal.
+    # Dispersion-band findings: human documents occupy a per-feature BAND of
+    # cross-paragraph dispersion. Below the low tail = over-uniform (the
+    # natural-AI direction); above the high tail = over-dispersed (measured on
+    # text written to force raggedness, which overshoots the band). Held-out
+    # validation: one-sided scoring is at chance against a shape adversary;
+    # the band view recovers it (EVALUATION.md section 9).
     dispersion = shape.get("dispersion", {})
     for feature_name, reference in baseline.get("dispersion", {}).items():
         observed = dispersion.get(feature_name, {}).get(DISPERSION_STAT)
         low_threshold = reference.get("low_threshold")
+        high_threshold = reference.get("high_threshold")
         values = reference.get("values", [])
         if observed is None or low_threshold is None or not values:
             continue
-        if float(observed) >= float(low_threshold):
+        value = float(observed)
+        if value < float(low_threshold):
+            tail, rule_name = "low", "document-uniformity"
+            threshold, distance = low_threshold, float(low_threshold) - value
+            direction = "below the human low-tail"
+            advice = ("Check whether the paragraphs are more uniform than the "
+                      "argument needs; vary this feature where the science allows "
+                      "(mix a list, a long-argument, and a terse paragraph) without "
+                      "manufacturing variety that harms clarity.")
+        elif high_threshold is not None and value > float(high_threshold):
+            tail, rule_name = "high", "document-overdispersion"
+            threshold, distance = high_threshold, value - float(high_threshold)
+            direction = "above the human high-tail"
+            advice = ("Check whether paragraph shapes swing more than the argument "
+                      "motivates; forced or erratic variation reads as noise and "
+                      "also departs from the human band.")
+        else:
             continue
-        percentile = _percentile(values, float(observed))
+        percentile = _percentile(values, value)
         findings.append(feedback.make_finding(
             kind="advisory", layer="L2",
-            rule=f"document-uniformity:{feature_name}",
+            rule=f"{rule_name}:{feature_name}",
             scope="document", line=1, section=section_label, path=path,
             detector="deai_docstructure",
             detector_version="sci-paper.docstructure-baseline.v2",
@@ -379,31 +411,30 @@ def document_findings(text: str, field_profile_dir: Path | None,
             measurement_status="measured", strength="strong",
             observed={"dispersion_std": observed,
                       "empirical_percentile": percentile,
+                      "band_tail": tail,
                       "n_sections": shape["n_sections"],
                       "n_paragraphs": shape["n_paragraphs"]},
             reference={"n_documents": baseline["n_documents"],
                        "low_percentile": baseline.get("dispersion_low_percentile"),
+                       "high_percentile": baseline.get("dispersion_high_percentile"),
                        "low_threshold": low_threshold,
+                       "high_threshold": high_threshold,
                        "bootstrap_95_ci": reference.get("bootstrap_95_ci"),
                        "leave_one_document_out_flag_rate": reference.get(
                            "leave_one_document_out_flag_rate"),
                        "provenance": BASELINE_NAME},
-            normalized_distance=(float(low_threshold) - float(observed)),
+            normalized_distance=distance,
             confidence={"value": min(1.0, baseline["n_documents"] / 30.0),
                         "basis": (f"{baseline['n_documents']} complete reference "
-                                  "documents; separation from AI documents not yet "
-                                  "validated (calibrated on human corpus only)")},
+                                  "documents; band semantics validated held-out "
+                                  "against natural, de-AI'd, and shape-adversarial "
+                                  "AI document sets")},
             message=(f"Cross-paragraph variation in {feature_name.replace('_', ' ')} "
-                     f"is {observed:.3f}, below the human low-tail "
-                     f"{low_threshold:.3f}: the document varies this feature across "
-                     "its paragraphs less than the complete-human reference does. "
-                     "This is a measured deviation from the human corpus, not yet a "
-                     "validated AI classification."),
-            action=("Check whether the paragraphs are more uniform than the argument "
-                    "needs; vary this feature where the science allows (mix a list, a "
-                    "long-argument, and a terse paragraph) without manufacturing "
-                    "variety that harms clarity."),
-            evidence=["uniformity", feature_name, round(float(observed), 8)],
+                     f"is {value:.3f}, {direction} {float(threshold):.3f}: the "
+                     "document departs from the complete-human dispersion band for "
+                     "this feature. This is a measured deviation, not an AI verdict."),
+            action=advice,
+            evidence=[tail, feature_name, round(value, 8)],
         ))
     return findings
 
