@@ -20,12 +20,18 @@ the paragraph-level detectors structurally cannot see.
 - Calibrated over 14 complete human `wgl` papers; `L2.document_structure` axis is now
   `measured` (it had never had a baseline). The over-uniformity finding states only the
   measured deviation from the human corpus, not an AI verdict.
-- **Validated** against a held-out AI document set with an adversarial de-AI tier: human
-  vs natural AI AUC 0.990 (CI 0.954–1.000); human vs de-AI-rewritten AI AUC 1.000
-  (length-independent features). The de-AI rewrite changed 22% of the text and removed
-  all em-dashes yet barely moved the document dispersion — paragraph-level de-AI does not
-  fix the document-level signal (EVALUATION.md §9). Honest limits (small n, single field
-  and generator, model-free features only) are recorded.
+- **Validated** against a held-out AI document set with three tiers: human vs natural AI
+  AUC 0.990 (CI 0.954–1.000); human vs de-AI-rewritten AI AUC 1.000 — the de-AI rewrite
+  changed 22% of the text and removed all em-dashes yet barely moved the document
+  dispersion, so paragraph-level de-AI does not fix the document-level signal; and human
+  vs a deliberate paragraph-shape adversary AUC 0.85–0.92 on length-independent features
+  (bounded power, stated as a limit).
+- **Full-feature cloud pass refuted the surprisal-recovery hypothesis.** Against the
+  adversarial tier, surprisal-only dispersion scores AUC 0.677 (CI spans chance) and the
+  GPU model features add nothing to the robust punctuation/clause-rhythm core (0.921 with
+  vs 0.914 without), while including gamed features dilutes the detector (full-14 0.673).
+  The shipped document detector is model-free and GPU-free by measurement (EVALUATION.md
+  §9). Honest limits (small n, single field and generator) are recorded.
 
 ## Unreleased — hard-set evaluation correction
 

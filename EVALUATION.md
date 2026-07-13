@@ -288,12 +288,20 @@ limit, not hidden.
   generators, and human-AI hybrids is unmeasured.
 - The detector reports the *measured* deviation from the human corpus; the AI
   interpretation, though now supported by 9.1, is not asserted in the per-finding message.
-- Only the model-free feature subset is validated here. The surprisal + embedding dispersion
-  (the full 14-feature version) needs a cloud featurization pass and is not yet measured.
-  The adversarial-varied tier makes this measurable and worth running: token-level surprisal
-  uniformity is much harder for an author to consciously vary than paragraph length or
-  punctuation, so surprisal-dispersion features may recover the signal the length/punctuation
-  adversary evaded. That test was impossible while the validation set was saturated at 0.99.
+- The surprisal + embedding dispersion features were measured in a cloud GPU pass
+  (GPT-2-large + MiniLM over 14 human + 48 measurable AI documents; results SHA-256
+  verified). The hypothesis that surprisal dispersion would recover the adversarially
+  evaded signal — because an author cannot consciously control token predictability —
+  was **refuted**: against the adversarial tier, surprisal-only dispersion scores AUC
+  0.677 (CI 0.489–0.853, interval spanning chance) and the four model features together
+  0.594 (CI 0.395–0.789). Deliberately varying sentence and paragraph shape evidently
+  varies the surprisal profile with it. The robust core stays the model-free
+  punctuation/clause-rhythm dispersion: excluding length, AUC 0.921 (CI 0.789–1.000)
+  with the model features adding nothing (0.914 without them). Including gamed features
+  *dilutes* the detector (full 14-feature AUC 0.673). Consequence: the shipped detector
+  remains model-free and GPU-free by evidence, not merely by convenience, and feature
+  subset choice matters more than model capacity — consistent with the roadmap's
+  "the ceiling is unit and distribution, not model capacity."
 
 Paragraph exemplars must not be resampled or relabelled as independent papers to enlarge
 the reference; only genuine complete papers are used, and the axis stays `unmeasured` for

@@ -179,13 +179,16 @@ confound audit.
 
 ## 7. Implementation status
 
-Rank 1 (keystone), model-free version: **implemented and validated** (2026-07-12).
-`deai_features.cross_paragraph_dispersion` + `deai_docstructure` dispersion path,
-calibrated over 14 complete human `wgl` papers, `L2.document_structure` axis now
-`measured`. Validated against a held-out AI document set including an adversarial de-AI
-tier: human vs natural AI AUC 0.990, human vs de-AI'd AI AUC 1.000 (length-independent
-features). Key finding: paragraph-level de-AI does not fix the document-level signal
-(EVALUATION.md §9). The surprisal + embedding dispersion features (full 14-dim version)
-remain the cloud follow-up; they are not required to establish the signal.
+Rank 1 (keystone): **implemented and validated, including the full-feature cloud pass**
+(2026-07-12/13). `deai_features.cross_paragraph_dispersion` + `deai_docstructure`
+dispersion path, calibrated over 14 complete human `wgl` papers, `L2.document_structure`
+axis now `measured`. Three-tier validation: human vs natural AI AUC 0.99; vs
+paragraph-level de-AI'd AI 1.00 (the old de-AI flow cannot evade it); vs a deliberate
+paragraph-shape adversary 0.85–0.92 on length-independent features (bounded power,
+honestly stated). The cloud GPU pass then **refuted** the surprisal-recovery hypothesis:
+surprisal-only dispersion scores 0.677 (CI spans chance) against the adversary and the
+model features add nothing to the robust punctuation/rhythm core (0.921 vs 0.914), while
+including gamed features dilutes it (full-14: 0.673). The shipped detector is therefore
+model-free and GPU-free **by measurement**. Details: EVALUATION.md §9.
 
 Ranks 2–8 are not yet started.
