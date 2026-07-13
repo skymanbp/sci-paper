@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Single-plugin marketplace for the sci-paper scientific writing + review + ideation plugin.",
-    "version": "0.15.0"
+    "version": "0.16.0"
   },
   "plugins": [
     {
       "name": "sci-paper",
       "source": "./",
-      "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Ships 9 skills and 19 tools under one typed scientific-writing standard: source-traced integrity blockers, zero-target L0, ranked advisories, explicit measurement states, claim-faithful rewriting, and isolated multi-review orchestration. See CHANGELOG.md for per-version history.",
-      "version": "0.15.0",
+      "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Ships 9 skills and 21 tools under one typed scientific-writing standard: source-traced integrity blockers, zero-target L0, ranked advisories, explicit measurement states, claim-faithful rewriting, and isolated multi-review orchestration. See CHANGELOG.md for per-version history.",
+      "version": "0.16.0",
       "author": {
         "name": "skymanbp",
         "email": "skyman.bp@gmail.com"

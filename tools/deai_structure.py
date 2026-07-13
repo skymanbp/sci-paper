@@ -190,6 +190,7 @@ def structure_findings(text: str, field_profile_dir: Path | None,
             findings.append(feedback.make_finding(
                 kind="advisory", layer="L2",
                 rule=f"structure-template:{bucket}", scope="paragraph",
+                calibration_unit="paragraph",
                 line=paragraph_start, end_line=paragraph_end,
                 section=raw_label, path=path, detector="deai_structure",
                 measurement_status=status,

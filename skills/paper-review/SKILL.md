@@ -78,6 +78,17 @@ python tools/ai_ism_lint.py <file> --field <field> \
 python tools/deai_anchoring.py <file> --field <field>
 ```
 
+Cooperative-layer tools (opt-in; each is honestly `unmeasured` without the
+author's own material, never an AI verdict). When the author supplies an AI-draft
+ancestor, report which spans are still the AI draft; when they point at their own
+prior papers, report whether this draft is under-varied against their own baseline
+(a confound-free same-author reference — EVALUATION.md §9.9):
+
+```bash
+python tools/deai_provenance.py <file> --ai-ancestor <earlier-draft>   # or --git-ai-ref <commit>
+python tools/deai_personal.py <file> --prior-papers-dir <author-own-papers>
+```
+
 ## 2. A–R review dimensions
 
 每个 finding 必须给出：`kind`、`layer`、`rule`、scope/location、当前证据、source

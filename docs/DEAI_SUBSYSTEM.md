@@ -159,6 +159,16 @@ must separate source-paper groups and audit mathematical-placeholder density,
 jargon density, section type, and paragraph length. The mathematical-density
 confound is unresolved until the evidence in `EVALUATION.md` demonstrates otherwise.
 
+The per-paragraph learned classifier is an **offline audit instrument, not a
+product detector one calibration away from an operating point**: the paragraph
+unit is near-unjudgeable for AI-ness (perceptual AUC 0.44), and the document-level
+surprisal path is now measured (EVALUATION.md §9.8) to be weaker than the
+model-free manifold and to add nothing to it. Accordingly, `make_finding` carries
+a `calibration_unit` (paragraph|section|document) that structurally caps
+paragraph-unit findings at 0.5 confidence; `deai_voice` emits at paragraph unit
+and is capped by construction, so a per-paragraph score can never present as a
+high-confidence AI verdict.
+
 ## 6. Claim-first rewriting
 
 The `/sci-paper:rewrite-in-voice` skill does not polish the original sentence in
@@ -168,8 +178,8 @@ place by default. It reconstructs prose from the scientific argument:
 2. build a prose-independent skeleton;
 3. generate candidates using field exemplars as descriptive anchors;
 4. reject candidates that fail scientific-fidelity eligibility;
-5. rank eligible candidates with specificity, structural, distributional, and
-   optional learned evidence;
+5. rank eligible candidates with L0 advisory reduction (signed, fidelity-floored),
+   structural, distributional, and optional learned evidence;
 6. re-measure the selected rewrite and record before/after findings;
 7. disposition every strong advisory and retain ordinary residual advisories.
 

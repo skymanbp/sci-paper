@@ -4,12 +4,15 @@ Status: design note, 2026-07-13. Produced by a six-lens divergent ideation
 (scale-unlocks, arms-race, writing-time product, cross-field transfer,
 evaluation science, contrarian) after the keystone validation and its measured
 adversarial limit. Complements [`DEAI_ARCHITECTURE_ROADMAP.md`](DEAI_ARCHITECTURE_ROADMAP.md)
-(ranks 2–8 there remain valid engineering work). Implemented so far: idea 5
-(shipped, `deai_docstructure.fit_dispersion_manifold`), idea 7 (executed,
-signal survives — EVALUATION.md §9.3), idea 1 (shipped,
-`document-role-decoupling` — EVALUATION.md §9.4), and idea 8 (shipped,
-split-conformal + length-Mondrian operating points; exposed and corrected a
-length confound in the earlier flag rates — EVALUATION.md §9.5).
+(ranks 2–8 there remain valid engineering work). **The ranked frontier is now
+complete (2026-07-13).** Detection core: idea 5 (shipped,
+`deai_docstructure.fit_dispersion_manifold`), idea 7 (executed, signal survives —
+§9.3), idea 1 (shipped, `document-role-decoupling` — §9.4), idea 8 (shipped,
+split-conformal + length-Mondrian — §9.5). Cooperative layer: idea 2 (shipped,
+`deai_anchoring`, tell refuted — §9.6), idea 3 (shipped, `deai_partition` — §9.7),
+idea 4 (shipped, `deai_provenance` — §9.9), idea 6 (shipped, `deai_personal` —
+§9.9). The recorded length-aware-manifold refinement was measured to be a length
+confound and not adopted (§9.8). All section refs are EVALUATION.md.
 
 ## The unifying theme
 
@@ -71,6 +74,10 @@ from the nearest AI-draft ancestor) and maps AI-untouched / lightly-edited /
 rewritten / author-original spans. Never enters the arms race, never violates
 the no-authorship-detection constraint (reads only the author's own history);
 honest `unmeasured` when no history exists.
+*Shipped 2026-07-13 as `deai_provenance.py`: paragraph-matched token edit ratio
+(difflib, model-free) labels each span ai_untouched / lightly_edited / rewritten /
+author_original; ancestor from an earlier file or a git ref of the author's own
+history; L4 axis `unmeasured` without an ancestor. EVALUATION.md §9.9.*
 
 **5. Joint dispersion-covariance manifold (one Mahalanobis residual).** The
 marginal adversary widens each feature independently — landing correct marginals
@@ -86,6 +93,11 @@ author, same field, same jargon — the only difference is AI-uniformity. Sidest
 the field-register confound behind the 32–41% FPR entirely. "Your last three
 papers vary paragraph length twice as much as this draft" is both honest and
 persuasive. Small-n handled by the existing `unmeasured` semantics.
+*Shipped 2026-07-13 as `deai_personal.py`: reuses `document_shape` dispersion,
+places the draft's per-feature within-document dispersion in the distribution of
+the author's own papers, flags an under-varied draft (>= 40% of features in the
+author's low tail); L4 axis `unmeasured` below three prior papers. EVALUATION.md
+§9.9.*
 
 **7. Matched-generation falsification test (run first — it gates 1 and 5).**
 §9.2 already concedes the 0.99 AUC may partly be "diverse real library vs
@@ -122,9 +134,13 @@ length-aware manifold that normalizes estimator noise by paragraph count.*
 prerequisite; η² (1), the covariance manifold (5), and conformal calibration
 (8) are the detection core the scaled corpus newly enables; claim-anchoring
 (2), partition operators (3), the personal baseline (6), and the provenance
-ledger (4) are the cooperative-tool layer. Progress: 7 done (pass), 5 done,
-1 done, 8 done — the detection core is complete; next are the cooperative
-layer (2, 3, 6, 4) and the recorded length-aware-manifold refinement.
+ledger (4) are the cooperative-tool layer. Progress: **all eight ideas shipped or
+executed** (7 pass, 5/1/8 detection core, 2/3/4/6 cooperative layer). The recorded
+length-aware-manifold refinement was measured to be a length confound and not
+adopted; the per-stratum manifold plus length-Mondrian conformal is the
+confound-safe length handling (§9.8). The ranked frontier queue is empty; further
+detector work continues on the roadmap track (ranks 2–8) and the ai_long
+standing target.
 
 ## Notable discards (with reasons)
 

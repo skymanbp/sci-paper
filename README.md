@@ -27,7 +27,7 @@ learned models provide evidence; they do not define a separate paper verdict.
 
 See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 
-### Tools (19)
+### Tools (21)
 
 | Tool | Purpose |
 |---|---|
@@ -44,6 +44,8 @@ See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 | `tools/deai_docstructure.py` | Whole-document rhetorical-shape analysis and complete-document calibration: dispersion band, joint (per-length-stratum) manifold, role coupling, split-conformal operating points. |
 | `tools/deai_partition.py` | Fidelity-free merge/split suggestions that move a document toward the human dispersion band; suggest-only, zero-token operations. |
 | `tools/deai_anchoring.py` | Section-class conditional claim-anchoring band; a writing-quality axis, explicitly not an AI-discrimination axis. |
+| `tools/deai_provenance.py` | Editing-provenance ledger over the author's own draft history; labels each span AI-untouched → author-original by token edit ratio. Not an AI detector; `unmeasured` without an AI-draft ancestor. |
+| `tools/deai_personal.py` | Personal dispersion baseline: compares a draft to the author's own prior papers, a confound-free same-author reference; `unmeasured` below three papers. |
 | `tools/deai_oracle.py` | Optional surprisal/UID evidence; unavailable assets and compatibility thresholds remain explicit. |
 | `tools/deai_features.py` | Reusable distributional, UID, punctuation, embedding, and structural features. |
 | `tools/deai_voice.py` | Optional learned field-similarity triage; a bundle without an operating point is degraded and never an authorship verdict. |
@@ -204,16 +206,19 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.15.0**. Full per-version history is in
+Current: **v0.16.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
 - **Skills (9):** `paper`, `paper-review`, `figure-review`, `paper-style`,
   `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`,
   `rewrite-in-voice`.
-- **Tools (19):** exact product registry above.
-- **Current calibrated gaps:** no `wgl` complete-document baseline, no learned-model
-  operating point, no completed author hard-set labels, and unresolved learned-model
-  confound audit. These remain explicit in [EVALUATION.md](EVALUATION.md).
+- **Tools (21):** exact product registry above.
+- **Current calibrated gaps:** no learned-model operating point (the L3
+  document-level surprisal path is now measured not to provide one, EVALUATION.md
+  §9.8), no completed author hard-set labels, and the cooperative-layer tools
+  (`deai_provenance`, `deai_personal`) are honestly `unmeasured` until the author
+  supplies their own draft history / prior papers. These remain explicit in
+  [EVALUATION.md](EVALUATION.md).
 - **Field-specific guidance:** WGL-specific scientific anchors remain marked where
   applicable. Shared writing/review policy is field-agnostic.
 

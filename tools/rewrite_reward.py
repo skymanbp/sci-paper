@@ -7,10 +7,10 @@ bidirectional: dropping a protected invariant AND inventing one the reference
 does not carry both make a candidate ineligible, because specificity never
 licenses invention and an added negation/causal/comparison marker can invert
 meaning while every original token survives. Only eligible candidates are
-ranked; ranking is led by specificity and semantic fidelity, and the learned
-field-similarity score contributes materially only when its bundle carries a
-measured operating point. A style score can never rescue an ineligible
-candidate.
+ranked; ranking is led by deterministic L0 advisory reduction and semantic
+fidelity, and the learned field-similarity score contributes materially only
+when its bundle carries a measured operating point. A style score can never
+rescue an ineligible candidate.
 """
 
 from __future__ import annotations
@@ -61,6 +61,44 @@ _FORMATTING_MACROS = frozenset({
 _REVERSIBLE_CATEGORIES = (
     "negation", "comparison_direction", "causal_direction",
 )
+
+# The ranking term that used to be `specificity` (fraction of reference numbers
+# preserved) is identically 1.0 for every eligible candidate, because
+# fidelity_eligibility already rejects any candidate missing a reference number.
+# A constant does no ranking work, so it is replaced by a real signal: the
+# reduction in deterministic L0 rewrite targets (the writing improvement a
+# rewrite exists to make), gated by a semantic-fidelity floor so a candidate
+# cannot earn improvement credit by mangling meaning.
+ADVISORY_REDUCTION_WEIGHT = 0.6   # inherits the retired `specificity` weight
+FIDELITY_FLOOR = 0.5              # below this cosine, no positive reduction credit
+
+
+def _l0_target_count(text: str, field_profile_dir: Path) -> int:
+    """Deterministic L0 rewrite-target count (em-dash + Tier A + over-cap Tier B).
+
+    Reused from ai_ism_lint, imported lazily so rewrite_reward stays importable
+    without the linter and no module-load cycle is introduced. Location is a
+    placeholder path; only the finding kinds are counted.
+    """
+    import ai_ism_lint as lint  # noqa: E402  lazy: avoid import cycle + optional dep
+    findings, _axes = lint.lexical_findings(text, Path("<candidate>"),
+                                            field_profile_dir)
+    return sum(1 for finding in findings if finding.get("kind") == "l0_target")
+
+
+def _advisory_reduction(ref_l0: int, cand_l0: int, fidelity: float) -> float:
+    """Signed reduction in L0 targets, in [-1, 1], with a fidelity floor.
+
+    Positive when a candidate removes reference L0 targets, negative when it
+    adds them, zero when it neither helps nor hurts (so a clean reference gives
+    no candidate spurious credit). Below ``FIDELITY_FLOOR`` a candidate cannot
+    keep positive credit: it may not buy L0 improvement with mangled meaning.
+    """
+    denom = max(1, ref_l0, cand_l0)
+    value = (ref_l0 - cand_l0) / denom
+    if fidelity < FIDELITY_FLOOR:
+        value = min(value, 0.0)
+    return value
 
 
 def _normalized(items) -> set[str]:
@@ -155,7 +193,7 @@ def fidelity_eligibility(candidate: str, reference: str) -> dict[str, Any]:
 
 
 def reward(candidate: str, reference: str, field_profile_dir: Path,
-           centroid=None) -> dict[str, Any]:
+           centroid=None, ref_l0: int | None = None) -> dict[str, Any]:
     if centroid is None:
         centroid = df.corpus_centroid(field_profile_dir)
     voice = dv.voice_score(candidate, field_profile_dir, centroid=centroid)
@@ -164,14 +202,23 @@ def reward(candidate: str, reference: str, field_profile_dir: Path,
     fidelity = _cosine(candidate, reference)
     required_numbers = _numbers(reference)
     candidate_numbers = _numbers(candidate)
+    # Reported for transparency (confirms eligibility), but NOT a ranking term:
+    # it is identically 1.0 for every eligible candidate. See ADVISORY_REDUCTION.
     specificity = (len(required_numbers & candidate_numbers) / len(required_numbers)
                    if required_numbers else 1.0)
+    if ref_l0 is None:
+        ref_l0 = _l0_target_count(reference, field_profile_dir)
+    cand_l0 = _l0_target_count(candidate, field_profile_dir)
+    advisory_reduction = _advisory_reduction(ref_l0, cand_l0, fidelity)
     eligibility = fidelity_eligibility(candidate, reference)
     return {
         "voice": voice,
         "voice_calibrated": voice_calibrated,
         "fidelity": fidelity,
         "specificity": specificity,
+        "advisory_reduction": advisory_reduction,
+        "n_l0_ref": ref_l0,
+        "n_l0_cand": cand_l0,
         "n_num_ref": len(required_numbers),
         "n_num_cand": len(candidate_numbers),
         "faithful": eligibility["eligible"],
@@ -184,20 +231,21 @@ def rank(candidates: list[str], reference: str, field_profile_dir: Path
          ) -> list[tuple[int, dict[str, Any]]]:
     """Rank eligible candidates first; ineligible candidates can never win.
 
-    Specificity and semantic fidelity lead the ranking. The learned L3 score
-    is a low-weight tie-break unless its bundle is measured/calibrated, so an
-    uncalibrated field-similarity model can never be the deciding term
+    L0 advisory reduction and semantic fidelity lead the ranking. The learned
+    L3 score is a low-weight tie-break unless its bundle is measured/calibrated,
+    so an uncalibrated field-similarity model can never be the deciding term
     (SCIPAPER_STANDARD section 9.5: lower detector visibility is not
     independently valuable).
     """
     centroid = df.corpus_centroid(field_profile_dir)
+    ref_l0 = _l0_target_count(reference, field_profile_dir)   # constant across candidates
     scored = []
     for index, candidate in enumerate(candidates):
-        result = reward(candidate, reference, field_profile_dir, centroid)
+        result = reward(candidate, reference, field_profile_dir, centroid, ref_l0=ref_l0)
         if result["faithful"]:
             voice_weight = 0.4 if result["voice_calibrated"] else 0.05
             result["combined"] = (
-                0.6 * result["specificity"]
+                ADVISORY_REDUCTION_WEIGHT * result["advisory_reduction"]
                 + 0.3 * result["fidelity"]
                 + voice_weight * result["voice"]
             )
@@ -229,14 +277,14 @@ def main(argv: list[str] | None = None) -> int:
                   for path in args.candidates]
     ranked = rank(candidates, reference, field_dir)
     print(f"{'rank':>4} {'cand':>4} {'combined':>9} {'voice':>7} "
-          f"{'fidelity':>9} {'spec':>6} {'eligible':>8}  nums(r/c)")
+          f"{'fidelity':>9} {'Δadv':>6} {'eligible':>8}  L0(r/c)")
     for position, (index, result) in enumerate(ranked, 1):
         combined = result["combined"]
         combined_text = "-inf" if combined == float("-inf") else f"{combined:.3f}"
         print(f"{position:>4} {index:>4} {combined_text:>9} "
               f"{result['voice']:>7.3f} {result['fidelity']:>9.3f} "
-              f"{result['specificity']:>6.2f} {str(result['faithful']):>8}  "
-              f"{result['n_num_ref']}/{result['n_num_cand']}  "
+              f"{result['advisory_reduction']:>6.2f} {str(result['faithful']):>8}  "
+              f"{result['n_l0_ref']}/{result['n_l0_cand']}  "
               f"{args.candidates[index].name}")
         if result["missing_invariants"]:
             print(f"     missing: {result['missing_invariants']}")

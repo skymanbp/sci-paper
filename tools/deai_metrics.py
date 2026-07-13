@@ -196,7 +196,8 @@ def distribution_findings(text: str, field_profile_dir: Path | None,
             if ratio < burstiness_ratio:
                 findings.append(feedback.make_finding(
                     kind="advisory", layer="L1", rule=f"burstiness-low:{bucket}",
-                    scope="section", line=start, end_line=end, section=raw_label,
+                    scope="section", calibration_unit="section",
+                    line=start, end_line=end, section=raw_label,
                     path=path, detector="deai_metrics", measurement_status=status,
                     strength="strong" if measured else "ordinary",
                     strong_advisory=measured,
@@ -226,6 +227,7 @@ def distribution_findings(text: str, field_profile_dir: Path | None,
                 findings.append(feedback.make_finding(
                     kind="advisory", layer="L1",
                     rule=f"opener-signposting:{bucket}", scope="section",
+                    calibration_unit="section",
                     line=start, end_line=end, section=raw_label, path=path,
                     detector="deai_metrics", measurement_status=status,
                     strength="strong" if measured else "ordinary",

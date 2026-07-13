@@ -80,5 +80,47 @@ class RewriteFidelityTests(unittest.TestCase):
                         (result["missing"], result["invented"]))
 
 
+class AdvisoryReductionTests(unittest.TestCase):
+    """Rank 7: the ranking term is L0 advisory reduction, not the dead
+    specificity term (identically 1.0 for every eligible candidate)."""
+
+    def test_l0_count_detects_targets(self):
+        # em-dash and a Tier A word are L0 targets without any lexicon.
+        self.assertEqual(rewrite_reward._l0_target_count("A plain clause here.", None), 0)
+        self.assertGreaterEqual(
+            rewrite_reward._l0_target_count("The result improves — clearly.", None), 1)
+        self.assertGreaterEqual(
+            rewrite_reward._l0_target_count("We delve into the estimator.", None), 1)
+
+    def test_removing_a_target_scores_positive(self):
+        # ref carries 1 target, candidate removes it -> positive reduction.
+        value = rewrite_reward._advisory_reduction(ref_l0=1, cand_l0=0, fidelity=0.95)
+        self.assertGreater(value, 0.0)
+        self.assertAlmostEqual(value, 1.0)
+
+    def test_adding_a_target_scores_negative(self):
+        value = rewrite_reward._advisory_reduction(ref_l0=0, cand_l0=1, fidelity=0.95)
+        self.assertLess(value, 0.0)
+
+    def test_no_change_is_neutral_not_full_credit(self):
+        # the old specificity was 1.0 here; the reduction term is 0.0.
+        self.assertEqual(rewrite_reward._advisory_reduction(0, 0, 0.95), 0.0)
+        self.assertEqual(rewrite_reward._advisory_reduction(2, 2, 0.95), 0.0)
+
+    def test_fidelity_floor_blocks_positive_credit(self):
+        # a low-fidelity candidate cannot buy improvement credit with mangled meaning.
+        self.assertEqual(
+            rewrite_reward._advisory_reduction(ref_l0=2, cand_l0=0, fidelity=0.1), 0.0)
+        # but it is still penalized for adding targets.
+        self.assertLess(
+            rewrite_reward._advisory_reduction(ref_l0=0, cand_l0=2, fidelity=0.1), 0.0)
+
+    def test_reduction_is_bounded(self):
+        for ref_l0, cand_l0 in [(5, 0), (0, 5), (3, 1), (1, 9)]:
+            value = rewrite_reward._advisory_reduction(ref_l0, cand_l0, 0.9)
+            self.assertGreaterEqual(value, -1.0)
+            self.assertLessEqual(value, 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()

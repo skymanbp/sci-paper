@@ -191,4 +191,12 @@ model features add nothing to the robust punctuation/rhythm core (0.921 vs 0.914
 including gamed features dilutes it (full-14: 0.673). The shipped detector is therefore
 model-free and GPU-free **by measurement**. Details: EVALUATION.md §9.
 
-Ranks 2–8 are not yet started.
+Rank 7 (dead `specificity` term) and rank 8 (`calibration_unit` confidence cap)
+shipped 2026-07-13 (v0.16.0). Rank 5 (enriched surprisal) was implemented and
+measured on the cloud pass: the five enriched descriptors beat the three shipped
+scalars for surprisal-only separation (0.803 vs 0.757, EVALUATION.md §9.8), but
+document-level surprisal is itself weaker than the model-free manifold (0.757 vs
+0.881) and adds nothing to it, so the enriched features are not shipped into the
+model-free detector (recorded, not added). This resolves the last L3 document-level
+debt: the detector stays model-free by measurement at document scale. Ranks 2, 3,
+4, 6 remain not started.

@@ -66,5 +66,40 @@ class FeedbackContractTests(unittest.TestCase):
         )
 
 
+class CalibrationUnitTests(unittest.TestCase):
+    """Rank 8: paragraph-unit findings are structurally capped in confidence."""
+
+    def make(self, *, calibration_unit=None, value=0.9):
+        return feedback.make_finding(
+            kind="advisory", layer="L1", rule="cu-test", scope="paragraph",
+            message="m", action="a", detector="test", path="p.tex", line=3,
+            confidence={"value": value, "basis": "fixture"},
+            calibration_unit=calibration_unit)
+
+    def test_default_none_preserves_confidence(self):
+        f = self.make()
+        self.assertIsNone(f["calibration_unit"])
+        self.assertEqual(f["confidence"]["value"], 0.9)
+
+    def test_paragraph_unit_caps_high_confidence(self):
+        f = self.make(calibration_unit="paragraph", value=0.9)
+        self.assertEqual(f["calibration_unit"], "paragraph")
+        self.assertEqual(f["confidence"]["value"], feedback.PARAGRAPH_CONFIDENCE_CAP)
+        self.assertIn("capped", f["confidence"]["basis"])
+
+    def test_paragraph_unit_leaves_low_confidence(self):
+        f = self.make(calibration_unit="paragraph", value=0.3)
+        self.assertEqual(f["confidence"]["value"], 0.3)
+        self.assertNotIn("capped", f["confidence"]["basis"])
+
+    def test_document_unit_does_not_cap(self):
+        f = self.make(calibration_unit="document", value=0.9)
+        self.assertEqual(f["confidence"]["value"], 0.9)
+
+    def test_unknown_unit_raises(self):
+        with self.assertRaises(ValueError):
+            self.make(calibration_unit="sentence")
+
+
 if __name__ == "__main__":
     unittest.main()

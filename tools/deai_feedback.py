@@ -19,6 +19,15 @@ KINDS = {"integrity_blocker", "l0_target", "advisory"}
 STATUSES = {"measured", "degraded", "unmeasured", "not_applicable"}
 DISPOSITIONS = {"pending", "acted", "accepted", "rejected_as_false_positive"}
 
+# The calibration unit records the granularity at which a finding's evidence was
+# measured. A single paragraph is near-unjudgeable for AI-ness (the author's own
+# perceptual rating separates true provenance at chance, AUC 0.44), so a
+# paragraph-unit finding cannot honestly carry high confidence: the cap is
+# structural, applied here rather than trusted to each detector. `None` leaves a
+# finding uncapped (the historical behaviour for every existing caller).
+CALIBRATION_UNITS = {"paragraph", "section", "document"}
+PARAGRAPH_CONFIDENCE_CAP = 0.5
+
 _KIND_RANK = {"integrity_blocker": 0, "l0_target": 1, "advisory": 2}
 _LAYER_RANK = {"QD": 0, "L0": 1, "L2": 2, "L1": 3, "L4": 4, "L3": 5}
 _EXPOSURE_RANK = {
@@ -138,6 +147,7 @@ def make_finding(
     evidence: Any = None,
     detector_version: str | None = None,
     calibration_asset: str | None = None,
+    calibration_unit: str | None = None,
 ) -> dict[str, Any]:
     if kind not in KINDS:
         raise ValueError(f"unknown finding kind: {kind}")
@@ -145,6 +155,8 @@ def make_finding(
         raise ValueError(f"unknown measurement status: {measurement_status}")
     if disposition not in DISPOSITIONS:
         raise ValueError(f"unknown disposition: {disposition}")
+    if calibration_unit is not None and calibration_unit not in CALIBRATION_UNITS:
+        raise ValueError(f"unknown calibration unit: {calibration_unit}")
     # Single source of truth: strong_advisory is DERIVED from the strength
     # enum for advisories. An explicit conflicting value is a caller bug.
     derived_strong = kind == "advisory" and strength == "strong"
@@ -155,6 +167,20 @@ def make_finding(
     strong_advisory = derived_strong
     path_text = str(path) if path is not None else None
     observed = observed or {}
+    confidence_obj = confidence if isinstance(confidence, dict) else {
+        "value": _confidence_value(confidence),
+        "basis": "detector default" if confidence is None else "detector estimate",
+    }
+    if calibration_unit == "paragraph":
+        # Structural cap: paragraph-unit AI-ness cannot claim more than the cap.
+        confidence_obj = dict(confidence_obj)
+        current = _confidence_value(confidence_obj.get("value"))
+        if current > PARAGRAPH_CONFIDENCE_CAP:
+            confidence_obj["value"] = PARAGRAPH_CONFIDENCE_CAP
+            basis = confidence_obj.get("basis", "")
+            confidence_obj["basis"] = (
+                f"{basis}; capped at {PARAGRAPH_CONFIDENCE_CAP} "
+                "(paragraph unit near-unjudgeable)").lstrip("; ")
     detector_obj = {
         "name": detector,
         "version": detector_version or "v1",
@@ -178,10 +204,8 @@ def make_finding(
         "observed": observed,
         "reference": reference,
         "normalized_distance": normalized_distance,
-        "confidence": confidence if isinstance(confidence, dict) else {
-            "value": _confidence_value(confidence),
-            "basis": "detector default" if confidence is None else "detector estimate",
-        },
+        "confidence": confidence_obj,
+        "calibration_unit": calibration_unit,
         "measurement_status": measurement_status,
         "strength": strength,
         "strong_advisory": bool(strong_advisory),

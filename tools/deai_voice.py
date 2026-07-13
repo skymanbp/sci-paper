@@ -127,7 +127,8 @@ def _finding_for(block_score: float, *, bucket: str, raw_label: str,
                  calibrated: bool, distance: float, message: str) -> dict:
     return feedback.make_finding(
         kind="advisory", layer="L3", rule=f"voice-distance:{bucket}",
-        scope="paragraph", line=paragraph_start, end_line=paragraph_end,
+        scope="paragraph", calibration_unit="paragraph",
+        line=paragraph_start, end_line=paragraph_end,
         section=raw_label, path=path, detector="deai_voice",
         detector_version=bundle.get("feature_schema") or "legacy-bundle",
         calibration_asset="voice_model_evaluation.json" if calibrated else None,

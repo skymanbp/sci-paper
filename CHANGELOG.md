@@ -3,6 +3,57 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.16.0 — 2026-07-13
+
+Closes the ranked de-AI frontier and the last recorded measurement debt. Two new
+cooperative-layer tools finish the frontier queue (17 → 19 → 21 tools), two
+roadmap ranks land, and the document-level L3 surprisal question is resolved on a
+cloud pass. Every result is measured in EVALUATION.md §9.8–9.9; three findings
+came back negative and are recorded, not deleted.
+
+- **Editing-provenance ledger (`deai_provenance.py`, new tool — frontier idea 4).**
+  Inverts the question from "is this AI?" to "have my edits made it mine?" Matches
+  each current paragraph to its nearest paragraph in a designated AI-draft ancestor
+  (an earlier file or a git ref from the author's own history) and labels the span
+  `ai_untouched` / `lightly_edited` / `rewritten` / `author_original` by a
+  deterministic token edit ratio (difflib, no model). Reads only the author's own
+  history; `unmeasured` without an ancestor (EVALUATION.md §9.9).
+- **Personal dispersion baseline (`deai_personal.py`, new tool — frontier idea 6).**
+  Uses the author's own prior papers as the confound-free dispersion reference:
+  same author, same field, same jargon, so it sidesteps the field-topic
+  false-positive rate (32–41%) entirely. Flags a draft that varies paragraph shape
+  far less than the author usually does; `unmeasured` below three prior papers
+  (EVALUATION.md §9.9).
+- **Document-level L3 surprisal — measured and refuted (the last cloud debt).** A
+  gpt2-large pass over 38,319 paragraphs (507 human + 154 AI docs) shows
+  document-scale surprisal dispersion (pooled AUC 0.757) is weaker than the
+  model-free manifold (0.881) and adds nothing to it (0.878). The detector stays
+  model-free by measurement at document scale too; L3 stays `degraded` for a
+  measured reason (EVALUATION.md §9.8).
+- **Rank 5 (enriched surprisal) — confirmed but inert.** Five enriched surprisal
+  descriptors (skew, kurtosis, filler rate, burstiness, low-frequency spectral
+  energy) beat the three shipped scalars (0.803 vs 0.757), but since surprisal is
+  not in the shipped model-free detector they would be dead weight — recorded, not
+  added (EVALUATION.md §9.8).
+- **Length-normalization refinement — measured as a confound trap.** Dividing
+  manifold distance by √(paragraph count) appears to lift AUC to 0.929, but that is
+  a length confound (human papers median 60 paragraphs vs 11–15 for AI tiers); a
+  human-null-calibrated normalization gives 0.752 and a length-matched band shows no
+  gain. The per-stratum manifold plus length-Mondrian conformal remains the
+  confound-safe length handling (EVALUATION.md §9.8).
+- **Rank 7 — dead specificity term replaced (`rewrite_reward.py`).** The retired
+  `specificity` term was identically 1.0 for every eligible candidate (the
+  eligibility gate already forces the reference numbers in), so it did no ranking
+  work. Replaced with a signed L0-advisory-reduction delta (reusing `ai_ism_lint`)
+  gated by a semantic-fidelity floor, so ranking now rewards the actual writing
+  improvement a rewrite makes.
+- **Rank 8 — `calibration_unit` honesty cap (`deai_feedback.make_finding`).** A new
+  `calibration_unit` field (paragraph|section|document) structurally caps
+  paragraph-unit findings at 0.5 confidence (a single paragraph is near-unjudgeable,
+  perceptual AUC 0.44). Wired through every detector at its true granularity; the
+  learned per-paragraph classifier (`deai_voice`) is now capped by construction.
+  Backward-compatible: `None` (every prior caller) is uncapped.
+
 ## v0.15.0 — 2026-07-13
 
 The document-scale de-AI release: a validated detection core (dispersion band →

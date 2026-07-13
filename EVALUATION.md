@@ -23,7 +23,7 @@ result.
 | L1 UID | degraded | [`style-profile/wgl/uid_baseline.json`](style-profile/wgl/uid_baseline.json) records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
 | L2 sentence structure | measured for deterministic matches; degraded for strength | [`style-profile/wgl/structure_baseline.json`](style-profile/wgl/structure_baseline.json) provides section-level reference fractions. | Calibrated strong-advisory thresholds and author-labelled difficult cases. |
 | L2 document structure | unmeasured for `wgl` | The implementation and complete-document calibration tests exist, but no verified `docstructure_baseline.json` exists. | At least three measurable complete papers, with one observation per paper and leave-one-document-out behavior. |
-| L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, hard-set true-provenance AUC 0.937, but 32–41% false-positive rate on field-topic AI text and no document-level calibration. | Document-level calibration and a field-topic-robust operating point with provenance and uncertainty. |
+| L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, hard-set true-provenance AUC 0.937, but 32–41% false-positive rate on field-topic AI text. Document-level now measured (§9.8): surprisal dispersion (0.757) is weaker than the model-free manifold (0.881) and adds nothing to it, so L3 stays degraded for a measured reason. | A field-topic-robust operating point with provenance and uncertainty; the surprisal path is measured not to provide one. |
 | Rewrite scientific fidelity | measured for protected invariants | Unit tests cover preserved invariants, dropped number, dropped citation, and reversed comparison. | Real manuscript before/after demonstration, including scope and stance review. |
 
 A missing baseline is not interpreted as zero findings.
@@ -561,9 +561,75 @@ Honest characterization: for long-form strong-model output, the document axes ar
 informative as ranked percentile feedback but rarely cross the calibrated flag
 threshold; this tier is the standing falsification target for future detector work.
 
-Remaining measurement debt (recorded, not hidden): a document-level L3 voice
-evaluation needs surprisal features over ~25k paragraphs — a bounded cloud pass;
-L3 stays honestly `degraded` until it runs.
+The last recorded measurement debt — a document-level L3 surprisal evaluation —
+was run and is resolved in §9.8.
+
+### 9.8 Document-level L3 surprisal, rank-5 enrichment, and the length confound
+
+A bounded cloud pass on 2026-07-13 computed gpt2-large surprisal over 38,319
+paragraphs from all 507 human papers and 154 qualifying AI-tier documents
+(SHA-verified `l3_surprisal.json`, `d1dd1b7e…`; one NVIDIA B200, ~12 min). For
+each feature group the human dispersion manifold was fit on a 60% human split and
+scored on the 40% held-out human papers versus each AI tier (pooled held-out
+AUC, AI = higher manifold distance):
+
+| feature group | pooled AUC |
+|---|---:|
+| model-free (11, shipped) | 0.881 |
+| surprisal only (3 shipped scalars) | 0.757 |
+| enriched surprisal (5, rank 5) | 0.803 |
+| model-free + surprisal (14) | 0.878 |
+| model-free + surprisal + enriched (19) | 0.871 |
+
+The model-free row reproduces the shipped 0.82–0.90 range (§9.5), validating the
+pass. **The L3 document-level debt is measured and refuted**: document-scale
+surprisal dispersion (0.757) is weaker than the model-free manifold (0.881), and
+adding surprisal to the manifold does not help (0.878, a slight dilution). The
+shipped detector stays model-free and GPU-free by measurement at document scale,
+as it already was at the paragraph and dispersion scales (§7, §9.2). L3 remains
+`degraded`, now for a measured document-level reason rather than an unmeasured
+one. **Rank 5 (enriched surprisal) is confirmed but inert**: the five enriched
+descriptors (skew, excess kurtosis, predictable-filler rate, Goh–Barabási
+burstiness, low-frequency spectral energy) improve the surprisal representation
+(0.803 vs 0.757 pooled; +0.09 adversarial, +0.11 skeleton, +0.04 long), but
+because surprisal is not in the shipped model-free detector, shipping them would
+be dead weight — they are recorded, not added.
+
+**The length-normalization refinement is a measured confound trap.** The frontier
+note (§9.5) recorded a follow-up "length-aware manifold that normalizes estimator
+noise by paragraph count." Within human papers, manifold distance does fall with
+paragraph count (corr −0.30; corr with 1/√n +0.42, the estimator-noise
+signature), and naively dividing distance by √(n_paragraphs) lifts the pooled AUC
+to 0.929. That gain is a length confound, not a noise correction: human papers
+have a median of 60 measured paragraphs while the AI tiers have 11–15 (ai_long
+40), so dividing by √n merely amplifies the shorter class. A normalization
+calibrated on the human null alone (distance ÷ its human-null trend a + b/√n)
+gives 0.752, *below* plain, and a length-matched band of 36–95 paragraphs shows
+no gain (0.812 plain vs 0.789 normalized). The shipped per-stratum manifold plus
+length-Mondrian conformal (§9.5) is the confound-safe length handling; the naive
+refinement is not adopted.
+
+### 9.9 Cooperative-layer tools: provenance and personal baseline (frontier 4, 6)
+
+Two cooperative-layer tools complete the ranked frontier. Neither is an AI
+detector; both read only the author's own material and are honestly `unmeasured`
+without it.
+
+`deai_provenance.py` (frontier idea 4) matches each current paragraph to its
+nearest paragraph in a designated AI-draft ancestor — an earlier file or a git
+ref from the author's own history — and labels the span `ai_untouched`,
+`lightly_edited`, `rewritten`, or `author_original` by a deterministic token edit
+ratio (difflib, no model). It answers "have my edits made this mine?" and flags
+spans still essentially the AI draft. With no ancestor it is `unmeasured`, never
+a guess.
+
+`deai_personal.py` (frontier idea 6) uses the author's own prior papers as the
+dispersion reference: for each shape feature it places the draft's within-document
+dispersion in the distribution of the author's own papers. Because that reference
+is same-author, same-field, same-jargon, it sidesteps the field-topic confound
+behind the classifier's 32–41% false-positive rate entirely — the comparison is
+you-versus-you. It flags a draft that varies paragraph shape far less than the
+author usually does, and is `unmeasured` below three prior papers.
 
 ## 10. Hard-set human input
 
