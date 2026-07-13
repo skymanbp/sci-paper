@@ -25,6 +25,9 @@ style-profile/**/docval/
 # .bbl, .sty, .bst, figure PDFs, arxiv source bundles, …) so a new corpus
 # format can't accidentally leak.
 style-corpus/**/tier-*/**
+# Bulk full-text arXiv paper sources (fetch_arxiv_abstracts.py --fulltext);
+# same copyright treatment as the tier dirs.
+style-corpus/**/fulltext-arxiv/
 # Re-include only structural placeholders so the layout is documented in git.
 !style-corpus/**/tier-*/.gitkeep
 !style-corpus/**/tier-*/README.md
