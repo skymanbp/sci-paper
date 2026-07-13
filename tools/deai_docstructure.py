@@ -86,6 +86,24 @@ MIN_MANIFOLD_DOCUMENTS = 3 * len(DISPERSION_FEATURE_NAMES)
 ROLE_FACTORS = ("section", "position", "content")
 ROLE_SCORING_FACTORS = ("section", "content")
 ROLE_LOW_PERCENTILE = 0.05
+
+# Split-conformal operating points (frontier idea 8): the human false-flag
+# rate is guaranteeable from human data alone. The manifold is fit on a
+# proper-training split and its calibration scores come from held-out human
+# papers, so the in-sample-quantile anti-conservatism (LOO 0.063 vs nominal
+# 0.05) disappears; the role z needs no fit, so every reference paper is
+# calibration. Conformal p = (1 + #{cal >= score}) / (n_cal + 1); flag when
+# p <= alpha gives P(false flag) <= alpha for exchangeable human papers,
+# finite-sample and distribution-free. Mondrian stratification uses document
+# LENGTH terciles because that is the measured confound (EVALUATION.md 9.4:
+# r(role score, paragraphs) = 0.353, flagged humans median 38 vs 60
+# paragraphs); a stratum below the minimum falls back to the pooled
+# calibration set, which keeps marginal validity.
+CONFORMAL_ALPHA = 0.05
+CONFORMAL_TRAIN_FRACTION = 0.6
+CONFORMAL_SEED = 20260713
+CONFORMAL_STRATA = 3
+MIN_CAL_PER_STRATUM = 30
 # Negative lookbehinds: an escaped dollar (\$, a literal currency sign) and a
 # LaTeX row break with optional spacing (\\[5pt]) are not math delimiters.
 _MATH_MARKER_RE = re.compile(
@@ -259,6 +277,33 @@ def document_role_coupling(shape: dict[str, Any]) -> dict[str, Any]:
 def _percentile(values: list[float], observed: float) -> float:
     """One-sided empirical percentile with add-one smoothing."""
     return (1 + sum(value <= observed for value in values)) / (len(values) + 1)
+
+
+def _length_stratum(n_paragraphs: int, edges: list[float]) -> int:
+    """Mondrian stratum index for a document length (edges ascending)."""
+    for index, edge in enumerate(edges):
+        if n_paragraphs <= edge:
+            return index
+    return len(edges)
+
+
+def _conformal_p(calibration_scores: list[float], score: float) -> float:
+    """Split-conformal p-value: rank of the score among calibration scores.
+
+    Higher score = more nonconforming. With exchangeable human calibration
+    scores, P(p <= alpha) <= alpha for a new human document, finite-sample.
+    """
+    return ((1 + sum(value >= score for value in calibration_scores))
+            / (len(calibration_scores) + 1))
+
+
+def _stratum_calibration(conformal_axis: dict, stratum: int) -> tuple[list[float], str]:
+    """Calibration scores for a stratum, pooling when the stratum is thin."""
+    scores = [score for s, score in conformal_axis["calibration"] if s == stratum]
+    if len(scores) >= int(conformal_axis.get("min_cal_per_stratum",
+                                             MIN_CAL_PER_STRATUM)):
+        return scores, f"stratum {stratum}"
+    return [score for _, score in conformal_axis["calibration"]], "pooled"
 
 
 def _quantile(values: list[float], probability: float) -> float:
@@ -453,6 +498,7 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
             continue
         records.append({"source": name, "metrics": result["metrics"],
                         "dispersion": result.get("dispersion", {}),
+                        "n_paragraphs": result["n_paragraphs"],
                         "role_coupling": document_role_coupling(result)["score"]})
     if len(records) < 3:
         raise ValueError("document-structure calibration needs at least 3 measurable complete documents")
@@ -498,14 +544,56 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
             "leave_one_document_out_high_flag_rate": _leave_one_out_flag_rate(
                 values, DISPERSION_HIGH_PERCENTILE),
         }
-    manifold_rows = [
-        {name: float(record["dispersion"][name][DISPERSION_STAT])
-         for name in DISPERSION_FEATURE_NAMES
-         if record.get("dispersion", {}).get(name, {}).get(DISPERSION_STAT)
-         is not None}
-        for record in records
+    def manifold_row(record: dict) -> dict[str, float]:
+        return {name: float(record["dispersion"][name][DISPERSION_STAT])
+                for name in DISPERSION_FEATURE_NAMES
+                if record.get("dispersion", {}).get(name, {}).get(DISPERSION_STAT)
+                is not None}
+
+    # Split-conformal: the manifold is fit on a proper-training split so the
+    # calibration scores are genuinely out-of-fit; the role z needs no fit.
+    order = list(range(len(records)))
+    random.Random(CONFORMAL_SEED).shuffle(order)
+    n_train = int(len(records) * CONFORMAL_TRAIN_FRACTION)
+    train_records = [records[i] for i in order[:n_train]]
+    cal_records = [records[i] for i in order[n_train:]]
+    manifold = fit_dispersion_manifold([manifold_row(r) for r in train_records])
+    baseline["dispersion_manifold"] = manifold
+
+    lengths = sorted(record["n_paragraphs"] for record in records)
+    strata_edges = [
+        _quantile([float(v) for v in lengths], k / CONFORMAL_STRATA)
+        for k in range(1, CONFORMAL_STRATA)
     ]
-    baseline["dispersion_manifold"] = fit_dispersion_manifold(manifold_rows)
+
+    def stratum_of(record: dict) -> int:
+        return _length_stratum(record["n_paragraphs"], strata_edges)
+
+    if manifold is not None and cal_records:
+        manifold_cal = []
+        for record in cal_records:
+            distance = manifold_distance(manifold, manifold_row(record))
+            if distance is not None:
+                manifold_cal.append([stratum_of(record), distance])
+        role_cal = [[stratum_of(record), -float(record["role_coupling"])]
+                    for record in records
+                    if record.get("role_coupling") is not None]
+        baseline["conformal"] = {
+            "alpha": CONFORMAL_ALPHA,
+            "seed": CONFORMAL_SEED,
+            "train_fraction": CONFORMAL_TRAIN_FRACTION,
+            "strata_edges": strata_edges,
+            "min_cal_per_stratum": MIN_CAL_PER_STRATUM,
+            # nonconformity = manifold distance (high tail); role stores the
+            # NEGATED coupling z so "higher = more nonconforming" holds for
+            # both axes and one p-value rule serves both.
+            "manifold": {"n_train": len(train_records),
+                         "min_cal_per_stratum": MIN_CAL_PER_STRATUM,
+                         "calibration": manifold_cal},
+            "role": {"scoring_factors": list(ROLE_SCORING_FACTORS),
+                     "min_cal_per_stratum": MIN_CAL_PER_STRATUM,
+                     "calibration": role_cal},
+        }
     # Role-coupled dispersion reference (frontier idea 1): both AI failure
     # modes decouple paragraph shape from rhetorical role, so detection is a
     # LOW tail on the permutation-normalized coupling z.
@@ -615,48 +703,86 @@ def document_findings(text: str, field_profile_dir: Path | None,
                 for name in dispersion
                 if dispersion.get(name, {}).get(DISPERSION_STAT) is not None}
     per_feature_strength = "ordinary"
+    conformal = baseline.get("conformal")
     if not manifold:
         per_feature_strength = "strong"
     else:
         distance = manifold_distance(manifold, flat_row)
-        if distance is not None and distance > float(manifold["threshold"]):
-            null = manifold["null_distances"]
-            p_value = 1.0 - (sum(d <= distance for d in null) / (len(null) + 1))
-            findings.append(feedback.make_finding(
-                kind="advisory", layer="L2", rule="document-dispersion-manifold",
-                scope="document", line=1, section=section_label, path=path,
-                detector="deai_docstructure",
-                detector_version="sci-paper.docstructure-baseline.v2",
-                calibration_asset=BASELINE_NAME,
-                measurement_status="measured", strength="strong",
-                observed={"mahalanobis_distance": distance,
-                          "empirical_p_value": p_value,
-                          "n_sections": shape["n_sections"],
-                          "n_paragraphs": shape["n_paragraphs"]},
-                reference={"n_documents": manifold["n_documents"],
-                           "threshold": manifold["threshold"],
-                           "percentile": manifold["percentile"],
-                           "leave_one_document_out_flag_rate": manifold[
-                               "leave_one_document_out_flag_rate"],
-                           "provenance": BASELINE_NAME},
-                normalized_distance=distance - float(manifold["threshold"]),
-                confidence={"value": min(1.0, manifold["n_documents"] / 100.0),
-                            "basis": (f"{manifold['n_documents']} complete "
-                                      "reference documents; joint band "
-                                      "distance in log dispersion-ratio space")},
-                message=(f"The document's joint cross-paragraph dispersion sits "
-                         f"{distance:.2f} Mahalanobis units from the human "
-                         f"center (reference {manifold['percentile']:.0%} "
-                         f"threshold {float(manifold['threshold']):.2f}): its "
-                         "paragraph-shape variation pattern departs from the "
-                         "human band as a whole. Per-feature detail follows as "
-                         "ordinary context; this is a measured deviation, not "
-                         "an AI verdict."),
-                action=("Read the per-feature context findings to see which "
-                        "shape dimensions depart, then adjust only where the "
-                        "argument permits."),
-                evidence=["manifold", round(distance, 6)],
-            ))
+        manifold_axis = (conformal or {}).get("manifold")
+        if distance is not None:
+            if manifold_axis and manifold_axis.get("calibration"):
+                # split-conformal operating point: finite-sample false-flag
+                # guarantee from held-out human calibration papers
+                stratum = _length_stratum(shape["n_paragraphs"],
+                                          conformal["strata_edges"])
+                cal, cal_basis = _stratum_calibration(manifold_axis, stratum)
+                alpha = float(conformal.get("alpha", CONFORMAL_ALPHA))
+                p_value = _conformal_p(cal, distance)
+                flagged = p_value <= alpha
+                op_reference = {"operating_point": "split-conformal",
+                                "alpha": alpha,
+                                "n_calibration": len(cal),
+                                "calibration_basis": cal_basis,
+                                "n_train": manifold_axis.get("n_train"),
+                                "provenance": BASELINE_NAME}
+                op_margin = alpha - p_value
+                op_confidence = {
+                    "value": min(1.0, len(cal) / 100.0),
+                    "basis": (f"split-conformal p against {len(cal)} held-out "
+                              f"human papers ({cal_basis}); P(false flag) <= "
+                              f"{alpha:g} finite-sample for exchangeable "
+                              "human documents")}
+                op_clause = (f"conformal p = {p_value:.4f} <= alpha {alpha:g} "
+                             f"against {len(cal)} held-out human papers "
+                             f"({cal_basis})")
+            else:  # legacy baseline without a conformal block
+                null = manifold["null_distances"]
+                p_value = 1.0 - (sum(d <= distance for d in null)
+                                 / (len(null) + 1))
+                flagged = distance > float(manifold["threshold"])
+                op_reference = {"operating_point": "in-sample percentile",
+                                "n_documents": manifold["n_documents"],
+                                "threshold": manifold["threshold"],
+                                "percentile": manifold["percentile"],
+                                "leave_one_document_out_flag_rate": manifold[
+                                    "leave_one_document_out_flag_rate"],
+                                "provenance": BASELINE_NAME}
+                op_margin = distance - float(manifold["threshold"])
+                op_confidence = {
+                    "value": min(1.0, manifold["n_documents"] / 100.0),
+                    "basis": (f"{manifold['n_documents']} complete reference "
+                              "documents; joint band distance in log "
+                              "dispersion-ratio space")}
+                op_clause = (f"reference {manifold['percentile']:.0%} "
+                             f"threshold {float(manifold['threshold']):.2f}")
+            if flagged:
+                findings.append(feedback.make_finding(
+                    kind="advisory", layer="L2",
+                    rule="document-dispersion-manifold",
+                    scope="document", line=1, section=section_label, path=path,
+                    detector="deai_docstructure",
+                    detector_version="sci-paper.docstructure-baseline.v2",
+                    calibration_asset=BASELINE_NAME,
+                    measurement_status="measured", strength="strong",
+                    observed={"mahalanobis_distance": distance,
+                              "p_value": p_value,
+                              "n_sections": shape["n_sections"],
+                              "n_paragraphs": shape["n_paragraphs"]},
+                    reference=op_reference,
+                    normalized_distance=op_margin,
+                    confidence=op_confidence,
+                    message=(f"The document's joint cross-paragraph dispersion "
+                             f"sits {distance:.2f} Mahalanobis units from the "
+                             f"human center ({op_clause}): its paragraph-shape "
+                             "variation pattern departs from the human band as "
+                             "a whole. Per-feature detail follows as ordinary "
+                             "context; this is a measured deviation, not an AI "
+                             "verdict."),
+                    action=("Read the per-feature context findings to see which "
+                            "shape dimensions depart, then adjust only where the "
+                            "argument permits."),
+                    evidence=["manifold", round(distance, 6)],
+                ))
     # Role-coupled dispersion (orthogonal to the manifold): humans vary
     # paragraph shape where the argument demands it, so shape variance is
     # partly explained by rhetorical role. Both AI failure modes — uniform
@@ -675,49 +801,96 @@ def document_findings(text: str, field_profile_dir: Path | None,
         role = document_role_coupling(shape)
         role_values = role_reference.get("values", [])
         low_threshold = role_reference.get("low_threshold")
-        if (role["score"] is not None and low_threshold is not None
-                and role_values and role["score"] < float(low_threshold)):
-            percentile = _percentile(role_values, float(role["score"]))
-            findings.append(feedback.make_finding(
-                kind="advisory", layer="L2", rule="document-role-decoupling",
-                scope="document", line=1, section=section_label, path=path,
-                detector="deai_docstructure",
-                detector_version="sci-paper.docstructure-baseline.v2",
-                calibration_asset=BASELINE_NAME,
-                measurement_status="measured", strength="strong",
-                observed={"role_coupling_z": role["score"],
-                          "factors": role["factors"],
-                          "empirical_percentile": percentile,
-                          "n_sections": shape["n_sections"],
-                          "n_paragraphs": shape["n_paragraphs"]},
-                reference={"n_documents": len(role_values),
-                           "low_percentile": role_reference.get("low_percentile"),
-                           "low_threshold": low_threshold,
-                           "bootstrap_95_ci": role_reference.get("bootstrap_95_ci"),
-                           "leave_one_document_out_flag_rate": role_reference.get(
-                               "leave_one_document_out_flag_rate"),
-                           "scoring_factors": role_reference.get("scoring_factors"),
-                           "provenance": BASELINE_NAME},
-                normalized_distance=float(low_threshold) - float(role["score"]),
-                confidence={"value": min(1.0, len(role_values) / 100.0),
-                            "basis": (f"{len(role_values)} complete reference "
-                                      "documents; permutation-normalized within "
-                                      "each document, validated held-out against "
-                                      "natural, de-AI'd, and shape-adversarial "
-                                      "AI document sets")},
-                message=(f"Paragraph-shape variation is decoupled from rhetorical "
-                         f"role: coupling z is {role['score']:.2f}, below the "
-                         f"human 5th-percentile threshold "
-                         f"{float(low_threshold):.2f}. Human papers vary "
-                         "paragraph shape where the argument demands it (across "
-                         "sections and between citing/derivation/prose "
-                         "paragraphs); here the variation is unrelated to role. "
-                         "This is a measured deviation, not an AI verdict."),
-                action=("Where the argument changes register (setup vs "
-                        "derivation vs results), let the paragraph shape follow "
-                        "it; do not add variety at random, tie it to content."),
-                evidence=["role_coupling", round(float(role["score"]), 6)],
-            ))
+        role_axis = (conformal or {}).get("role")
+        if (role_axis and role_axis.get("scoring_factors")
+                != list(ROLE_SCORING_FACTORS)):
+            role_axis = None
+        flagged = False
+        if role["score"] is not None:
+            score = float(role["score"])
+            if role_axis and role_axis.get("calibration"):
+                stratum = _length_stratum(shape["n_paragraphs"],
+                                          conformal["strata_edges"])
+                cal, cal_basis = _stratum_calibration(role_axis, stratum)
+                alpha = float(conformal.get("alpha", CONFORMAL_ALPHA))
+                # calibration stores NEGATED z (higher = more nonconforming)
+                p_value = _conformal_p(cal, -score)
+                flagged = p_value <= alpha
+                op_reference = {"operating_point": "split-conformal",
+                                "alpha": alpha,
+                                "n_calibration": len(cal),
+                                "calibration_basis": cal_basis,
+                                "scoring_factors": list(ROLE_SCORING_FACTORS),
+                                "provenance": BASELINE_NAME}
+                op_margin = alpha - p_value
+                op_confidence = {
+                    "value": min(1.0, len(cal) / 100.0),
+                    "basis": (f"split-conformal p against {len(cal)} human "
+                              f"calibration papers ({cal_basis}); P(false "
+                              f"flag) <= {alpha:g} finite-sample for "
+                              "exchangeable human documents; length strata "
+                              "absorb the measured short-paper bias")}
+                op_clause = (f"conformal p = {p_value:.4f} <= alpha {alpha:g} "
+                             f"against {len(cal)} human papers ({cal_basis})")
+                op_observed_extra = {"conformal_p": p_value}
+            elif low_threshold is not None and role_values:
+                flagged = score < float(low_threshold)
+                percentile = _percentile(role_values, score)
+                op_reference = {"operating_point": "in-sample percentile",
+                                "n_documents": len(role_values),
+                                "low_percentile": role_reference.get(
+                                    "low_percentile"),
+                                "low_threshold": low_threshold,
+                                "bootstrap_95_ci": role_reference.get(
+                                    "bootstrap_95_ci"),
+                                "leave_one_document_out_flag_rate":
+                                    role_reference.get(
+                                        "leave_one_document_out_flag_rate"),
+                                "scoring_factors": role_reference.get(
+                                    "scoring_factors"),
+                                "provenance": BASELINE_NAME}
+                op_margin = float(low_threshold) - score
+                op_confidence = {
+                    "value": min(1.0, len(role_values) / 100.0),
+                    "basis": (f"{len(role_values)} complete reference "
+                              "documents; permutation-normalized within "
+                              "each document, validated held-out against "
+                              "natural, de-AI'd, and shape-adversarial "
+                              "AI document sets")}
+                op_clause = (f"below the human 5th-percentile threshold "
+                             f"{float(low_threshold):.2f}")
+                op_observed_extra = {"empirical_percentile": percentile}
+            if flagged:
+                findings.append(feedback.make_finding(
+                    kind="advisory", layer="L2",
+                    rule="document-role-decoupling",
+                    scope="document", line=1, section=section_label, path=path,
+                    detector="deai_docstructure",
+                    detector_version="sci-paper.docstructure-baseline.v2",
+                    calibration_asset=BASELINE_NAME,
+                    measurement_status="measured", strength="strong",
+                    observed={"role_coupling_z": role["score"],
+                              "factors": role["factors"],
+                              "n_sections": shape["n_sections"],
+                              "n_paragraphs": shape["n_paragraphs"],
+                              **op_observed_extra},
+                    reference=op_reference,
+                    normalized_distance=op_margin,
+                    confidence=op_confidence,
+                    message=(f"Paragraph-shape variation is decoupled from "
+                             f"rhetorical role: coupling z is "
+                             f"{role['score']:.2f} ({op_clause}). Human papers "
+                             "vary paragraph shape where the argument demands "
+                             "it (across sections and between citing/"
+                             "derivation/prose paragraphs); here the variation "
+                             "is unrelated to role. This is a measured "
+                             "deviation, not an AI verdict."),
+                    action=("Where the argument changes register (setup vs "
+                            "derivation vs results), let the paragraph shape "
+                            "follow it; do not add variety at random, tie it "
+                            "to content."),
+                    evidence=["role_coupling", round(score, 6)],
+                ))
     for feature_name, reference in baseline.get("dispersion", {}).items():
         observed = dispersion.get(feature_name, {}).get(DISPERSION_STAT)
         low_threshold = reference.get("low_threshold")

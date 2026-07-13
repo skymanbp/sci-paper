@@ -6,8 +6,10 @@ evaluation science, contrarian) after the keystone validation and its measured
 adversarial limit. Complements [`DEAI_ARCHITECTURE_ROADMAP.md`](DEAI_ARCHITECTURE_ROADMAP.md)
 (ranks 2–8 there remain valid engineering work). Implemented so far: idea 5
 (shipped, `deai_docstructure.fit_dispersion_manifold`), idea 7 (executed,
-signal survives — EVALUATION.md §9.3), and idea 1 (shipped,
-`document-role-decoupling` — EVALUATION.md §9.4).
+signal survives — EVALUATION.md §9.3), idea 1 (shipped,
+`document-role-decoupling` — EVALUATION.md §9.4), and idea 8 (shipped,
+split-conformal + length-Mondrian operating points; exposed and corrected a
+length confound in the earlier flag rates — EVALUATION.md §9.5).
 
 ## The unifying theme
 
@@ -38,11 +40,11 @@ role-coupling without actually reasoning about the content.*
 z, split-half factor selection kept section+content and rejected position as
 chance): held-out confirmation AUC 0.846/0.833/0.850/0.715 across the four AI
 tiers (full-set adversarial 0.888, CI 0.847–0.926) — the manifold's hardest
-tier is this axis's strongest, exactly as predicted. Manifold+role union
-covers 0.68–0.80 of AI tiers at ~0.10 human cost with exactly disjoint human
-flag sets; the residual gap is structure cloning (0.658 here, caught by the
-manifold at 0.934). Post-review hardened (NaN guard, length guard, factor
-drift guard, math-marker lookbehinds). EVALUATION.md §9.4.*
+tier is this axis's strongest, exactly as predicted. Post-review hardened
+(NaN guard, length guard, factor drift guard, math-marker lookbehinds).
+Length-fair correction after idea 8 shipped: role AUCs shrink to 0.70/0.75/
+0.82 with the skeleton tier at chance (its 0.658 was length artifact); the
+adversarial complementarity survives length matching. EVALUATION.md §9.4-9.5.*
 
 **2. Promote claim-anchoring to a primary axis.** Unfalsifiable hedged
 generality ("demonstrates strong performance" with no number, citation,
@@ -105,6 +107,14 @@ wide-CI question. Conformal p-values against a held-out human calibration split,
 stratified (Mondrian) by jargon-density decile, replace the 5th-percentile
 heuristic and the ungrounded confidence constant. This is the statistical
 backbone every other idea's operating point stands on.
+*Shipped 2026-07-13 (stratified by document-length terciles — the measured
+confound — not the speculated jargon density). It immediately earned its rank:
+stratification exposed that short human papers score higher manifold distances,
+so the unstratified flag rates had overstated tail power on (short) AI docs.
+Length-fair AUCs stay strong for the manifold (0.82–0.90 across all four
+tiers); the role axis's skeleton signal was length artifact (0.516). Corrected
+operating characteristics: EVALUATION.md §9.5. Recorded follow-up: a
+length-aware manifold that normalizes estimator noise by paragraph count.*
 
 ## Sequencing logic
 
@@ -113,7 +123,8 @@ prerequisite; η² (1), the covariance manifold (5), and conformal calibration
 (8) are the detection core the scaled corpus newly enables; claim-anchoring
 (2), partition operators (3), the personal baseline (6), and the provenance
 ledger (4) are the cooperative-tool layer. Progress: 7 done (pass), 5 done,
-1 done (shipped); next in queue is 8.
+1 done, 8 done — the detection core is complete; next are the cooperative
+layer (2, 3, 6, 4) and the recorded length-aware-manifold refinement.
 
 ## Notable discards (with reasons)
 

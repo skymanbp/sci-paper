@@ -158,6 +158,25 @@ class DocumentStructureTests(unittest.TestCase):
         constant = deai_features.role_coupling_z([[2.0]] * 30, labels)
         self.assertIsNone(constant["mean_z"])
 
+    def test_conformal_helpers(self):
+        # stratum assignment against ascending edges
+        self.assertEqual(docstructure._length_stratum(10, [46.0, 76.0]), 0)
+        self.assertEqual(docstructure._length_stratum(46, [46.0, 76.0]), 0)
+        self.assertEqual(docstructure._length_stratum(60, [46.0, 76.0]), 1)
+        self.assertEqual(docstructure._length_stratum(200, [46.0, 76.0]), 2)
+        # conformal p: rank with add-one smoothing; exact small case
+        cal = [1.0, 2.0, 3.0, 4.0]
+        self.assertAlmostEqual(docstructure._conformal_p(cal, 5.0), 1 / 5)
+        self.assertAlmostEqual(docstructure._conformal_p(cal, 0.0), 5 / 5)
+        self.assertAlmostEqual(docstructure._conformal_p(cal, 2.5), 3 / 5)
+        # thin stratum falls back to the pooled calibration set
+        axis = {"min_cal_per_stratum": 3,
+                "calibration": [[0, 1.0], [0, 2.0], [0, 3.0], [1, 9.0]]}
+        scores, basis = docstructure._stratum_calibration(axis, 0)
+        self.assertEqual((len(scores), basis), (3, "stratum 0"))
+        scores, basis = docstructure._stratum_calibration(axis, 1)
+        self.assertEqual((len(scores), basis), (4, "pooled"))
+
     def test_role_coupling_guards(self):
         labels = [0] * 15 + [1] * 15
         # NaN column: min(1.0, NaN) is 1.0 in CPython, which used to bypass

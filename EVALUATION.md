@@ -293,18 +293,18 @@ two days):
 1. **Joint manifold statistic (primary).** The per-document vector of log dispersion
    ratios is scored by Mahalanobis distance against the human center and covariance
    (pure-stdlib 11-D implementation, ridge-stabilized, clipped log ratios). One
-   calibrated aggregate finding (`document-dispersion-manifold`, 95th-percentile
-   threshold 4.256, leave-one-paper-out false-flag 0.063) replaces the correlated
-   per-feature "strong" flag spray; per-feature band findings demote to ordinary
-   context when the manifold is present. Held-out validation (242 reference / 242
-   never-touched test humans): natural AI AUC **0.917** (CI 0.874–0.951), de-AI'd
-   **0.931** (CI 0.888–0.965), and — decisively — shape-adversarial **0.895** (CI
-   0.855–0.930), versus 0.80 for the marginal two-sided statistic and chance for the
-   one-sided score. The joint geometry catches what independent marginals cannot: the
-   adversary lands plausible per-feature spreads with the wrong covariance.
+   calibrated aggregate finding (`document-dispersion-manifold`) replaces the
+   correlated per-feature "strong" flag spray; per-feature band findings demote to
+   ordinary context when the manifold is present. Mixed-length held-out validation
+   (242 reference / 242 never-touched test humans): natural AI AUC 0.917 (CI
+   0.874–0.951), de-AI'd 0.931 (CI 0.888–0.965), shape-adversarial 0.895 (CI
+   0.855–0.930) — part of which section 9.5 later attributes to a document-length
+   confound; the length-fair numbers below supersede these as the discrimination
+   claims. The joint geometry catches what independent marginals cannot: the adversary
+   lands plausible per-feature spreads with the wrong covariance.
 2. **Role-coupling statistic (orthogonal axis).** Section 9.4: shape variance
    explained by rhetorical role, permutation-normalized per document
-   (`document-role-decoupling`, 5th-percentile low tail −0.039, LOO false-flag 0.053).
+   (`document-role-decoupling`).
 3. **Per-feature band flags (context).** Low/high tails at the 5th/95th percentile
    (`document-uniformity` / `document-overdispersion`), median LOO false-flag
    0.051/0.051.
@@ -312,24 +312,16 @@ two days):
 Corpus quantile CIs in the baseline come from a seeded with-replacement bootstrap; an
 earlier "deterministic balanced" resampler was a full permutation whenever
 gcd(31, n) = 1, so every CI it produced was zero-width — that overstatement is fixed
-and the baseline regenerated. At the shipped operating points the per-tier flag rates
-of the two strong document findings (measurable docs, 507-paper baseline; human rates
-are in-sample):
-
-| flag | human | natural | de-AI'd | adversarial | skeleton |
-|---|---|---|---|---|---|
-| manifold | 0.051 | 0.607 | 0.600 | 0.447 | 0.292 |
-| role-decoupling | 0.051 | 0.179 | 0.333 | 0.447 | 0.083 |
-| union | 0.103 | 0.679 | 0.800 | 0.737 | 0.333 |
-
-On the human corpus the two flag sets are exactly disjoint (0 of 507 papers flagged by
-both; independence would predict an overlap of ~1.3 papers, so disjointness is
-consistent with, though not proof of, independence), while on AI tiers they overlap
-heavily — the union column shows the joint coverage. The human rows are in-sample and
-therefore anchored near the nominal 5% by construction; the held-out analogue is each
-flag's LOO rate (manifold 0.063, role 0.053). Below `MIN_MANIFOLD_DOCUMENTS` reference
-papers the manifold is honestly omitted and the per-feature flags remain the primary
-(strong) findings.
+and the baseline regenerated. The operating points of the two strong document
+findings are split-conformal and Mondrian-stratified by document length (section
+9.5), which corrected the flag-rate table that previously appeared here: the
+unstratified thresholds compared short AI documents against a reference dominated by
+longer human papers, overstating power. Current honest operating characteristics are
+tabulated in 9.5. On the human corpus the two flag sets at the pre-conformal 5%
+tails were exactly disjoint (0 of 507 papers flagged by both; independence would
+predict ~1.3), so the axes are complementary rather than redundant. Below
+`MIN_MANIFOLD_DOCUMENTS` reference papers the manifold is honestly omitted and the
+per-feature flags remain the primary (strong) findings.
 
 ### 9.2 Honest limits of this validation
 
@@ -451,6 +443,63 @@ axes cover each other's evasion; (b) one field, one generator family; (c) the
 (d) AI-tier n per cell is modest (15–38), so tier CIs are wide; (e) the flagged-paper
 length bias quantified above; (f) 1 of 507 reference papers has only one defined
 scoring factor (its score pools a different null spread) — measured and negligible.
+
+Length-fair correction (section 9.5): against same-length-stratum humans only, the
+role AUCs above shrink to natural 0.703, de-AI'd 0.752, adversarial 0.819, and the
+skeleton tier collapses to 0.516 — the skeleton clones' apparent role signal was a
+length artifact, while the adversarial complementarity survives length matching.
+
+### 9.5 Split-conformal operating points (frontier idea 8) and the length confound
+
+The percentile thresholds above were in-sample: the same 507 papers fit the manifold
+and set its threshold (LOO 0.063 vs nominal 0.05), and the confidence constants were
+ungrounded. The shipped operating points are now split-conformal: the manifold is fit
+on a proper-training split (304 papers) and its nonconformity scores calibrated on
+203 held-out human papers; the role z needs no fit, so all 507 are calibration.
+Conformal p = (1 + #{calibration ≥ score}) / (n_cal + 1), flag at p ≤ α = 0.05,
+giving P(false flag) ≤ α finite-sample and distribution-free for exchangeable human
+papers. Calibration is Mondrian-stratified by document-length terciles (edges 46 and
+76 paragraphs) — length is the measured confound (9.4); a thin stratum falls back to
+the pooled calibration set, keeping marginal validity. Legacy baselines without the
+conformal block fall back to the percentile thresholds.
+
+Stratification exposed a second, larger instance of the same confound: **short human
+papers score systematically higher manifold distances** (stratum-0 95th percentile
+5.23 versus 4.16/4.36 for longer strata — fewer paragraphs make the dispersion vector
+noisier), and every AI validation document is short (all ≤ 46 paragraphs). The
+unstratified thresholds therefore compared short AI documents against a mostly-long
+human reference, and the flag rates previously reported (manifold 0.607/0.600/0.447/
+0.292 across tiers) overstated tail power. At the honest, length-stratified conformal
+operating point (α = 0.05) the measured rates are:
+
+| conformal flag | natural | de-AI'd | adversarial | skeleton |
+|---|---|---|---|---|
+| manifold | 0.071 | 0.133 | 0.026 | 0.125 |
+| role-decoupling | 0.107 | 0.333 | 0.316 | 0.042 |
+| union | 0.179 | 0.467 | 0.342 | 0.167 |
+
+A three-way replication on an independent split (train 253 / calibration 152 / test
+102 humans, seed distinct from the shipped one) gives human test rates manifold 0.029
+and role 0.069 — both within binomial noise of α; per-stratum rates on ~33 test
+papers wobble (one stratum hit 7/33 on the role axis), which is the expected
+conditional-coverage fluctuation at ~50 calibration papers per stratum plus residual
+within-bin length correlation, both of which shrink at the shipped calibration sizes
+(manifold 60–78, role 167–171 per stratum).
+
+The discrimination signal itself survives length matching — the ranking is real even
+where the 5% tail is weak. Length-fair AUC against the 171 same-stratum (short)
+humans: manifold natural 0.873 (CI 0.81–0.93), de-AI'd 0.901 (0.83–0.96),
+adversarial 0.836 (0.78–0.89), skeleton 0.822 (0.75–0.89) — consistent with the
+length-matched-by-construction paired skeleton test (0.934, 9.3); role natural 0.703,
+de-AI'd 0.752, adversarial 0.819, skeleton 0.516. The corrected picture: the manifold
+carries robust length-fair discrimination against every tier including structure
+clones; the role axis's genuine power concentrates on the shape adversary (0.819),
+exactly the tier that narrows the manifold's margin (0.836); the skeleton tier's
+earlier role signal (0.658) was length, not coupling. Short documents have honestly
+weak 5%-tail power on the manifold axis (natural 0.071) because the short-human
+distance distribution is heavy-tailed — a length-aware manifold (normalizing
+estimator noise by paragraph count) is the natural next refinement and is recorded in
+the frontier queue rather than improvised here.
 
 ## 10. Hard-set human input
 

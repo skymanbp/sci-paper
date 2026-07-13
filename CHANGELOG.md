@@ -38,6 +38,22 @@ the paragraph-level detectors structurally cannot see.
   (EVALUATION.md §9.4). Structure cloning evades role-coupling (0.658) but is caught by
   the manifold (§9.3): the axes cover each other. Known quantified bias: flagged human
   papers skew short (median 38 vs 60 paragraphs).
+- **Split-conformal + Mondrian operating points (`baseline["conformal"]`).** The two
+  strong document findings now flag on conformal p-values: the manifold is fit on a
+  304-paper proper-training split and calibrated on 203 held-out human papers; the
+  role z (no fit needed) calibrates on all 507. P(false flag) ≤ α = 0.05 finite-sample
+  and distribution-free for exchangeable human papers, stratified by document-length
+  terciles (the measured confound). Legacy baselines without the block fall back to
+  the percentile thresholds. Independent three-way replication: human test rates
+  0.029 (manifold) / 0.069 (role) at α = 0.05.
+- **Corrected: earlier flag rates were length-confounded.** Stratification exposed
+  that short human papers score systematically higher manifold distances (stratum-0
+  95th percentile 5.23 vs 4.16/4.36) and all AI validation docs are short, so the
+  unstratified thresholds had overstated tail power (e.g. natural 0.607 → honest
+  0.071 at length-fair α = 0.05). The discrimination itself survives length matching:
+  manifold length-fair AUC 0.82–0.90 across all four tiers (consistent with the
+  paired skeleton test), role 0.70–0.82 with the skeleton tier at chance (its earlier
+  0.658 was length artifact). Full corrected picture in EVALUATION.md §9.5.
 - **Post-review hardening of the role axis** (multi-agent adversarial review; the
   verifier stage hit session limits, so every finding was manually re-verified against
   the code): NaN/inf feature columns no longer bypass the eta-squared guard via
