@@ -16,6 +16,9 @@ style-profile/**/*.npz
 # Auto-extracted negative-sample text (contains user's project file content;
 # privacy-sensitive — do NOT commit). Regenerate via extract_md_negatives.py.
 style-profile/**/ai_ism_negatives_extracted.txt
+# Generated document-level validation sets (AI-drafted + de-AI-rewritten .tex used to
+# validate the document-dispersion detector). Evidence, not product; regenerate on demand.
+style-profile/**/docval/
 
 # Corpus content (copyright-sensitive — DO NOT commit).
 # Blanket-deny everything under tier dirs (PDFs, .tex, .bib, .eps, .ps, .cls,

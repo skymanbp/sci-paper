@@ -3,6 +3,30 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## Unreleased — document-scale dispersion detector + hard-set correction
+
+**Document-scale cross-paragraph dispersion detector (architecture keystone).** A
+five-lens architecture reflection ([`docs/DEAI_ARCHITECTURE_ROADMAP.md`](docs/DEAI_ARCHITECTURE_ROADMAP.md))
+identified that AI-ness in scientific writing concentrates at the document scale, which
+the paragraph-level detectors structurally cannot see.
+
+- `deai_features.cross_paragraph_dispersion` / `feature_dispersion`: per-feature spread
+  (std/cv/iqr/lag1-autocorrelation/min-gap) of the per-paragraph features across a
+  complete document. Stdlib, no GPU.
+- `deai_docstructure` now attaches a model-free dispersion profile, calibrates a
+  per-feature human dispersion distribution (low-tail threshold + bootstrap CI +
+  leave-one-paper-out false-flag rate), and flags over-uniformity. `calibrate` takes
+  `(name, text)` or `Path`; multi-file papers are concatenated into one observation.
+- Calibrated over 14 complete human `wgl` papers; `L2.document_structure` axis is now
+  `measured` (it had never had a baseline). The over-uniformity finding states only the
+  measured deviation from the human corpus, not an AI verdict.
+- **Validated** against a held-out AI document set with an adversarial de-AI tier: human
+  vs natural AI AUC 0.990 (CI 0.954–1.000); human vs de-AI-rewritten AI AUC 1.000
+  (length-independent features). The de-AI rewrite changed 22% of the text and removed
+  all em-dashes yet barely moved the document dispersion — paragraph-level de-AI does not
+  fix the document-level signal (EVALUATION.md §9). Honest limits (small n, single field
+  and generator, model-free features only) are recorded.
+
 ## Unreleased — hard-set evaluation correction
 
 Corrects a statistically wrong claim in the v0.14.0 evaluation record and reframes the

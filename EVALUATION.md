@@ -229,16 +229,63 @@ manual review covers entities, scope, stance, logical dependency, and citation s
 which cannot all be reduced to the deterministic token sets. Author disposition and any
 application to the manuscript remain pending.
 
-## 9. Whole-document calibration gap
+## 9. Whole-document cross-paragraph dispersion (the keystone axis)
 
-[`tools/deai_docstructure.py`](tools/deai_docstructure.py) and
-[`tests/test_deai_docstructure.py`](tests/test_deai_docstructure.py) implement and test
-complete-document calibration. The `wgl` profile currently has no
-`docstructure_baseline.json` and no verified complete-document calibration corpus has
-been designated for this release.
+The architecture reflection ([`docs/DEAI_ARCHITECTURE_ROADMAP.md`](docs/DEAI_ARCHITECTURE_ROADMAP.md))
+identified the document scale as the confound-orthogonal signal: field register shifts the
+*level* of per-paragraph features, while AI-uniformity compresses their *spread* across a
+document, which no per-paragraph score can see (the 32–41% field-topic FPR of §7.2).
 
-Therefore whole-document findings remain `unmeasured` for `wgl`. Paragraph exemplars
-must not be resampled or relabelled as independent papers to fill this gap.
+[`tools/deai_docstructure.py`](tools/deai_docstructure.py) now measures, per model-free
+per-paragraph feature, the cross-paragraph dispersion of a complete document
+(`deai_features.cross_paragraph_dispersion`), and flags a document that varies a feature
+below the human low tail. Calibrated one-observation-per-paper over 14 complete human
+`wgl` papers (multi-file papers concatenated to avoid pseudoreplication), the
+`L2.document_structure` axis is now `measured`. Leave-one-paper-out false-flag rates sit
+near the nominal low percentile (~0.07 at n=14). The `docstructure_baseline.json` artifact
+is gitignored and rebuilt per field.
+
+### 9.1 Validation against AI documents, including an adversarial de-AI tier
+
+A held-out document-level validation set was built with the same generation pipeline used
+for the paragraph negatives: 20 natural AI-drafted `wgl` documents (no length or structure
+constraint) and their de-AI-rewritten versions (the sci-paper de-AI standard applied as an
+adversarial attack: em-dashes removed, Tier-A/B words stripped, paragraph shapes explicitly
+told to vary). Scoring the model-free dispersion aggregate (low dispersion → AI), with
+seeded bootstrap 95% intervals:
+
+| Contrast | AUC | 95% CI |
+|---|---:|---:|
+| human vs natural AI (all 11 features) | 0.990 | 0.954–1.000 |
+| human vs natural AI (7 length-independent features) | 0.990 | 0.954–1.000 |
+| human vs **de-AI'd** AI (7 length-independent features) | 1.000 | 1.000–1.000 |
+
+The de-AI rewrite changed 22% of the text and removed all 14 em-dashes, yet the
+document-level dispersion barely moved (mean score 0.47 → 0.49 versus human 1.08). This is
+the deployment-relevant finding: **paragraph-level de-AI does not fix a document-level
+signal.** Rewriting each paragraph toward a "more human" target still yields paragraphs
+that are uniform relative to each other, so the cross-paragraph spread that distinguishes a
+human paper (a terse result paragraph beside a long argument beside a list) is not restored.
+
+### 9.2 Honest limits of this validation
+
+- n is small (14 human, ~14–15 AI per tier); the intervals are wide even where the point
+  AUC is 1.0.
+- The human corpus is heterogeneous real papers (a review through short letters) and the AI
+  set is one generator (Claude) in a narrow format, so some separation reflects
+  diverse-corpus-versus-synthetic-batch, not only human-versus-AI. The de-AI'd tier
+  surviving is the stronger evidence that the signal is uniformity, not source.
+- One field (`wgl`), one generator, one de-AI rewriter. Transfer to other fields,
+  generators, and human-AI hybrids is unmeasured.
+- The detector reports the *measured* deviation from the human corpus; the AI
+  interpretation, though now supported by 9.1, is not asserted in the per-finding message.
+- Only the model-free feature subset is validated here. The surprisal + embedding dispersion
+  (the full 14-feature version) needs a cloud featurization pass and is not yet measured;
+  it is not required to establish the signal, which the model-free subset already separates.
+
+Paragraph exemplars must not be resampled or relabelled as independent papers to enlarge
+the reference; only genuine complete papers are used, and the axis stays `unmeasured` for
+documents below the section/paragraph minimums.
 
 ## 10. Hard-set human input
 

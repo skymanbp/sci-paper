@@ -176,3 +176,16 @@ AI-full-section validation set) then rank 3/4 in parallel (both attack the same
 field-topic FPR from the calibration and feature sides). Ranks 5–8 are independent
 polish. Nothing ships a `measured` status until it passes the existing matched-stratum
 confound audit.
+
+## 7. Implementation status
+
+Rank 1 (keystone), model-free version: **implemented and validated** (2026-07-12).
+`deai_features.cross_paragraph_dispersion` + `deai_docstructure` dispersion path,
+calibrated over 14 complete human `wgl` papers, `L2.document_structure` axis now
+`measured`. Validated against a held-out AI document set including an adversarial de-AI
+tier: human vs natural AI AUC 0.990, human vs de-AI'd AI AUC 1.000 (length-independent
+features). Key finding: paragraph-level de-AI does not fix the document-level signal
+(EVALUATION.md §9). The surprisal + embedding dispersion features (full 14-dim version)
+remain the cloud follow-up; they are not required to establish the signal.
+
+Ranks 2–8 are not yet started.
