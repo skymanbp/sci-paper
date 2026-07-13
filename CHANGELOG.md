@@ -13,25 +13,38 @@ the paragraph-level detectors structurally cannot see.
 - `deai_features.cross_paragraph_dispersion` / `feature_dispersion`: per-feature spread
   (std/cv/iqr/lag1-autocorrelation/min-gap) of the per-paragraph features across a
   complete document. Stdlib, no GPU.
-- `deai_docstructure` now attaches a model-free dispersion profile, calibrates a
-  per-feature human dispersion distribution (low-tail threshold + bootstrap CI +
-  leave-one-paper-out false-flag rate), and flags over-uniformity. `calibrate` takes
-  `(name, text)` or `Path`; multi-file papers are concatenated into one observation.
-- Calibrated over 14 complete human `wgl` papers; `L2.document_structure` axis is now
-  `measured` (it had never had a baseline). The over-uniformity finding states only the
+- `deai_docstructure` now attaches a model-free dispersion profile and calibrates a
+  human dispersion **band** at two levels: a joint Mahalanobis dispersion manifold
+  (`fit_dispersion_manifold` / `manifold_distance`, pure stdlib, primary finding at the
+  95th-percentile distance) and per-feature two-sided band flags (5th/95th percentile
+  low/high tails, demoted to ordinary context when the manifold is present). `calibrate`
+  takes `(name, text)` or `Path`; multi-file papers are concatenated into one
+  observation.
+- **Calibrated over 497 complete human `wgl` papers** (new bulk arXiv full-text channel
+  in `fetch_arxiv_abstracts.py --fulltext`: 475 papers fetched politely from local-ID
+  candidates); manifold leave-one-paper-out false-flag rate 0.060, per-feature tails
+  0.052/0.056. `L2.document_structure` is `measured`; every finding states only the
   measured deviation from the human corpus, not an AI verdict.
-- **Validated** against a held-out AI document set with three tiers: human vs natural AI
-  AUC 0.990 (CI 0.954–1.000); human vs de-AI-rewritten AI AUC 1.000 — the de-AI rewrite
-  changed 22% of the text and removed all em-dashes yet barely moved the document
-  dispersion, so paragraph-level de-AI does not fix the document-level signal; and human
-  vs a deliberate paragraph-shape adversary AUC 0.85–0.92 on length-independent features
-  (bounded power, stated as a limit).
+- **Held-out validation** (242 reference / 242 never-touched humans): natural AI AUC
+  0.917 (CI 0.874–0.951), de-AI-rewritten 0.931 (CI 0.888–0.965) — a 22%-of-text
+  paragraph-level de-AI rewrite barely moves the document signal — and a deliberate
+  paragraph-shape adversary 0.895 (CI 0.855–0.930). The adversarial number is the honest
+  arc's endpoint: one-sided low-tail scoring collapsed to chance at realistic reference
+  breadth, the adversary's overshoot motivated the two-sided band (0.801), and the joint
+  covariance geometry recovered the rest (EVALUATION.md §9).
+- **Skeleton-matched falsification (format artifact ruled out).** 24 AI papers generated
+  to the exact structural skeleton of 24 human papers (sections, paragraph counts,
+  sentence counts); on the 17 compliant pairs, with the manifold refit excluding all
+  sources, the AI clone still separates from its own identically-structured human source
+  at paired AUC 0.934 (CI 0.830–1.000) — 0.920 (CI 0.810–1.000) after dropping the two
+  count features the skeleton pins. The signal is intra-format prose texture, not paper
+  format (EVALUATION.md §9.3).
 - **Full-feature cloud pass refuted the surprisal-recovery hypothesis.** Against the
   adversarial tier, surprisal-only dispersion scores AUC 0.677 (CI spans chance) and the
   GPU model features add nothing to the robust punctuation/clause-rhythm core (0.921 with
   vs 0.914 without), while including gamed features dilutes the detector (full-14 0.673).
   The shipped document detector is model-free and GPU-free by measurement (EVALUATION.md
-  §9). Honest limits (small n, single field and generator) are recorded.
+  §9). Honest limits (small n per tier, single field and generator) are recorded.
 
 ## Unreleased — hard-set evaluation correction
 

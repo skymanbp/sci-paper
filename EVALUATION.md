@@ -341,6 +341,31 @@ Paragraph exemplars must not be resampled or relabelled as independent papers to
 the reference; only genuine complete papers are used, and the axis stays `unmeasured` for
 documents below the section/paragraph minimums.
 
+### 9.3 Skeleton-matched falsification: the signal is texture, not format
+
+§9.2 conceded that part of the separation could be "diverse real library versus
+synthetic batch" — a format artifact rather than an authorship property. The direct
+test (frontier idea 7): for 24 human papers from the full-text corpus, extract the
+exact structural skeleton (section count, per-section paragraph counts, per-paragraph
+sentence counts) and generate one AI paper per skeleton (Claude Sonnet, structure
+forced, no style instructions). Compliance gate: identical `document_shape` section
+count and total paragraph count within 25% — 17/24 clones pass; 7 excluded (exclusion
+only costs power, it cannot inflate the AUC). The manifold is refit on 483 human
+papers with all 24 skeleton sources held out, so neither side of each pair is
+in-reference.
+
+Result (`skeleton_eval.py`, seeded bootstrap): **paired AUC 0.934 (CI 0.830–1.000)**
+for the AI clone versus its own human source under an identical skeleton (AI median
+Mahalanobis distance 4.09 versus human 2.67), and 0.921 (CI 0.860–0.968) versus 100
+other humans. Decisively, dropping the two count-coupled features the skeleton itself
+pins (`n_sentences`, `word_count`) leaves a **texture-only paired AUC of 0.920 (CI
+0.810–1.000)** on the remaining 9 features (sentence-length spread, connectives,
+hedging, punctuation rhythm, template score). The dispersion-manifold signal therefore
+survives exact format matching: it measures how prose texture varies across paragraphs
+within a fixed structure, not the structure itself. Limits: 17 pairs is a wide-CI
+sample; one generator; sentence counts were requested per paragraph but compliance was
+enforced only at the section/paragraph level.
+
 ## 10. Hard-set human input
 
 [`style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv`](style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv)

@@ -4,7 +4,9 @@ Status: design note, 2026-07-13. Produced by a six-lens divergent ideation
 (scale-unlocks, arms-race, writing-time product, cross-field transfer,
 evaluation science, contrarian) after the keystone validation and its measured
 adversarial limit. Complements [`DEAI_ARCHITECTURE_ROADMAP.md`](DEAI_ARCHITECTURE_ROADMAP.md)
-(ranks 2–8 there remain valid engineering work); nothing here is implemented.
+(ranks 2–8 there remain valid engineering work). Implemented so far: idea 5
+(shipped, `deai_docstructure.fit_dispersion_manifold`) and idea 7 (executed,
+signal survives — EVALUATION.md §9.3).
 
 ## The unifying theme
 
@@ -81,6 +83,10 @@ float/equation counts), generate an AI paper to that *exact* skeleton, and
 re-run the dispersion (and η²) AUC on matched pairs. If the signal survives
 skeleton matching, it is within-document uniformity; if not, we learn that
 honestly before building on it.
+*Executed 2026-07-13 — the signal survives: paired AUC 0.934 (CI 0.830–1.000)
+over 17 compliant skeleton pairs, texture-only (count features dropped) 0.920
+(CI 0.810–1.000). Full protocol and limits in EVALUATION.md §9.3. Ideas 1 and
+5 are un-gated.*
 
 **8. Mondrian split-conformal calibration.** Separates what the detector fuses:
 the *human false-flag rate* is a type-I error guaranteeable from human data
@@ -96,7 +102,8 @@ backbone every other idea's operating point stands on.
 prerequisite; η² (1), the covariance manifold (5), and conformal calibration
 (8) are the detection core the scaled corpus newly enables; claim-anchoring
 (2), partition operators (3), the personal baseline (6), and the provenance
-ledger (4) are the cooperative-tool layer.
+ledger (4) are the cooperative-tool layer. Progress: 7 done (pass), 5 done;
+next in queue are 1 and 8.
 
 ## Notable discards (with reasons)
 
