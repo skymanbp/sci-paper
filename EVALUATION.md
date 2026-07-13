@@ -254,18 +254,27 @@ adversarial attack: em-dashes removed, Tier-A/B words stripped, paragraph shapes
 told to vary). Scoring the model-free dispersion aggregate (low dispersion → AI), with
 seeded bootstrap 95% intervals:
 
-| Contrast | AUC | 95% CI |
+| Contrast (7 length-independent features) | AUC | 95% CI |
 |---|---:|---:|
-| human vs natural AI (all 11 features) | 0.990 | 0.954–1.000 |
-| human vs natural AI (7 length-independent features) | 0.990 | 0.954–1.000 |
-| human vs **de-AI'd** AI (7 length-independent features) | 1.000 | 1.000–1.000 |
+| human vs natural AI | 0.990 | 0.954–1.000 |
+| human vs de-AI'd AI (paragraph-level de-AI attack) | 1.000 | 1.000–1.000 |
+| human vs **adversarial-varied** AI (deliberate raggedness) | 0.846 | 0.662–0.992 |
+| human vs adversarial-varied AI, all 11 features (incl. length) | 0.643 | 0.425–0.842 |
 
-The de-AI rewrite changed 22% of the text and removed all 14 em-dashes, yet the
-document-level dispersion barely moved (mean score 0.47 → 0.49 versus human 1.08). This is
-the deployment-relevant finding: **paragraph-level de-AI does not fix a document-level
-signal.** Rewriting each paragraph toward a "more human" target still yields paragraphs
-that are uniform relative to each other, so the cross-paragraph spread that distinguishes a
-human paper (a terse result paragraph beside a long argument beside a list) is not restored.
+Two attacks, two outcomes. The de-AI rewrite changed 22% of the text and removed all 14
+em-dashes, yet the document-level dispersion barely moved (mean score 0.47 → 0.49 versus
+human 1.08): **paragraph-level de-AI does not fix a document-level signal**, because
+rewriting each paragraph toward a "more human" target still leaves the paragraphs uniform
+relative to each other.
+
+The stronger attack — AI explicitly instructed to vary paragraph shape to defeat a
+uniformity detector — is partially effective and defines the detector's limit. It fully
+games the length-based dispersion (all-11 AUC 0.643, interval touching chance), because an
+author can consciously swing paragraph length on command. It does **not** fully fake the
+finer punctuation and clause-rhythm dispersion (length-independent AUC 0.846, interval
+lower bound 0.66 still above chance). The detector therefore has real but bounded power:
+length variation is cheap to fake, the rhythm signal is stickier, and this is stated as a
+limit, not hidden.
 
 ### 9.2 Honest limits of this validation
 
@@ -280,8 +289,11 @@ human paper (a terse result paragraph beside a long argument beside a list) is n
 - The detector reports the *measured* deviation from the human corpus; the AI
   interpretation, though now supported by 9.1, is not asserted in the per-finding message.
 - Only the model-free feature subset is validated here. The surprisal + embedding dispersion
-  (the full 14-feature version) needs a cloud featurization pass and is not yet measured;
-  it is not required to establish the signal, which the model-free subset already separates.
+  (the full 14-feature version) needs a cloud featurization pass and is not yet measured.
+  The adversarial-varied tier makes this measurable and worth running: token-level surprisal
+  uniformity is much harder for an author to consciously vary than paragraph length or
+  punctuation, so surprisal-dispersion features may recover the signal the length/punctuation
+  adversary evaded. That test was impossible while the validation set was saturated at 0.99.
 
 Paragraph exemplars must not be resampled or relabelled as independent papers to enlarge
 the reference; only genuine complete papers are used, and the axis stays `unmeasured` for
