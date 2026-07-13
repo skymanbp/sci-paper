@@ -286,12 +286,29 @@ two stages:
    adversarial contrast to AUC 0.801 (CI 0.733–0.867)** while keeping natural at 0.894
    and de-AI'd at 0.932 — on the same held-out protocol.
 
-The shipped detector implements the band view: per-feature low- and high-tail thresholds
-(5th/95th percentile), with `document-uniformity` and `document-overdispersion` findings
-respectively, calibrated over **249 complete human papers** (the bulk full-text fetch)
-with leave-one-paper-out false-flag rates of 0.052/0.056 — at the nominal 5%. The
-covariance-aware version of the band distance (frontier idea 5, a Mahalanobis residual)
-is the natural next refinement.
+The shipped detector implements the band view at two levels, calibrated over **497
+complete human papers** (the bulk full-text fetch; the reference grew 14 → 497 in one
+day):
+
+1. **Joint manifold statistic (primary).** The per-document vector of log dispersion
+   ratios is scored by Mahalanobis distance against the human center and covariance
+   (pure-stdlib 11-D implementation, ridge-stabilized, clipped log ratios). One
+   calibrated aggregate finding (`document-dispersion-manifold`, 95th-percentile
+   threshold, leave-one-paper-out false-flag 0.060) replaces the correlated per-feature
+   "strong" flag spray; per-feature band findings demote to ordinary context when the
+   manifold is present. Held-out validation (242 reference / 242 never-touched test
+   humans): natural AI AUC **0.917** (CI 0.874–0.951), de-AI'd **0.931** (CI
+   0.888–0.965), and — decisively — shape-adversarial **0.895** (CI 0.855–0.930),
+   versus 0.80 for the marginal two-sided statistic and chance for the one-sided score.
+   The joint geometry catches what independent marginals cannot: the adversary lands
+   plausible per-feature spreads with the wrong covariance.
+2. **Per-feature band flags (context).** Low/high tails at the 5th/95th percentile
+   (`document-uniformity` / `document-overdispersion`), LOO false-flag 0.052/0.056.
+
+At the shipped 95% threshold the held-out human flag rate is 0.10 and the AI flag rates
+are 0.75 (natural), 0.80 (de-AI'd), 0.50 (adversarial). Below
+`MIN_MANIFOLD_DOCUMENTS` reference papers the manifold is honestly omitted and the
+per-feature flags remain the primary (strong) findings.
 
 ### 9.2 Honest limits of this validation
 

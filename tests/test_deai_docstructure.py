@@ -94,6 +94,26 @@ class DocumentStructureTests(unittest.TestCase):
             self.assertIn(name, shape["dispersion"])
             self.assertIn(docstructure.DISPERSION_STAT, shape["dispersion"][name])
 
+    def test_dispersion_manifold_math_and_outlier(self):
+        inverse = docstructure._mat_inv([[1.0, 0.0], [0.0, 1.0]])
+        self.assertAlmostEqual(inverse[0][0], 1.0)
+        self.assertAlmostEqual(inverse[0][1], 0.0)
+        self.assertAlmostEqual(
+            docstructure._mahalanobis([3.0, 4.0], [0.0, 0.0],
+                                      [[1.0, 0.0], [0.0, 1.0]]), 5.0)
+        rows = [{"a": 1.0 + 0.01 * i, "b": 2.0 + 0.02 * (i % 7),
+                 "c": 0.5 + 0.005 * (i % 11)} for i in range(40)]
+        manifold = docstructure.fit_dispersion_manifold(rows, ["a", "b", "c"])
+        self.assertIsNotNone(manifold)
+        self.assertEqual(manifold["n_documents"], 40)
+        far = docstructure.manifold_distance(
+            manifold, {"a": 10.0, "b": 0.01, "c": 5.0})
+        near = docstructure.manifold_distance(manifold, rows[20])
+        self.assertGreater(far, manifold["threshold"])
+        self.assertLess(near, far)
+        # below the minimum document count the manifold is honestly absent
+        self.assertIsNone(docstructure.fit_dispersion_manifold(rows[:5], ["a", "b", "c"]))
+
     def test_over_dispersed_document_flags_high_tail(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

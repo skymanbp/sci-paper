@@ -55,6 +55,22 @@ DISPERSION_STAT = "std"          # primary dispersion statistic used for detecti
 DISPERSION_LOW_PERCENTILE = 0.05
 DISPERSION_HIGH_PERCENTILE = 0.95
 
+# Joint dispersion manifold (Mahalanobis band distance). Marginal band flags
+# can be gamed feature-by-feature: an adversary that widens each dispersion
+# independently lands the right marginals with the WRONG joint, because human
+# papers co-move their dispersion features. The manifold statistic measures
+# the joint distance from the human center in log-ratio space; one calibrated
+# aggregate replaces the correlated per-feature "strong" flag spray. Held-out
+# validation of the aggregate two-sided distance recovered the shape adversary
+# from chance to AUC 0.80 (EVALUATION.md section 9.1); the covariance form is
+# its refinement. Requires enough reference documents to estimate an 11x11
+# covariance; below the minimum the baseline honestly omits the manifold.
+MANIFOLD_EPS = 1e-9        # floor before log; zero dispersion is common
+MANIFOLD_CLIP = 6.0        # clip |log ratio| so zero-variance features cannot dominate
+MANIFOLD_RIDGE = 0.05      # relative diagonal ridge for a stable inverse
+MANIFOLD_PERCENTILE = 0.95
+MIN_MANIFOLD_DOCUMENTS = 3 * len(DISPERSION_FEATURE_NAMES)
+
 
 def _paragraph_modelfree(text: str) -> list[float]:
     """Raw model-free per-paragraph feature vector (no GPU, no magic constants)."""
@@ -231,6 +247,120 @@ def _leave_one_document_out_low_flag_rate(values: list[float],
     return flags / len(values)
 
 
+# ------------------------------------------------ dispersion manifold (joint) --
+
+def _log_ratio_vector(row: dict[str, float], medians: dict[str, float],
+                      features: list[str]) -> list[float]:
+    out = []
+    for name in features:
+        ratio = max(float(row[name]), MANIFOLD_EPS) / max(medians[name], MANIFOLD_EPS)
+        out.append(max(-MANIFOLD_CLIP, min(MANIFOLD_CLIP, math.log(ratio))))
+    return out
+
+
+def _mat_inv(matrix: list[list[float]]) -> list[list[float]]:
+    """Gauss-Jordan inverse for the small (<=11x11) ridged covariance."""
+    n = len(matrix)
+    augmented = [list(row) + [1.0 if i == j else 0.0 for j in range(n)]
+                 for i, row in enumerate(matrix)]
+    for col in range(n):
+        pivot_row = max(range(col, n), key=lambda r: abs(augmented[r][col]))
+        if abs(augmented[pivot_row][col]) < 1e-12:
+            raise ValueError("singular covariance despite ridge")
+        augmented[col], augmented[pivot_row] = augmented[pivot_row], augmented[col]
+        pivot = augmented[col][col]
+        augmented[col] = [value / pivot for value in augmented[col]]
+        for row in range(n):
+            if row != col and augmented[row][col] != 0.0:
+                factor = augmented[row][col]
+                augmented[row] = [a - factor * b
+                                  for a, b in zip(augmented[row], augmented[col])]
+    return [row[n:] for row in augmented]
+
+
+def _mahalanobis(vector: list[float], center: list[float],
+                 cov_inv: list[list[float]]) -> float:
+    delta = [v - c for v, c in zip(vector, center)]
+    total = 0.0
+    for i, di in enumerate(delta):
+        total += di * sum(cov_inv[i][j] * delta[j] for j in range(len(delta)))
+    return math.sqrt(max(0.0, total))
+
+
+def _fit_center_cov(vectors: list[list[float]]
+                    ) -> tuple[list[float], list[list[float]]]:
+    n, dim = len(vectors), len(vectors[0])
+    center = [statistics.mean(col) for col in zip(*vectors)]
+    cov = [[0.0] * dim for _ in range(dim)]
+    for vec in vectors:
+        delta = [v - c for v, c in zip(vec, center)]
+        for i in range(dim):
+            for j in range(dim):
+                cov[i][j] += delta[i] * delta[j]
+    for i in range(dim):
+        for j in range(dim):
+            cov[i][j] /= max(1, n - 1)
+    ridge = MANIFOLD_RIDGE * (sum(cov[i][i] for i in range(dim)) / dim or MANIFOLD_EPS)
+    for i in range(dim):
+        cov[i][i] += ridge
+    return center, cov
+
+
+def fit_dispersion_manifold(rows: list[dict[str, float]],
+                            features: list[str] | None = None) -> dict | None:
+    """Fit the joint human dispersion manifold from per-document rows.
+
+    ``rows`` map feature name -> dispersion std for one document each. Returns
+    None below MIN_MANIFOLD_DOCUMENTS (an 11-dim covariance needs data; the
+    baseline then honestly omits the manifold rather than shipping noise).
+    """
+    features = list(features if features is not None else DISPERSION_FEATURE_NAMES)
+    usable = [row for row in rows if all(name in row for name in features)]
+    if len(usable) < MIN_MANIFOLD_DOCUMENTS:
+        return None
+    medians = {name: statistics.median([float(row[name]) for row in usable])
+               for name in features}
+    vectors = [_log_ratio_vector(row, medians, features) for row in usable]
+    center, cov = _fit_center_cov(vectors)
+    cov_inv = _mat_inv(cov)
+    null_distances = sorted(_mahalanobis(vec, center, cov_inv) for vec in vectors)
+    threshold = _quantile(null_distances, MANIFOLD_PERCENTILE)
+    # LOO: refit without each document; flag if its distance exceeds the
+    # refit threshold. Keeps the quoted false-flag rate honest.
+    flags = 0
+    for index in range(len(usable)):
+        others = vectors[:index] + vectors[index + 1:]
+        center_i, cov_i = _fit_center_cov(others)
+        cov_inv_i = _mat_inv(cov_i)
+        null_i = sorted(_mahalanobis(vec, center_i, cov_inv_i) for vec in others)
+        if _mahalanobis(vectors[index], center_i, cov_inv_i) > _quantile(
+                null_i, MANIFOLD_PERCENTILE):
+            flags += 1
+    return {
+        "features": features,
+        "eps": MANIFOLD_EPS,
+        "clip": MANIFOLD_CLIP,
+        "ridge_relative": MANIFOLD_RIDGE,
+        "n_documents": len(usable),
+        "medians": medians,
+        "center": center,
+        "cov_inv": cov_inv,
+        "null_distances": null_distances,
+        "percentile": MANIFOLD_PERCENTILE,
+        "threshold": threshold,
+        "leave_one_document_out_flag_rate": flags / len(usable),
+    }
+
+
+def manifold_distance(manifold: dict, row: dict[str, float]) -> float | None:
+    """Mahalanobis band distance of one document; None if features missing."""
+    features = manifold["features"]
+    if not all(name in row for name in features):
+        return None
+    vector = _log_ratio_vector(row, manifold["medians"], features)
+    return _mahalanobis(vector, manifold["center"], manifold["cov_inv"])
+
+
 def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Path,
               strong_percentile: float = 0.95) -> dict[str, Any]:
     """Build the document baseline. Each item is one complete document, given as
@@ -291,6 +421,14 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
             "leave_one_document_out_high_flag_rate": _leave_one_out_flag_rate(
                 values, DISPERSION_HIGH_PERCENTILE),
         }
+    manifold_rows = [
+        {name: float(record["dispersion"][name][DISPERSION_STAT])
+         for name in DISPERSION_FEATURE_NAMES
+         if record.get("dispersion", {}).get(name, {}).get(DISPERSION_STAT)
+         is not None}
+        for record in records
+    ]
+    baseline["dispersion_manifold"] = fit_dispersion_manifold(manifold_rows)
     output = field_profile_dir / BASELINE_NAME
     output.write_text(json.dumps(baseline, indent=2), encoding="utf-8")
     return baseline
@@ -375,6 +513,56 @@ def document_findings(text: str, field_profile_dir: Path | None,
     # validation: one-sided scoring is at chance against a shape adversary;
     # the band view recovers it (EVALUATION.md section 9).
     dispersion = shape.get("dispersion", {})
+    # Joint manifold statistic first: ONE calibrated aggregate. When it is
+    # available, the correlated per-feature band flags demote to ordinary
+    # context so one uniform document is not reported as ~8 strong findings.
+    manifold = baseline.get("dispersion_manifold")
+    flat_row = {name: dispersion[name][DISPERSION_STAT]
+                for name in dispersion
+                if dispersion.get(name, {}).get(DISPERSION_STAT) is not None}
+    per_feature_strength = "ordinary"
+    if not manifold:
+        per_feature_strength = "strong"
+    else:
+        distance = manifold_distance(manifold, flat_row)
+        if distance is not None and distance > float(manifold["threshold"]):
+            null = manifold["null_distances"]
+            p_value = 1.0 - (sum(d <= distance for d in null) / (len(null) + 1))
+            findings.append(feedback.make_finding(
+                kind="advisory", layer="L2", rule="document-dispersion-manifold",
+                scope="document", line=1, section=section_label, path=path,
+                detector="deai_docstructure",
+                detector_version="sci-paper.docstructure-baseline.v2",
+                calibration_asset=BASELINE_NAME,
+                measurement_status="measured", strength="strong",
+                observed={"mahalanobis_distance": distance,
+                          "empirical_p_value": p_value,
+                          "n_sections": shape["n_sections"],
+                          "n_paragraphs": shape["n_paragraphs"]},
+                reference={"n_documents": manifold["n_documents"],
+                           "threshold": manifold["threshold"],
+                           "percentile": manifold["percentile"],
+                           "leave_one_document_out_flag_rate": manifold[
+                               "leave_one_document_out_flag_rate"],
+                           "provenance": BASELINE_NAME},
+                normalized_distance=distance - float(manifold["threshold"]),
+                confidence={"value": min(1.0, manifold["n_documents"] / 100.0),
+                            "basis": (f"{manifold['n_documents']} complete "
+                                      "reference documents; joint band "
+                                      "distance in log dispersion-ratio space")},
+                message=(f"The document's joint cross-paragraph dispersion sits "
+                         f"{distance:.2f} Mahalanobis units from the human "
+                         f"center (reference {manifold['percentile']:.0%} "
+                         f"threshold {float(manifold['threshold']):.2f}): its "
+                         "paragraph-shape variation pattern departs from the "
+                         "human band as a whole. Per-feature detail follows as "
+                         "ordinary context; this is a measured deviation, not "
+                         "an AI verdict."),
+                action=("Read the per-feature context findings to see which "
+                        "shape dimensions depart, then adjust only where the "
+                        "argument permits."),
+                evidence=["manifold", round(distance, 6)],
+            ))
     for feature_name, reference in baseline.get("dispersion", {}).items():
         observed = dispersion.get(feature_name, {}).get(DISPERSION_STAT)
         low_threshold = reference.get("low_threshold")
@@ -408,7 +596,7 @@ def document_findings(text: str, field_profile_dir: Path | None,
             detector="deai_docstructure",
             detector_version="sci-paper.docstructure-baseline.v2",
             calibration_asset=BASELINE_NAME,
-            measurement_status="measured", strength="strong",
+            measurement_status="measured", strength=per_feature_strength,
             observed={"dispersion_std": observed,
                       "empirical_percentile": percentile,
                       "band_tail": tail,
