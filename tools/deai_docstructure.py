@@ -390,14 +390,19 @@ def document_findings(text: str, field_profile_dir: Path | None,
                        "provenance": BASELINE_NAME},
             normalized_distance=(float(low_threshold) - float(observed)),
             confidence={"value": min(1.0, baseline["n_documents"] / 30.0),
-                        "basis": f"{baseline['n_documents']} complete reference documents"},
+                        "basis": (f"{baseline['n_documents']} complete reference "
+                                  "documents; separation from AI documents not yet "
+                                  "validated (calibrated on human corpus only)")},
             message=(f"Cross-paragraph variation in {feature_name.replace('_', ' ')} "
                      f"is {observed:.3f}, below the human low-tail "
-                     f"{low_threshold:.3f}: the document varies this feature less "
-                     "than a human paper (over-uniform, an AI-drafting tell)."),
-            action=("Vary this feature across paragraphs where the science allows "
-                    "(e.g. mix a list, a long-argument, and a terse paragraph); "
-                    "do not manufacture variety that harms clarity."),
+                     f"{low_threshold:.3f}: the document varies this feature across "
+                     "its paragraphs less than the complete-human reference does. "
+                     "This is a measured deviation from the human corpus, not yet a "
+                     "validated AI classification."),
+            action=("Check whether the paragraphs are more uniform than the argument "
+                    "needs; vary this feature where the science allows (mix a list, a "
+                    "long-argument, and a terse paragraph) without manufacturing "
+                    "variety that harms clarity."),
             evidence=["uniformity", feature_name, round(float(observed), 8)],
         ))
     return findings
