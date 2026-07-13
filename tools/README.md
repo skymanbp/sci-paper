@@ -18,7 +18,9 @@ serialize evidence but do not define an independent paper verdict.
 | `ai_ism_lint.py` | Unified L0 and advisory CLI. Emits ranked text or JSON from the same findings. | Exit 0 = no L0 target; 1 = L0 target present; 2 = invalid input/configuration/execution. Advisories never cause exit 1. |
 | `deai_metrics.py` | L1 information-distribution analysis: sentence-length variation and connective-openers. | Strong status requires applicable policy calibration; compatibility heuristics are degraded. |
 | `deai_structure.py` | L2 sentence-template analysis: enumeration, ordinal/modal/parallel runs, setup-list-wrap-up patterns, and balanced closers. | Strong status requires calibrated policy and sufficient reference sample. |
-| `deai_docstructure.py` | L2 whole-document rhetorical-shape analysis and complete-document calibration. | Requires at least three measurable complete documents and sufficient sections/paragraphs; otherwise unmeasured. |
+| `deai_docstructure.py` | L2 whole-document rhetorical-shape analysis and complete-document calibration: shape similarity, dispersion band, joint Mahalanobis manifold (pooled and per-length-stratum), role-coupled dispersion, and split-conformal operating points. | Requires at least three measurable complete documents and sufficient sections/paragraphs; otherwise unmeasured. Legacy baselines without a conformal block fall back to percentile thresholds; factor-drifted role references disable that axis. |
+| `deai_partition.py` | Fidelity-free partition suggestions (merge/split of paragraph blocks) that move a document toward the calibrated human dispersion band. Suggest-only; the author applies changes by hand. | Zero-token operations, so rewrite fidelity holds by construction; cohesion is self-normalized to the document's median adjacent-pair overlap; section-command blocks are never candidates; reordering is deliberately not offered. Without a calibrated manifold the tool exits with an explicit message. |
+| `deai_anchoring.py` | L2 claim-anchoring band: section-class conditional anchored-sentence rates against the human corpus, low-tail conformal with a Bonferroni share per class. | A writing-quality axis, not an AI-discrimination axis (EVALUATION.md 9.6 records the refuted tell). Classes below the 30-document minimum are honestly omitted; unmeasurable documents degrade to unmeasured. |
 | `deai_oracle.py` | Optional token-surprisal and UID analysis. | Requires transformers/model assets for measurement; compatibility `FLAG_Z` is degraded until field calibration exists. |
 | `deai_features.py` | Reusable model-free, UID, and embedding features for document analysis and learned field-similarity models. | Optional model features degrade when dependencies/assets are unavailable. |
 | `deai_voice.py` | Optional learned field-similarity triage. | Refuses bundles with drifted feature names/schema and degrades on corrupt bundles. A measured operating point gates threshold findings; an uncalibrated bundle yields rank-based triage of the lowest-scoring paragraphs, never a universal 0.5 cutoff. |
@@ -27,7 +29,7 @@ serialize evidence but do not define an independent paper verdict.
 | `fetch_arxiv_abstracts.py` | Fetches dated arXiv abstract corpora for controlled model evaluation/training. | Network failures are explicit; fetched text is evidence/training data, not policy. |
 | `validate_plugin.py` | Validates manifests, version/count agreement, skill frontmatter and standard references, normative/evaluation document authority, stale review markers, Python syntax, runtime imports, CLI entry points, feedback schema, linter exits, required tests, and CI wiring. | Stdlib-only; rejects active duplicate evaluation records and exits nonzero on contract drift. |
 
-The plugin manifest counts the 17 product tools/data assets above and excludes the
+The plugin manifest counts the 19 product tools/data assets above and excludes the
 repository validator itself.
 
 ## Dependencies

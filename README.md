@@ -27,7 +27,7 @@ learned models provide evidence; they do not define a separate paper verdict.
 
 See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 
-### Tools (17)
+### Tools (19)
 
 | Tool | Purpose |
 |---|---|
@@ -41,7 +41,9 @@ See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 | `tools/deai_feedback.py` | Implements `sci-paper.feedback.v1`: stable IDs, consequence classes, measurement states, dispositions, ranking, summaries, and rendering. |
 | `tools/deai_metrics.py` | L1 model-free information-distribution findings with explicit calibration state. |
 | `tools/deai_structure.py` | L2 sentence/paragraph construction analysis for enumeration, repeated frames, parallel runs, symmetry, and related templates. |
-| `tools/deai_docstructure.py` | Whole-document rhetorical-shape analysis and complete-document calibration. |
+| `tools/deai_docstructure.py` | Whole-document rhetorical-shape analysis and complete-document calibration: dispersion band, joint (per-length-stratum) manifold, role coupling, split-conformal operating points. |
+| `tools/deai_partition.py` | Fidelity-free merge/split suggestions that move a document toward the human dispersion band; suggest-only, zero-token operations. |
+| `tools/deai_anchoring.py` | Section-class conditional claim-anchoring band; a writing-quality axis, explicitly not an AI-discrimination axis. |
 | `tools/deai_oracle.py` | Optional surprisal/UID evidence; unavailable assets and compatibility thresholds remain explicit. |
 | `tools/deai_features.py` | Reusable distributional, UID, punctuation, embedding, and structural features. |
 | `tools/deai_voice.py` | Optional learned field-similarity triage; a bundle without an operating point is degraded and never an authorship verdict. |
@@ -202,13 +204,13 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.14.0**. Full per-version history is in
+Current: **v0.15.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
 - **Skills (9):** `paper`, `paper-review`, `figure-review`, `paper-style`,
   `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`,
   `rewrite-in-voice`.
-- **Tools (17):** exact product registry above.
+- **Tools (19):** exact product registry above.
 - **Current calibrated gaps:** no `wgl` complete-document baseline, no learned-model
   operating point, no completed author hard-set labels, and unresolved learned-model
   confound audit. These remain explicit in [EVALUATION.md](EVALUATION.md).

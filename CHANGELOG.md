@@ -3,7 +3,41 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
-## Unreleased — document-scale dispersion detector + hard-set correction
+## v0.15.0 — 2026-07-13
+
+The document-scale de-AI release: a validated detection core (dispersion band →
+joint manifold → role coupling → split-conformal operating points), the first
+repair path for document-scale findings, a claim-anchoring quality band, and a
+corpus grown 14 → 507 human papers plus five AI validation tiers. Every claim in
+this release is measured in EVALUATION.md §9; refuted hypotheses (surprisal
+recovery, perceptual hard-set labels, the under-anchoring AI tell) are recorded
+rather than deleted.
+
+- **Partition operators (`deai_partition.py`, new tool).** Merge/split suggestions
+  that move a document toward the human dispersion band; zero-token operations, so
+  the rewrite fidelity gate holds by construction. Suggest-only with a
+  self-normalized cohesion floor; reordering deliberately excluded. Efficacy: 4 of 8
+  conformally flagged AI docs brought inside the band (median 1 op); 116/116
+  unflagged docs untouched (EVALUATION.md §9.7). Wired into `rewrite-in-voice` as
+  the sanctioned lever when document-dispersion findings persist.
+- **Claim-anchoring band (`deai_anchoring.py`, new tool).** Section-class
+  conditional anchored-sentence rates (number/citation/\ref/math/comparison) against
+  517 corpus documents, low-tail conformal with a Bonferroni share per class
+  (document-level human false-flag 0.037 ≤ α). Shipped explicitly as a
+  writing-quality axis: the "under-anchoring is the AI tell" hypothesis is
+  **refuted** for strong-model full-paper generations, which anchor above the human
+  level (EVALUATION.md §9.6). Wired into `paper-review`.
+- **Per-stratum (length-aware) manifolds.** Each length stratum with enough
+  training/calibration papers gets its own manifold; `manifold_operating_point` is
+  the single scoring entry for findings, partition, and evaluations. Structure
+  clones caught at twice the rate (0.125 → 0.292); adversarial 0.026 → 0.053
+  (EVALUATION.md §9.7).
+- **The `ai_long` validation tier (29 long-form generations).** The measured
+  frontier: manifold flags 0/29, role 4/29 at α = 0.05, while ranking signal
+  survives (stratum-matched AUC 0.716/0.639). Long-form natural generation is
+  recorded as the standing falsification target (EVALUATION.md §9.7).
+
+### Document-scale dispersion detector + hard-set correction
 
 **Document-scale cross-paragraph dispersion detector (architecture keystone).** A
 five-lens architecture reflection ([`docs/DEAI_ARCHITECTURE_ROADMAP.md`](docs/DEAI_ARCHITECTURE_ROADMAP.md))
@@ -89,7 +123,7 @@ the paragraph-level detectors structurally cannot see.
   The shipped document detector is model-free and GPU-free by measurement (EVALUATION.md
   §9). Honest limits (small n per tier, single field and generator) are recorded.
 
-## Unreleased — hard-set evaluation correction
+### Hard-set evaluation correction
 
 Corrects a statistically wrong claim in the v0.14.0 evaluation record and reframes the
 author hard set around true provenance instead of perception.

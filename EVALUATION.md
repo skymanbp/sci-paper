@@ -501,6 +501,70 @@ distance distribution is heavy-tailed — a length-aware manifold (normalizing
 estimator noise by paragraph count) is the natural next refinement and is recorded in
 the frontier queue rather than improvised here.
 
+### 9.6 Claim anchoring: hypothesis refuted for strong-model generations
+
+The frontier note predicted unfalsifiable hedged generality ("demonstrates strong
+performance" with no number, citation, reference, equation, or comparison) as AI's
+durable tell. Measured on the section-class conditional anchored-sentence rates
+(`deai_anchoring.py`, calibrated on 517 corpus documents, all six section classes
+above the 30-document minimum), the prediction is **refuted for full-paper
+generations from a strong model**: every AI tier anchors at or above the human
+level, with AUC(human high) far below chance where it matters (methods 0.09–0.20,
+results 0.14–0.40 across tiers) — generated papers are dense with (invented)
+numbers, citations, and mathematics. The axis therefore ships as a
+**writing-quality band, explicitly not an AI-discrimination axis**, and its docstring
+and finding text say so.
+
+Two operating-point facts. First, testing each of a document's ~5 measured classes
+at α = 0.05 gave a document-level union false-flag rate of 0.170; each class now
+tests at the Bonferroni share α/k, and the measured document-level human rate is
+**0.037 ≤ α**. Second, the conformal resolution 1/(n+1) must beat α/k — the
+production classes (n = 315–512) resolve p ≈ 0.002–0.003, comfortably below the
+0.008–0.017 shares. A fully unanchored Results section still flags (functional
+test); AI tiers flag at 0.000 under the corrected operating point, consistent with
+the refutation.
+
+### 9.7 Partition operators and per-stratum manifolds
+
+`deai_partition.py` closes the detection-repair asymmetry: merge (delete one blank
+line) and split (insert one at a low-cohesion sentence boundary) change zero tokens,
+so the fidelity invariants hold byte-identically. The greedy band-seeking plan is
+suggest-only with a self-normalized cohesion floor (the document's median
+adjacent-pair overlap). Efficacy on the docval tiers: of 124 measurable AI
+documents, 8 flag at the conformal manifold operating point; the default plan brings
+**4 of 8 inside the band (median 1 operation)**, while all 116 unflagged documents
+receive zero suggestions (no-harm check). The 4 unfixed documents sit at distance
+10.5–11.8: partition operations move count and length dispersion but not punctuation
+or clause-rhythm texture, which is the stated limit.
+
+The recorded length-aware refinement is implemented as per-stratum manifolds:
+each length stratum that supports its own fit (93–107 training papers) and
+calibration (60–78 papers) gets a stratum-local metric, with pooled fallback
+(`manifold_operating_point` is the single scoring entry for findings, partition,
+and evaluations). Measured effect at α = 0.05: skeleton clones 0.125 → **0.292**,
+adversarial 0.026 → 0.053, natural/de-AI'd unchanged (0.071/0.133) — the short-human
+distance distribution's heavy tail is intrinsic to an 11-D covariance fit at ~100
+documents, so the honest summary stays: strong length-fair AUC (0.82–0.90),
+modest 5%-tail power on short documents, structure clones now caught at twice the
+rate.
+
+**The `ai_long` tier: the detector's measured frontier.** 29 long-form papers
+(9,000–17,000 words requested, paragraph shape left free) were generated to make
+strata 1/2 power measurable. The generator's own paragraphing density placed 20 of
+29 in stratum 0 regardless (its natural paragraphs are large — 100k+ characters
+still yield ~40 measured paragraphs, itself a departure from human density that the
+current features do not exploit). Results: manifold flags 0/29, role flags 4/29 —
+at the strict 5% operating point the document detectors have almost no tail power
+on natural long-form generation. Ranking signal survives: stratum-matched AUC 0.716
+(manifold) and 0.639 (role), mixed 0.729 (CI 0.67–0.78) and 0.720 (CI 0.64–0.80).
+Honest characterization: for long-form strong-model output, the document axes are
+informative as ranked percentile feedback but rarely cross the calibrated flag
+threshold; this tier is the standing falsification target for future detector work.
+
+Remaining measurement debt (recorded, not hidden): a document-level L3 voice
+evaluation needs surprisal features over ~25k paragraphs — a bounded cloud pass;
+L3 stays honestly `degraded` until it runs.
+
 ## 10. Hard-set human input
 
 [`style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv`](style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv)

@@ -71,6 +71,13 @@ python tools/ai_ism_lint.py <file> --field <field> \
 解释 exit status：0 = 无 L0 target，advisories 可存在；1 = 有 L0 target；2 = 输入、
 配置或执行失败。不得从打印文本反解析 JSON。
 
+同轮补充 claim-anchoring 质量带（写作质量轴，非 AI 判别轴——EVALUATION.md §9.6
+记录了被证伪的假设；发现只作为"主张缺锚"质量问题处理）：
+
+```bash
+python tools/deai_anchoring.py <file> --field <field>
+```
+
 ## 2. A–R review dimensions
 
 每个 finding 必须给出：`kind`、`layer`、`rule`、scope/location、当前证据、source

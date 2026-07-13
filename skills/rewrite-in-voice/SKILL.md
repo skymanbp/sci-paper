@@ -208,3 +208,10 @@ Strong advisories: acted X | accepted Y | false-positive Z | pending P
 - `/sci-paper:mainline`: document-level narrative feedback after structural changes.
 - `tools/ai_ism_lint.py`: shared structured measurement report.
 - `tools/rewrite_reward.py`: hard fidelity eligibility plus eligible-candidate ranking.
+- `tools/deai_partition.py`: when the document-dispersion findings (manifold, band,
+  role) persist after paragraph-level rewriting, run
+  `python tools/deai_partition.py <file> --field <field>` and surface its
+  merge/split suggestions to the author verbatim. The operations change zero
+  tokens (fidelity holds by construction) and are applied by hand, never
+  automatically; word-level rewriting cannot move the cross-paragraph signal
+  (EVALUATION.md 9.1), so this is the only sanctioned lever for those findings.

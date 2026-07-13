@@ -482,6 +482,62 @@ def manifold_distance(manifold: dict, row: dict[str, float]) -> float | None:
     return _mahalanobis(vector, manifold["center"], manifold["cov_inv"])
 
 
+def manifold_operating_point(baseline: dict, row: dict[str, float],
+                             n_paragraphs: int) -> dict[str, Any] | None:
+    """Single scoring entry for the manifold axis (findings, partition, evals).
+
+    Prefers the document's length-stratum manifold + calibration when the
+    baseline carries one (length-aware metric); otherwise scores against the
+    pooled manifold with stratum-then-pooled calibration. Distances from
+    different manifolds are never mixed in one calibration comparison.
+    Returns None when the axis is unmeasurable (no manifold or missing
+    features).
+    """
+    pooled = baseline.get("dispersion_manifold")
+    conformal = baseline.get("conformal")
+    axis = (conformal or {}).get("manifold") if conformal else None
+    if axis:
+        stratum = _length_stratum(n_paragraphs, conformal["strata_edges"])
+        alpha = float(conformal.get("alpha", CONFORMAL_ALPHA))
+        entry = (axis.get("stratum") or {}).get(str(stratum))
+        if entry:
+            distance = manifold_distance(entry["manifold"], row)
+            if distance is None:
+                return None
+            return {"distance": distance,
+                    "p_value": _conformal_p(entry["calibration"], distance),
+                    "alpha": alpha,
+                    "operating_point": "split-conformal, stratum manifold",
+                    "calibration_basis": f"stratum {stratum} manifold",
+                    "n_calibration": len(entry["calibration"]),
+                    "n_train": entry.get("n_train")}
+        if pooled and axis.get("calibration"):
+            distance = manifold_distance(pooled, row)
+            if distance is None:
+                return None
+            cal, basis = _stratum_calibration(axis, stratum)
+            return {"distance": distance,
+                    "p_value": _conformal_p(cal, distance),
+                    "alpha": alpha,
+                    "operating_point": "split-conformal",
+                    "calibration_basis": basis,
+                    "n_calibration": len(cal),
+                    "n_train": axis.get("n_train")}
+    if pooled:
+        distance = manifold_distance(pooled, row)
+        if distance is None:
+            return None
+        null = pooled["null_distances"]
+        return {"distance": distance,
+                "p_value": 1.0 - (sum(d <= distance for d in null)
+                                  / (len(null) + 1)),
+                "alpha": None,
+                "operating_point": "in-sample percentile",
+                "threshold": pooled["threshold"],
+                "flagged": distance > float(pooled["threshold"])}
+    return None
+
+
 def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Path,
               strong_percentile: float = 0.95) -> dict[str, Any]:
     """Build the document baseline. Each item is one complete document, given as
@@ -575,6 +631,28 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
             distance = manifold_distance(manifold, manifold_row(record))
             if distance is not None:
                 manifold_cal.append([stratum_of(record), distance])
+        # Length-aware (per-stratum) manifolds: short human papers score
+        # systematically higher pooled-manifold distances (noisier dispersion
+        # vectors), which cost the short strata their tail power. A stratum
+        # that can support its own manifold fit AND enough calibration papers
+        # gets a stratum-local metric; strata that cannot fall back to the
+        # pooled manifold and pooled calibration (marginal validity intact).
+        stratum_entries: dict[str, Any] = {}
+        for s in range(CONFORMAL_STRATA):
+            s_train = [r for r in train_records if stratum_of(r) == s]
+            s_cal = [r for r in cal_records if stratum_of(r) == s]
+            s_manifold = fit_dispersion_manifold(
+                [manifold_row(r) for r in s_train])
+            if s_manifold is None or len(s_cal) < MIN_CAL_PER_STRATUM:
+                continue
+            scores = [d for d in (manifold_distance(s_manifold,
+                                                    manifold_row(r))
+                                  for r in s_cal) if d is not None]
+            if len(scores) < MIN_CAL_PER_STRATUM:
+                continue
+            stratum_entries[str(s)] = {"manifold": s_manifold,
+                                       "calibration": scores,
+                                       "n_train": len(s_train)}
         role_cal = [[stratum_of(record), -float(record["role_coupling"])]
                     for record in records
                     if record.get("role_coupling") is not None]
@@ -589,7 +667,8 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
             # both axes and one p-value rule serves both.
             "manifold": {"n_train": len(train_records),
                          "min_cal_per_stratum": MIN_CAL_PER_STRATUM,
-                         "calibration": manifold_cal},
+                         "calibration": manifold_cal,
+                         "stratum": stratum_entries},
             "role": {"scoring_factors": list(ROLE_SCORING_FACTORS),
                      "min_cal_per_stratum": MIN_CAL_PER_STRATUM,
                      "calibration": role_cal},
@@ -707,39 +786,34 @@ def document_findings(text: str, field_profile_dir: Path | None,
     if not manifold:
         per_feature_strength = "strong"
     else:
-        distance = manifold_distance(manifold, flat_row)
-        manifold_axis = (conformal or {}).get("manifold")
-        if distance is not None:
-            if manifold_axis and manifold_axis.get("calibration"):
-                # split-conformal operating point: finite-sample false-flag
-                # guarantee from held-out human calibration papers
-                stratum = _length_stratum(shape["n_paragraphs"],
-                                          conformal["strata_edges"])
-                cal, cal_basis = _stratum_calibration(manifold_axis, stratum)
-                alpha = float(conformal.get("alpha", CONFORMAL_ALPHA))
-                p_value = _conformal_p(cal, distance)
+        operating = manifold_operating_point(baseline, flat_row,
+                                             shape["n_paragraphs"])
+        if operating is not None:
+            distance = operating["distance"]
+            p_value = operating["p_value"]
+            if operating["alpha"] is not None:
+                alpha = operating["alpha"]
+                cal_basis = operating["calibration_basis"]
+                n_cal = operating["n_calibration"]
                 flagged = p_value <= alpha
-                op_reference = {"operating_point": "split-conformal",
+                op_reference = {"operating_point": operating["operating_point"],
                                 "alpha": alpha,
-                                "n_calibration": len(cal),
+                                "n_calibration": n_cal,
                                 "calibration_basis": cal_basis,
-                                "n_train": manifold_axis.get("n_train"),
+                                "n_train": operating.get("n_train"),
                                 "provenance": BASELINE_NAME}
                 op_margin = alpha - p_value
                 op_confidence = {
-                    "value": min(1.0, len(cal) / 100.0),
-                    "basis": (f"split-conformal p against {len(cal)} held-out "
+                    "value": min(1.0, n_cal / 100.0),
+                    "basis": (f"split-conformal p against {n_cal} held-out "
                               f"human papers ({cal_basis}); P(false flag) <= "
                               f"{alpha:g} finite-sample for exchangeable "
                               "human documents")}
                 op_clause = (f"conformal p = {p_value:.4f} <= alpha {alpha:g} "
-                             f"against {len(cal)} held-out human papers "
+                             f"against {n_cal} held-out human papers "
                              f"({cal_basis})")
             else:  # legacy baseline without a conformal block
-                null = manifold["null_distances"]
-                p_value = 1.0 - (sum(d <= distance for d in null)
-                                 / (len(null) + 1))
-                flagged = distance > float(manifold["threshold"])
+                flagged = operating["flagged"]
                 op_reference = {"operating_point": "in-sample percentile",
                                 "n_documents": manifold["n_documents"],
                                 "threshold": manifold["threshold"],
