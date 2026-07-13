@@ -3,6 +3,40 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.17.0 — 2026-07-13
+
+Normative-standard release: `docs/SCIPAPER_STANDARD.md` is updated to **v3** and
+is now the complete de-AI standard. There is no separate de-AI standard document
+— the sci-paper standard includes it.
+
+- **The de-AI subsystem is fully specified in the single authority.** v2 predated
+  the v0.13–0.16 buildout; v3 adds the document-scale detection core (per-stratum
+  dispersion manifold, role-coupled dispersion, split-conformal operating points),
+  the L2 claim-anchoring writing-quality band, the offline-audit-instrument status
+  of the L3 learned classifier, and the cooperative L4 repair layer
+  (`deai_partition`, `deai_provenance`, `deai_personal`) — each with its axis,
+  measurement state, and confound status.
+- **`calibration_unit` is now in the finding contract (§3).** The paragraph
+  confidence cap is stated normatively: a single paragraph is near-unjudgeable, so
+  paragraph-unit findings are structurally capped at 0.5; `null` is uncapped.
+- **New: the de-AI-ization procedure (§5.2, 去AI化步骤).** An ordered,
+  layer-by-layer normative procedure for removing machine-writing regularity —
+  L0 to zero, L1 distribution, L2 sentence and document structure (via
+  fidelity-free partition), L4 anchoring and voice, the confound-free
+  provenance/personal self-checks, then invariant-protected re-measurement — with
+  the concrete move and tool named at each step. The target is faithful writing
+  quality, never detector evasion.
+- **Length is stratified, never normalized (guardrail 9).** Dividing a
+  document-scale distance by a function of paragraph count is prohibited as a
+  length-confound exploit (measured in EVALUATION.md §9.8).
+- **Every open item is dispositioned (§11).** The ranked frontier is complete; the
+  remaining roadmap ranks (2/3/4/6), the degraded L1 (distribution and UID) and
+  L3.voice operating points, and the `ai_long` standing target each carry a decided
+  disposition, so the standard rests on no undecided obstacle.
+
+No product code changed; the tool and test registries are unchanged (21 tools, 9
+skills). Validator and the 82-test suite pass.
+
 ## v0.16.0 — 2026-07-13
 
 Closes the ranked de-AI frontier and the last recorded measurement debt. Two new

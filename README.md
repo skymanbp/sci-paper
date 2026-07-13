@@ -4,10 +4,14 @@ A Claude Code plugin for scientific writing, rewriting, source-traced review,
 figure review, narrative analysis, adversarial critique, and research ideation.
 
 The single normative authority is
-[`docs/SCIPAPER_STANDARD.md`](docs/SCIPAPER_STANDARD.md). It defines scientific
+[`docs/SCIPAPER_STANDARD.md`](docs/SCIPAPER_STANDARD.md) (v3). It defines scientific
 integrity blockers, narrow L0 rewrite targets, ranked advisories, explicit measurement
-states, author dispositions, and scientific-fidelity requirements. Corpus profiles and
-learned models provide evidence; they do not define a separate paper verdict.
+states, author dispositions, and scientific-fidelity requirements. It also **is** the
+de-AI standard: the layered signal model (L0–L4), the document-scale detection core,
+the cooperative repair layer, the `calibration_unit` confidence cap, the ordered
+de-AI-ization procedure (§5.2), and a disposition for every open item all live in that
+one file — there is no separate de-AI standard. Corpus profiles and learned models
+provide evidence; they do not define a separate paper verdict.
 
 ## What it ships
 
@@ -206,9 +210,13 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.16.0**. Full per-version history is in
+Current: **v0.17.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
+- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3 — now the complete de-AI
+  standard (layered model, document-scale core, cooperative layer,
+  `calibration_unit` cap, the §5.2 de-AI-ization procedure, and a disposition for
+  every open item). There is no separate de-AI standard.
 - **Skills (9):** `paper`, `paper-review`, `figure-review`, `paper-style`,
   `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`,
   `rewrite-in-voice`.

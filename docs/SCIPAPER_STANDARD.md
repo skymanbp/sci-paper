@@ -5,9 +5,15 @@
 > rewriting (`/sci-paper:rewrite-in-voice`) implement this document. If a skill,
 > tool, style profile, or workflow conflicts with this file, this file wins.
 >
-> Status: **v2 (2026-07-12)**. v2 makes the feedback contract operational,
-> separates scientific integrity from author-disposable prose feedback, and
-> preserves the established lexical de-AI standard as L0.
+> Status: **v3 (2026-07-13)**. v3 folds the complete de-AI subsystem into this
+> single authority (there is no separate de-AI standard): it specifies the
+> document-scale detection core (per-stratum dispersion manifold, role coupling,
+> split-conformal), the cooperative L4 layer (partition, anchoring, provenance,
+> personal baseline), the `calibration_unit` confidence cap, the ordered
+> de-AI-ization procedure (§5.2, 去AI化步骤), and a disposition for every open
+> item (§11). v2 made the feedback contract operational, separated scientific
+> integrity from author-disposable prose feedback, and preserved the established
+> lexical de-AI standard as L0.
 
 ---
 
@@ -146,11 +152,29 @@ Sentence-level template families include:
 - repeated lexical or modal/anaphoric sentence frames;
 - balanced or symmetric closers.
 
-Document-level evidence concerns shape rather than repeated subject matter:
+Document-level evidence concerns shape rather than repeated subject matter, and
+is the de-AI center of gravity: field register shifts the *level* of
+per-paragraph features (which fools any per-paragraph score), while
+machine-uniformity compresses their *spread across a document*. The document
+detector (`deai_docstructure`, axis `L2.document_structure`) measures:
 
-- within-section paragraph-shape regularity;
-- cross-section shape similarity;
-- repeated first-to-last paragraph arcs.
+- **cross-paragraph dispersion** as a joint Mahalanobis distance in log
+  dispersion-ratio space, fit **per length stratum** with a pooled fallback;
+  `manifold_operating_point` is the single scoring entry shared by findings, the
+  partition tool, and evaluations, so no two consumers see a different geometry;
+- **role-coupled dispersion** (axis-level within the same detector): a
+  permutation-normalized one-way η² of paragraph shape by rhetorical role, so the
+  detector rewards variation *where the argument demands it* and both machine
+  failure modes (uniform and forced-ragged) sit in the low-coupling tail;
+- **split-conformal (Mondrian) operating points**: the human false-flag rate is a
+  finite-sample, distribution-free type-I guarantee from human data alone,
+  stratified by document-length tercile and separated from the wide-CI question
+  of detection power.
+
+A separate L2 writing-quality axis, `L2.claim_anchoring` (`deai_anchoring`),
+measures section-class conditional anchored-sentence rates. It is a
+writing-quality band, **not an AI-discrimination axis**: the "under-anchoring is
+the AI tell" hypothesis is refuted for strong-model generations (EVALUATION §9.6).
 
 A detector needs enough sections and substantial paragraphs to support the
 measurement. Otherwise it reports `insufficient_evidence` and leaves the axis
@@ -159,7 +183,9 @@ misrepresented as independent papers.
 
 L2 actions must preserve clarity and logic. The goal is not random irregularity.
 A rewrite should remove needless scaffolding and repetitive symmetry while
-keeping genre-appropriate organization and readable argument flow.
+keeping genre-appropriate organization and readable argument flow. Document-scale
+findings are repaired with the fidelity-free partition operators (§2 L4), never by
+manufacturing raggedness.
 
 ### L3: learned similarity
 
@@ -178,6 +204,17 @@ The normative report uses distance and uncertainty language. Labels such as
 text must not say that a low score proves machine authorship. A universal
 `0.5` cutoff is not part of this standard.
 
+The per-paragraph learned classifier (`deai_voice`, axis `L3.voice`) is an
+**offline audit instrument, not a product detector one calibration away from an
+operating point.** This is a decided status fixed by three measured facts: the
+single-paragraph unit is near-unjudgeable (perceptual AUC at chance, EVALUATION
+§10); on field-topic text the classifier mis-flags at a high rate while overall
+separation stays high (a level confound the paragraph unit cannot escape,
+EVALUATION §7); and document-level surprisal dispersion is weaker than the
+model-free manifold and adds nothing to it (EVALUATION §9.8). L3 therefore stays
+`degraded` with no operating point, emits rank-only triage, and its per-paragraph
+findings are confidence-capped (§3, `calibration_unit`).
+
 ### L4: positive scientific voice
 
 Removing tells is insufficient. A faithful rewrite should add or strengthen:
@@ -193,6 +230,26 @@ Removing tells is insufficient. A faithful rewrite should add or strengthen:
 
 Every added number, citation, entity, unit, causal claim, and qualifier must be
 traceable to a source. Specificity never licenses invention.
+
+L4 also holds the **cooperative repair tools**, none an AI detector, each turning
+the subsystem from a verdict machine into a writing partner. The partition
+operator is corpus-referenced and `measured` wherever the human dispersion
+manifold is calibrated; the provenance and personal-baseline tools are honestly
+`unmeasured` until the author supplies their own draft history or prior papers:
+
+- **`deai_partition`** — fidelity-free merge/split suggestions that move a
+  document toward the human dispersion band. Operations touch zero tokens, so the
+  protected-invariant sets are byte-identical and the `-inf` fidelity gate cannot
+  fire. Suggest-only; reordering deliberately excluded.
+- **`deai_provenance`** (axis `L4.editing_provenance`) — matches each current
+  paragraph to a designated AI-draft ancestor (an earlier file or a git ref from
+  the author's own history) and labels the span by a deterministic token edit
+  ratio (`ai_untouched` → `author_original`). It reads only the author's own
+  history and never asserts authorship of anyone else's text.
+- **`deai_personal`** (axis `L4.personal_baseline`) — uses the author's own prior
+  papers as a same-author, same-field, same-jargon dispersion reference,
+  sidestepping the field-topic confound entirely, and flags a draft that varies
+  paragraph shape far less than the author usually does.
 
 ### QD: scientific and editorial quality
 
@@ -230,6 +287,7 @@ kind                    integrity_blocker | l0_target | advisory
 layer                    L0 | L1 | L2 | L3 | L4 | QD
 rule
 scope                    document | section | paragraph | sentence | figure | table | equation | citation
+calibration_unit         paragraph | section | document | null; the granularity at which the evidence was calibrated
 location                 path, start_line, optional end_line and section
 message
 observed                 value, unit, optional raw evidence
@@ -248,6 +306,14 @@ before_after              optional linkage to the finding or measurement after a
 `finding_id` is stable for the same detector, rule, location, and evidence
 identity. Human-readable text and JSON must be generated from the same finding
 objects. A tool must never reconstruct JSON by parsing its printed prose.
+
+`calibration_unit` records the granularity at which a finding's evidence was
+calibrated. Because a single paragraph is near-unjudgeable for AI-ness,
+**paragraph-unit findings are structurally capped at 0.5 confidence** in the
+finding contract itself, not left to each detector. Section- and document-unit
+findings are not capped; deterministic evidence (an edit ratio) is exempt. A
+`null` unit makes no granularity claim and is uncapped, preserving every legacy
+caller.
 
 For unavailable measurements, the report includes an axis-level status object
 even when there is no location-specific finding.
@@ -329,6 +395,60 @@ A review or rewrite cycle may stop when:
 This is a feedback state, not proof that the paper is correct or publication
 ready. Independent review may create new findings.
 
+### 5.2 De-AI-ization procedure (去AI化步骤)
+
+Removing machine-writing regularity is layered and ordered. Each step names the
+concrete move and the tool; every step is subordinate to invariant protection and
+re-measurement (§5 steps 6–7). The order runs cheap-and-deterministic first, then
+local structure, then the document-scale keystone, then positive voice, then the
+confound-free self-checks.
+
+0. **Measure and record.** Run every applicable axis; list unavailable axes with a
+   reason (§0.2). Nothing below acts on an unmeasured axis as if it were clean.
+
+1. **L0 to zero (deterministic).** Remove every Tier A hit and em-dash; bring each
+   Tier B word within its section cap. `ai_ism_lint` gates this; L0 is the only
+   axis rewritten *to zero*.
+
+2. **L1 distribution.** Where a section is flagged for low burstiness or
+   connective-opener signposting, restore field-appropriate sentence-length
+   variation and delete roadmap connectives. Do not manufacture random variety;
+   vary where the content varies.
+
+3. **L2 sentence structure.** Dissolve announced enumeration, setup-list-wrap
+   patterns, repeated modal or anaphoric frames, and symmetric closers into prose
+   the argument carries, keeping genre-appropriate organization.
+
+4. **L2 document structure (the keystone).** If the dispersion manifold or
+   role-coupling flags over-uniformity, apply `deai_partition` merge/split
+   suggestions — fidelity-free, so the `-inf` gate cannot fire — to move the
+   document toward the human dispersion band, and let paragraphs differ *where the
+   argument demands it* (role coupling), never at random. Length is handled by the
+   per-stratum plus conformal calibration, never by normalizing a distance.
+
+5. **L4 anchoring and voice.** Anchor unanchored Results and Methods claims to
+   numbers, citations, references, or comparisons (a writing-quality gain, not an
+   AI verdict); strengthen the specific claim, the stance, and faithful
+   compression using author exemplars. Every added fact is source-traceable.
+
+6. **Confound-free self-checks.** If an AI-draft ancestor exists, run
+   `deai_provenance` and rewrite any span still labelled `ai_untouched`. If the
+   author's own prior papers exist, run `deai_personal` and match the draft's
+   shape variation to the author's own baseline.
+
+7. **Protect invariants and re-measure.** Every move above preserves claims,
+   numbers, units, citations, causal direction, stance, and qualifiers (the
+   eligibility gate, §6). Re-run every affected axis; a rewrite may not clear one
+   signal by adding another defect or dropping evidence.
+
+8. **Disposition and report.** Record each residual advisory's disposition; report
+   all four measurement states and before/after counts; never collapse the result
+   into a universal verdict.
+
+The procedure improves writing, not detector scores: a clearer, faithful,
+better-sourced paragraph is the target, and lowering detector visibility is never
+an end in itself.
+
 ---
 
 ## 6. Rewrite eligibility and reward
@@ -381,11 +501,15 @@ empirical evidence. Neither overrides this standard.
 | `deai_metrics.py` | L1 | Emit calibrated distribution findings and explicit missing-baseline status. |
 | `deai_oracle.py` | L1 | Emit surprisal/UID findings with observed and reference values; advisory-success exit 0. |
 | `deai_structure.py` | L2 sentence | Emit template evidence with calibration metadata; advisory-success exit 0. |
-| `deai_docstructure.py` | L2 document | Measure document shape with sample-sufficiency checks and document-level calibration. |
-| `deai_voice.py` | L3 | Emit calibrated similarity evidence, model metadata, and confound status without authorship claims. |
-| `deai_feedback.py` | shared | Validate schema, attach actions, rank findings, summarize statuses, and serialize output. |
-| `rewrite_reward.py` | L3-L4 | Exclude unfaithful candidates before ranking eligible rewrites. |
+| `deai_docstructure.py` | L2 document | Measure document shape (per-stratum dispersion manifold, role coupling, split-conformal) with sample-sufficiency checks; one shared `manifold_operating_point` scoring entry. |
+| `deai_anchoring.py` | L2 | Emit the section-class claim-anchoring band as a writing-quality axis, never an AI-discrimination axis. |
+| `deai_voice.py` | L3 | Emit calibrated similarity evidence, model metadata, and confound status without authorship claims; degraded, offline audit instrument. |
+| `deai_feedback.py` | shared | Validate schema (incl. `calibration_unit` cap), attach actions, rank findings, summarize statuses, and serialize output. |
+| `rewrite_reward.py` | L3-L4 | Exclude unfaithful candidates before ranking eligible rewrites; rank by L0 advisory reduction and fidelity. |
 | `retrieve_exemplars.py` | L4 | Supply author-voice evidence without copying unsupported scientific content. |
+| `deai_partition.py` | L4 | Suggest fidelity-free merge/split operations toward the human dispersion band; zero-token, suggest-only. |
+| `deai_provenance.py` | L4 | Label author edit depth vs a designated AI-draft ancestor from the author's own history; `unmeasured` without one. |
+| `deai_personal.py` | L4 | Compare a draft to the author's own prior papers (confound-free reference); `unmeasured` below three papers. |
 
 Compatibility tuple APIs may remain temporarily, but new orchestration consumes
 structured finding APIs. Adapters project from structured findings, not the
@@ -414,6 +538,11 @@ reverse.
 8. **Record evidence outside the norm.** Sample counts, effect sizes, model
    metrics, and current operating points live in `EVALUATION.md` and calibration
    assets so they can change without silently changing policy.
+9. **Stratify length; never normalize it away.** Document length is a measured
+   confound handled by per-stratum manifolds and length-Mondrian conformal
+   operating points. Dividing a document-scale distance by a function of paragraph
+   count is prohibited: it exploits systematic length differences between classes
+   rather than correcting estimator noise (measured in `EVALUATION.md` §9.8).
 
 ---
 
@@ -432,3 +561,28 @@ surface decisions that genuinely require the author:
 The author cannot waive an unresolved integrity blocker merely by marking it
 accepted. The correct paths are to fix it, verify it as a false positive, or
 leave it explicitly unresolved.
+
+---
+
+## 11. De-AI subsystem status and open-item dispositions
+
+The ranked de-AI frontier is complete ([`DEAI_FRONTIER.md`](DEAI_FRONTIER.md)).
+Every remaining engineering item has a decided disposition, so the standard rests
+on no undecided obstacle. Adoption of any item requires passing the §9 confound
+audit and keeping the suite and validator green, and updates this table and
+`EVALUATION.md` together.
+
+| Item | Disposition | Reason |
+|---|---|---|
+| Document-scale detection core (dispersion manifold, role coupling, split-conformal, per-stratum) | **Shipped, `measured`** | Calibrated on the complete human corpus; falsification and length-fair AUCs in EVALUATION §9.2–9.5. |
+| Cooperative layer (`deai_partition`, `deai_anchoring`, `deai_provenance`, `deai_personal`) | **Shipped** | Partition/anchoring `measured`; provenance/personal `unmeasured` by design until the author supplies own history/papers. |
+| `L3.voice` operating point | **Decided degraded** | Offline audit instrument; per-paragraph unit near-unjudgeable and document-level surprisal refuted (§2 L3, EVALUATION §7, §9.8). |
+| `L1.distribution` operating point | **Decided degraded** | No `deai_policy.json` field-calibrated operating point; burstiness/signposting summaries exist but carry no policy threshold (EVALUATION §2). |
+| `L1.uid` operating point | **Decided degraded** | No field-policy-calibrated compatibility operating point; the surprisal path is measured not to add document-level power. |
+| Enriched surprisal features (roadmap rank 5) | **Done, not shipped** | Better than the three scalars but inert for the model-free detector, so recorded not shipped (EVALUATION §9.8). |
+| Length normalization of manifold distance | **Rejected** | A length-confound exploit, not a noise correction (guardrail 9, EVALUATION §9.8). |
+| Baseline unification into one `(feature, unit)` object (rank 2) | **Deferred (elegance debt)** | Explicitly a staged consolidation, never a rewrite; the current architecture is correct and green. |
+| Jargon-conditional per-paragraph operating point (rank 3) | **Won't pursue as scoped** | The jargon confound is handled at document scale by per-stratum + conformal; a per-paragraph operating point is inconsistent with the L3-degraded decision. |
+| `corpus_cos` ablation (rank 4) | **Deferred (audit-only)** | Documented as a field-register confound feature in the degraded, audit-only classifier; marginal value while L3 has no shipped operating point. |
+| Topic-orthogonal axes: cohesion, hedging, citation placement (rank 6) | **Deferred, blocked** | Citation placement is blocked on the `extract_style` `\cite`-flattening root-cause fix; each is a future calibrated axis, not a gap in this spec. |
+| Long-form generation (`ai_long`) | **Standing falsification target** | A recorded measured limit (EVALUATION §9.7); future detector work is benchmarked against it. |
