@@ -724,3 +724,92 @@ v0.14.0 release gates and their status on 2026-07-12:
 Author decisions that remain open and do not block the plugin release: accepting or
 rejecting the §11 the manuscript rewrite proposal, and whether to ever propose an L3 operating
 point (the hard set says not yet).
+
+## 13. Blind A/B perceptual panel and the layer-2 tell taxonomy (v0.18.0)
+
+Date: 2026-07-14. Subject: the full de-scaffold rewrite of a real 31-page ApJ
+draft (the manuscript, weak-lensing pipeline; 71 substantial paragraphs) executed under
+a mechanical fidelity gate (8 protected token multiset classes: cites, refs,
+labels, byte-frozen floats, byte-frozen display math, inline math, macro
+invocations, numeric literals, all multiset-identical before/after).
+
+### 13.1 Protocol
+
+Independent cold-read judge agents, blind to version identity and to each other,
+each read the complete assembled main text and return: an `ai_feel_1to5` score
+(1 = confidently human, 5 = confidently machine), a tell inventory with verbatim
+quotes, and the single strongest machine-feeling passage. Four judges per
+version. The panel is a perceptual validation instrument for L2: it measures
+what a hostile expert reader actually notices, which the deterministic detectors
+can then be tested against.
+
+### 13.2 Case study: tell substitution under score invariance
+
+Three versions of the same document were paneled:
+
+| Version | Mean score | Judge scores | Top tell named |
+|---|---|---|---|
+| pristine v18 | 2.0 | [2,2,2,2] | announced enumeration scaffolds (4/4 judges; 3x strongest passage) |
+| Phase A (de-scaffold) | 2.0 | [2,2,2,2] | antithesis density, aphoristic closers (0/4 mention enumeration) |
+| Phase A2 (tell-targeted) | 2.25 | [2,3,2,2] | residual antithesis habit, intro requirement cadence |
+
+The headline result: **the mean score is invariant while the tell inventory
+turns over completely.** Removing the dominant tell family (announced
+enumeration, 8 instrument findings to 0) did not move the score; judges
+saturated on the next stratum (antithesis clusters, aphoristic closers) at the
+same perceived intensity. Reading the mean score as "no improvement" is
+therefore wrong: the correct diagnostic is which tells the judges name and
+whether the previous stratum is gone. Score movement is expected only when the
+tell hierarchy is exhausted.
+
+### 13.3 Layer-2 tell taxonomy (panel-derived)
+
+Tells the panel surfaced that the v0.17.0 detectors did not capture:
+
+1. **Antithesis clusters**: "X rather than Y" / "not X but Y" / "X instead of
+   Y" as a default sentence engine. Corpus calibration (1,957 human paragraphs,
+   wgl field): at least one antithesis in 3.3% of paragraphs, two or more in
+   **0.2%**. The the manuscript drafts: two or more in 5.6% of paragraphs (28x the
+   human base rate). Captured in `deai_structure` as auxiliary family
+   `antithesis-cluster` (threshold: 2 per paragraph).
+2. **Short reversal beats**: a setup followed by a reversal sentence of five
+   words or fewer ("It would not." / "It does the opposite."). Human base rate:
+   **0 of 1,957 paragraphs**. Two instances in the Phase A draft, both
+   rewrite-introduced. Captured as auxiliary family `short-reversal`.
+3. **Aphoristic "perform rigor" closers**: sentences engineered to sound
+   quotable about the method's honesty ("has to earn every claim it makes",
+   "runs conservative in the null direction it could cheat in"). No reliable
+   lexical pattern exists; this class is documented here as a panel-advisory
+   target and handled by targeted rewrite instruction, not a detector.
+
+Auxiliary families emit ordinary advisories under `structure-auxiliary` and are
+excluded from `template_score`, so the calibrated document-dispersion manifold
+(which consumes `template_score` as a dispersion feature) is unchanged.
+
+### 13.4 Detector-vs-panel cross-validation
+
+The upgraded detector, re-run on all three versions (field profile wgl):
+
+| Version | `structure-template` findings | `structure-auxiliary` findings |
+|---|---|---|
+| pristine v18 | 8 | 4 |
+| Phase A | 0 | 6 (incl. 2 reversal beats) |
+| Phase A2 | 0 | 1 |
+
+The auxiliary axis now tracks exactly what the panel reported: Phase A traded
+template findings for auxiliary density (including the two rewrite-introduced
+reversal beats the panel quoted verbatim), and the A2 targeted revision cut
+auxiliary findings 6 to 1 while the fidelity gate stayed PASS on all 8
+protected token classes and the document stayed inside the human manifold band
+(distance 4.392, conformal p 0.082). Antithesis instances counted by grep fell
+23 to 12.
+
+### 13.5 Limits
+
+One document, one field, four judges per version, and judge agents share a
+model family: the panel measures a strong-reader perception proxy, not human
+referee behavior. The score scale is compressed at the low end (all versions
+scored near 2), so the tell-turnover reading, not the score, carries the
+signal. The aphoristic-closer class has no detector and relies on
+rewrite-instruction coverage; residual instances survive in A2 (the intro
+requirement cadence one judge still names).

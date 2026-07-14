@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+import sys
+import unittest
+from pathlib import Path
+
+TOOLS = Path(__file__).resolve().parents[1] / "tools"
+sys.path.insert(0, str(TOOLS))
+
+import deai_structure as structure
+
+
+ANTITHESIS_HEAVY = (
+    "The error budget is measured rather than assumed, and every threshold "
+    "derives from injections rather than from a tuned cutoff. The detector "
+    "reports negatives instead of burying them, so the reader sees the "
+    "boundary the grid quantifies. Each claim is stated with its reason "
+    "attached, and the pipeline was frozen before the labeled sample was "
+    "consumed at scoring time."
+)
+
+REVERSAL_BEAT = (
+    "One might expect that raising the minimum configuration support would "
+    "cheaply remove the residual noise detections from the shortlist. "
+    "It would not. The support distribution of injected structure overlaps "
+    "the noise support distribution across the calibrated range, so any cut "
+    "strong enough to matter removes real detections at the same rate and "
+    "leaves the purity of the final catalog unchanged."
+)
+
+PLAIN_PROSE = (
+    "The aperture-mass map is evaluated on a regular grid in catalog "
+    "coordinates. Each configuration pairs a filter scale with a truncation "
+    "radius, and the resulting family covers the range of subhalo sizes the "
+    "injection grid samples. Peaks are aggregated across configurations "
+    "before any ranking statistic is computed, which keeps the candidate "
+    "list independent of any single filter choice."
+)
+
+
+class AuxiliaryFamilyTests(unittest.TestCase):
+    def test_antithesis_cluster_detected(self):
+        values = structure.paragraph_structure(ANTITHESIS_HEAVY)
+        self.assertGreaterEqual(values["antithesis_count"],
+                                structure.ANTITHESIS_CLUSTER)
+        self.assertIn("antithesis-cluster", values["auxiliary_templates"])
+
+    def test_short_reversal_detected(self):
+        values = structure.paragraph_structure(REVERSAL_BEAT)
+        self.assertTrue(values["reversal_beat"])
+        self.assertIn("short-reversal", values["auxiliary_templates"])
+
+    def test_plain_prose_clean(self):
+        values = structure.paragraph_structure(PLAIN_PROSE)
+        self.assertEqual(values["auxiliary_templates"], [])
+        self.assertEqual(values["antithesis_count"], 0)
+        self.assertFalse(values["reversal_beat"])
+
+    def test_single_antithesis_below_cluster_threshold(self):
+        one = ("The positions are anchored to measured mass peaks rather "
+               "than to any geometric property of the map, and the frame "
+               "is carried through every later stage of the pipeline so "
+               "that the reported coordinates match the catalog exactly.")
+        values = structure.paragraph_structure(one)
+        self.assertEqual(values["antithesis_count"], 1)
+        self.assertNotIn("antithesis-cluster", values["auxiliary_templates"])
+
+    def test_template_score_excludes_auxiliary(self):
+        values = structure.paragraph_structure(ANTITHESIS_HEAVY)
+        self.assertEqual(values["template_score"], len(values["templates"]))
+        self.assertNotIn("antithesis-cluster", values["templates"])
+
+    def test_findings_emit_auxiliary_rule(self):
+        text = "\\section{Methods}\n\n" + ANTITHESIS_HEAVY + "\n"
+        findings = structure.structure_findings(text, None)
+        rules = {finding["rule"] for finding in findings}
+        self.assertIn("structure-auxiliary:method", rules)
+        for finding in findings:
+            if finding["rule"].startswith("structure-auxiliary"):
+                self.assertEqual(finding["kind"], "advisory")
+                self.assertFalse(finding.get("strong_advisory"))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -3,6 +3,41 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.18.0 — 2026-07-14
+
+Panel-validated release: a blind A/B perceptual panel on a real 31-page ApJ
+draft (three versions of the same document under a mechanical fidelity gate)
+surfaced a second stratum of machine-writing tells and validated the reading
+protocol for perceptual scores. Standard bumped to **v3.1**.
+
+- **New auxiliary L2 template families in `deai_structure`** (panel-derived,
+  corpus-calibrated): `antithesis-cluster` (2+ contrastive "X rather than Y" /
+  "not X but Y" frames in one paragraph; human base rate 0.2% of 1,957 wgl
+  paragraphs vs 5.6% in the audited drafts, a 28x separation) and
+  `short-reversal` (a reversal sentence of 5 words or fewer, e.g. "It would
+  not."; human base rate 0/1,957). Both emit ordinary advisories under the new
+  `structure-auxiliary:<bucket>` rule and are **excluded from `template_score`**,
+  so the calibrated document-dispersion manifold consumed by
+  `deai_docstructure` is unchanged. `structure_baseline.json` recalibrated with
+  the new per-bucket fractions (`auxiliary_frac`, `antithesis_cluster_frac`,
+  `reversal_frac`).
+- **Blind perceptual panel recognized as an L2 validation instrument**
+  (standard §2 L2): independent cold-read judges score `ai_feel_1to5` and must
+  name tells with verbatim quotes. The normative reading is **tell-inventory
+  turnover, not the mean score** — judges saturate on the most visible tell
+  family, so removing it exposes the next stratum at a similar score.
+- **EVALUATION §13: the case study.** Three versions paneled at mean scores
+  2.0 / 2.0 / 2.25 while the top tell named turned over completely (announced
+  enumeration 4/4 judges → 0/4 after the de-scaffold rewrite). The upgraded
+  detector cross-validates the panel: template findings 8→0→0, auxiliary
+  findings 4→6→1 across pristine / Phase A / targeted-revision versions.
+- **Aphoristic "perform rigor" closers** documented as a panel-advisory class
+  (no reliable lexical pattern; handled by rewrite instruction, not a
+  detector).
+- New test module `tests/test_deai_structure.py` (6 tests: cluster detection,
+  reversal detection, clean-prose negative, sub-threshold negative,
+  `template_score` isolation, finding-rule emission). Suite: 88 tests green.
+
 ## v0.17.0 — 2026-07-13
 
 Normative-standard release: `docs/SCIPAPER_STANDARD.md` is updated to **v3** and

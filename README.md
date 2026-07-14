@@ -210,13 +210,15 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.17.0**. Full per-version history is in
+Current: **v0.18.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
-- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3 — now the complete de-AI
+- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.1 — the complete de-AI
   standard (layered model, document-scale core, cooperative layer,
-  `calibration_unit` cap, the §5.2 de-AI-ization procedure, and a disposition for
-  every open item). There is no separate de-AI standard.
+  `calibration_unit` cap, the §5.2 de-AI-ization procedure, auxiliary L2
+  template families with the blind perceptual panel as an L2 validation
+  instrument, and a disposition for every open item). There is no separate
+  de-AI standard.
 - **Skills (9):** `paper`, `paper-review`, `figure-review`, `paper-style`,
   `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`,
   `rewrite-in-voice`.

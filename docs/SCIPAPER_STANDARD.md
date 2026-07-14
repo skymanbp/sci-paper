@@ -5,7 +5,12 @@
 > rewriting (`/sci-paper:rewrite-in-voice`) implement this document. If a skill,
 > tool, style profile, or workflow conflicts with this file, this file wins.
 >
-> Status: **v3 (2026-07-13)**. v3 folds the complete de-AI subsystem into this
+> Status: **v3.1 (2026-07-14)**. v3.1 adds the auxiliary L2 template families
+> (antithesis clusters, short reversal beats — panel-derived, corpus-calibrated,
+> excluded from `template_score` so the document manifold is unchanged) and
+> recognizes the blind perceptual panel as an L2 validation instrument whose
+> diagnostic reading is tell-inventory turnover, not the mean score. v3
+> (2026-07-13) folds the complete de-AI subsystem into this
 > single authority (there is no separate de-AI standard): it specifies the
 > document-scale detection core (per-stratum dispersion manifold, role coupling,
 > split-conformal), the cooperative L4 layer (partition, anchoring, provenance,
@@ -151,6 +156,26 @@ Sentence-level template families include:
 - setup-list-wrap patterns;
 - repeated lexical or modal/anaphoric sentence frames;
 - balanced or symmetric closers.
+
+A second, **auxiliary family class** covers rhetorical figures that are
+legitimate in isolation but machine-typical at density: **antithesis clusters**
+(two or more contrastive frames such as "X rather than Y" / "not X but Y" in
+one paragraph) and **short reversal beats** (a punchy reversal sentence of five
+words or fewer, such as "It would not."). Auxiliary families emit ordinary
+advisories under their own rule (`structure-auxiliary`) and are excluded from
+`template_score`, so the calibrated document-dispersion manifold is unchanged by
+their addition. The repair rule is asymmetric: keep a contrastive frame only
+where the contrast is load-bearing technical content, and state posture
+contrasts as plain positive claims. Perceptually confirmed tells that resist
+pattern capture — aphoristic "perform rigor" closers — are documented as a
+panel-advisory class in `EVALUATION.md` rather than forced into a detector.
+
+A **blind perceptual panel** — independent cold-read judges who score AI-feel
+and must name concrete tells with quotes, compared across document versions —
+is a recognized L2 validation instrument. Its diagnostic reading is the *tell
+inventory turnover*, not the mean score: judges saturate on the most visible
+tell family, so removing it exposes the next stratum at a similar score. The
+protocol and its case study live in `EVALUATION.md`.
 
 Document-level evidence concerns shape rather than repeated subject matter, and
 is the de-AI center of gravity: field register shifts the *level* of

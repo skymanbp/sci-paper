@@ -40,10 +40,19 @@ RE_ENUM_VERB = re.compile(
     rf"[^.\n]{{0,20}}\b({_COUNT})\b", re.I)
 RE_TRICOLON_WRAP = re.compile(rf"\bthese\s+({_COUNT})\s+\w+", re.I)
 RE_BALANCED = re.compile(r"\bone\b[^.\n]{0,60}\band\b[^.\n]{0,45}\banother\b", re.I)
+# Auxiliary families (v0.18.0, panel-derived; EVALUATION §13). Kept OUT of
+# `templates`/`template_score` so the calibrated document-dispersion manifold
+# (deai_docstructure consumes template_score) is unchanged by their addition.
+RE_ANTITHESIS = re.compile(
+    r"\b(rather than|instead of)\b|\bnot\s+(?:\w+\s+){0,3}?but\b", re.I)
+RE_REVERSAL = re.compile(
+    r"^(it|they|this|that)\b[^.!?]{0,25}\b(not|never|opposite)\b", re.I)
 MIN_WORDS = 30
 ANAPHORA_RUN = 3
 ORDINAL_RUN = 2
 MODAL_RUN = 3
+ANTITHESIS_CLUSTER = 2
+REVERSAL_MAX_WORDS = 5
 
 
 def _first_word(sentence: str) -> str:
@@ -102,6 +111,16 @@ def paragraph_structure(text: str) -> dict[str, Any]:
         templates.append("parallel-modal")
     if balanced:
         templates.append("balanced-closer")
+    antithesis_count = len(RE_ANTITHESIS.findall(plain))
+    reversal_beat = any(
+        len(es.words(sentence)) <= REVERSAL_MAX_WORDS
+        and RE_REVERSAL.match(sentence.strip())
+        for sentence in sentences)
+    auxiliary: list[str] = []
+    if antithesis_count >= ANTITHESIS_CLUSTER:
+        auxiliary.append("antithesis-cluster")
+    if reversal_beat:
+        auxiliary.append("short-reversal")
     return {
         "n_sent": len(sentences),
         "announced": announced,
@@ -110,7 +129,10 @@ def paragraph_structure(text: str) -> dict[str, Any]:
         "modal_run": modal_run,
         "tricolon_wrap": tricolon_wrap,
         "balanced": balanced,
+        "antithesis_count": antithesis_count,
+        "reversal_beat": reversal_beat,
         "templates": templates,
+        "auxiliary_templates": auxiliary,
         "template_score": len(templates),
     }
 
@@ -172,49 +194,84 @@ def structure_findings(text: str, field_profile_dir: Path | None,
             if len(es.words(es.latex_to_plain(block))) < MIN_WORDS:
                 continue
             values = paragraph_structure(block)
-            if not values["templates"]:
+            if not values["templates"] and not values["auxiliary_templates"]:
                 continue
             bucket_reference = baseline.get(bucket, {}) if baseline else {}
             human_fraction = bucket_reference.get("templated_frac")
             reference_n = int(bucket_reference.get("n", 0))
             rare_fraction = (policy or {}).get("rare_template_fraction")
-            strong = bool(
-                baseline and policy and human_fraction is not None
-                and rare_fraction is not None and reference_n >= 20
-                and human_fraction <= float(rare_fraction)
-            )
-            status = "measured" if baseline and policy else (
-                "degraded" if baseline else "unmeasured")
-            context = (f"; reference {bucket} fraction {human_fraction:.1%} "
-                       f"(n={reference_n})") if human_fraction is not None else ""
-            findings.append(feedback.make_finding(
-                kind="advisory", layer="L2",
-                rule=f"structure-template:{bucket}", scope="paragraph",
-                calibration_unit="paragraph",
-                line=paragraph_start, end_line=paragraph_end,
-                section=raw_label, path=path, detector="deai_structure",
-                measurement_status=status,
-                strength="strong" if strong else "ordinary",
-                strong_advisory=strong,
-                observed={"templates": values["templates"],
-                          "template_score": values["template_score"],
-                          "sentence_count": values["n_sent"]},
-                reference={"field_profile": str(field_profile_dir) if field_profile_dir else None,
-                           "section_bucket": bucket,
-                           "templated_fraction": human_fraction,
-                           "n": reference_n,
-                           "operating_point": rare_fraction,
-                           "provenance": "structure_baseline.json" if baseline else None},
-                normalized_distance=(1.0 - float(human_fraction))
-                if human_fraction is not None else None,
-                confidence={"value": min(1.0, values["n_sent"] / 6.0),
-                            "basis": f"{values['n_sent']} sentences; deterministic template evidence"},
-                message=("Paragraph contains repeated sentence-construction "
-                         f"template(s): {', '.join(values['templates'])}{context}."),
-                action=("Dissolve unnecessary enumeration or symmetry while preserving "
-                        "the claim, evidence, and logical dependencies."),
-                evidence=values["templates"],
-            ))
+            if values["templates"]:
+                strong = bool(
+                    baseline and policy and human_fraction is not None
+                    and rare_fraction is not None and reference_n >= 20
+                    and human_fraction <= float(rare_fraction)
+                )
+                status = "measured" if baseline and policy else (
+                    "degraded" if baseline else "unmeasured")
+                context = (f"; reference {bucket} fraction {human_fraction:.1%} "
+                           f"(n={reference_n})") if human_fraction is not None else ""
+                findings.append(feedback.make_finding(
+                    kind="advisory", layer="L2",
+                    rule=f"structure-template:{bucket}", scope="paragraph",
+                    calibration_unit="paragraph",
+                    line=paragraph_start, end_line=paragraph_end,
+                    section=raw_label, path=path, detector="deai_structure",
+                    measurement_status=status,
+                    strength="strong" if strong else "ordinary",
+                    strong_advisory=strong,
+                    observed={"templates": values["templates"],
+                              "template_score": values["template_score"],
+                              "sentence_count": values["n_sent"]},
+                    reference={"field_profile": str(field_profile_dir) if field_profile_dir else None,
+                               "section_bucket": bucket,
+                               "templated_fraction": human_fraction,
+                               "n": reference_n,
+                               "operating_point": rare_fraction,
+                               "provenance": "structure_baseline.json" if baseline else None},
+                    normalized_distance=(1.0 - float(human_fraction))
+                    if human_fraction is not None else None,
+                    confidence={"value": min(1.0, values["n_sent"] / 6.0),
+                                "basis": f"{values['n_sent']} sentences; deterministic template evidence"},
+                    message=("Paragraph contains repeated sentence-construction "
+                             f"template(s): {', '.join(values['templates'])}{context}."),
+                    action=("Dissolve unnecessary enumeration or symmetry while preserving "
+                            "the claim, evidence, and logical dependencies."),
+                    evidence=values["templates"],
+                ))
+            if values["auxiliary_templates"]:
+                aux_fraction = bucket_reference.get("auxiliary_frac")
+                aux_context = (f"; reference {bucket} fraction {aux_fraction:.1%} "
+                               f"(n={reference_n})") if aux_fraction is not None else ""
+                findings.append(feedback.make_finding(
+                    kind="advisory", layer="L2",
+                    rule=f"structure-auxiliary:{bucket}", scope="paragraph",
+                    calibration_unit="paragraph",
+                    line=paragraph_start, end_line=paragraph_end,
+                    section=raw_label, path=path, detector="deai_structure",
+                    measurement_status="measured" if aux_fraction is not None else (
+                        "degraded" if baseline else "unmeasured"),
+                    strength="ordinary", strong_advisory=False,
+                    observed={"auxiliary_templates": values["auxiliary_templates"],
+                              "antithesis_count": values["antithesis_count"],
+                              "reversal_beat": values["reversal_beat"],
+                              "sentence_count": values["n_sent"]},
+                    reference={"field_profile": str(field_profile_dir) if field_profile_dir else None,
+                               "section_bucket": bucket,
+                               "auxiliary_fraction": aux_fraction,
+                               "n": reference_n,
+                               "provenance": "structure_baseline.json" if baseline else None},
+                    normalized_distance=(1.0 - float(aux_fraction))
+                    if aux_fraction is not None else None,
+                    confidence={"value": min(1.0, values["n_sent"] / 6.0),
+                                "basis": f"{values['n_sent']} sentences; deterministic rhetorical-figure evidence"},
+                    message=("Paragraph leans on rhetorical figure(s) rare in the "
+                             "field reference: "
+                             f"{', '.join(values['auxiliary_templates'])}{aux_context}."),
+                    action=("Keep an antithesis only where the contrast is load-bearing "
+                            "technical content; state posture contrasts as plain positive "
+                            "claims; flatten short reversal beats into connected prose."),
+                    evidence=values["auxiliary_templates"],
+                ))
     return findings
 
 
@@ -230,6 +287,7 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
     aggregate = defaultdict(lambda: {
         "n": 0, "templated": 0, "announced": 0, "ordinal": 0,
         "tricolon": 0, "anaphora": 0, "modal": 0, "balanced": 0,
+        "auxiliary": 0, "antithesis_cluster": 0, "reversal": 0,
     })
     for line in bank.open(encoding="utf-8"):
         record = json.loads(line)
@@ -247,6 +305,9 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
         item["anaphora"] += values["anaphora_run"] >= ANAPHORA_RUN
         item["modal"] += values["modal_run"] >= MODAL_RUN
         item["balanced"] += values["balanced"]
+        item["auxiliary"] += bool(values["auxiliary_templates"])
+        item["antithesis_cluster"] += values["antithesis_count"] >= ANTITHESIS_CLUSTER
+        item["reversal"] += values["reversal_beat"]
     output: dict[str, Any] = {}
     for bucket, item in aggregate.items():
         n = max(1, item["n"])
@@ -259,6 +320,9 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
             "anaphora_frac": item["anaphora"] / n,
             "modal_frac": item["modal"] / n,
             "balanced_frac": item["balanced"] / n,
+            "auxiliary_frac": item["auxiliary"] / n,
+            "antithesis_cluster_frac": item["antithesis_cluster"] / n,
+            "reversal_frac": item["reversal"] / n,
         }
     (field_profile_dir / "structure_baseline.json").write_text(
         json.dumps(output, indent=2), encoding="utf-8")
