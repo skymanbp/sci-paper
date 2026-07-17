@@ -16,6 +16,7 @@ serialize evidence but do not define an independent paper verdict.
 | `ai_ism_negatives_handcrafted.txt` | Seed negative examples for the legacy classifier. | Data asset, not normative prose policy. |
 | `deai_feedback.py` | Implements `sci-paper.feedback.v1`: stable IDs, consequence classes, measurement states, dispositions, ranking, summaries, text/JSON rendering, and tuple compatibility. | Stdlib-only shared contract. |
 | `ai_ism_lint.py` | Unified L0 and advisory CLI. Emits ranked text or JSON from the same findings. | Exit 0 = no L0 target; 1 = L0 target present; 2 = invalid input/configuration/execution. Advisories never cause exit 1. |
+| `length_gate.py` | Per-section rendered-prose length-budget delta gate between two document versions (standard §5.3). Growing sections emit strong advisories; `--allow` records justifications. | Exit 0 = net unjustified growth within tolerance; 1 = net unjustified growth beyond it; 2 = invalid input/execution. Comments and math are excluded; a pure section rename nets to zero. |
 | `deai_metrics.py` | L1 information-distribution analysis: sentence-length variation and connective-openers. | Strong status requires applicable policy calibration; compatibility heuristics are degraded. |
 | `deai_structure.py` | L2 sentence-template analysis: enumeration, ordinal/modal/parallel runs, setup-list-wrap-up patterns, and balanced closers. | Strong status requires calibrated policy and sufficient reference sample. |
 | `deai_docstructure.py` | L2 whole-document rhetorical-shape analysis and complete-document calibration: shape similarity, dispersion band, joint Mahalanobis manifold (pooled and per-length-stratum), role-coupled dispersion, and split-conformal operating points. | Requires at least three measurable complete documents and sufficient sections/paragraphs; otherwise unmeasured. Legacy baselines without a conformal block fall back to percentile thresholds; factor-drifted role references disable that axis. |
@@ -31,8 +32,9 @@ serialize evidence but do not define an independent paper verdict.
 | `fetch_arxiv_abstracts.py` | Fetches dated arXiv abstract corpora for controlled model evaluation/training. | Network failures are explicit; fetched text is evidence/training data, not policy. |
 | `validate_plugin.py` | Validates manifests, version/count agreement, skill frontmatter and standard references, normative/evaluation document authority, stale review markers, Python syntax, runtime imports, CLI entry points, feedback schema, linter exits, required tests, and CI wiring. | Stdlib-only; rejects active duplicate evaluation records and exits nonzero on contract drift. |
 
-The plugin manifest counts the 19 product tools/data assets above and excludes the
-repository validator itself.
+The top-level manifest counts 22 Python tools, the repository validator
+included; `ai_ism_negatives_handcrafted.txt` is a data asset outside that
+count.
 
 ## Dependencies
 

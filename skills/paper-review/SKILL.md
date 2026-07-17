@@ -63,6 +63,9 @@ measure → type → rank → edit → re-measure → disposition
    - interfaces：论文符号 ↔ code variable ↔ data column。
 6. 对 LaTeX 论文执行项目规定的完整 build；记录 errors、undefined refs、duplicate
    labels、missing assets 和 warnings。项目若使用其他 build system，执行其权威命令。
+6b. **长度基线快照**（标准 §5.3）：首次 edit 前把目标文件复制到
+   `<scratch>/length-baseline.tex`（或记下干净的 git ref）。没有诚实的
+   基线，收尾的 length gate 无从执行。
 7. 运行共享 de-AI report：
 
 ```bash
@@ -290,6 +293,11 @@ stale scientific content、冲突副本或 required artifact drift 是 `integrit
 6. 改公式/数字/物理链后重跑 M 三 pass；改 figure/table 后重新查看制品与来源；
    改 citation 后重新读原文；改 prose 后重新跑 shared linter。
 7. 重跑权威 build 和所有受影响测试/脚本。
+8. **收尾前跑 length gate**（标准 §5.3 机械执行）：
+   `python tools/length_gate.py <file> --before <scratch>/length-baseline.tex`
+   （或 `--git-ref <ref>`）。exit 1 = 存在无理由净增长——精简回预算内，
+   或用 `--allow "<section>=<理由>"` 记录作者批准的理由后重跑至 exit 0。
+   `length-growth` finding 未 disposition 时循环不得收尾。
 
 伪代码：
 
@@ -343,6 +351,7 @@ Workflow state: DISPOSITION_COMPLETE | REVIEW_ONLY | BREAK_WITH_USER_DECISION | 
 - ordinary advisory: total / reported
 - M derivations: VERIFIED / UNDER_SCRUTINY
 - build: measured status and result
+- length budget (§5.3): gate exit / total words before -> after / justified sections with reasons
 - isolated MPR: measured / unmeasured / orchestrator-owned / failed
 
 ## Ranked findings
@@ -376,6 +385,8 @@ Review may stop as disposition-complete only when:
 - applicable L0 targets are zero;
 - all critical derivations are VERIFIED;
 - required build and artifacts are valid;
+- the length gate (standard §5.3) exits 0 against the loop's pre-edit
+  baseline, every recorded growth justification included in the report;
 - every strong advisory has an explicit disposition or a stated pending reason;
 - ordinary advisories and unavailable axes are reported.
 

@@ -69,6 +69,9 @@ Create `<scratch>/claim.txt` containing, in compact form:
 This record may discard padding, but it must not discard protected content. Re-read
 all numerical and citation sources in the same turn before writing it.
 
+Also write the original paragraph verbatim to `<scratch>/original.txt`: it is
+the length-budget baseline (standard §5.3) that `rewrite_reward.py` enforces.
+
 ### 2.2 Retrieve positive voice anchors
 
 When a valid exemplar bank exists:
@@ -107,15 +110,20 @@ Write each candidate to `<scratch>/cand_<k>.txt`.
 ```bash
 python tools/rewrite_reward.py --field <field> \
   --reference <scratch>/claim.txt \
+  --original <scratch>/original.txt \
   --candidates <scratch>/cand_0.txt <scratch>/cand_1.txt ...
 ```
 
 Interpret the output as follows:
 
-- `eligible=False` means the candidate cannot be selected.
+- `eligible=False` means the candidate cannot be selected. This covers both
+  fidelity failures and the §5.3 length budget: a candidate longer than the
+  original scores `-inf`. Pass `--allow-growth "<reason>"` only with an
+  author-approved justification; the reason is printed into the run record.
 - `missing_invariants` identifies the deterministic preservation failure.
 - Among eligible candidates, `combined` ranks learned field similarity,
-  specificity retention, and semantic similarity.
+  specificity retention, semantic similarity, and condensation (the shorter of
+  otherwise-equal candidates wins).
 - If no candidate is eligible, preserve the original paragraph and regenerate with
   tighter constraints. Never choose the least-bad ineligible candidate.
 

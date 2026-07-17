@@ -1,7 +1,7 @@
 {
   "name": "sci-paper",
-  "version": "0.19.0",
-  "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Ships 10 skills and 21 tools under one typed scientific-writing standard: source-traced integrity blockers, zero-target L0, ranked advisories, explicit measurement states, claim-faithful rewriting, isolated multi-review orchestration, and a funding-proposal editing mode. See CHANGELOG.md for per-version history.",
+  "version": "0.20.0",
+  "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Ships 10 skills and 22 tools under one typed scientific-writing standard: source-traced integrity blockers, zero-target L0, ranked advisories, explicit measurement states, claim-faithful rewriting with a hard length budget, isolated multi-review orchestration, and a funding-proposal editing mode. See CHANGELOG.md for per-version history.",
   "author": {
     "name": "skymanbp",
     "email": "skyman.bp@gmail.com"

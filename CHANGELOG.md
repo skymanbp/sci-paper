@@ -3,6 +3,47 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.20.0 — 2026-07-16
+
+§5.3 (condense, do not accumulate) gets mechanical enforcement. Standard bumped
+to **v3.3**. Design: prevent at candidate time, detect at loop close, and make
+recorded justification the only path for growth — three layers, all auditable.
+
+- **New tool `length_gate.py` (tools: 21 → 22), the loop-close delta gate.**
+  Compares per-section rendered-prose word counts (comments and math excluded
+  via `latex_to_plain`) between the pre-edit baseline (`--before <snapshot>` or
+  `--git-ref <ref>`) and the edited file. Each unjustified growing section
+  emits a strong advisory `length-growth:<section>` (strong advisories already
+  require an explicit disposition before a loop may close); `--allow
+  "<section>=<reason>"` (case-insensitive, substring-tolerant) /
+  `--allow-total <reason>` convert it to an ordinary
+  `length-growth-justified` advisory that carries the recorded reason into the
+  report. The exit code gates the NET budget: 0 when total growth minus
+  justified growth is within `--tolerance-words`, 1 beyond it, 2 for invalid
+  input (negative tolerance, empty reason, missing baseline) or execution
+  failure; a pure section rename nets to zero. Registered in standard §0.1.
+- **`rewrite_reward.py` length-budget hard gate (candidate time).** New
+  `--original <paragraph>` input: a candidate longer than the original scores
+  `-inf` regardless of style evidence (`length_eligible` joins fidelity in the
+  eligibility conjunction); `--allow-growth <reason>` lifts the gate for one
+  run and prints the reason; within budget a `CONDENSATION_WEIGHT` bonus
+  prefers the shorter of otherwise-equal candidates. CLI prints a
+  `words(o/c)` column and the over-budget diagnosis.
+- **Contract wiring.** Standard §5.3 enforcement paragraph + §0.1 exit
+  exception + §8 tool row; `paper-review` §1 snapshot step (6b), §4 step 8
+  (gate must exit 0 before the loop closes), §6 report length-budget row, §7
+  stopping condition; `rewrite-in-voice` §2.1 saves `original.txt`, §2.4
+  passes `--original`; `paper` mirror notes the two mechanical gates.
+- Section headings are stripped before counting, so a section rename cannot
+  register as prose growth; independent review (2 accepted defects, net-exit
+  redesign, substring `--allow`, UTF-8-lossy git baseline, input validation)
+  is folded in.
+- New tests: `tests/test_length_gate.py` (10 CLI cases: shrink, unjustified
+  growth, justified growth, comment/math exclusion, shared JSON schema,
+  missing-baseline / negative-tolerance / empty-reason failures, rename
+  netting, substring allowance) and 3 `length_budget` unit cases. Suite: 107
+  tests green.
+
 ## v0.19.0 — 2026-07-16
 
 Academic-humanizer integration (github.com/AIScientists-Dev/academic-humanizer,

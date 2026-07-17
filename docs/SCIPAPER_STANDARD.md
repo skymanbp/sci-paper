@@ -5,7 +5,11 @@
 > rewriting (`/sci-paper:rewrite-in-voice`) implement this document. If a skill,
 > tool, style profile, or workflow conflicts with this file, this file wins.
 >
-> Status: **v3.2 (2026-07-16)**. v3.2 adds §5.3 (condense, do not accumulate:
+> Status: **v3.3 (2026-07-16)**. v3.3 makes §5.3 mechanically enforced: a
+> length-budget hard gate in `rewrite_reward.py` (candidate time) and the new
+> `length_gate.py` delta gate (loop close), with recorded justifications as the
+> only path for growth.
+> v3.2 (2026-07-16) adds §5.3 (condense, do not accumulate:
 > the default direction of every edit is shorter; explanatory patches are the
 > canonical violation), the corpus-verified lexicon extensions with the
 > claim–evidence and preserve-list guidance in `skills/paper/SKILL.md`, and the
@@ -68,7 +72,10 @@ reference. They must not claim that a machine wrote it.
 
 Standalone advisory tools return `0` when measurement completes, whether or
 not advisories are found. They return nonzero only for invalid input,
-configuration failure, or execution failure.
+configuration failure, or execution failure. One exception carries its own
+narrow actionable contract: `length_gate.py` returns 0 when the document's
+net unjustified prose growth is within tolerance, 1 when it exceeds the
+tolerance, and 2 for invalid input or execution failure (§5.3).
 
 Scientific-integrity review is broader than the linter and is reported through
 typed findings. It is never compressed into the linter's L0 exit status.
@@ -498,6 +505,33 @@ Fix loops report a length delta (words or characters) for every edited passage
 alongside the §5 step-9 counts, and re-measurement (§5 step 7) includes length.
 Clearing a detector signal by inflating prose is a defect, not a fix.
 
+Enforcement is mechanical, not aspirational, at two points:
+
+- **Candidate time (preventive).** `rewrite_reward.py --original <paragraph>`
+  makes the budget a second hard eligibility gate: a candidate longer than the
+  original paragraph scores `-inf` regardless of its style evidence, and a
+  condensation bonus prefers the shorter of otherwise-equal candidates.
+  `--allow-growth <reason>` lifts the gate for one run and prints the recorded
+  reason into the ranking output.
+- **Loop close (detective).** `length_gate.py <file> --before <snapshot>` (or
+  `--git-ref <ref>`) compares rendered-prose word counts per section between
+  the pre-edit and post-edit versions. Each unjustified growing section emits
+  a strong advisory (`length-growth:<section>`); `--allow
+  "<section>=<reason>"` converts it to an ordinary advisory carrying the
+  recorded justification. The exit code gates the NET document budget
+  (§0.1): 0 when total growth minus justified growth is within tolerance,
+  1 when it exceeds it, 2 for execution failure. A pure section rename
+  appears as a paired shrink/growth that nets to zero, so it does not trip
+  the exit gate; the paired findings document it for the report.
+
+A fix or rewrite loop may not close (§5.1) while a `length-growth` finding
+lacks a disposition: condense back within budget, record the author's
+justification, or note the rename that pairs the growth with a shrink.
+Comments and mathematics do not count toward the budget; the gate measures
+rendered prose. Snapshot the pre-edit version (a scratch copy or the git ref)
+before the first edit of every loop, so the gate always has an honest
+baseline.
+
 ---
 
 ## 6. Rewrite eligibility and reward
@@ -557,6 +591,7 @@ empirical evidence. Neither overrides this standard.
 | `deai_feedback.py` | shared | Validate schema (incl. `calibration_unit` cap), attach actions, rank findings, summarize statuses, and serialize output. |
 | `rewrite_reward.py` | L3-L4 | Exclude unfaithful candidates before ranking eligible rewrites; rank by L0 advisory reduction and fidelity. |
 | `retrieve_exemplars.py` | L4 | Supply author-voice evidence without copying unsupported scientific content. |
+| `length_gate.py` | QD (§5.3) | Compare per-section rendered-prose word counts between two document versions; strong advisory and exit 1 on unjustified growth; record `--allow` justifications in the report. |
 | `deai_partition.py` | L4 | Suggest fidelity-free merge/split operations toward the human dispersion band; zero-token, suggest-only. |
 | `deai_provenance.py` | L4 | Label author edit depth vs a designated AI-draft ancestor from the author's own history; `unmeasured` without one. |
 | `deai_personal.py` | L4 | Compare a draft to the author's own prior papers (confound-free reference); `unmeasured` below three papers. |

@@ -71,6 +71,11 @@ _REVERSIBLE_CATEGORIES = (
 # cannot earn improvement credit by mangling meaning.
 ADVISORY_REDUCTION_WEIGHT = 0.6   # inherits the retired `specificity` weight
 FIDELITY_FLOOR = 0.5              # below this cosine, no positive reduction credit
+# SCIPAPER_STANDARD section 5.3 (condense, do not accumulate): when the
+# original paragraph is supplied, a candidate longer than it is HARD-ineligible
+# unless growth is explicitly allowed with a recorded reason, and within budget
+# a small condensation bonus prefers the shorter of otherwise-equal candidates.
+CONDENSATION_WEIGHT = 0.1
 
 
 def _l0_target_count(text: str, field_profile_dir: Path) -> int:
@@ -147,6 +152,29 @@ def _cosine(left: str, right: str) -> float:
     return float(np.dot(embeddings[0], embeddings[1]))
 
 
+def _prose_words(text: str) -> int:
+    return len(df.es.latex_to_plain(text).split())
+
+
+def length_budget(candidate: str, original: str) -> dict[str, Any]:
+    """Section-5.3 length budget of one candidate against the ORIGINAL paragraph.
+
+    The budget compares rendered-prose word counts. ``within`` is True when the
+    candidate is no longer than the original; ``condensation`` is the fraction
+    of the original's words removed (negative when the candidate grew).
+    """
+    words_original = _prose_words(original)
+    words_candidate = _prose_words(candidate)
+    return {
+        "words_original": words_original,
+        "words_candidate": words_candidate,
+        "delta_words": words_candidate - words_original,
+        "within": words_candidate <= words_original,
+        "condensation": ((words_original - words_candidate) / words_original
+                         if words_original else 0.0),
+    }
+
+
 def protected_invariants(text: str) -> dict[str, set[str]]:
     return {
         "numbers": _numbers(text),
@@ -193,7 +221,9 @@ def fidelity_eligibility(candidate: str, reference: str) -> dict[str, Any]:
 
 
 def reward(candidate: str, reference: str, field_profile_dir: Path,
-           centroid=None, ref_l0: int | None = None) -> dict[str, Any]:
+           centroid=None, ref_l0: int | None = None,
+           original: str | None = None,
+           allow_growth: bool = False) -> dict[str, Any]:
     if centroid is None:
         centroid = df.corpus_centroid(field_profile_dir)
     voice = dv.voice_score(candidate, field_profile_dir, centroid=centroid)
@@ -211,6 +241,8 @@ def reward(candidate: str, reference: str, field_profile_dir: Path,
     cand_l0 = _l0_target_count(candidate, field_profile_dir)
     advisory_reduction = _advisory_reduction(ref_l0, cand_l0, fidelity)
     eligibility = fidelity_eligibility(candidate, reference)
+    budget = length_budget(candidate, original) if original is not None else None
+    length_eligible = True if budget is None else (budget["within"] or allow_growth)
     return {
         "voice": voice,
         "voice_calibrated": voice_calibrated,
@@ -224,10 +256,13 @@ def reward(candidate: str, reference: str, field_profile_dir: Path,
         "faithful": eligibility["eligible"],
         "missing_invariants": eligibility["missing"],
         "invented_invariants": eligibility["invented"],
+        "length_budget": budget,
+        "length_eligible": length_eligible,
     }
 
 
-def rank(candidates: list[str], reference: str, field_profile_dir: Path
+def rank(candidates: list[str], reference: str, field_profile_dir: Path,
+         original: str | None = None, allow_growth: bool = False
          ) -> list[tuple[int, dict[str, Any]]]:
     """Rank eligible candidates first; ineligible candidates can never win.
 
@@ -235,25 +270,37 @@ def rank(candidates: list[str], reference: str, field_profile_dir: Path
     L3 score is a low-weight tie-break unless its bundle is measured/calibrated,
     so an uncalibrated field-similarity model can never be the deciding term
     (SCIPAPER_STANDARD section 9.5: lower detector visibility is not
-    independently valuable).
+    independently valuable). When ``original`` is supplied, the section-5.3
+    length budget is a second hard gate: a candidate longer than the original
+    scores -inf unless ``allow_growth`` records an explicit exception, and a
+    condensation bonus prefers the shorter of otherwise-equal candidates.
     """
     centroid = df.corpus_centroid(field_profile_dir)
     ref_l0 = _l0_target_count(reference, field_profile_dir)   # constant across candidates
     scored = []
     for index, candidate in enumerate(candidates):
-        result = reward(candidate, reference, field_profile_dir, centroid, ref_l0=ref_l0)
-        if result["faithful"]:
+        result = reward(candidate, reference, field_profile_dir, centroid,
+                        ref_l0=ref_l0, original=original, allow_growth=allow_growth)
+        if result["faithful"] and result["length_eligible"]:
             voice_weight = 0.4 if result["voice_calibrated"] else 0.05
             result["combined"] = (
                 ADVISORY_REDUCTION_WEIGHT * result["advisory_reduction"]
                 + 0.3 * result["fidelity"]
                 + voice_weight * result["voice"]
             )
+            # The condensation bonus sits behind the same fidelity floor as
+            # advisory reduction: a degenerate ultra-short candidate may not
+            # buy ranking credit with dropped meaning.
+            if (result["length_budget"] is not None
+                    and result["fidelity"] >= FIDELITY_FLOOR):
+                result["combined"] += (CONDENSATION_WEIGHT
+                                       * max(0.0, result["length_budget"]["condensation"]))
         else:
             result["combined"] = float("-inf")
         scored.append((index, result))
     scored.sort(key=lambda item: (
-        item[1]["faithful"], item[1]["combined"], item[1]["fidelity"]),
+        item[1]["faithful"] and item[1]["length_eligible"],
+        item[1]["combined"], item[1]["fidelity"]),
         reverse=True)
     return scored
 
@@ -267,6 +314,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reference", type=Path, required=True,
                         help="distilled claim and protected scientific content")
     parser.add_argument("--candidates", type=Path, nargs="+", required=True)
+    parser.add_argument("--original", type=Path, default=None,
+                        help="the paragraph being replaced; enables the "
+                             "section-5.3 length-budget hard gate")
+    parser.add_argument("--allow-growth", default=None, metavar="REASON",
+                        help="record an author-approved reason that lifts the "
+                             "length-budget gate for this run")
     args = parser.parse_args(argv)
     field_dir = args.profile_root / args.field
     if dv.load_voice_model(field_dir) is None:
@@ -275,25 +328,39 @@ def main(argv: list[str] | None = None) -> int:
     reference = args.reference.read_text(encoding="utf-8", errors="replace")
     candidates = [path.read_text(encoding="utf-8", errors="replace")
                   for path in args.candidates]
-    ranked = rank(candidates, reference, field_dir)
+    original = (args.original.read_text(encoding="utf-8", errors="replace")
+                if args.original is not None else None)
+    if args.allow_growth:
+        print(f"[length-budget] growth allowed for this run: {args.allow_growth}")
+    ranked = rank(candidates, reference, field_dir,
+                  original=original, allow_growth=bool(args.allow_growth))
     print(f"{'rank':>4} {'cand':>4} {'combined':>9} {'voice':>7} "
-          f"{'fidelity':>9} {'Δadv':>6} {'eligible':>8}  L0(r/c)")
+          f"{'fidelity':>9} {'Δadv':>6} {'eligible':>8}  L0(r/c)  words(o/c)")
     for position, (index, result) in enumerate(ranked, 1):
         combined = result["combined"]
         combined_text = "-inf" if combined == float("-inf") else f"{combined:.3f}"
+        budget = result["length_budget"]
+        words_text = (f"{budget['words_original']}/{budget['words_candidate']}"
+                      if budget is not None else "-")
+        eligible_flag = result["faithful"] and result["length_eligible"]
         print(f"{position:>4} {index:>4} {combined_text:>9} "
               f"{result['voice']:>7.3f} {result['fidelity']:>9.3f} "
-              f"{result['advisory_reduction']:>6.2f} {str(result['faithful']):>8}  "
-              f"{result['n_l0_ref']}/{result['n_l0_cand']}  "
+              f"{result['advisory_reduction']:>6.2f} {str(eligible_flag):>8}  "
+              f"{result['n_l0_ref']}/{result['n_l0_cand']}  {words_text}  "
               f"{args.candidates[index].name}")
         if result["missing_invariants"]:
             print(f"     missing: {result['missing_invariants']}")
         if result["invented_invariants"]:
             print(f"     invented: {result['invented_invariants']}")
-    eligible = [item for item in ranked if item[1]["faithful"]]
+        if budget is not None and not result["length_eligible"]:
+            print(f"     over length budget: +{budget['delta_words']} words "
+                  "(SCIPAPER_STANDARD section 5.3; use --allow-growth REASON "
+                  "only with an author-approved justification)")
+    eligible = [item for item in ranked
+                if item[1]["faithful"] and item[1]["length_eligible"]]
     if not eligible:
-        print("\n[rewrite_reward] no candidate preserved all protected invariants",
-              file=sys.stderr)
+        print("\n[rewrite_reward] no candidate passed fidelity and length-budget "
+              "eligibility", file=sys.stderr)
         return 2
     best_index = eligible[0][0]
     print(f"\n[best] candidate {best_index}: {args.candidates[best_index].name}")

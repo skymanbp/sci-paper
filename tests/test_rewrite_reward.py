@@ -80,6 +80,33 @@ class RewriteFidelityTests(unittest.TestCase):
                         (result["missing"], result["invented"]))
 
 
+class LengthBudgetTests(unittest.TestCase):
+    """SCIPAPER_STANDARD section 5.3: candidates must not outgrow the original."""
+
+    def test_shorter_candidate_is_within_budget(self):
+        original = "The estimator remains stable across all five smoothing scales."
+        candidate = "The estimator is stable across the five scales."
+        budget = rewrite_reward.length_budget(candidate, original)
+        self.assertTrue(budget["within"])
+        self.assertGreater(budget["condensation"], 0.0)
+
+    def test_longer_candidate_breaks_budget(self):
+        original = "The estimator is stable."
+        candidate = ("The estimator is stable, which means that it does not "
+                     "change when the configuration changes.")
+        budget = rewrite_reward.length_budget(candidate, original)
+        self.assertFalse(budget["within"])
+        self.assertGreater(budget["delta_words"], 0)
+        self.assertLess(budget["condensation"], 0.0)
+
+    def test_comments_do_not_count_toward_the_budget(self):
+        original = "The estimator is stable across scales."
+        candidate = ("The estimator is stable across scales. "
+                     "% long trailing source comment with many words in it")
+        budget = rewrite_reward.length_budget(candidate, original)
+        self.assertTrue(budget["within"], budget)
+
+
 class AdvisoryReductionTests(unittest.TestCase):
     """Rank 7: the ranking term is L0 advisory reduction, not the dead
     specificity term (identically 1.0 for every eligible candidate)."""

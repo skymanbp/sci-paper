@@ -109,6 +109,10 @@ When the three-part arc fits:
   而不是重写句子本身。上节 forward narrative 禁止堆叠**状态**；本节禁止
   堆叠**字数**。
 - 每处修改报告字数差；靠加字消除 detector 信号是缺陷，不是修复。
+- **机械执行**（标准 §5.3 v3.3）：改写候选经 `rewrite_reward.py --original`
+  硬门（超长即 `-inf`）；编辑循环收尾经 `length_gate.py` delta 门
+  （无理由净增长 = exit 1，循环不得收尾）。增长的唯一合法路径是
+  `--allow`/`--allow-growth` 记录的作者批准理由。
 
 ### Formula Derivation Standards / 公式推导规范
 

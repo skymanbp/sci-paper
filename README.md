@@ -32,7 +32,7 @@ provide evidence; they do not define a separate paper verdict.
 
 See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 
-### Tools (21)
+### Tools (22)
 
 | Tool | Purpose |
 |---|---|
@@ -40,6 +40,7 @@ See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 | `tools/extract_style.py` | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. |
 | `tools/retrieve_exemplars.py` | Retrieves section- and topic-matched exemplar paragraphs with embedding or explicit fallback retrieval. |
 | `tools/ai_ism_lint.py` | Unified L0 and advisory CLI with ranked text/JSON output and exit statuses 0/1/2. |
+| `tools/length_gate.py` | Per-section prose length-budget delta gate (standard §5.3): exit 1 on unjustified growth between two document versions; records `--allow` justifications. |
 | `tools/train_ai_ism_classifier.py` | Trains the legacy word-ngram classifier used only as degraded advisory evidence. |
 | `tools/extract_md_negatives.py` | Harvests candidate generated paragraphs for controlled evaluation/training. |
 | `tools/ai_ism_negatives_handcrafted.txt` | Seed negative examples for the legacy classifier. |
@@ -212,19 +213,20 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.19.0**. Full per-version history is in
+Current: **v0.20.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
-- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.2 — the complete de-AI
+- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.3 — the complete de-AI
   standard (layered model, document-scale core, cooperative layer,
   `calibration_unit` cap, the §5.2 de-AI-ization procedure, the §5.3
-  condense-not-accumulate rule, auxiliary L2 template families with the blind
-  perceptual panel as an L2 validation instrument, and a disposition for every
-  open item). There is no separate de-AI standard.
+  condense-not-accumulate rule with mechanical enforcement, auxiliary L2
+  template families with the blind perceptual panel as an L2 validation
+  instrument, and a disposition for every open item). There is no separate
+  de-AI standard.
 - **Skills (10):** `paper`, `paper-review`, `figure-review`, `paper-style`,
   `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`,
   `rewrite-in-voice`, `proposal-polish`.
-- **Tools (21):** exact product registry above.
+- **Tools (22):** exact product registry above.
 - **Current calibrated gaps:** no learned-model operating point (the L3
   document-level surprisal path is now measured not to provide one, EVALUATION.md
   §9.8), no completed author hard-set labels, and the cooperative-layer tools
