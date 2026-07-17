@@ -40,7 +40,7 @@ See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 | `tools/extract_style.py` | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. |
 | `tools/retrieve_exemplars.py` | Retrieves section- and topic-matched exemplar paragraphs with embedding or explicit fallback retrieval. |
 | `tools/ai_ism_lint.py` | Unified L0 and advisory CLI with ranked text/JSON output and exit statuses 0/1/2. |
-| `tools/length_gate.py` | Per-section prose length-budget delta gate (standard §5.3): exit 1 on unjustified growth between two document versions; records `--allow` justifications. |
+| `tools/length_gate.py` | Per-section prose length-budget delta gate (standard §5.3): exit 1 when NET unjustified growth between two document versions exceeds tolerance; growing sections get strong advisories; records `--allow` justifications. |
 | `tools/train_ai_ism_classifier.py` | Trains the legacy word-ngram classifier used only as degraded advisory evidence. |
 | `tools/extract_md_negatives.py` | Harvests candidate generated paragraphs for controlled evaluation/training. |
 | `tools/ai_ism_negatives_handcrafted.txt` | Seed negative examples for the legacy classifier. |
@@ -213,7 +213,7 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.20.0**. Full per-version history is in
+Current: **v0.20.1**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
 - **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.3 — the complete de-AI

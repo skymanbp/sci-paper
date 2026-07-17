@@ -3,6 +3,34 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.20.1 — 2026-07-16
+
+Post-release independent audit of the v0.20.0 length gate (7 findings, all
+dispositioned; the two High items were real defects in orchestration use).
+
+- **JSON report is now self-describing.** `length_gate.py --format json`
+  embeds a `length_budget` block (totals, justified growth,
+  `net_unjustified_growth`, `tolerance_words`, `gate_exit`), so a downstream
+  orchestrator derives the gate result from the report alone instead of
+  parsing stdout or trusting the process exit.
+- **Allowance accounting matches the documented net formula.** Every allowed
+  positive section delta is credited to `justified_growth`, including growth
+  below the per-section flagging tolerance; previously an allowed
+  sub-tolerance growth was not credited and could flip a compliant edit to
+  exit 1.
+- **Ambiguous `--allow` keys are a configuration error (exit 2)** instead of
+  silently authorizing every matching section.
+- **Heading stripper covers `\\section[short]{long}` and one level of nested
+  braces**, keeping renames of those forms budget-neutral.
+- Registry/skill wording aligned with shipped behavior (net-exit semantics in
+  the top-level README; rewrite-in-voice ranking terms name L0 advisory
+  reduction, fidelity, voice, condensation, with specificity
+  transparency-only).
+- New tests: allowance-tolerance interaction, ambiguous key, optional-argument
+  heading rename, self-describing JSON, empty-original budget, and three
+  mocked `rank()` integration cases (-inf over budget, `allow_growth` lift,
+  fidelity-floored condensation bonus). Suite: 115 tests green.
+
 ## v0.20.0 — 2026-07-16
 
 §5.3 (condense, do not accumulate) gets mechanical enforcement. Standard bumped

@@ -106,6 +106,62 @@ class LengthBudgetTests(unittest.TestCase):
         budget = rewrite_reward.length_budget(candidate, original)
         self.assertTrue(budget["within"], budget)
 
+    def test_empty_original_is_within_budget_with_zero_condensation(self):
+        budget = rewrite_reward.length_budget("Some candidate text.", "")
+        self.assertFalse(budget["within"])
+        budget = rewrite_reward.length_budget("", "")
+        self.assertTrue(budget["within"])
+        self.assertEqual(budget["condensation"], 0.0)
+
+
+class RankLengthGateIntegrationTests(unittest.TestCase):
+    """Protect the length gate's integration into rank(): -inf for over-budget
+    candidates, --allow-growth lift, and the fidelity floor on the bonus.
+    Heavy dependencies (embedder, voice model, centroid) are mocked out."""
+
+    ORIGINAL = "The estimator is stable across the five smoothing scales."
+    REFERENCE = "claim: estimator stable across five smoothing scales"
+
+    def rank_with_mocks(self, candidates, fidelity, **kwargs):
+        from unittest import mock
+        with mock.patch.object(rewrite_reward.df, "corpus_centroid",
+                               return_value=None), \
+             mock.patch.object(rewrite_reward.dv, "voice_score",
+                               return_value=0.0), \
+             mock.patch.object(rewrite_reward.dv, "load_voice_model",
+                               return_value=None), \
+             mock.patch.object(rewrite_reward.dv, "bundle_measured",
+                               return_value=False), \
+             mock.patch.object(rewrite_reward, "_cosine",
+                               return_value=fidelity), \
+             mock.patch.object(rewrite_reward, "_l0_target_count",
+                               return_value=0):
+            return rewrite_reward.rank(candidates, self.REFERENCE, None, **kwargs)
+
+    def test_over_budget_candidate_scores_minus_inf(self):
+        longer = self.ORIGINAL + " It also stays stable when the noise doubles."
+        ranked = self.rank_with_mocks([longer], 0.95, original=self.ORIGINAL)
+        result = ranked[0][1]
+        self.assertFalse(result["length_eligible"])
+        self.assertEqual(result["combined"], float("-inf"))
+
+    def test_allow_growth_lifts_the_gate(self):
+        longer = self.ORIGINAL + " It also stays stable when the noise doubles."
+        ranked = self.rank_with_mocks([longer], 0.95, original=self.ORIGINAL,
+                                      allow_growth=True)
+        result = ranked[0][1]
+        self.assertTrue(result["length_eligible"])
+        self.assertNotEqual(result["combined"], float("-inf"))
+
+    def test_condensation_bonus_requires_fidelity_floor(self):
+        shorter = "The estimator is stable."
+        high = self.rank_with_mocks([shorter], 0.9, original=self.ORIGINAL)[0][1]
+        low = self.rank_with_mocks([shorter], 0.2, original=self.ORIGINAL)[0][1]
+        bonus_high = high["combined"] - 0.3 * 0.9
+        bonus_low = low["combined"] - 0.3 * 0.2
+        self.assertGreater(bonus_high, 0.0)
+        self.assertEqual(bonus_low, 0.0)
+
 
 class AdvisoryReductionTests(unittest.TestCase):
     """Rank 7: the ranking term is L0 advisory reduction, not the dead

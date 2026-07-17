@@ -121,9 +121,10 @@ Interpret the output as follows:
   original scores `-inf`. Pass `--allow-growth "<reason>"` only with an
   author-approved justification; the reason is printed into the run record.
 - `missing_invariants` identifies the deterministic preservation failure.
-- Among eligible candidates, `combined` ranks learned field similarity,
-  specificity retention, semantic similarity, and condensation (the shorter of
-  otherwise-equal candidates wins).
+- Among eligible candidates, `combined` ranks L0 advisory reduction, semantic
+  fidelity, the calibrated voice score, and condensation (the shorter of
+  otherwise-equal candidates wins; specificity is reported for transparency
+  only, since every eligible candidate preserves all reference numbers).
 - If no candidate is eligible, preserve the original paragraph and regenerate with
   tighter constraints. Never choose the least-bad ineligible candidate.
 

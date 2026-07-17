@@ -33,9 +33,12 @@ import extract_style as es  # noqa: E402  LaTeX-to-prose cleaning
 
 FRONT_MATTER = "(front matter)"
 # Heading commands are stripped before counting: the budget measures body
-# prose, and a section RENAME must not register as prose growth.
+# prose, and a section RENAME must not register as prose growth. The pattern
+# accepts starred forms, an optional short-title argument, and one level of
+# nested braces inside the title.
 HEADING_PATTERN = re.compile(
-    r"\\(?:chapter|section|subsection|subsubsection|paragraph)\*?\{[^{}]*\}")
+    r"\\(?:chapter|section|subsection|subsubsection|paragraph)\*?"
+    r"(?:\[[^\]]*\])?\{(?:[^{}]|\{[^{}]*\})*\}")
 
 
 def prose_word_count(tex: str) -> int:
@@ -111,11 +114,25 @@ def match_allowance(label: str, allowances: dict[str, str]) -> str | None:
     return None
 
 
+def validate_allowance_scope(labels: set[str], allowances: dict[str, str]) -> None:
+    """An --allow key that matches several section labels would silently
+    authorize growth the author never approved; ambiguity is a configuration
+    error, not a guess."""
+    lowered = {label.lower() for label in labels}
+    for key in allowances:
+        matches = [label for label in lowered if key == label or key in label]
+        if len(matches) > 1:
+            raise ValueError(
+                f"--allow key {key!r} is ambiguous; it matches "
+                f"{sorted(matches)}. Use a longer, unique key.")
+
+
 def gate_findings(before_text: str, after_text: str, path: Path,
                   tolerance_words: int, allowances: dict[str, str],
                   allow_total: str | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     before = section_word_counts(before_text)
     after = section_word_counts(after_text)
+    validate_allowance_scope(set(before) | set(after), allowances)
     findings: list[dict[str, Any]] = []
     rows = []
     justified_growth = 0
@@ -124,13 +141,16 @@ def gate_findings(before_text: str, after_text: str, path: Path,
         words_after = after.get(label, 0)
         delta = words_after - words_before
         reason = allow_total or match_allowance(label, allowances)
+        # Every allowed positive delta is credited to the net budget, even
+        # below the per-section flagging tolerance: the documented contract is
+        # "total growth minus justified growth" (standard section 5.3).
+        if delta > 0 and reason:
+            justified_growth += delta
         grew = delta > tolerance_words
         status = "ok" if not grew else ("justified" if reason else "GROWTH")
         rows.append((label, words_before, words_after, delta, status))
         if not grew:
             continue
-        if reason:
-            justified_growth += delta
         observed = {"section": label, "words_before": words_before,
                     "words_after": words_after, "delta_words": delta,
                     "tolerance_words": tolerance_words}
@@ -213,6 +233,19 @@ def main(argv: list[str] | None = None) -> int:
         axes = [feedback.axis_status("QD.length_budget", "measured",
                                      detector="length_gate")]
         report = feedback.build_report(path=args.after, findings=findings, axes=axes)
+        gate_exit = (1 if summary["net_unjustified_growth"] > args.tolerance_words
+                     else 0)
+        # The JSON report must be self-describing: a downstream orchestrator
+        # derives the gate result from the report alone, never from stdout.
+        report["length_budget"] = {
+            "total_before": summary["total_before"],
+            "total_after": summary["total_after"],
+            "total_delta": summary["total_delta"],
+            "justified_growth": summary["justified_growth"],
+            "net_unjustified_growth": summary["net_unjustified_growth"],
+            "tolerance_words": args.tolerance_words,
+            "gate_exit": gate_exit,
+        }
         if args.format == "json":
             rendered = feedback.dump_report(report)
         else:
@@ -234,7 +267,7 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError, json.JSONDecodeError, UnicodeDecodeError) as error:
         print(f"[length_gate] execution failed: {error}", file=sys.stderr)
         return 2
-    return 1 if summary["net_unjustified_growth"] > args.tolerance_words else 0
+    return gate_exit
 
 
 if __name__ == "__main__":
