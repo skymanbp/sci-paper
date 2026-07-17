@@ -3,6 +3,58 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.19.0 — 2026-07-16
+
+Academic-humanizer integration (github.com/AIScientists-Dev/academic-humanizer,
+MIT; acknowledged in README) plus the condense-not-accumulate rule. Standard
+bumped to **v3.2**.
+
+- **New normative rule §5.3 — condense, do not accumulate（改写、删减、精简，
+  而不是堆叠）.** The default direction of every edit is shorter: delete >
+  condense in place > same-length rewrite > growth; growth is legitimate only
+  for author-requested content or source-verified scientific necessity. The
+  explanatory patch (appending a clarification to flagged text instead of
+  rewriting it) is the canonical violation. Fix loops report a per-passage
+  length delta; clearing a detector signal by inflating prose is a defect.
+  Mirrored in `paper` (writing), `paper-review` §4 (fix loop), and
+  `rewrite-in-voice` §2.3/§2.5 (candidate constraint + re-measure check).
+- **Proposal routing note in `paper-review`:** funding proposals are reviewed
+  under the `proposal-polish` register; the L0 policy and §6 invariants carry
+  over, paper-mode significance trimming does not.
+
+- **Lexicon extensions, corpus-verified.** `LLM_TYPICAL_WORDS` gains
+  `underscore*`, `intricate`, `tapestry`, `testament`, `pivotal`, `foster*`,
+  `realm*`; profiles regenerated for both fields. Zero-in-both-corpora words
+  (`underscore*`, `tapestry`, `testament`, `pivotal`, `realm*`) enter Tier A
+  (linter `TIER_A_PATTERN` + `skills/paper/SKILL.md` canonical table);
+  `intricate` (1 hit per corpus) and `foster*` (1 hit in wgl) enter Tier B.
+  `landscape` deliberately NOT adopted (legitimate domain term, 192 hits in the
+  combined corpus); blanket `demonstrate`/`significantly` bans NOT adopted
+  (0.147/1k and 0.274/1k in astro corpora — evidence-conditional rules instead).
+- **New linter rules** (all advisory): `ing-tail` (curated participial-tail verb
+  set, L2), `colon-elaboration` (appositive-elaboration prose colon, L2; user
+  style rule 2026-07-16 — caption tags and list specifications stay legitimate),
+  and `serves as` added to the `style-substitution` set (L0 advisory).
+- **Claim–Evidence Discipline** section in `skills/paper/SKILL.md` (QD;
+  operationalizes the existing claim-evidence `integrity_blocker` class):
+  unbacked claim → evidence pointer or soften; verb strength ≤ evidence
+  strength; vague magnitude → attributed number or range; compare against the
+  strongest baseline; `significantly` requires an accompanying test or number.
+  Mirrored as a review-side item in `paper-review` §2.C.
+- **Preserve List** (anti-over-correction guard) in `skills/paper/SKILL.md`:
+  evidence-tied hedging, actor-irrelevant passives, first-person plural,
+  definitions/symbols/citations stay; strengthening a hedged verb is itself a
+  claim-evidence defect. Mirrored in `paper-review` §2.D.
+- **New skill `proposal-polish` (skills: 9 → 10).** Funding-proposal editing
+  mode adapted from academic-humanizer Layer 6: NSF/NIH structural anatomy,
+  first-pages primacy, proposal-specific weak moves (vague importance,
+  method-as-aim, dominoed aims, ambition-without-feasibility, boilerplate
+  broader impacts, hedged central hypothesis), preserve-and-deploy craft list,
+  claim ↔ feasibility discipline, and hard anti-fabrication rules.
+- New tests: 5 CLI cases (`tier-a:pivotal`, `ing-tail`, `colon-elaboration`
+  with `\ref{fig:...}` exemption, `style-substitution:serves as`, Tier B
+  `intricate` cap). Suite: 93 tests green.
+
 ## v0.18.0 — 2026-07-14
 
 Panel-validated release: a blind A/B perceptual panel on a real 31-page ApJ

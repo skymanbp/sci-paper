@@ -95,7 +95,10 @@ editing the original sentence-by-sentence. Each candidate must:
   enumeration, setup/list/wrap-up symmetry, repeated modal frames, anaphoric runs,
   balanced closers, or repeated paragraph geometry;
 - retain technically necessary lists and parallel syntax when they encode a real
-  scientific distinction rather than decorative symmetry.
+  scientific distinction rather than decorative symmetry;
+- be no longer than the original paragraph unless preserving a protected
+  invariant forces it (standard §5.3: condense, do not accumulate); among
+  otherwise comparable candidates, prefer the shorter.
 
 Write each candidate to `<scratch>/cand_<k>.txt`.
 
@@ -136,6 +139,8 @@ Compare finding IDs/rules and measurement states. A successful local rewrite mus
 - remain fidelity-eligible;
 - act on the selected strong advisory, or record why the author accepts/rejects it;
 - avoid worsening a higher-priority finding elsewhere in the section;
+- not grow the passage without a stated protected-invariant reason, and report
+  the length delta (standard §5.3);
 - report all residual advisories and unavailable axes.
 
 No advisory must be forced to zero merely to satisfy a detector. If an apparently

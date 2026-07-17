@@ -15,7 +15,7 @@ provide evidence; they do not define a separate paper verdict.
 
 ## What it ships
 
-### Skills (9)
+### Skills (10)
 
 | Skill | Purpose |
 |---|---|
@@ -28,6 +28,7 @@ provide evidence; they do not define a separate paper verdict.
 | `paper-attack-tree` | Open-ended adversarial critique tree. Each critique is resolved to CONFIRMED, REFUTED, or MARGINAL on evidence, then independently assigned a consequence and disposition. |
 | `final-review` | Parent orchestrator for isolated paper-review, figure-review, mainline, attack-tree, and modern-physics-review runs. Verifies a stable disposition-complete state rather than zero advisories. |
 | `rewrite-in-voice` | Claim-first reconstruction. Only candidates preserving protected scientific invariants are eligible; structural, distributional, exemplar, and learned evidence rank eligible prose. |
+| `proposal-polish` | Funding-proposal editing mode (NSF/NIH). Keeps the vision-and-feasibility register a paper would trim, enforces claim-feasibility matching, edits the score-forming first pages hardest, and applies the shared L0 policy. Never invents preliminary data, partners, or letters. |
 
 See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 
@@ -165,7 +166,8 @@ Paragraph exemplars cannot be relabelled as independent documents.
 │   ├── mainline/SKILL.md
 │   ├── paper-attack-tree/SKILL.md
 │   ├── final-review/SKILL.md
-│   └── rewrite-in-voice/SKILL.md
+│   ├── rewrite-in-voice/SKILL.md
+│   └── proposal-polish/SKILL.md
 ├── style-corpus/
 │   └── <field>/tier-{1,2,3}-*/    # user-supplied read-only corpus
 ├── style-profile/
@@ -210,18 +212,18 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.18.0**. Full per-version history is in
+Current: **v0.19.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
-- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.1 — the complete de-AI
+- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.2 — the complete de-AI
   standard (layered model, document-scale core, cooperative layer,
-  `calibration_unit` cap, the §5.2 de-AI-ization procedure, auxiliary L2
-  template families with the blind perceptual panel as an L2 validation
-  instrument, and a disposition for every open item). There is no separate
-  de-AI standard.
-- **Skills (9):** `paper`, `paper-review`, `figure-review`, `paper-style`,
+  `calibration_unit` cap, the §5.2 de-AI-ization procedure, the §5.3
+  condense-not-accumulate rule, auxiliary L2 template families with the blind
+  perceptual panel as an L2 validation instrument, and a disposition for every
+  open item). There is no separate de-AI standard.
+- **Skills (10):** `paper`, `paper-review`, `figure-review`, `paper-style`,
   `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`,
-  `rewrite-in-voice`.
+  `rewrite-in-voice`, `proposal-polish`.
 - **Tools (21):** exact product registry above.
 - **Current calibrated gaps:** no learned-model operating point (the L3
   document-level surprisal path is now measured not to provide one, EVALUATION.md
@@ -231,6 +233,19 @@ Current: **v0.18.0**. Full per-version history is in
   [EVALUATION.md](EVALUATION.md).
 - **Field-specific guidance:** WGL-specific scientific anchors remain marked where
   applicable. Shared writing/review policy is field-agnostic.
+
+## Acknowledgments
+
+- **[AIScientists-Dev/academic-humanizer](https://github.com/AIScientists-Dev/academic-humanizer)**
+  (MIT). The 2026-07-16 lexicon extensions (`underscore*`, `pivotal`,
+  `tapestry`, `testament`, `realm*`, `intricate`, `foster*`), the `serves as`,
+  `ing-tail`, and `colon-elaboration` linter rules, the Claim–Evidence
+  Discipline and Preserve List sections in `skills/paper/SKILL.md`, and the
+  `proposal-polish` skill adapt its material. Every lexical adoption was
+  re-verified against the curated field corpora before tier assignment;
+  venue-specific rules that conflict with astro usage (`landscape`, blanket
+  `demonstrate`/`significantly` bans) were deliberately not adopted.
+  academic-humanizer itself builds on blader/humanizer (MIT).
 
 ## License
 

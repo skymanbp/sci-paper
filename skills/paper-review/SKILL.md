@@ -10,6 +10,9 @@ argument-hint: "<file_path> [--max-iter N] [--no-fix] [--skip-final-mpr] [--no-i
 > **Normative authority:** `docs/SCIPAPER_STANDARD.md`.
 > `/sci-paper:paper` supplies writing guidance; field dossiers, baselines and
 > learned models supply evidence. None defines an independent paper verdict.
+> Funding proposals are not papers: review them under the
+> `/sci-paper:proposal-polish` register (standard §7) — the L0 policy and §6
+> invariants carry over, the significance-trimming rules of paper mode do not.
 
 本 skill 不是快速 lint。它完整读取论文与源材料，逐项验证科学声明，并把结果写成
 `sci-paper.feedback.v1` finding。审查循环是：
@@ -114,6 +117,11 @@ trace、measurement status、priority、recommended action、disposition。确�
 - claim graph 无循环论证、断链、偷换条件、充分/必要条件错误或未声明假设。
 - 样本、split、CV/grouping、泄漏防护、metric、uncertainty、多重比较和 prior 可复现。
 - 无效统计、泄漏、错误外推或 unsupported conclusion 为 `integrity_blocker`。
+- **Claim–evidence discipline**（`/sci-paper:paper` "声明-证据纪律" 的审查端）：
+  每个经验声明有正文内数字/图/表/引用支撑；动词强度不超过证据强度；模糊量级
+  写成有归属的数字或区间；`significantly` 无伴随检验或数字时是 claim 缺陷。
+  无支撑或超强度的声明按 claim-evidence defect 处理（`integrity_blocker`）；
+  措辞层面的弱化建议为 advisory。
 - 合法但表达不清的逻辑连接通常是 advisory。
 
 ### D. Language and de-AI
@@ -121,9 +129,13 @@ trace、measurement status、priority、recommended action、disposition。确�
 - 术语、缩写、时态、句法、信息密度和段间连接支持准确阅读。
 - Tier A、em-dash、Tier B cap 由共享 linter产生 `l0_target`。
 - announced enumeration、parallel-modal runs、setup/list/wrap-up symmetry、重复段落/章节
-  几何、burstiness、UID、document shape 和 learned field-similarity 是 advisory。
+  几何、burstiness、UID、document shape、learned field-similarity、-ing 分词尾巴与
+  阐释式冒号（linter `ing-tail` / `colon-elaboration`）是 advisory。
 - learned signals 只表示 field-similarity/triage，不证明作者身份；没有 calibrated
   operating point 时必须 `degraded`。
+- 修复 de-AI finding 时遵守 `/sci-paper:paper` 的 Preserve List：不得把证据绑定的
+  hedging 改强，不得为避词改动数字、引用或 stance——制造 over-claim 的"修复"
+  本身构成 claim-evidence defect。
 - 不能要求所有结构 advisory 归零。strong advisory 要 disposition，普通 residual 要报告。
 
 ### E. Document structure
@@ -269,7 +281,9 @@ stale scientific content、冲突副本或 required artifact drift 是 `integrit
 每轮：
 
 1. 按 unified priority 排序 findings；科学 blockers 先于 L0，L0 先于 advisories。
-2. 对每个 blocker 修根因；对每个 L0 做最小有效修改。
+2. 对每个 blocker 修根因；对每个 L0 做最小有效修改。修复遵守标准 §5.3
+   长度纪律：默认删减或精简，被修段落净增长必须有科学必要性理由，
+   报告给出每段字数差。解释性补丁（对被标记文本追加说明而非重写）是缺陷。
 3. 对 strong advisory：行动、接受、验证为 false positive，或带原因 pending。
 4. ordinary advisory 不要求消失；保留并报告即可。
 5. 每个 edit 后重新 Read 相关上下文。

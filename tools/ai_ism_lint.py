@@ -28,7 +28,8 @@ EM_DASH_PATTERN = re.compile(r"—|---|\\textemdash")
 TIER_A_PATTERN = re.compile(
     r"(?i)\b(?:delves?|delving|delved|leverages|leveraging|leveraged|"
     r"paves?|paving|sheds?|shedding|showcases?|showcasing|utiliz(?:ing|es)|"
-    r"seamless(?:ly)?|holistic(?:ally)?|comprehensively|crucially)\b"
+    r"seamless(?:ly)?|holistic(?:ally)?|comprehensively|crucially|"
+    r"underscor(?:e|es|ed|ing)|tapestry|testament|pivotal|realms?)\b"
 )
 TIER_A_OPENER_PATTERN = re.compile(
     r"(?i)^\s*(?:recent advances in|despite significant progress|"
@@ -39,10 +40,30 @@ TIER_A_PARAGRAPH_CONNECTOR_PATTERN = re.compile(
 )
 TIER_B_PATTERN = re.compile(
     r"(?i)\b(?:furthermore|moreover|additionally|robust(?:ly)?|comprehensive|"
-    r"utilize|utilized|leverage|importantly|interestingly|notably)\b"
+    r"utilize|utilized|leverage|importantly|interestingly|notably|"
+    r"intricate|foster(?:s|ing|ed)?)\b"
 )
-STUBBORN_REPLACE_PATTERN = re.compile(r"(?i)\b(?:in order to|aim to|facilitate)\b")
+STUBBORN_REPLACE_PATTERN = re.compile(
+    r"(?i)\b(?:in order to|aim to|facilitate|serves as)\b")
 THREE_PARALLEL_PATTERN = re.compile(r"(?i)not only.+but also.+(?:and|furthermore|moreover)")
+# Participial tail that fakes analytic depth ("..., highlighting X").
+# Curated verb set adopted 2026-07-16 from the academic-humanizer catalog
+# (MIT); kept narrow to avoid flagging legitimate participial clauses.
+ING_TAIL_PATTERN = re.compile(
+    r"(?i),\s+(?:highlighting|underscoring|showcasing|emphasizing|"
+    r"emphasising|illustrating|demonstrating|signaling|signalling|"
+    r"revealing|reflecting)\b"
+)
+# Appositive-elaboration colon in prose ("X: the rule that ...").
+# User style rule 2026-07-16; caption tags ("Left: ...") and list
+# specifications are legitimate, so this stays an advisory.
+COLON_ELABORATION_PATTERN = re.compile(r"(?:[A-Za-z0-9]|\})(?:: )[a-z$\\]")
+# The two 2026-07-16 rules above/below match rendered prose only: unescaped
+# LaTeX comments (full-line or trailing) are stripped before matching.
+# Comments conventionally carry "Label: description" tags and note-style
+# participial phrases that are not rendered. Older rules keep their
+# long-standing raw-line behavior.
+TRAILING_COMMENT_PATTERN = re.compile(r"(?<!\\)%.*$")
 TIER_B_CAP = 1
 
 
@@ -200,6 +221,24 @@ def lexical_findings(text: str, path: Path,
                 line=line_no, section=section, excerpt=excerpt,
                 message="The sentence uses a conspicuous three-part parallel frame.",
                 action="Keep the parallelism only if it carries a real logical distinction; otherwise simplify it.",
+            ))
+        prose_part = TRAILING_COMMENT_PATTERN.sub("", line)
+        for match in ING_TAIL_PATTERN.finditer(prose_part):
+            word = match.group(0).lstrip(", ").lower()
+            findings.append(_finding(
+                path=path, kind="advisory", layer="L2", rule=f"ing-tail:{word}",
+                line=line_no, section=section, excerpt=excerpt,
+                message=(f"A participial tail {word!r} appends interpretation "
+                         "instead of stating it as a claim."),
+                action="Promote the tail to its own sentence with a subject and evidence, or delete it.",
+            ))
+        if COLON_ELABORATION_PATTERN.search(prose_part):
+            findings.append(_finding(
+                path=path, kind="advisory", layer="L2", rule="colon-elaboration",
+                line=line_no, section=section, excerpt=excerpt,
+                message="A prose colon introduces an appositive elaboration.",
+                action=("Rewrite as a relative clause, two sentences, or ', so ...'; "
+                        "keep the colon only for caption tags or genuine list specifications."),
             ))
 
     for (section, word), occurrences in tier_b.items():

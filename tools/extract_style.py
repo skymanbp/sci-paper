@@ -121,6 +121,14 @@ LLM_TYPICAL_WORDS = {
     "holistic", "holistically",
     "moreover", "furthermore", "additionally",
     "notably", "importantly", "crucially", "interestingly",
+    # Candidates adopted 2026-07-16 from the academic-humanizer catalog
+    # (github.com/AIScientists-Dev/academic-humanizer, MIT); "landscape" is
+    # deliberately excluded because it is a legitimate domain term in the
+    # astro corpus (e.g. detection landscape, energy landscape).
+    "underscore", "underscores", "underscored", "underscoring",
+    "intricate", "tapestry", "testament",
+    "pivotal", "foster", "fosters", "fostering", "fostered",
+    "realm", "realms",
 }
 
 PARAGRAPH_INITIAL_LLM_OPENERS = {

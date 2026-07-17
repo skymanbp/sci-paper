@@ -5,7 +5,12 @@
 > rewriting (`/sci-paper:rewrite-in-voice`) implement this document. If a skill,
 > tool, style profile, or workflow conflicts with this file, this file wins.
 >
-> Status: **v3.1 (2026-07-14)**. v3.1 adds the auxiliary L2 template families
+> Status: **v3.2 (2026-07-16)**. v3.2 adds §5.3 (condense, do not accumulate:
+> the default direction of every edit is shorter; explanatory patches are the
+> canonical violation), the corpus-verified lexicon extensions with the
+> claim–evidence and preserve-list guidance in `skills/paper/SKILL.md`, and the
+> `proposal-polish` skill row (§7).
+> v3.1 (2026-07-14) adds the auxiliary L2 template families
 > (antithesis clusters, short reversal beats — panel-derived, corpus-calibrated,
 > excluded from `template_score` so the document manifold is unchanged) and
 > recognizes the blind perceptual panel as an L2 validation instrument whose
@@ -474,6 +479,25 @@ The procedure improves writing, not detector scores: a clearer, faithful,
 better-sourced paragraph is the target, and lowering detector visibility is never
 an end in itself.
 
+### 5.3 Condense, do not accumulate (改写、删减、精简，而不是堆叠)
+
+The default direction of every edit is **shorter**. Preference order: delete,
+then condense in place, then a same-length rewrite; growth comes last. An edit
+that leaves the passage longer than it started is presumed wrong until
+justified. The only legitimate reasons to grow are author-requested new content
+and a source-verified scientific necessity (a missing assumption, definition,
+unit, or caveat whose absence is an integrity defect).
+
+The canonical violation is the **explanatory patch**: answering a finding by
+appending a clarifying clause, sentence, or footnote to the flagged text
+instead of rewriting the flagged text itself. This rule pairs with the L4
+forward-narrative rule (§2 L4): forward narrative bans stacking *states*;
+this rule bans stacking *words*.
+
+Fix loops report a length delta (words or characters) for every edited passage
+alongside the §5 step-9 counts, and re-measurement (§5 step 7) includes length.
+Clearing a detector signal by inflating prose is a defect, not a fix.
+
 ---
 
 ## 6. Rewrite eligibility and reward
@@ -512,6 +536,7 @@ for scientific changes, source verification.
 | `figure-review` | Separate objective scientific/rendering blockers from aesthetic advisories. |
 | `paper-attack-tree` | Treat `CONFIRMED` as a critique that survived verification, then classify its consequence. It does not mean that the paper failed. |
 | `final-review` | Preserve independent isolated reviews; merge typed findings; resolve blockers and L0 targets; record advisory dispositions and unmeasured axes. |
+| `proposal-polish` | Funding-proposal register (vision plus feasibility): keep backed ambition, enforce claim-feasibility matching, apply the L0 policy and §6 rewrite invariants unchanged; never fabricate support. |
 
 `docs/DEAI_SUBSYSTEM.md` documents architecture. `EVALUATION.md` records
 empirical evidence. Neither overrides this standard.
