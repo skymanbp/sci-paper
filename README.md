@@ -159,7 +159,9 @@ Paragraph exemplars cannot be relabelled as independent documents.
 ├── docs/
 │   ├── SCIPAPER_STANDARD.md       # sole normative writing/review contract
 │   ├── DEAI_SUBSYSTEM.md          # implementation architecture
-│   └── EVALUATION.md              # current metrics, gaps, and confounds
+│   ├── EVALUATION.md              # current metrics, gaps, and confounds
+│   ├── DEAI_ARCHITECTURE_ROADMAP.md  # design note (2026-07-12)
+│   └── DEAI_FRONTIER.md           # design note (2026-07-13)
 ├── skills/
 │   ├── paper/SKILL.md
 │   ├── paper-review/SKILL.md
@@ -234,7 +236,7 @@ Current: **v0.21.0**. Full per-version history is in
   §9.8), no completed author hard-set labels, and the cooperative-layer tools
   (`deai_provenance`, `deai_personal`) are honestly `unmeasured` until the author
   supplies their own draft history / prior papers. These remain explicit in
-  [EVALUATION.md](EVALUATION.md).
+  [docs/EVALUATION.md](docs/EVALUATION.md).
 - **Field-specific guidance:** WGL-specific scientific anchors remain marked where
   applicable. Shared writing/review policy is field-agnostic.
 

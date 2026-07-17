@@ -137,8 +137,8 @@ trace、measurement status、priority、recommended action、disposition。确�
 - learned signals 只表示 field-similarity/triage，不证明作者身份；没有 calibrated
   operating point 时必须 `degraded`。
 - **结构 tell 审计（每轮必跑；`/sci-paper:academic-humanizer` audit-only 模式）**：
-  对全文执行 humanizer Layers 1--2 结构清单——2.11 长句堆叠（$>{\sim}30$ 词、
-  $\geq 3$ 层从句链或双层括号嵌套）、negative parallelism（"X, not Y" 模板密度）、
+  对全文执行 humanizer Layers 1--2 结构清单——2.11 长句堆叠（约 30 词以上、
+  3 层以上从句链或双层括号嵌套）、negative parallelism（"X, not Y" 模板密度）、
   elegant variation（同一对象换名）、rule-of-three padding、公式化开场白、
   connective 连排。结构命中为 advisory（同类超密度升 strong advisory）；该 skill
   的 Layer-4 claim--evidence 命中并入上方 §C 纪律（`integrity_blocker`）。其

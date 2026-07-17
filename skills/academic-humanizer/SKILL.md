@@ -1,6 +1,6 @@
 ---
 name: academic-humanizer
-description: Standalone audit-then-rewrite pass for AI-assisted academic prose, ported whole from AIScientists-Dev/academic-humanizer (MIT). Detects the structural tells the mechanical linter cannot measure (clause-stacked sentences, negative parallelisms, elegant variation, rule-of-three padding, inflated significance) and enforces claim-evidence verb matching. Audit findings feed paper-review §2.D4; rewrites must pass the sci-paper fidelity and length gates. Not for evading AI-use disclosure.
+description: Standalone audit-then-rewrite pass for AI-assisted academic prose, ported whole from AIScientists-Dev/academic-humanizer (MIT). Detects the structural tells the mechanical linter cannot measure (clause-stacked sentences, negative parallelisms, elegant variation, rule-of-three padding, inflated significance) and enforces claim-evidence verb matching. Audit findings feed paper-review section D; rewrites must pass the sci-paper fidelity and length gates. Not for evading AI-use disclosure.
 disable-model-invocation: false
 argument-hint: "<file_path> [--field <name>] [--audit-only]"
 ---
@@ -25,9 +25,9 @@ result, and citation. Never inject opinion, humor, or first-person
 ## When to use
 
 - Invoked standalone on a manuscript file (`/sci-paper:academic-humanizer <file>`).
-- Invoked by `/sci-paper:paper-review` as its §2.D4 structural-tell dimension
-  (audit-only mode: findings are returned as review issues, fixes applied by
-  the review loop under its own gates).
+- Invoked by `/sci-paper:paper-review` as the structural-tell audit step of its
+  section D (audit-only mode: findings are returned as review issues, fixes
+  applied by the review loop under its own gates).
 - NOT for blogs, marketing, or personal essays; NOT for proposals (use
   `/sci-paper:proposal-polish`).
 
@@ -86,8 +86,11 @@ run the linter.
   Moreover/Furthermore/Additionally/In particular; let logic carry.
 - **2.7 Contribution-list cliches.** Each contribution names a specific
   result with its number, not a restatement of the abstract.
-- **2.8 Citation dumping.** Cite the one or two works that matter and say
-  why, not a bracketed list of five.
+- **2.8 Citation dumping.** Evidence-conditional, never a length rule: flag a
+  bracketed citation list only when individual entries do not support the
+  sentence they are attached to or duplicate another entry's role. Never
+  delete a relevant source merely to shorten the list (Layer 3 preserves
+  every citation; distinct provenance legitimately needs several).
 - **2.9 Hedging-by-vagueness.** somewhat, relatively, fairly, to some extent,
   quite -> quantify or cut. (Distinct from calibrated hedging — see Layer 3.)
 - **2.10 Boilerplate emphasis.** "It is worth noting that", "It should be

@@ -31,6 +31,7 @@ NORMATIVE_SKILLS = {
     "paper-attack-tree",
     "final-review",
     "rewrite-in-voice",
+    "academic-humanizer",
 }
 CORE_IMPORTS = {
     "ai_ism_lint",
@@ -206,8 +207,9 @@ def check_documentation_boundaries() -> str:
     # (all five documentation files live under docs/). A root-level copy is
     # the stub-plus-canonical accumulation pattern the move eliminated.
     evaluation = read_text(REPO / "docs" / "EVALUATION.md")
-    require("SCIPAPER_STANDARD.md" in evaluation,
-            "docs/EVALUATION.md must identify the normative standard")
+    require("(SCIPAPER_STANDARD.md)" in evaluation,
+            "docs/EVALUATION.md must link the normative standard as a sibling "
+            "(SCIPAPER_STANDARD.md) — a bare name mention is not enough")
     require(SCHEMA in evaluation,
             f"docs/EVALUATION.md must identify the {SCHEMA} contract")
 
