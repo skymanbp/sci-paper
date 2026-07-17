@@ -113,7 +113,7 @@ AI-feel is not a vocabulary. Keyword replacement leaves deeper regularities:
    quality the system intends to improve.
 
 The evidence for the current detectors, measured effects, known confounds, and
-field-specific operating points belongs in [`../EVALUATION.md`](../EVALUATION.md),
+field-specific operating points belongs in [`EVALUATION.md`](EVALUATION.md),
 not in this normative document.
 
 ---

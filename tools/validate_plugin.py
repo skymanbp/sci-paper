@@ -202,24 +202,18 @@ def check_skills() -> str:
 
 
 def check_documentation_boundaries() -> str:
-    evaluation = read_text(REPO / "EVALUATION.md")
-    require("docs/SCIPAPER_STANDARD.md" in evaluation,
-            "root EVALUATION.md must identify the normative standard")
+    # v0.21.0: docs/EVALUATION.md is the single canonical evaluation record
+    # (all five documentation files live under docs/). A root-level copy is
+    # the stub-plus-canonical accumulation pattern the move eliminated.
+    evaluation = read_text(REPO / "docs" / "EVALUATION.md")
+    require("SCIPAPER_STANDARD.md" in evaluation,
+            "docs/EVALUATION.md must identify the normative standard")
     require(SCHEMA in evaluation,
-            f"root EVALUATION.md must identify the {SCHEMA} contract")
+            f"docs/EVALUATION.md must identify the {SCHEMA} contract")
 
-    duplicate = REPO / "docs" / "EVALUATION.md"
-    if duplicate.exists():
-        text = read_text(duplicate)
-        is_pointer = (
-            len(text) <= 1200
-            and "../EVALUATION.md" in text
-            and re.search(r"\b(canonical|current|authoritative)\b", text, re.IGNORECASE)
-            is not None
-        )
-        require(is_pointer,
-                "docs/EVALUATION.md duplicates or contradicts the canonical root "
-                "EVALUATION.md; remove it or replace it with a short pointer")
+    require(not (REPO / "EVALUATION.md").exists(),
+            "root EVALUATION.md found; docs/EVALUATION.md is the single "
+            "canonical record — remove the root copy")
 
     require(not (REPO / "docs" / "HANDOFF.md").exists(),
             "docs/HANDOFF.md is a transient session artifact and must not ship")

@@ -239,7 +239,7 @@ selection rule, sample size, uncertainty method, and validation behavior. If any
 required provenance is absent, the consumer reports degraded or unmeasured evidence.
 
 Current effect sizes, model scores, corpus counts, and threshold performance belong
-in [`../EVALUATION.md`](../EVALUATION.md), not this architecture or the normative
+in [`EVALUATION.md`](EVALUATION.md), not this architecture or the normative
 standard.
 
 ## 10. Validation and release boundary

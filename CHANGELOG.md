@@ -3,6 +3,34 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.21.0 — 2026-07-17
+
+The academic-humanizer becomes a standalone skill, paper-review gains a
+per-round structural audit step, and the documentation tree is consolidated.
+
+- **New skill `academic-humanizer` (11th skill).** Whole-repo port of
+  AIScientists-Dev/academic-humanizer v0.3.3 (MIT; attribution retained):
+  Layers 1--5 as a standalone audit-then-rewrite pass. Adaptations over
+  upstream: corpus overrides are normative (landscape never flagged;
+  demonstrate/significantly evidence-conditional only), rewrites must pass
+  the fidelity and length gates, Layer 6 routes to the existing
+  `proposal-polish` skill instead of being duplicated, and lexical tells
+  defer to `ai_ism_lint.py` Tier A/B rather than re-deriving a word list.
+  Field-validated before porting: a standalone audit run on a live
+  manuscript found seven true positives (two colon-elaborations that the
+  per-line linter regex misses at line breaks, three comma-splice
+  run-ons, one Layer-1 lexical hit, one dense results sentence).
+- **paper-review §D structural-tell audit step.** Every review round now
+  runs the humanizer Layers 1--2 checklist (clause-stacking, negative
+  parallelism, elegant variation, rule-of-three, formulaic openers,
+  connective runs) in audit-only mode; structural hits are advisories,
+  Layer-4 claim-evidence hits join §C as `integrity_blocker`.
+- **Docs consolidated.** The canonical `EVALUATION.md` moved from the
+  repository root into `docs/` (replacing the redirect stub that pointed
+  the other way); all path references updated (README, standard,
+  subsystem, roadmap links). `docs/` is now the single home for all five
+  documentation files.
+
 ## v0.20.1 — 2026-07-16
 
 Post-release independent audit of the v0.20.0 length gate (7 findings, all

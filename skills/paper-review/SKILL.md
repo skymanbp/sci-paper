@@ -136,6 +136,14 @@ trace、measurement status、priority、recommended action、disposition。确�
   阐释式冒号（linter `ing-tail` / `colon-elaboration`）是 advisory。
 - learned signals 只表示 field-similarity/triage，不证明作者身份；没有 calibrated
   operating point 时必须 `degraded`。
+- **结构 tell 审计（每轮必跑；`/sci-paper:academic-humanizer` audit-only 模式）**：
+  对全文执行 humanizer Layers 1--2 结构清单——2.11 长句堆叠（$>{\sim}30$ 词、
+  $\geq 3$ 层从句链或双层括号嵌套）、negative parallelism（"X, not Y" 模板密度）、
+  elegant variation（同一对象换名）、rule-of-three padding、公式化开场白、
+  connective 连排。结构命中为 advisory（同类超密度升 strong advisory）；该 skill
+  的 Layer-4 claim--evidence 命中并入上方 §C 纪律（`integrity_blocker`）。其
+  Corpus overrides 优先于上游词表：landscape / demonstrate / significantly
+  不做词表级标记，只走证据条件。
 - 修复 de-AI finding 时遵守 `/sci-paper:paper` 的 Preserve List：不得把证据绑定的
   hedging 改强，不得为避词改动数字、引用或 stance——制造 over-claim 的"修复"
   本身构成 claim-evidence defect。

@@ -15,7 +15,7 @@ provide evidence; they do not define a separate paper verdict.
 
 ## What it ships
 
-### Skills (10)
+### Skills (11)
 
 | Skill | Purpose |
 |---|---|
@@ -29,6 +29,7 @@ provide evidence; they do not define a separate paper verdict.
 | `final-review` | Parent orchestrator for isolated paper-review, figure-review, mainline, attack-tree, and modern-physics-review runs. Verifies a stable disposition-complete state rather than zero advisories. |
 | `rewrite-in-voice` | Claim-first reconstruction. Only candidates preserving protected scientific invariants are eligible; structural, distributional, exemplar, and learned evidence rank eligible prose. |
 | `proposal-polish` | Funding-proposal editing mode (NSF/NIH). Keeps the vision-and-feasibility register a paper would trim, enforces claim-feasibility matching, edits the score-forming first pages hardest, and applies the shared L0 policy. Never invents preliminary data, partners, or letters. |
+| `academic-humanizer` | Standalone structural-tell audit + evidence-bound rewrite, ported whole from AIScientists-Dev/academic-humanizer (MIT). Detects clause-stacked sentences, negative parallelisms, elegant variation, and claim-evidence verb mismatches; feeds paper-review §D as its per-round structural audit; rewrites run through the fidelity and length gates. |
 
 See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 
@@ -131,7 +132,7 @@ combines:
 
 This design keeps measurements inspectable and replaceable. Missing calibration remains
 visible instead of becoming a nominal score. Current performance and gaps are recorded in
-[EVALUATION.md](EVALUATION.md); implementation details are in
+[docs/EVALUATION.md](docs/EVALUATION.md); implementation details are in
 [docs/DEAI_SUBSYSTEM.md](docs/DEAI_SUBSYSTEM.md).
 
 ## Field-aware evidence
@@ -157,7 +158,8 @@ Paragraph exemplars cannot be relabelled as independent documents.
 │   └── marketplace.json
 ├── docs/
 │   ├── SCIPAPER_STANDARD.md       # sole normative writing/review contract
-│   └── DEAI_SUBSYSTEM.md          # implementation architecture
+│   ├── DEAI_SUBSYSTEM.md          # implementation architecture
+│   └── EVALUATION.md              # current metrics, gaps, and confounds
 ├── skills/
 │   ├── paper/SKILL.md
 │   ├── paper-review/SKILL.md
@@ -168,14 +170,14 @@ Paragraph exemplars cannot be relabelled as independent documents.
 │   ├── paper-attack-tree/SKILL.md
 │   ├── final-review/SKILL.md
 │   ├── rewrite-in-voice/SKILL.md
-│   └── proposal-polish/SKILL.md
+│   ├── proposal-polish/SKILL.md
+│   └── academic-humanizer/SKILL.md
 ├── style-corpus/
 │   └── <field>/tier-{1,2,3}-*/    # user-supplied read-only corpus
 ├── style-profile/
 │   └── <field>/                   # generated/calibrated evidence
 ├── tests/                         # schema, linter, structure, and fidelity tests
 ├── tools/                         # product tools plus repository validator
-├── EVALUATION.md                  # current metrics, gaps, and confounds
 └── CHANGELOG.md
 ```
 
@@ -213,7 +215,7 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.20.1**. Full per-version history is in
+Current: **v0.21.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
 - **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.3 — the complete de-AI
@@ -223,9 +225,9 @@ Current: **v0.20.1**. Full per-version history is in
   template families with the blind perceptual panel as an L2 validation
   instrument, and a disposition for every open item). There is no separate
   de-AI standard.
-- **Skills (10):** `paper`, `paper-review`, `figure-review`, `paper-style`,
+- **Skills (11):** `paper`, `paper-review`, `figure-review`, `paper-style`,
   `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`,
-  `rewrite-in-voice`, `proposal-polish`.
+  `rewrite-in-voice`, `proposal-polish`, `academic-humanizer`.
 - **Tools (22):** exact product registry above.
 - **Current calibrated gaps:** no learned-model operating point (the L3
   document-level surprisal path is now measured not to provide one, EVALUATION.md
