@@ -217,7 +217,7 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.21.0**. Full per-version history is in
+Current: **v0.22.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
 - **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.3 — the complete de-AI
@@ -252,6 +252,15 @@ Current: **v0.21.0**. Full per-version history is in
   venue-specific rules that conflict with astro usage (`landscape`, blanket
   `demonstrate`/`significantly` bans) were deliberately not adopted.
   academic-humanizer itself builds on blader/humanizer (MIT).
+- **[blader/humanizer](https://github.com/blader/humanizer)** (MIT). The
+  `academic-humanizer` skill's structural patterns 2.12--2.16 (false ranges,
+  aphorism formulas, persuasive-authority tropes, manufactured staccato
+  drama, hyphenated-pair predicates) and its Pass-2 self-interrogation step
+  adapt this skill (v0.22.0). Only its academically-relevant structural
+  tells were absorbed; its blog/chat-specific patterns (emoji, title-case
+  headings, chatbot artifacts, curly-quote flags) and its
+  `landscape`-flagging word list were deliberately not adopted, since
+  corpus evidence governs here (see the skill's Corpus Overrides).
 
 ## License
 

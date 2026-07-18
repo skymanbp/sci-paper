@@ -3,6 +3,37 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.22.0 — 2026-07-18
+
+`academic-humanizer` absorbs the academically-relevant structural tells
+from blader/humanizer (MIT), a second upstream after the AIScientists-Dev
+port in v0.21.0.
+
+- **Five new Layer-2 structural patterns (2.12--2.16).** False ranges
+  (categorical "from X to Y"), aphorism formulas ("X is the Y of Z"
+  epigrams), persuasive-authority tropes ("at its core", "fundamentally"
+  as empty emphasis), manufactured staccato drama (runs of terse fragments),
+  and hyphenated-pair predicate overuse ("the result is model-dependent").
+  Each is framed as structural, not lexical, and carries a corpus caveat so
+  genuine quantitative ranges, formal definitions, real physical
+  distinctions, single emphatic sentences, and attributive compound
+  modifiers are never flagged.
+- **Pass-2 self-interrogation step (Process §3.5).** After the first
+  rewrite of a span, ask "what still reads as machine-written here?",
+  answer in 2--4 concrete bullets, and apply one further targeted rewrite
+  that re-clears the fidelity and length gates. Neutral-and-precise stays
+  the target; the pass strips tells, it does not manufacture voice.
+- **False-positive guards added to Layer 3.** Formal vocabulary alone, a
+  single mixed register, isolated curly quotes, a lone emphatic short
+  sentence, and text inside quotations / caption labels / worked examples
+  are explicitly not tells.
+- **What was NOT adopted.** blader/humanizer's blog/chat-specific patterns
+  (emoji, title-case headings, chatbot artifacts, curly-quote flags) and
+  its `landscape`-flagging word list are deliberately excluded; they
+  conflict with the plugin's corpus evidence (`landscape` is a measured
+  legitimate astro term). Attribution added to the SKILL provenance header
+  and README Acknowledgments.
+
 ## v0.21.0 — 2026-07-17
 
 The academic-humanizer becomes a standalone skill, paper-review gains a

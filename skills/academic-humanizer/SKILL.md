@@ -8,8 +8,15 @@ argument-hint: "<file_path> [--field <name>] [--audit-only]"
 > **Provenance:** ported from
 > [AIScientists-Dev/academic-humanizer](https://github.com/AIScientists-Dev/academic-humanizer)
 > v0.3.3 (MIT license; attribution retained in README Acknowledgments).
+> Layer-2 patterns 2.12--2.16 and the Pass-2 self-interrogation step are
+> adapted from [blader/humanizer](https://github.com/blader/humanizer)
+> (MIT); only its academically-relevant structural tells were absorbed,
+> its blog/chat-specific patterns (emoji, title-case headings, chatbot
+> artifacts, curly-quote flags) and its `landscape`-flagging word list
+> were deliberately not adopted (they conflict with the corpus evidence
+> below).
 > **Normative authority:** `docs/SCIPAPER_STANDARD.md`. Where this file and the
-> standard disagree, the standard wins. The upstream word list is **not**
+> standard disagree, the standard wins. The upstream word lists are **not**
 > normative here — corpus evidence is (see "Corpus overrides" below).
 > **Layer 6 (funding proposals)** of the upstream skill is NOT duplicated
 > here; it lives as the sibling skill `/sci-paper:proposal-polish`. Route
@@ -46,6 +53,14 @@ result, and citation. Never inject opinion, humor, or first-person
      citations, comparison directions, negations, semantic macros);
    - the §5.3 length budget (`tools/length_gate.py` against the pre-edit
      snapshot): rewrite, condense, never stack.
+3.5. **Pass-2 self-interrogation** (adapted from blader/humanizer's two-pass
+   audit; skip under `--audit-only`). After the first rewrite of a span,
+   ask of it: "what still reads as machine-written here?" Answer in 2--4
+   concrete bullets (a specific phrase, a rhythm, a residual tell), then
+   apply one further targeted rewrite that clears them and re-checks the
+   fidelity and length gates. Do NOT manufacture voice or personality to
+   pass this pass: for technical prose neutral-and-precise IS the target;
+   the audit strips tells, it does not add flavor.
 4. **Report**: change log by pattern class, claims softened or given evidence
    pointers, and confirmation that no number, equation, or citation changed.
 
@@ -102,6 +117,41 @@ run the linter.
   clauses that carry no weight. This is the highest-yield structural check —
   the mechanical linter does not measure it.
 
+The next five (2.12--2.16, adapted from blader/humanizer) are structural,
+not lexical — flag the construction, never the bare word, and honor the
+corpus caveat in each.
+
+- **2.12 False ranges.** "from X to Y" where the endpoints are categorical
+  rather than a measured span ("from theory to observation", "from the
+  smallest scales to the deepest questions"). *Corpus caveat:* a genuine
+  quantitative range is correct and required (redshift 0.1 to 0.5, mass
+  $10^{13}$ to $10^{15}\,M_\odot$); flag only the rhetorical range whose
+  endpoints share no scale.
+- **2.13 Aphorism formulas.** "X is the Y of Z" / "X becomes a Y" epigrams
+  inserted for resonance ("the error budget is the heartbeat of the
+  pipeline") -> state the literal fact. *Corpus caveat:* a formal
+  definition of the same shape ("the aperture mass is the convolution of
+  the tangential shear with the filter") is a definition, not an aphorism;
+  keep it.
+- **2.14 Persuasive authority tropes.** "at its core", "fundamentally",
+  "the real question is", "it is important to realize" asserting an
+  importance the sentence has not earned -> cut, or replace with the
+  specific reason. *Corpus caveat:* "fundamentally different" naming a real
+  physical distinction (a different regime, symmetry, or scaling) is
+  substantive; keep it.
+- **2.15 Manufactured staccato drama.** A run of terse fragments strung for
+  rhetorical impact ("The signal is weak. The noise is not. Detection
+  fails.") -> recast as measured sentences; academic emphasis comes from
+  content. Distinct from 2.11: this is too-short-for-drama, 2.11 is
+  too-long. A single emphatic short sentence is fine (Layer 3); only a
+  *run* is a tell.
+- **2.16 Hyphenated-pair predicate overuse.** Compound modifiers piled in
+  the predicate ("the result is model-dependent", "the map is
+  noise-dominated") build an AI texture -> in the predicate prefer the
+  plain relation ("the result depends on the model") where it reads
+  naturally. Fine as an attributive modifier ("a model-dependent result");
+  flag only density, not any single use.
+
 ## Layer 3: Preserve these (do NOT over-correct)
 
 - **Evidence-tied hedging is correct and required.** Keep "suggests",
@@ -114,6 +164,15 @@ run the linter.
 - **Formal definitions, named methods, technical terms, equations, symbols**
   stay verbatim.
 - **Never invent, drop, or alter a number, equation, or citation.**
+- **False-positive guards** (blader/humanizer, corpus-aligned): do NOT flag
+  formal vocabulary on its own ("ostensibly", "constituent"); a single mixed
+  casual/formal register; straight-vs-curly quotes in isolation; a lone
+  emphatic short sentence (only a *run* is 2.15); text inside quotations,
+  a figure caption's verbatim labels, or a worked example; or a claim that
+  is field-common knowledge (that goes to Layer 4 only if it is a
+  load-bearing empirical claim). Specific hard-to-fabricate detail, a
+  genuine mid-sentence self-correction, and calibrated hedging are human
+  signals, not tells.
 
 ## Layer 4: Claim-evidence discipline
 
