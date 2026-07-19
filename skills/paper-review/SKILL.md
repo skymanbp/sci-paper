@@ -1,6 +1,6 @@
 ---
 name: paper-review
-description: 严格、溯源式科学论文审查。按 SCIPAPER_STANDARD 的统一 feedback contract 执行 A–R 全维度检查：数学、物理、逻辑、语言与 de-AI、结构、引用、数据、接口、冗余、可复现性、现代物理、跨章节一致性、三重怀疑式推导检查、staleness、过程残影、内部草稿语言、引用精确度和术语对齐。科学完整性 blocker 必须解决，L0 target 必须清零，strong advisory 必须显式 disposition；不把普通 editorial advisory 伪装成通用 paper PASS/FAIL。Use for 投稿前 audit、完整论文审查、source tracing、数学物理复核和严格迭代修订。
+description: 严格、溯源式科学论文审查。按 SCIPAPER_STANDARD 的统一 feedback contract 执行 A–R 全维度检查：数学、物理、逻辑、语言与 de-AI、结构与叙事主线（contribution graph + cold-read 七问）、引用、数据、接口、冗余、可复现性、现代物理、跨章节一致性、对抗式推导验证（三 pass + 12-framing 升级）、staleness、过程残影、内部草稿语言、引用精确度和术语对齐。科学完整性 blocker 必须解决，L0 target 必须清零，strong advisory 必须显式 disposition；不把普通 editorial advisory 伪装成通用 paper PASS/FAIL。Use for 投稿前 audit、完整论文审查、source tracing、数学物理复核和严格迭代修订。
 disable-model-invocation: false
 argument-hint: "<file_path> [--max-iter N] [--no-fix] [--skip-final-mpr] [--no-isolated-mpr] [--field <name>]"
 ---
@@ -136,7 +136,7 @@ trace、measurement status、priority、recommended action、disposition。确�
   阐释式冒号（linter `ing-tail` / `colon-elaboration`）是 advisory。
 - learned signals 只表示 field-similarity/triage，不证明作者身份；没有 calibrated
   operating point 时必须 `degraded`。
-- **结构 tell 审计（每轮必跑；`/sci-paper:academic-humanizer` audit-only 模式）**：
+- **结构 tell 审计（每轮必跑；`/sci-paper:de-ai` `--audit-only` 模式，其 Pass 2）**：
   对全文执行 humanizer Layers 1--2 结构清单——2.11 长句堆叠（约 30 词以上、
   3 层以上从句链或双层括号嵌套）、negative parallelism（"X, not Y" 模板密度）、
   elegant variation（同一对象换名）、rule-of-three padding、公式化开场白、
@@ -149,13 +149,24 @@ trace、measurement status、priority、recommended action、disposition。确�
   本身构成 claim-evidence defect。
 - 不能要求所有结构 advisory 归零。strong advisory 要 disposition，普通 residual 要报告。
 
-### E. Document structure
+### E. Document structure and narrative spine
 
 - 检查 contribution graph、依赖顺序、section function、abstract coverage、intro promise、
   results/discussion/conclusion closure 和图表首次引用位置。
+- **叙事主线协议（cold-read）**：先建 paper-level purpose record——root question、
+  contributions[]、每个贡献的 method_or_argument、key_evidence[]、take-home + scope，
+  全部带 file:line；再建 contribution graph（nodes = claims/definitions/methods/
+  evidence/conclusions；有向边 = prerequisite/supports/qualifies/contrasts/
+  derives-from）。
+  然后按 cold reader 回答七问：root question 是什么？贡献有哪些？贡献之间关系？
+  各自的方法/论证？各自的关键证据？take-home 与 scope？读者在哪里需要回溯、
+  补隐藏上下文或在竞争解读间抉择？每个困惑按后果分类：矛盾或缺必要支撑 =
+  `integrity_blocker`；高曝光可复现困惑 + 具体修复 = strong advisory；局部措辞 =
+  ordinary advisory。
 - motivation → method → validation 是常见默认，不是所有论文必须套用的三幕模板。
 - 多贡献论文可以有多个明确相关分支；问题是关系是否解释清楚，而非图是否恰好只有
-  一个 component。
+  一个 component。disconnected node 是待查证据，不是自动 fatal；用连接词桥接
+  逻辑断链（Furthermore/Moreover 替代缺失前提）是禁手。
 - 缺失支撑关键 claim 的必要论证可升为 `integrity_blocker`；其余 narrative findings
   按证据强度分为 strong 或 ordinary advisory。
 
@@ -186,6 +197,8 @@ trace、measurement status、priority、recommended action、disposition。确�
 
 - 找重复 claim、无信息增量段、死定义、死 figure/table 和重复解释。
 - 若冗余造成两个互相冲突的版本，则为 `integrity_blocker`；纯压缩与可读性通常 advisory。
+- 本维度只产 finding；冗余修复的**动作**路由到 `/sci-paper:condense` 执行
+  （one-canonical-home 去重 + length gate 收口）。
 
 ### J. Reproducibility
 
@@ -217,9 +230,9 @@ trace、measurement status、priority、recommended action、disposition。确�
 - companion claims 从当前版本重新核验。
 - 跨章节矛盾或未兑现的核心 claim 是 `integrity_blocker`。
 
-### M. Three-pass adversarial verification
+### M. Adversarial verification
 
-对每个关键推导块和数值结论独立执行：
+**M.1 — Three-pass derivation verification.** 对每个关键推导块和数值结论独立执行：
 
 - **pass-1:** 量纲、代数、近似、边界、数值复算。
 - **pass-2:** 以对手 reviewer 视角提出最强的具体反驳，并用当前证据回答。
@@ -232,6 +245,24 @@ trace、measurement status、priority、recommended action、disposition。确�
 - 只有三 pass 均无未解决 scientific issue 才标 `VERIFIED`；否则
   `UNDER_SCRUTINY`，并产生 `integrity_blocker`。
 - 报告保留每个 pass 的方法和证据，不允许只写“checked”。
+
+**M.2 — 12-framing radial escalation.** 当某 claim / 推导 / 数值三 pass 后仍可疑，
+或需要 checklist 之外的开放式批判时，对该节点做辐射式 critique 升级：
+
+- 12 个 framing 各产 ≥ 1 条 critique：first-principles 剥假设、inversion 反演、
+  cross-disciplinary reviewer、adversarial red-team、constraint relax/tighten、
+  scale extrapolation、substitution/ablation、need-question 六问、contrarian
+  共识可错、failure-driven、asymmetric-payoff fatal、meta 自审。
+- 每条 critique 完整溯源：paper_position（file:line + 当轮 Read 的引用片段）、
+  evidence 论证链、全文 Grep+Read 找 paper_defense、CONFIRMED 时必带具体
+  proposed_fix。按 Severity/Specificity/Reproducibility/Fixability/fan-out
+  (S/P/R/F/B) 评分。
+- 每条裁决到 **CONFIRMED / REFUTED / MARGINAL** 之一——禁止 NEEDS-MORE-INFO
+  滞留、禁止 defer / future-work / “待确认”；缺 position+evidence+fix 的
+  CONFIRMED 自动降 MARGINAL。verdict 只表证据状态；consequence class 按
+  §C claim-evidence 影响单独赋予，CONFIRMED 的纯 editorial critique 仍是 advisory。
+- M.2 在进程内执行、不 spawn 子代理；需要大宽度并行探索时移交用户级
+  `cc-tree:attack`（同一方法学的通用引擎），结论以 finding 形式回流本审查。
 
 ### N. Staleness and drift
 
@@ -372,8 +403,8 @@ Do not print PASS/FAIL rows.
 ## Numerical anchors
 | quantity | paper claim | source | verification |
 
-## M three-pass record
-| derivation | pass-1 evidence | pass-2 objections/answers | pass-3 invariants | status |
+## M record
+| derivation | pass-1 evidence | pass-2 objections/answers | pass-3 invariants | M.2 escalations (framing/verdict) | status |
 
 ## Residual feedback
 - pending strong advisories with reasons

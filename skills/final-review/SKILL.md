@@ -1,6 +1,6 @@
 ---
 name: final-review
-description: 投稿前最终审阅编排器。每轮加载 paper 与 SCIPAPER_STANDARD 作为框架，并在独立 worktree 中运行 paper-review、figure-review、mainline、paper-attack-tree 和 parent-level modern-physics-review。合并 sci-paper.feedback.v1 typed findings：科学完整性 blocker 必须解决，L0 target 必须清零，strong advisory 必须 disposition，ordinary advisory 与 unavailable axes 保留报告。连续多轮验证该状态稳定，不把所有 editorial feedback 强行清零，也不输出通用 paper PASS/FAIL。Use for final-review、投稿前总审、submission-readiness evidence gathering 和所有审查 skill 的隔离编排。
+description: 投稿前最终审阅编排器。每轮加载 paper 与 SCIPAPER_STANDARD 作为框架，并在独立 worktree 中运行 paper-review（A–R 全维度，含叙事主线与对抗升级）、figure-review、de-ai（--audit-only 结构 tell 审计）和 parent-level modern-physics-review。合并 sci-paper.feedback.v1 typed findings：科学完整性 blocker 必须解决，L0 target 必须清零，strong advisory 必须 disposition，ordinary advisory 与 unavailable axes 保留报告。连续多轮验证该状态稳定，不把所有 editorial feedback 强行清零，也不输出通用 paper PASS/FAIL。Use for final-review、投稿前总审、submission-readiness evidence gathering 和所有审查 skill 的隔离编排。
 disable-model-invocation: false
 argument-hint: "<file_path> [--max-rounds N] [--skip <skill>[,<skill>...]] [--field <name>] [--out <dir>] [--require-consecutive N]"
 ---
@@ -14,23 +14,29 @@ argument-hint: "<file_path> [--max-rounds N] [--skip <skill>[,<skill>...]] [--fi
 The required review components are:
 
 1. `/sci-paper:paper` as the writing and L0 framework;
-2. `/sci-paper:paper-review` for A–R source-traced scientific review;
+2. `/sci-paper:paper-review` for A–R source-traced scientific review, including
+   the narrative-spine protocol (dimension E) and adversarial escalation (dimension M);
 3. `/sci-paper:figure-review` for compiled-page figure evidence;
-4. `/sci-paper:mainline` for contribution-graph and cold-read narrative feedback;
-5. `/sci-paper:paper-attack-tree` for open-ended adversarial critique;
-6. host-level modern-physics-review, launched by the parent orchestrator to avoid nested agents.
+4. `/sci-paper:de-ai` in `--audit-only` mode for the structural-tell and de-AI
+   measurement audit;
+5. host-level modern-physics-review, launched by the parent orchestrator to avoid nested agents.
+
+`/sci-paper:condense` is an action skill, not a reviewer: redundancy findings
+surface through paper-review dimension I, and the parent routes their fixes to
+condense during §3.7. Keeping detection in one lane avoids duplicate review surfaces.
 
 ## 0. Hard orchestration rules
 
 1. **Run, do not remember.** Every round launches fresh isolated reviewers for all non-skipped
    components. Prior reports are comparison artifacts, not substitutes for current review.
-2. **Isolation is mandatory.** paper-review, figure-review, mainline, attack-tree and MPR run
+2. **Isolation is mandatory.** paper-review, figure-review, de-ai and MPR run
    in separate `isolation: worktree` agents. The parent loads `paper` and the standard, merges
    reports and applies authorized fixes.
 3. **No nested agents.** paper-review receives `--no-isolated-mpr`; the parent launches MPR at
-   the same level as the other reviewers. Any child attempt to spawn an agent is a prompt error.
+   the same level as the other reviewers. paper-review's M.2 escalation is in-process by design.
+   Any child attempt to spawn an agent is a prompt error.
 4. **Preserve evidence, not verdict authority.** The parent may not discard a child finding,
-   but must verify/deduplicate it and type its consequence. CONFIRMED critique is not
+   but must verify/deduplicate it and type its consequence. A CONFIRMED critique is not
    automatically an integrity blocker.
 5. **Merge by structured contract.** Each child returns or is normalized to
    `sci-paper.feedback.v1`; text and JSON derive from the same findings.
@@ -64,7 +70,7 @@ Defaults:
 - no skipped reviewers
 - output under `final-review-out/<date>__<slug>/`
 
-Valid skips: `paper-review`, `figure-review`, `mainline`, `paper-attack-tree`, `mpr`.
+Valid skips: `paper-review`, `figure-review`, `de-ai`, `mpr`.
 A skip must be user-explicit, remains visible as `unmeasured`, and cannot be described as
 reviewed. A figure-less document normally yields `not_applicable`, not PASS.
 
@@ -81,7 +87,7 @@ Workflow states:
 
 1. Read the current target manuscript completely.
 2. Read `docs/SCIPAPER_STANDARD.md` and the current SKILL.md files for paper, paper-review,
-   figure-review, mainline and paper-attack-tree.
+   figure-review and de-ai.
 3. Resolve field evidence; missing assets remain explicit.
 4. Create the output root and round directory.
 5. Initialize a finding registry keyed by stable finding ID plus semantic deduplication key
@@ -101,9 +107,10 @@ Launch a worktree agent with a self-contained prompt:
 
 - cold-read the current target and all sources;
 - invoke `/sci-paper:paper-review <target> --no-isolated-mpr --field <field>`;
-- do not spawn any child agent;
-- return the complete typed report, including A–R coverage, measurement states, blockers,
-  L0 targets, strong/ordinary advisories, dispositions, M-pass state and build evidence;
+- do not spawn any child agent (M.2 escalation runs in-process);
+- return the complete typed report, including A–R coverage (dimension E narrative-spine
+  answers and dimension M record included), measurement states, blockers, L0 targets,
+  strong/ordinary advisories, dispositions and build evidence;
 - set isolated MPR state to `SKIPPED_FOR_ORCHESTRATOR`.
 
 If it attempts nesting, return `NESTED_AGENT_REJECTED`; the round becomes
@@ -116,45 +123,27 @@ paper. It must return:
 
 - render/build measurement state;
 - figure inventory and source provenance;
-- typed blockers and advisories;
+- typed blockers and advisories (including canvas-balance measurements);
 - explicit `not_applicable` if no figures exist.
 
 It must not return literal PASS/WARN as the merge interface.
 
-### 3.4 Isolated mainline
+### 3.4 Isolated de-ai audit
 
-Launch a separate worktree agent to invoke
-`/sci-paper:mainline <target> --orchestrator-isolated`. The flag records that this child is
-already the fresh isolated cold reader and prevents a nested readability agent. It must return:
+Launch a separate worktree agent to invoke `/sci-paper:de-ai <target> --audit-only
+--field <field>`. Audit-only runs Pass 1 (subsystem measurement) and Pass 2
+(humanizer structural-tell audit) with no rewrite. It must return:
 
-- root question and contribution graph;
-- relations among multiple contributions;
-- cold-reader confusion evidence;
-- typed narrative findings and dispositions;
-- unavailable measurement states.
+- the full `sci-paper.feedback.v1` measurement report with every axis state;
+- L0 targets (Tier A / em-dash / Tier B excess) as `l0_target` findings;
+- structural-tell and distribution findings as ranked advisories;
+- document-shape findings with their fidelity-free partition suggestions,
+  clearly marked apply-by-hand.
 
-Do not require the reader to reduce a valid multi-contribution paper to one thread.
+The parent applies L0 fixes and selected strong-advisory rewrites itself in §3.7
+(or runs de-ai Pass 3 in the parent context); the auditor never edits.
 
-### 3.5 Isolated paper-attack-tree
-
-Launch a separate worktree agent to invoke `/sci-paper:paper-attack-tree` with
-`--no-subagents`, passing the current paper-review report as seed when available. The child is
-already isolated and must complete all framing passes itself rather than spawning nested agents.
-The attack-tree process may terminate as `CONVERGED` or an explicit cap state; that status
-describes search completion only.
-
-For every leaf return:
-
-- evidentiary verdict: CONFIRMED / MARGINAL / REFUTED;
-- independent consequence kind;
-- measurement status;
-- proposed action and disposition;
-- source trace.
-
-All verified critiques enter the merge registry. Only their consequence determines whether
-they are blockers, L0 targets or advisories.
-
-### 3.6 Parent-level isolated modern-physics-review
+### 3.5 Parent-level isolated modern-physics-review
 
 Launch a sibling worktree agent, never from inside paper-review. The prompt must instruct it to:
 
@@ -168,7 +157,7 @@ Launch a sibling worktree agent, never from inside paper-review. The prompt must
 Normalize its output to the shared finding schema. A disagreement is a finding candidate, not
 an automatic blocker; verify the evidence and assign consequence.
 
-### 3.7 Merge and verify
+### 3.6 Merge and verify
 
 Combine all child reports into one registry:
 
@@ -176,8 +165,7 @@ Combine all child reports into one registry:
 registry = merge_by_stable_id_and_semantic_key(
     paper_review,
     figure_review,
-    mainline,
-    attack_tree,
+    de_ai_audit,
     mpr,
 )
 ```
@@ -190,10 +178,10 @@ For overlaps:
 - do not parse JSON from human-readable prose;
 - totals come from the merged structured findings.
 
-The parent verifies any finding before editing its target. A child’s REFUTED result remains a
+The parent verifies any finding before editing its target. A child's REFUTED result remains a
 positive evidence record; a CONFIRMED editorial critique remains an advisory.
 
-### 3.8 Apply fixes and dispositions
+### 3.7 Apply fixes and dispositions
 
 Order work by the unified priority key:
 
@@ -206,7 +194,8 @@ For each action:
 
 - map it to finding IDs;
 - read the target and source evidence;
-- apply the minimum effective edit;
+- apply the minimum effective edit (dimension-I redundancy findings route to
+  `/sci-paper:condense`; structural-tell rewrites follow de-ai Pass 3 discipline);
 - re-read affected context;
 - rerun the relevant build, scientific check, figure render, linter or claim-fidelity check;
 - record `acted`, `accepted`, `rejected_as_false_positive` or `pending`.
@@ -238,8 +227,8 @@ Increment `consecutive_stable_rounds` only for stable disposition-complete round
 new blockers/L0 targets appear, a required measurement fails, or a disposition changes without
 new evidence. When it reaches `--require-consecutive`, return `DISPOSITION_COMPLETE`.
 
-Attack-tree may continue to generate ordinary advisories; those do not reset stability unless
-they expose a new blocker/L0 or a new strong advisory requiring disposition.
+The de-ai audit may continue to report ordinary distribution advisories; those do not reset
+stability unless they expose a new blocker/L0 or a new strong advisory requiring disposition.
 
 ## 5. Failure and budget handling
 
@@ -293,7 +282,7 @@ Rounds: K | Consecutive stable rounds: N
 <links or verbatim reports; preserve structured JSON beside them>
 ```
 
-Do not show a per-skill PASS table. “No findings under measured axes” is not proof about
+Do not show a per-skill PASS table. "No findings under measured axes" is not proof about
 unmeasured axes.
 
 ## 7. Completion meaning
@@ -311,12 +300,15 @@ unique or free of every possible reviewer objection.
 
 ## 8. Anti-patterns
 
-- Reusing last round’s report without rerunning isolated reviewers.
+- Reusing last round's report without rerunning isolated reviewers.
 - Allowing paper-review to spawn nested MPR.
 - Treating every child CONFIRMED critique as a blocker.
 - Treating every advisory or reviewer disagreement as mandatory prose change.
 - Requiring figure-review to return PASS.
-- Requiring mainline to find exactly one contribution thread.
+- Requiring the narrative-spine protocol (paper-review dimension E) to find exactly one
+  contribution thread.
+- Letting the de-ai auditor edit the manuscript instead of returning findings.
+- Adding condense as a fifth review lane (its detection surface is paper-review dimension I).
 - Calling missing calibration a clean result.
 - Resetting or dropping inconvenient findings during deduplication.
 - Declaring completion because all numeric issue counts are zero while axes were skipped.

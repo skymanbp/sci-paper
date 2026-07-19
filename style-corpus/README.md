@@ -1,7 +1,7 @@
 # style-corpus/
 
 Private source papers used to build field-specific writing evidence for
-`/sci-paper:paper-style` and the de-AI analysis tools. Corpus contents are
+`/sci-paper:de-ai` and the de-AI analysis tools. Corpus contents are
 copyright-sensitive and gitignored; only the directory scaffold and README
 files belong in the repository.
 

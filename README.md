@@ -15,21 +15,18 @@ provide evidence; they do not define a separate paper verdict.
 
 ## What it ships
 
-### Skills (11)
+### Skills (8)
 
 | Skill | Purpose |
 |---|---|
 | `paper` | Normative scientific-writing framework: accuracy, formula and citation rules, forward narrative, L0 policy, positive voice guidance, measurement states, and stopping semantics. |
-| `paper-review` | Source-traced A–R review across mathematics, physics, logic, language, structure, citations, data, interfaces, reproducibility, consistency, adversarial three-pass verification, staleness, process artifacts, draft language, citation precision, and glossary alignment. |
-| `figure-review` | Reviews compiled pages at 150 DPI, traces figure/caption/data provenance, and separates scientific/build blockers from readability and aesthetic advisories. |
-| `paper-style` | Loads a field corpus dossier and section-typed exemplars as descriptive evidence and positive anchors. Corpus distance never proves authorship or redefines consequence policy. |
+| `de-ai` | The single de-AI skill: three chained passes — subsystem measurement (L0–L4), the vendored humanizer structural-tell audit (AIScientists-Dev/academic-humanizer Layers 1–5 + blader/humanizer patterns 2.12–2.16 and Pass-2 self-interrogation), and claim-first rewriting under hard fidelity eligibility and the §5.3 length budget. Loads the field corpus dossier and exemplars as descriptive calibration. `--audit-only` runs passes 1–2 for review integration. |
+| `condense` | 精简: whole-document elimination of all unnecessary and duplicated content. Executes standard §5.3 (delete > condense-in-place > same-length; growth only with recorded justification) with one-canonical-home-per-fact deduplication, loop-until-dry convergence, and the length gate as the closing proof. |
+| `paper-review` | Source-traced A–R review across mathematics, physics, logic, language, structure with the narrative-spine protocol (purpose record, contribution graph, cold-read questions), citations, data, interfaces, reproducibility, consistency, adversarial verification (three-pass plus 12-framing escalation to CONFIRMED/REFUTED/MARGINAL), staleness, process artifacts, draft language, citation precision, and glossary alignment. |
+| `figure-review` | Reviews compiled pages at 150 DPI, traces figure/caption/data provenance, measures canvas balance at the pixel level, and separates scientific/build blockers from readability and aesthetic advisories. |
 | `brainstorm` | Radial research-direction explorer with twelve framing passes, source checks, glossary anchoring, recursive branching, and bounded search convergence. |
-| `mainline` | Complete cold-read contribution-graph review. Supports several explicitly related contributions and reports scientific, narrative, and editorial consequences separately. |
-| `paper-attack-tree` | Open-ended adversarial critique tree. Each critique is resolved to CONFIRMED, REFUTED, or MARGINAL on evidence, then independently assigned a consequence and disposition. |
-| `final-review` | Parent orchestrator for isolated paper-review, figure-review, mainline, attack-tree, and modern-physics-review runs. Verifies a stable disposition-complete state rather than zero advisories. |
-| `rewrite-in-voice` | Claim-first reconstruction. Only candidates preserving protected scientific invariants are eligible; structural, distributional, exemplar, and learned evidence rank eligible prose. |
+| `final-review` | Parent orchestrator for isolated paper-review, figure-review, de-ai audit, and modern-physics-review runs. Verifies a stable disposition-complete state rather than zero advisories. |
 | `proposal-polish` | Funding-proposal editing mode (NSF/NIH). Keeps the vision-and-feasibility register a paper would trim, enforces claim-feasibility matching, edits the score-forming first pages hardest, and applies the shared L0 policy. Never invents preliminary data, partners, or letters. |
-| `academic-humanizer` | Standalone structural-tell audit + evidence-bound rewrite, ported whole from AIScientists-Dev/academic-humanizer (MIT). Detects clause-stacked sentences, negative parallelisms, elegant variation, and claim-evidence verb mismatches; feeds paper-review §D as its per-round structural audit; rewrites run through the fidelity and length gates. |
 
 See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 
@@ -111,8 +108,8 @@ Example skill invocations:
 
 ```text
 /sci-paper:paper
-/sci-paper:paper-style discussion --field wgl
-/sci-paper:rewrite-in-voice draft.tex --field wgl
+/sci-paper:de-ai draft.tex --field wgl
+/sci-paper:condense draft.tex
 /sci-paper:paper-review draft.tex --field wgl
 /sci-paper:final-review draft.tex --field wgl
 ```
@@ -164,16 +161,13 @@ Paragraph exemplars cannot be relabelled as independent documents.
 │   └── DEAI_FRONTIER.md           # design note (2026-07-13)
 ├── skills/
 │   ├── paper/SKILL.md
+│   ├── de-ai/SKILL.md
+│   ├── condense/SKILL.md
 │   ├── paper-review/SKILL.md
 │   ├── figure-review/SKILL.md
-│   ├── paper-style/SKILL.md
 │   ├── brainstorm/SKILL.md
-│   ├── mainline/SKILL.md
-│   ├── paper-attack-tree/SKILL.md
 │   ├── final-review/SKILL.md
-│   ├── rewrite-in-voice/SKILL.md
-│   ├── proposal-polish/SKILL.md
-│   └── academic-humanizer/SKILL.md
+│   └── proposal-polish/SKILL.md
 ├── style-corpus/
 │   └── <field>/tier-{1,2,3}-*/    # user-supplied read-only corpus
 ├── style-profile/
@@ -217,19 +211,18 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.22.0**. Full per-version history is in
+Current: **v0.23.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
-- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.3 — the complete de-AI
+- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.4 — the complete de-AI
   standard (layered model, document-scale core, cooperative layer,
   `calibration_unit` cap, the §5.2 de-AI-ization procedure, the §5.3
   condense-not-accumulate rule with mechanical enforcement, auxiliary L2
   template families with the blind perceptual panel as an L2 validation
   instrument, and a disposition for every open item). There is no separate
   de-AI standard.
-- **Skills (11):** `paper`, `paper-review`, `figure-review`, `paper-style`,
-  `brainstorm`, `mainline`, `paper-attack-tree`, `final-review`,
-  `rewrite-in-voice`, `proposal-polish`, `academic-humanizer`.
+- **Skills (8):** `paper`, `de-ai`, `condense`, `paper-review`,
+  `figure-review`, `brainstorm`, `final-review`, `proposal-polish`.
 - **Tools (22):** exact product registry above.
 - **Current calibrated gaps:** no learned-model operating point (the L3
   document-level surprisal path is now measured not to provide one, EVALUATION.md
@@ -246,17 +239,19 @@ Current: **v0.22.0**. Full per-version history is in
   (MIT). The 2026-07-16 lexicon extensions (`underscore*`, `pivotal`,
   `tapestry`, `testament`, `realm*`, `intricate`, `foster*`), the `serves as`,
   `ing-tail`, and `colon-elaboration` linter rules, the Claim–Evidence
-  Discipline and Preserve List sections in `skills/paper/SKILL.md`, and the
-  `proposal-polish` skill adapt its material. Every lexical adoption was
+  Discipline and Preserve List sections in `skills/paper/SKILL.md`, the
+  `proposal-polish` skill, and the `de-ai` skill's Layer 1–5 audit catalog
+  adapt its material. Every lexical adoption was
   re-verified against the curated field corpora before tier assignment;
   venue-specific rules that conflict with astro usage (`landscape`, blanket
   `demonstrate`/`significantly` bans) were deliberately not adopted.
   academic-humanizer itself builds on blader/humanizer (MIT).
 - **[blader/humanizer](https://github.com/blader/humanizer)** (MIT). The
-  `academic-humanizer` skill's structural patterns 2.12--2.16 (false ranges,
+  `de-ai` skill's structural patterns 2.12--2.16 (false ranges,
   aphorism formulas, persuasive-authority tropes, manufactured staccato
-  drama, hyphenated-pair predicates) and its Pass-2 self-interrogation step
-  adapt this skill (v0.22.0). Only its academically-relevant structural
+  drama, hyphenated-pair predicates), its Pass-2 self-interrogation step,
+  and its false-positive guards adapt this skill. Only its
+  academically-relevant structural
   tells were absorbed; its blog/chat-specific patterns (emoji, title-case
   headings, chatbot artifacts, curly-quote flags) and its
   `landscape`-flagging word list were deliberately not adopted, since

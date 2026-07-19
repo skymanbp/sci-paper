@@ -131,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
         print("This command did not create calibrated operating points.")
         print()
         print("Next:")
-        print("  - draft with evidence: /sci-paper:paper-style discussion")
+        print("  - draft with evidence: /sci-paper:de-ai discussion")
         print("  - retrieve exemplars: python tools/retrieve_exemplars.py "
               "--section method --topic \"...\"")
         print("  - unified feedback: python tools/ai_ism_lint.py "

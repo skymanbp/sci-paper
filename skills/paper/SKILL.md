@@ -191,7 +191,7 @@ python tools/ai_ism_lint.py <file> --field <field> \
 - 句式模板、burstiness、UID、document shape 与 learned field-similarity 是
   advisory；必须保留 `measured` / `degraded` / `unmeasured` / `not_applicable`
   区别，不能把缺失测量当作零命中。
-- 命中的段可用 `/sci-paper:rewrite-in-voice` 从 claim graph 重建，而不是做
+- 命中的段可用 `/sci-paper:de-ai`（Pass 3）从 claim graph 重建，而不是做
   同义词替换。任何候选先通过 scientific-fidelity eligibility，再比较风格证据。
 - 强 advisory 必须行动或显式 disposition；普通 advisory 可以保留并报告。
 
@@ -296,10 +296,10 @@ grep -n -E '([A-Za-z0-9]|\}): [a-z$\\]' main.tex
 **Tier A / em-dash 残留** = `l0_target`。
 **Tier B 超频** = 同词在同 section 的第 2 次及以后为 `l0_target`。
 
-> **Companion evidence from `paper-style`:** corpus assets supply descriptive
-> frequencies and calibration. Re-run `python tools/extract_style.py` when the
-> corpus changes. They may suggest future policy changes, but do not silently
-> redefine the current consequence classes or cap.
+> **Companion evidence from `/sci-paper:de-ai` calibration:** corpus assets supply
+> descriptive frequencies and calibration. Re-run `python tools/extract_style.py`
+> when the corpus changes. They may suggest future policy changes, but do not
+> silently redefine the current consequence classes or cap.
 
 ### Claim–Evidence Discipline / 声明-证据纪律
 

@@ -1,11 +1,18 @@
 # The sci-paper Standard
 
 > **The single normative core.** Writing (`/sci-paper:paper`), checking
-> (`/sci-paper:paper-review`, `mainline`, `figure-review`, `final-review`) and
-> rewriting (`/sci-paper:rewrite-in-voice`) implement this document. If a skill,
+> (`/sci-paper:paper-review`, `figure-review`, `final-review`), de-AI
+> rewriting (`/sci-paper:de-ai`) and condensation (`/sci-paper:condense`)
+> implement this document. If a skill,
 > tool, style profile, or workflow conflicts with this file, this file wins.
 >
-> Status: **v3.3 (2026-07-16)**. v3.3 makes §5.3 mechanically enforced: a
+> Status: **v3.4 (2026-07-18)**. v3.4 records the skill consolidation
+> (11 → 8 orthogonal skills): the former paper-style, rewrite-in-voice and
+> academic-humanizer fold into the single `de-ai` skill; mainline and
+> paper-attack-tree fold into paper-review dimensions E and M; the new
+> `condense` skill becomes the §5.3 action surface. §7 responsibilities are
+> rebuilt accordingly; no policy in §§0-6 or §§8-11 changes.
+> v3.3 makes §5.3 mechanically enforced: a
 > length-budget hard gate in `rewrite_reward.py` (candidate time) and the new
 > `length_gate.py` delta gate (loop close), with recorded justifications as the
 > only path for growth.
@@ -563,13 +570,12 @@ for scientific changes, source verification.
 | Skill | Required role |
 |---|---|
 | `paper` | Load this standard; provide canonical L0 lists and detailed writing/QD guidance. |
-| `paper-style` | Provide descriptive field evidence and calibration assets; never redefine consequence classes. |
-| `rewrite-in-voice` | Consume ranked findings, generate only faithful candidates, re-measure, and report residual dispositions. |
-| `paper-review` | Produce typed findings across its dimensions; verify integrity evidence; avoid a universal paper verdict. |
-| `mainline` | Produce evidence-based narrative findings; allow multiple explicitly related contributions rather than imposing one universal spine doctrine. |
-| `figure-review` | Separate objective scientific/rendering blockers from aesthetic advisories. |
-| `paper-attack-tree` | Treat `CONFIRMED` as a critique that survived verification, then classify its consequence. It does not mean that the paper failed. |
-| `final-review` | Preserve independent isolated reviews; merge typed findings; resolve blockers and L0 targets; record advisory dispositions and unmeasured axes. |
+| `de-ai` | The single de-AI surface: Pass 1 subsystem measurement (L0–L4), Pass 2 vendored humanizer structural-tell audit, Pass 3 claim-first faithful rewrite under §6 eligibility and the §5.3 length budget; provide the descriptive field-calibration assets; never redefine consequence classes. |
+| `condense` | The redundancy/length action surface: execute §5.3 (delete > condense-in-place > same-length; growth only with recorded justification) with one-canonical-home-per-fact deduplication, proven by the length gate; never delete a fact's sole support. |
+| `paper-review` | Produce typed findings across dimensions A–R, including the narrative-spine protocol (dimension E) and adversarial escalation (dimension M); verify integrity evidence; allow multiple explicitly related contributions; treat an escalation `CONFIRMED` as a critique that survived verification, then classify its consequence separately; avoid a universal paper verdict. |
+| `figure-review` | Separate objective scientific/rendering blockers from aesthetic advisories; measure canvas balance at the pixel level. |
+| `brainstorm` | Radial pre-draft ideation: produce candidate directions with evidence, derivation skeletons and reader payoff; never fabricate scientific content or write manuscript prose. |
+| `final-review` | Preserve independent isolated reviews (paper-review, figure-review, de-ai audit, MPR); merge typed findings; resolve blockers and L0 targets; record advisory dispositions and unmeasured axes. |
 | `proposal-polish` | Funding-proposal register (vision plus feasibility): keep backed ambition, enforce claim-feasibility matching, apply the L0 policy and §6 rewrite invariants unchanged; never fabricate support. |
 
 `docs/DEAI_SUBSYSTEM.md` documents architecture. `EVALUATION.md` records

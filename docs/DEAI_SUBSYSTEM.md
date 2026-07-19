@@ -171,7 +171,7 @@ high-confidence AI verdict.
 
 ## 6. Claim-first rewriting
 
-The `/sci-paper:rewrite-in-voice` skill does not polish the original sentence in
+The `/sci-paper:de-ai` skill (Pass 3) does not polish the original sentence in
 place by default. It reconstructs prose from the scientific argument:
 
 1. extract claims, evidence, scope, stance, and logical relations;
@@ -194,19 +194,23 @@ selecting a scientifically altered sentence.
 All active writing and review skills implement the same standard:
 
 - `paper` writes against the consequence and measurement vocabulary;
-- `paper-style` treats corpus profiles as descriptive evidence;
-- `rewrite-in-voice` uses claim-first reconstruction and hard fidelity eligibility;
-- `paper-review` emits typed, source-traced findings across its review dimensions;
-- `mainline` reviews contribution relations and cold-reader comprehension without
-  requiring exactly one narrative spine;
+- `de-ai` chains subsystem measurement (Pass 1), the vendored humanizer
+  structural-tell audit (Pass 2), and claim-first reconstruction with hard
+  fidelity eligibility (Pass 3); it treats corpus profiles as descriptive
+  evidence, never competing policy;
+- `condense` executes the standard's §5.3 condensation policy with
+  one-canonical-home deduplication, closed by the length gate;
+- `paper-review` emits typed, source-traced findings across its review
+  dimensions, including the narrative-spine protocol (dimension E, which never
+  requires exactly one narrative spine) and adversarial escalation
+  (dimension M);
 - `figure-review` separates scientific/build contradictions from readability and
   aesthetic advisories;
-- `paper-attack-tree` separates evidentiary verdict from consequence;
 - `final-review` merges stable findings from isolated reviewers and verifies a
   disposition-complete state rather than demanding zero advisories.
 
-`CONFIRMED`, `REFUTED`, and `MARGINAL` in the attack tree describe whether a critique
-survived evidentiary verification. They do not select its consequence class.
+`CONFIRMED`, `REFUTED`, and `MARGINAL` in the escalation record describe whether a
+critique survived evidentiary verification. They do not select its consequence class.
 `CONVERGED` may describe the completion of a bounded search or review process. It is
 not a claim of perfect prose, human authorship, scientific infallibility, or journal
 acceptance.
@@ -216,9 +220,9 @@ acceptance.
 `final-review` owns isolated child execution. Nested agents are unsupported, so the
 parent passes explicit interface flags:
 
-- `paper-review --no-isolated-mpr`;
-- `mainline --orchestrator-isolated`;
-- `paper-attack-tree --no-subagents`.
+- `paper-review --no-isolated-mpr` (its dimension-M escalation is in-process by
+  design and never spawns);
+- `de-ai --audit-only` (measurement + audit, no rewrite, no spawning).
 
 The parent launches the modern-physics reviewer as a sibling isolated agent. Child
 review coverage is preserved in the current isolated process rather than silently

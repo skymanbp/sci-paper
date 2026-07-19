@@ -24,14 +24,11 @@ SCHEMA = "sci-paper.feedback.v1"
 
 NORMATIVE_SKILLS = {
     "paper",
+    "de-ai",
+    "condense",
     "paper-review",
     "figure-review",
-    "paper-style",
-    "mainline",
-    "paper-attack-tree",
     "final-review",
-    "rewrite-in-voice",
-    "academic-humanizer",
 }
 CORE_IMPORTS = {
     "ai_ism_lint",

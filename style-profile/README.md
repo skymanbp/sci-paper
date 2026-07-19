@@ -1,6 +1,6 @@
 # style-profile/
 
-Field-scoped evidence consumed by `/sci-paper:paper-style`, the unified feedback
+Field-scoped evidence consumed by `/sci-paper:de-ai`, the unified feedback
 CLI, and the rewrite tools. Normative policy lives in
 `docs/SCIPAPER_STANDARD.md`; profile artifacts describe a corpus or record a
 calibration and cannot create an authorship verdict or redefine consequence

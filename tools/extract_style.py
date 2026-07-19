@@ -751,7 +751,7 @@ def write_dossier(
     lines.append(", ".join(
         f"`{word}`({count})" for word, count in lexicon["top_50_corpus_words"]))
 
-    lines.append("\n## 6. How `/sci-paper:paper-style` uses this file\n")
+    lines.append("\n## 6. How `/sci-paper:de-ai` uses this file\n")
     lines.append(
         "1. The skill loads this dossier as descriptive field evidence.\n"
         "2. It retrieves section- and topic-matched paragraphs from "

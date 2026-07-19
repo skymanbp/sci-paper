@@ -3,7 +3,7 @@
 Reads `style-profile/<field>/exemplar_paragraphs.jsonl` (built by
 `extract_style.py`) and returns the K paragraphs in the requested section
 that are most similar to the user's topic, as positive style anchors for
-`/sci-paper:paper-style`.
+`/sci-paper:de-ai`.
 
 Default retrieval: sentence-transformers cosine on `all-MiniLM-L6-v2`
 embeddings, with a per-corpus `.npy` cache (rebuilt automatically when
@@ -15,7 +15,7 @@ gives substantially worse retrieval — use only as a last resort.
 
 Output format: human-readable exemplars separated by `=== Exemplar i/K
 (cosine=…, section=…, tier=…, source=…) ===` headers, intended to be
-streamed straight into `/sci-paper:paper-style` context.
+streamed straight into `/sci-paper:de-ai` context.
 """
 
 from __future__ import annotations

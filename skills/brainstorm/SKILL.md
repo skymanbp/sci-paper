@@ -85,7 +85,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 | `--depth N` | **∞** | 树深度上限（从 root 起的最大层数）；不传 = 不限 |
 | `--rounds N` | `conv` | 发散轮次上限；`conv` = 不限轮次，由§6 收敛判据终止 |
 | `--max-branches N` | **∞** | 每节点单轮新增分支上限。注意：§3 强制 12 条 framing pass 各产 ≥1 分支，下限实际为 12；该 flag 仅用于放大（极少需要） |
-| `--field <name>` | 见§1.1 | 与 paper-style 同名 field，用于文献先验加权 |
+| `--field <name>` | 见§1.1 | 与 `style-profile/` 共享的 field 约定（同 `/sci-paper:de-ai`），用于文献先验加权 |
 | `--out <dir>` | `brainstorm-out/<UTCdate>__<topic-slug>/` | 树输出目录 |
 | `--seed <text>` | 无 | 额外种子提示，作为 root 节点的 hint |
 | `--no-online` | 关 | 关闭 WebSearch / WebFetch；只用本地 + 已读引用 |
@@ -95,7 +95,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 
 > **关于"无上限"**：本 skill 的设计哲学是用§6 收敛判据（substantive convergence）而不是用资源 cap（resource exhaustion）来终止。当用户既不传 `--width / --depth / --rounds` 也不触§6 收敛 → 它会一直跑直到收敛，这是预期行为而非 bug。
 
-**§1.1 field 选择**：与 `paper-style` 行为一致 —
+**§1.1 field 选择**：与 `/sci-paper:de-ai` 的 field 解析一致 —
 解析 `style-profile/` 下子目录：1 个 → 自动选；多个 → 要求 `--field`；0 个 → 跳过文献先验加权（不阻塞，仅警告）。
 
 ---
@@ -454,6 +454,6 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 ## 10. 与其他 sci-paper skill 的接口
 
 - 用 `/sci-paper:brainstorm` 找出 PROMISING 方向 → 用 `/sci-paper:paper` 加载写作标准 → 起草新论文
-- 起草时若已有 `style-profile/<field>/`：自动叠加 `paper-style` 的 dossier 作为风格基线
+- 起草时若已有 `style-profile/<field>/`：自动叠加其 dossier 作为风格基线（`/sci-paper:de-ai` §1 的校准资产）
 - brainstorm 自身**不写论文正文**；它只产出方向 + 推导骨架，不替用户决定写哪篇
 - brainstorm 输出的 `shortlist.md` 是 `/paper` skill 的合法输入（用户挑一条交给 paper）

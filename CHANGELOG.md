@@ -3,6 +3,52 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.23.0 — 2026-07-18
+
+Skill consolidation: 11 skills become 8 mutually orthogonal directions.
+The three de-AI surfaces merge into one `de-ai` skill, the two review
+augmenters fold into paper-review dimensions, and a new `condense` skill
+becomes the §5.3 action surface.
+
+- **New skill `de-ai`.** Merges `academic-humanizer` (the Layer 1--5
+  structural-tell catalog with patterns 2.12--2.16 and the Pass-2
+  self-interrogation, both MIT upstreams credited), `rewrite-in-voice`
+  (the claim-first rewrite engine with hard fidelity eligibility and the
+  §5.3 length gate), and `paper-style` (field-corpus calibration, dossier
+  freshness, exemplar retrieval) into one three-pass pipeline:
+  measure (L0--L4) -> humanizer audit -> claim-first rewrite.
+  `--audit-only` runs passes 1--2 for review integration; `--no-apply`
+  proposes without writing.
+- **New skill `condense` (精简).** Whole-document elimination of all
+  unnecessary and cross-document duplicated content, executing the
+  standard's §5.3 policy: delete > condense-in-place > same-length
+  rewrite, growth only with recorded justification;
+  one-canonical-home-per-fact deduplication with a genre carve-out for
+  abstract/conclusion restatement; loop-until-dry convergence; the length
+  gate closes every pass. Redundancy detection stays in paper-review
+  dimension I; condense executes the fixes.
+- **paper-review absorbs `mainline` and `paper-attack-tree`.** Dimension E
+  gains the narrative-spine protocol (purpose record, contribution graph,
+  cold-read questionnaire, multi-contribution legitimacy); dimension M is
+  sub-structured into M.1 (the existing three-pass derivation
+  verification) and M.2 (the 12-framing radial escalation with S/P/R/F/B
+  scoring and CONFIRMED/REFUTED/MARGINAL verdicts, no deferred leaves,
+  in-process by design); dimension D's structural-tell audit now invokes
+  `de-ai --audit-only`. A--R lettering unchanged.
+- **final-review re-orchestrates to four isolated reviewers.**
+  paper-review, figure-review, the `de-ai --audit-only` audit, and the
+  parent-level modern-physics review. `condense` is positioned as an
+  action skill on dimension-I findings, not a fifth review lane.
+- **figure-review gains pixel-measured canvas balance (§2.4.1).**
+  Opposing outer margins must agree within max(2 px at 150 DPI, 1% of the
+  canvas width); fixes go to the generator (right pad = measured left
+  axis-title + tick column), never to an absolute nudge.
+- **SCIPAPER_STANDARD v3.4.** Records the consolidation and rebuilds the
+  §7 responsibility table as a complete 8-row registry; no policy in
+  §§0--6 or §§8--11 changes. Docs, tool strings, and directory READMEs
+  re-point to the surviving skills; both MIT attributions survive in the
+  README Acknowledgments and the `de-ai` provenance block.
+
 ## v0.22.0 — 2026-07-18
 
 `academic-humanizer` absorbs the academically-relevant structural tells

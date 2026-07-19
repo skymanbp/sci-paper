@@ -121,6 +121,21 @@ is advisory.
 Wrong geometry that changes scientific interpretation is a blocker. Placement, whitespace and
 balance are normally advisories.
 
+### 2.4.1 Canvas balance (pixel-measured)
+
+When placement or balance is in question, measure it rather than eyeballing it. On the 150-DPI
+render, quantify the rendered whitespace: the left/right and top/bottom outer margins, the
+panel-centre offset from the canvas centre, and, for faceted or multi-panel layouts, the strip
+and gutter widths that should match across panels. A canvas is balanced when opposing outer
+margins agree within **max(2 px at 150 DPI, 1% of the canvas width)** and every repeated
+structural element (facet strip, inter-panel gap, colour-bar gutter) is equal across panels.
+The usual root cause is a tight save that keeps the left axis-title + tick-label column but
+crops the right edge flush, shifting the panel left of centre. Correct the asymmetry at the
+generator, setting the right outer pad to the measured width of the opposing left column
+rather than nudging with an absolute offset, then re-render and re-measure. Imbalance within
+tolerance needs no action; beyond it, an advisory — unless it crops or misaligns scientific
+content, which is the Section 2.4 blocker.
+
 ## 3. Source and manuscript cross-check
 
 For every figure:

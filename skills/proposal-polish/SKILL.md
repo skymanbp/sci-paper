@@ -14,7 +14,8 @@ argument-hint: "<file_path> [--agency nsf|nih] [--voice-sample <prior_proposal>]
 >
 > **Provenance:** adapted from academic-humanizer Layer 6 and its examples
 > (github.com/AIScientists-Dev/academic-humanizer, MIT License, Copyright (c)
-> 2026 AIScientists-Dev). Restructured to the sci-paper feedback contract.
+> 2026 AIScientists-Dev; that skill's paper-mode content now lives in
+> `/sci-paper:de-ai`). Restructured to the sci-paper feedback contract.
 
 # proposal-polish — funding-proposal editing mode
 
