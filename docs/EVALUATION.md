@@ -1,4 +1,4 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.23.0
+# EVALUATION: de-AI subsystem for `sci-paper` v0.24.0
 
 First recorded 2026-07-12; axis table and repository-verification counts current as of
 2026-08-06.
