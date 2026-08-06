@@ -134,7 +134,14 @@ def check_manifests() -> str:
             f"README current version is not v{plugin_v}")
     require(re.search(rf"^## v{re.escape(plugin_v)}\s+[—-]", changelog, re.MULTILINE) is not None,
             f"CHANGELOG has no top-level entry for v{plugin_v}")
-    return f"manifests and release version agree ({plugin_v})"
+    # Versioned doc headers ("current as of vX") must track the release;
+    # they sat outside every check until the v0.24.0 release shipped with
+    # two stale ones.
+    for doc_name in ("docs/DEAI_SUBSYSTEM.md", "docs/EVALUATION.md"):
+        first_line = read_text(REPO / doc_name).splitlines()[0]
+        require(f"v{plugin_v}" in first_line,
+                f"{doc_name} header line does not carry v{plugin_v}")
+    return f"manifests, doc headers, and release version agree ({plugin_v})"
 
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)

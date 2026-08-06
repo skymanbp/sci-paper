@@ -3,6 +3,24 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.25.0 — 2026-08-06
+
+Hardening patch on the v0.24.0 consistency release.
+
+- **Validator: versioned doc headers are now gated.** `check_manifests`
+  additionally requires the header lines of `docs/DEAI_SUBSYSTEM.md` and
+  `docs/EVALUATION.md` to carry the current release version — the one
+  surface the v0.24.0 sweep missed (two stale `v0.23.0` headers shipped
+  and were fixed post-tag in `475f632`). The class of miss is now a
+  release blocker instead of a review catch.
+- **Full-repo debug round (all green, recorded here as the release
+  gate):** validator 8/8; 115 unit/CLI tests; 33/33 tracked `.py`
+  compile; 22/22 tool `--help` entry points exit 0; zero TODO/FIXME and
+  zero bare `except:`; all tracked JSON parses; 20 markdown files with
+  zero broken relative links; linter exit semantics re-verified on true
+  process exit codes (Tier A fixture exits 1 with the `tier-a:delve`
+  target present).
+
 ## v0.24.0 — 2026-08-06
 
 Documentation-consistency release: two audit rounds (2026-08-06) drove

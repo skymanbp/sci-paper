@@ -1,4 +1,4 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.24.0
+# EVALUATION: de-AI subsystem for `sci-paper` v0.25.0
 
 First recorded 2026-07-12; axis table and repository-verification counts current as of
 2026-08-06.
@@ -708,7 +708,7 @@ the exemplar bank or the the manuscript manuscript before that decision.
 
 ## 12. Release evidence boundary
 
-Current release gates (v0.24.0, 2026-08-06): `validate_plugin.py` all 8 checks
+Current release gates (v0.25.0, 2026-08-06): `validate_plugin.py` all 8 checks
 pass and the full unit/CLI suite (115 tests, 11 files) passes on a clean tree;
 both are rerun before every tag.
 

@@ -213,7 +213,7 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.24.0**. Full per-version history is in
+Current: **v0.25.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
 - **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.4 — the complete de-AI
