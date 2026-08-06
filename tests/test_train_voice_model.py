@@ -134,6 +134,10 @@ class VoiceAuditHelperTests(unittest.TestCase):
         self.assertIn("human-paper", human)
 
     def test_bootstrap_auc_ci_reproducible_and_brackets_point(self):
+        try:
+            import numpy  # noqa: F401  _bootstrap_auc_ci lazy-imports it
+        except ImportError:  # CI runs without optional dependencies
+            self.skipTest("numpy is unavailable")
         y = [0, 0, 0, 1, 1, 1]
         scores = [0.1, 0.2, 0.3, 0.7, 0.8, 0.9]
         first = training._bootstrap_auc_ci(y, scores, n_boot=500, seed=7)
