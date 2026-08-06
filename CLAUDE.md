@@ -43,10 +43,11 @@ create an authorship verdict or a separate paper gate.
 
 ## Cross-project references
 
-- **Source project:** the sibling `weak-gravitational-lensing` project
-  (sci-paper was extracted from its `.claude/skills/{paper, paper-review,
-  figure-review}`). Those existing skills are the v0 inputs to this plugin.
-  Record your local clone path in `CLAUDE.local.md` (gitignored) if you
+- **Source project:** `wgl-suite`, the weak-gravitational-lensing research hub
+  (sci-paper was extracted from the `paper`, `paper-review` and `figure-review`
+  skills of its predecessor repo, which was folded into wgl-suite on 2026-05-18).
+  wgl-suite remains the primary consumer and the source of the `wgl` style
+  corpus. Record your local clone path in `CLAUDE.local.md` (gitignored) if you
   want an absolute reference handy.
 - **User's global writing-quality memory** lives in the user-level
   `~/.claude/CLAUDE.md` (Linux/macOS) or `%USERPROFILE%\.claude\CLAUDE.md`

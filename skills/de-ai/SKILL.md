@@ -119,8 +119,12 @@ JSON from printed prose.
 Axes and tools:
 
 - **L0 lexical + punctuation** (`ai_ism_lint` Tier A/B + em-dash) — the only
-  to-zero axis. The word lists load from `style-profile/<field>/lexicon.json`;
-  do not re-derive them by hand.
+  to-zero axis. The Tier A/B word lists are the `TIER_A_PATTERN` and
+  `TIER_B_PATTERN` regexes in `tools/ai_ism_lint.py`, mirrored for human reading
+  in `skills/paper/SKILL.md`; do not re-derive them by hand.
+  `style-profile/<field>/lexicon.json` is separate calibration data: only its
+  `llm_words_absent_from_corpus` key is read, and only for the advisory
+  `corpus-zero:` rule.
 - **L1 distribution** (`deai_metrics`, `deai_oracle`) — burstiness,
   connective openers, surprisal/UID. Degraded without a field operating
   point; rank-only.
@@ -362,9 +366,10 @@ No number, equation, or citation changed.
 **Corpus overrides (measured evidence beats the upstream word lists):**
 `landscape` is a legitimate astrophysics term — never flag it lexically;
 `demonstrate*` and `significantly` are normal astro usage — flag only on a
-Layer-4 failure, never as bare words. Tier A/B lists live in
-`style-profile/<field>/lexicon.json` and `tools/ai_ism_lint.py`; this skill
-defers to them. When the corpus changes, re-run `tools/extract_style.py` and
+Layer-4 failure, never as bare words. The enforced Tier A/B lists live in
+`tools/ai_ism_lint.py`; this skill defers to them. The corpus-derived
+`style-profile/<field>/lexicon.json` feeds the advisory `corpus-zero:` rule only.
+When the corpus changes, re-run `tools/extract_style.py` and
 `tools/build_profile.py`.
 
 **Interfaces:**

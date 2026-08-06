@@ -32,9 +32,9 @@ serialize evidence but do not define an independent paper verdict.
 | `fetch_arxiv_abstracts.py` | Fetches dated arXiv abstract corpora for controlled model evaluation/training. | Network failures are explicit; fetched text is evidence/training data, not policy. |
 | `validate_plugin.py` | Validates manifests, version/count agreement, skill frontmatter and standard references, normative/evaluation document authority, stale review markers, Python syntax, runtime imports, CLI entry points, feedback schema, linter exits, required tests, and CI wiring. | Stdlib-only; rejects active duplicate evaluation records and exits nonzero on contract drift. |
 
-The top-level manifest counts 22 Python tools, the repository validator
-included; `ai_ism_negatives_handcrafted.txt` is a data asset outside that
-count.
+The top-level manifest counts 22 product tools: the 21 shipped Python tools plus the
+`ai_ism_negatives_handcrafted.txt` data asset. `validate_plugin.py` is a
+development/release tool and is excluded from that count.
 
 ## Dependencies
 

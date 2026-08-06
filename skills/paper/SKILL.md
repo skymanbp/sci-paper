@@ -41,7 +41,7 @@ When the three-part arc fits:
 ### Structural Updates · Forward Narrative / 结构式更新 · 正向叙述
 
 > **每一次写作、修订、纠错都必须把文章重写到"当前真值的最终态"——禁止把"旧态 → 新态"的迁移痕迹留在正文里。**
-> 本节是 `paper-review` §2.O ("update-not-accumulate") 的**写作端对偶**：
+> 本节是 `paper-review` §O ("Process-artifact removal") 的**写作端对偶**：
 > 审查端默认 *删除* 过程残影；写作端默认 *一开始就不写进去*。
 
 **正向叙述（forward narrative）—— 唯一合法形式**
@@ -283,7 +283,7 @@ grep -n -E -i '(delve|leveraged|leverages|leveraging|paved?|paves|paving|shed[s]
 
 # Tier B（定位；是否超过每节每词 cap 由 linter 按 section 计算）
 grep -n -E -i '^\s*(Furthermore|Moreover|Additionally|Importantly|Interestingly|Notably),' main.tex
-grep -n -E -i '\b(robust|robustly|comprehensive|utilize[sd]?|leverage|leverages|leveraging|leveraged|intricate|foster(s|ing|ed)?)\b' main.tex
+grep -n -E -i '\b(robust|robustly|comprehensive|utilize|utilized|leverage|intricate|foster(s|ing|ed)?)\b' main.tex
 
 # 顽固替换组（不分级）
 grep -n -E -i '\b(in order to|aim to|facilitate|serves as)\b' main.tex

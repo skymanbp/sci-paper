@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (v0.14.0)
+# De-AI subsystem architecture (current as of v0.23.0)
 
 ## 1. Purpose
 
@@ -134,17 +134,22 @@ not establish that the construction is wrong or machine-generated.
 
 ### L2: whole-document rhetorical shape
 
-[`../tools/deai_docstructure.py`](../tools/deai_docstructure.py) measures:
+[`../tools/deai_docstructure.py`](../tools/deai_docstructure.py) measures shape similarity:
 
 - `within_section_similarity`;
 - `cross_section_similarity`;
 - `section_arc_similarity`.
 
+Since the 2026-07-13 keystone it also carries the detection core that the axis actually
+scores on: cross-paragraph dispersion as a joint Mahalanobis manifold fit pooled and per
+length stratum (`fit_dispersion_manifold`, `manifold_distance`), role-coupled dispersion
+(`document_role_coupling`), and split-conformal (Mondrian) operating points.
+
 Document calibration records one observation per verified complete paper, bootstrap
 uncertainty, leave-one-document-out human flag behavior, and empirical percentiles.
 If the corpus does not contain enough complete and measurable papers, the axis is
-`unmeasured`. The implementation must not synthesize a document baseline from
-paragraph exemplars.
+`unmeasured`; for `wgl` it is `measured` on a 14-paper calibration (EVALUATION §9). The
+implementation must not synthesize a document baseline from paragraph exemplars.
 
 ### L3: learned field similarity
 

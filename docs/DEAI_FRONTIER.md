@@ -4,7 +4,8 @@ Status: design note, 2026-07-13. Produced by a six-lens divergent ideation
 (scale-unlocks, arms-race, writing-time product, cross-field transfer,
 evaluation science, contrarian) after the keystone validation and its measured
 adversarial limit. Complements [`DEAI_ARCHITECTURE_ROADMAP.md`](DEAI_ARCHITECTURE_ROADMAP.md)
-(ranks 2–8 there remain valid engineering work). **The ranked frontier is now
+(ranks 1, 5, 7 and 8 there have since shipped or been measured; ranks 2, 3, 4 and 6 remain
+open, with their dispositions in [`SCIPAPER_STANDARD.md`](SCIPAPER_STANDARD.md) §11). **The ranked frontier is now
 complete (2026-07-13).** Detection core: idea 5 (shipped,
 `deai_docstructure.fit_dispersion_manifold`), idea 7 (executed, signal survives —
 §9.3), idea 1 (shipped, `document-role-decoupling` — §9.4), idea 8 (shipped,

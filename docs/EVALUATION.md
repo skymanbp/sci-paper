@@ -1,6 +1,7 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.14.0
+# EVALUATION: de-AI subsystem for `sci-paper` v0.23.0
 
-Date: 2026-07-12
+First recorded 2026-07-12; axis table and repository-verification counts current as of
+2026-08-06.
 
 ## 1. Evaluation contract
 
@@ -20,9 +21,9 @@ result.
 |---|---|---|---|
 | L0 lexical/punctuation | measured | Deterministic Tier A, em-dash, and Tier B cap implementation with CLI regression tests. | Continue regression coverage when policy changes. |
 | L1 distribution | degraded | Field sentence/connective summaries exist; compatibility thresholds are not a documented policy operating point. | `deai_policy.json` with corpus unit, uncertainty, applicability, and validation behavior. |
-| L1 UID | degraded | [`style-profile/wgl/uid_baseline.json`](style-profile/wgl/uid_baseline.json) records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
-| L2 sentence structure | measured for deterministic matches; degraded for strength | [`style-profile/wgl/structure_baseline.json`](style-profile/wgl/structure_baseline.json) provides section-level reference fractions. | Calibrated strong-advisory thresholds and author-labelled difficult cases. |
-| L2 document structure | unmeasured for `wgl` | The implementation and complete-document calibration tests exist, but no verified `docstructure_baseline.json` exists. | At least three measurable complete papers, with one observation per paper and leave-one-document-out behavior. |
+| L1 UID | degraded | [`style-profile/wgl/uid_baseline.json`](../style-profile/wgl/uid_baseline.json) records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
+| L2 sentence structure | measured for deterministic matches; degraded for strength | [`style-profile/wgl/structure_baseline.json`](../style-profile/wgl/structure_baseline.json) provides section-level reference fractions. | Calibrated strong-advisory thresholds and author-labelled difficult cases. |
+| L2 document structure | measured | §9: cross-paragraph dispersion calibrated one-observation-per-paper over 14 complete human `wgl` papers; leave-one-paper-out false-flag rate ~0.07 at n=14. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field. | Continue recalibration when the corpus changes. |
 | L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, hard-set true-provenance AUC 0.937, but 32–41% false-positive rate on field-topic AI text. Document-level now measured (§9.8): surprisal dispersion (0.757) is weaker than the model-free manifold (0.881) and adds nothing to it, so L3 stays degraded for a measured reason. | A field-topic-robust operating point with provenance and uncertainty; the surprisal path is measured not to provide one. |
 | Rewrite scientific fidelity | measured for protected invariants | Unit tests cover preserved invariants, dropped number, dropped citation, and reversed comparison. | Real manuscript before/after demonstration, including scope and stance review. |
 
@@ -39,9 +40,9 @@ python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The current pre-release working tree passes the validator and all 36 unit/CLI tests.
-These commands must be rerun after every subsequent code or release-metadata change; the
-final release record must quote the fresh output rather than this intermediate result.
+The working tree passes the validator and all 115 unit/CLI tests (11 test files, collected
+2026-08-06). These commands must be rerun after every subsequent code or release-metadata
+change; the release record must quote the fresh output rather than a past result.
 
 ## 4. L0 behavior
 
@@ -63,11 +64,11 @@ Current regression cases include:
 - `--top` truncates emitted details without changing full-report totals.
 
 These tests are in
-[`tests/test_ai_ism_lint_cli.py`](tests/test_ai_ism_lint_cli.py).
+[`tests/test_ai_ism_lint_cli.py`](../tests/test_ai_ism_lint_cli.py).
 
 ## 5. Sentence-structure reference evidence
 
-[`style-profile/wgl/structure_baseline.json`](style-profile/wgl/structure_baseline.json)
+[`style-profile/wgl/structure_baseline.json`](../style-profile/wgl/structure_baseline.json)
 contains 1,952 paragraph observations across its recorded section buckets. The file
 records reference fractions for announced enumeration, ordinal runs, tricolon-like
 setup/list patterns, anaphora, balanced closers, and aggregate templating.
@@ -83,7 +84,7 @@ Interpretation limits:
 
 ## 6. UID reference evidence
 
-[`style-profile/wgl/uid_baseline.json`](style-profile/wgl/uid_baseline.json) records
+[`style-profile/wgl/uid_baseline.json`](../style-profile/wgl/uid_baseline.json) records
 1,957 paragraphs that met its token requirement. It stores pooled and section-level
 means, standard deviations, and counts for global UID, local UID, and mean surprisal
 under GPT-2-large.
@@ -96,11 +97,11 @@ threshold.
 ## 7. Learned field-similarity model
 
 The current
-[`style-profile/wgl/voice_model.joblib`](style-profile/wgl/voice_model.joblib) bundle
+[`style-profile/wgl/voice_model.joblib`](../style-profile/wgl/voice_model.joblib) bundle
 was retrained on an expanded corpus and evaluated with the confound-aware audit on
 2026-07-12 (cloud run on an RTX PRO 6000 Blackwell GPU; artifacts SHA-256 verified on
 retrieval). The full machine-readable audit is
-[`style-profile/wgl/voice_model_evaluation.json`](style-profile/wgl/voice_model_evaluation.json)
+[`style-profile/wgl/voice_model_evaluation.json`](../style-profile/wgl/voice_model_evaluation.json)
 (schema `sci-paper.voice-model-evaluation.v1`).
 
 | Metadata | Value |
@@ -192,7 +193,7 @@ the hard-set perception metric:
    property, and no document-level calibration set exists yet (§9).
 
 The provenance result (0.94) shows the model is a useful field-similarity triage signal,
-not that it is a calibrated AI detector. [`tools/deai_voice.py`](tools/deai_voice.py)
+not that it is a calibrated AI detector. [`tools/deai_voice.py`](../tools/deai_voice.py)
 enforces the degraded posture: an uncalibrated bundle emits only rank-ordered triage,
 never a universal cutoff.
 
@@ -208,7 +209,7 @@ never a universal cutoff.
 
 ## 8. Rewrite eligibility
 
-[`tools/rewrite_reward.py`](tools/rewrite_reward.py) checks protected invariants before
+[`tools/rewrite_reward.py`](../tools/rewrite_reward.py) checks protected invariants before
 ranking. The protected set includes numbers, units, citations, inline mathematics,
 uppercase acronyms, comparison direction, negation, and causal direction.
 
@@ -217,7 +218,7 @@ the former relative semantic-similarity band, under which a fluent but scientifi
 altered candidate could remain competitive.
 
 Current tests in
-[`tests/test_rewrite_reward.py`](tests/test_rewrite_reward.py) verify:
+[`tests/test_rewrite_reward.py`](../tests/test_rewrite_reward.py) verify:
 
 - a candidate preserving protected invariants remains eligible;
 - dropping a number makes it ineligible;
@@ -236,7 +237,7 @@ identified the document scale as the confound-orthogonal signal: field register 
 *level* of per-paragraph features, while AI-uniformity compresses their *spread* across a
 document, which no per-paragraph score can see (the 32–41% field-topic FPR of §7.2).
 
-[`tools/deai_docstructure.py`](tools/deai_docstructure.py) now measures, per model-free
+[`tools/deai_docstructure.py`](../tools/deai_docstructure.py) now measures, per model-free
 per-paragraph feature, the cross-paragraph dispersion of a complete document
 (`deai_features.cross_paragraph_dispersion`), and flags a document that varies a feature
 below the human low tail. Calibrated one-observation-per-paper over 14 complete human
@@ -633,7 +634,7 @@ author usually does, and is `unmeasured` below three prior papers.
 
 ## 10. Hard-set human input
 
-[`style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv`](style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv)
+[`style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv`](../style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv)
 contains 75 difficult paragraphs with recorded true provenance in
 `deai_hardset_key.csv` (21 generated, 54 human). On 2026-07-12 the author supplied all 75
 perceptual `ai_feel_1to5` labels (distribution: 20×1, 28×2, 19×3, 8×4; no 5s), evaluated
@@ -655,7 +656,7 @@ so it cannot serve as the model's yardstick. Therefore:
 
 A proposal-only run was completed on 2026-07-12 against the manuscript commit
 `[removed]`,
-[`sec_1_intro.tex`](../wgl-suite/papers/P-pipeline/drafts/sec_1_intro.tex)
+[`sec_1_intro.tex`](../../wgl-suite/papers/P-pipeline/drafts/sec_1_intro.tex)
 lines 54--76. The manuscript was not modified. The target was the announced
 "five elements / First ... Fifth" sequence.
 

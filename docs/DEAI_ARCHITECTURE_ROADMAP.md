@@ -1,8 +1,15 @@
 # De-AI subsystem — architecture reflection and roadmap
 
-Status: design note, 2026-07-12. Not yet implemented. Complements
+Status: design note written 2026-07-12, retained as the reasoning record for why the
+document scale is the keystone. It is **not** a status document: the keystone shipped on
+2026-07-13, and the current disposition of every ranked item lives in
+[`SCIPAPER_STANDARD.md`](SCIPAPER_STANDARD.md) §11. Complements
 [`DEAI_SUBSYSTEM.md`](DEAI_SUBSYSTEM.md) (current architecture) and
 [`SCIPAPER_STANDARD.md`](SCIPAPER_STANDARD.md) (normative policy).
+
+The diagnosis below is stated in the present tense of 2026-07-12. Where it says the
+document-scale detector is off or uncalibrated, read that as the condition this note was
+written to fix, not as the state of the repository.
 
 This note records a multi-lens reflection prompted by a decisive session finding:
 the author's own perceptual rating of AI-ness on single paragraphs is at chance
@@ -40,10 +47,11 @@ AI-drafted one. This is exactly the axis no per-paragraph score can express, and
 why the human `ai_feel` AUC of 0.444 is not a labeling failure but a statement about
 the resolution of the paragraph unit itself.
 
-Verified on disk: the whole-document human corpus already exists
+Verified on disk at the time of writing: the whole-document human corpus already exists
 (`style-corpus/wgl/`, dozens of `.tex` sources across tiers), and no
-`docstructure_baseline.json` is present. The keystone is a wiring-and-calibration
-gap, not a data-collection project.
+`docstructure_baseline.json` was present. The keystone is a wiring-and-calibration
+gap, not a data-collection project. (Closed 2026-07-13: the baseline is now calibrated
+over 14 complete papers and rebuilt per field — EVALUATION §9.)
 
 ## 3. What to keep (do not touch)
 
@@ -198,5 +206,7 @@ scalars for surprisal-only separation (0.803 vs 0.757, EVALUATION.md §9.8), but
 document-level surprisal is itself weaker than the model-free manifold (0.757 vs
 0.881) and adds nothing to it, so the enriched features are not shipped into the
 model-free detector (recorded, not added). This resolves the last L3 document-level
-debt: the detector stays model-free by measurement at document scale. Ranks 2, 3,
-4, 6 remain not started.
+debt: the detector stays model-free by measurement at document scale. Ranks 2, 3, 4
+and 6 were never started as scoped; their decided dispositions (deferred, deferred,
+deferred-audit-only, and won't-pursue respectively) live in SCIPAPER_STANDARD §11,
+which is the single status home.

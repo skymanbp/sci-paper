@@ -29,6 +29,7 @@ NORMATIVE_SKILLS = {
     "paper-review",
     "figure-review",
     "final-review",
+    "proposal-polish",
 }
 CORE_IMPORTS = {
     "ai_ism_lint",
