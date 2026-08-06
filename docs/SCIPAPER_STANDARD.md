@@ -581,6 +581,11 @@ for scientific changes, source verification.
 `docs/DEAI_SUBSYSTEM.md` documents architecture. `EVALUATION.md` records
 empirical evidence. Neither overrides this standard.
 
+All of the above except `brainstorm` are normative implementers and must
+reference this standard (enforced by `validate_plugin.py` `NORMATIVE_SKILLS`).
+`brainstorm` operates before manuscript prose exists; its role row binds its
+scope, not a standard-reference obligation.
+
 ---
 
 ## 8. Tool responsibilities

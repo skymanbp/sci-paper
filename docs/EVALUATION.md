@@ -656,8 +656,8 @@ so it cannot serve as the model's yardstick. Therefore:
 
 A proposal-only run was completed on 2026-07-12 against the manuscript commit
 `[removed]`,
-[`sec_1_intro.tex`](../../wgl-suite/papers/P-pipeline/drafts/sec_1_intro.tex)
-lines 54--76. The manuscript was not modified. The target was the announced
+`sec_1_intro.tex` lines 54--76 (paths as of that commit; the draft tree
+was dissolved into `papers/manuscripts/the manuscript/` + git history on 2026-08-06). The manuscript was not modified. The target was the announced
 "five elements / First ... Fifth" sequence.
 
 ### 11.1 Source and fidelity verification
@@ -708,7 +708,11 @@ the exemplar bank or the the manuscript manuscript before that decision.
 
 ## 12. Release evidence boundary
 
-v0.14.0 release gates and their status on 2026-07-12:
+Current release gates (v0.24.0, 2026-08-06): `validate_plugin.py` all 8 checks
+pass and the full unit/CLI suite (115 tests, 11 files) passes on a clean tree;
+both are rerun before every tag.
+
+Historical record — v0.14.0 release gates and their status on 2026-07-12:
 
 - validator and 36 unit/CLI tests after final edits — met (rerun before tag);
 - independent multi-agent review and fixes — met: an adversarially verified Opus review

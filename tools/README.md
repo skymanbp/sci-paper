@@ -70,9 +70,10 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
   --structure --distribution --document-structure --oracle --voice \
   --format json --output feedback.json
 
-# Calibrate whole-document shape only from verified complete documents
-python tools/deai_docstructure.py --calibrate <doc1> <doc2> <doc3> \
-  --profile-dir style-profile/<field>
+# Calibrate whole-document shape from a directory of verified complete
+# documents (independent .tex/.md papers, not paragraphs of one paper)
+python tools/deai_docstructure.py --field <field> --calibrate \
+  --corpus-dir <private-complete-document-directory>
 
 # Rebuild the learned model and repeated source-group confound audit
 python tools/train_voice_model.py --field <field> --refeature --audit-splits 20

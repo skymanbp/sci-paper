@@ -9,7 +9,9 @@ runtime imports/CLI entry points, linter exit semantics, tests, and CI wiring.
 from __future__ import annotations
 
 import ast
+import contextlib
 import importlib
+import io
 import json
 import re
 import subprocess
@@ -359,7 +361,12 @@ def check_linter_exit_semantics() -> str:
                 "one Tier B occurrence per section/word must return status 0")
         require(run(paths["tier-b-excess.tex"]) == 1,
                 "Tier B excess must return linter status 1")
-        require(run(root / "missing.tex") == 2, "missing input must return linter status 2")
+        # The exit-2 fixture intentionally lints a nonexistent file; swallow
+        # the linter's expected "file not found" stderr line so validator
+        # output does not open with a spurious error.
+        with contextlib.redirect_stderr(io.StringIO()):
+            missing_status = run(root / "missing.tex")
+        require(missing_status == 2, "missing input must return linter status 2")
     return "linter exit semantics valid (0=no L0, 1=L0, 2=execution failure)"
 
 

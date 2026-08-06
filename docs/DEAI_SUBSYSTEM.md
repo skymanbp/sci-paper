@@ -166,7 +166,7 @@ confound is unresolved until the evidence in `EVALUATION.md` demonstrates otherw
 
 The per-paragraph learned classifier is an **offline audit instrument, not a
 product detector one calibration away from an operating point**: the paragraph
-unit is near-unjudgeable for AI-ness (perceptual AUC 0.44), and the document-level
+unit is near-unjudgeable for AI-ness (perceptual AUC 0.444, EVALUATION.md §7), and the document-level
 surprisal path is now measured (EVALUATION.md §9.8) to be weaker than the
 model-free manifold and to add nothing to it. Accordingly, `make_finding` carries
 a `calibration_unit` (paragraph|section|document) that structurally caps
@@ -212,7 +212,13 @@ All active writing and review skills implement the same standard:
 - `figure-review` separates scientific/build contradictions from readability and
   aesthetic advisories;
 - `final-review` merges stable findings from isolated reviewers and verifies a
-  disposition-complete state rather than demanding zero advisories.
+  disposition-complete state rather than demanding zero advisories;
+- `proposal-polish` applies the same fidelity-first rewrite contract to
+  proposal and application prose.
+
+`brainstorm` is pre-draft ideation; it loads the field dossier but is not a
+normative implementer of this standard (see `validate_plugin.py`
+`NORMATIVE_SKILLS`).
 
 `CONFIRMED`, `REFUTED`, and `MARGINAL` in the escalation record describe whether a
 critique survived evidentiary verification. They do not select its consequence class.
@@ -264,13 +270,17 @@ standard.
 - core command-line entry points;
 - shared schema fields and allowed enums;
 - linter exit and Tier B cap semantics;
+- normative/evaluation document authority boundaries;
 - required tests and CI wiring.
+
+The authoritative check list is `validate_plugin.py` itself (`tools/README.md`
+mirrors it); this summary is descriptive.
 
 CI also runs the unit and CLI test suite. A release additionally requires an
 independent code review, a clean-checkout verification, release metadata updates,
 and successful tag/push/release operations.
 
-## 11. Evidence still required for v0.14.0
+## 11. Evidence still required (open items; heading written at v0.14.0)
 
 The implementation can ship with explicit unavailable axes, but it must not imply
 that missing evidence exists. Before release, the evaluation record must state the

@@ -1,6 +1,8 @@
 ---
 name: figure-review
 description: Review every paper figure from the compiled document at print-realistic 150 DPI. Verify figure/caption/data consistency, required labels, units, references, readability, accessibility, float placement, and cross-figure visual coherence. Report SCIPAPER_STANDARD typed findings: objective figure/build contradictions as integrity blockers and aesthetic or borderline readability concerns as advisories, never a universal PASS/WARN paper verdict. Use after figure changes or before submission.
+disable-model-invocation: false
+argument-hint: "<document_path>"
 ---
 
 # figure-review — compiled-page evidence and typed feedback

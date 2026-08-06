@@ -862,7 +862,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  → {field_profile}/style_dossier.md")
     print(f"  → {field_profile}/{{sentence_stats,transition_inventory,lexicon}}.json")
     print(f"  → {field_profile}/exemplar_paragraphs.jsonl  ({n_exemplars} paragraphs)")
-    print("\nNext: inspect style_dossier.md and hand-edit if anything looks off.")
+    print("\nNext: inspect style_dossier.md; if anything looks off, fix the "
+          "corpus or extractor and re-run (generated evidence is never "
+          "hand-edited).")
     print("To enable retrieval: `python tools/retrieve_exemplars.py --section <s> --topic <t>`.")
     return 0
 

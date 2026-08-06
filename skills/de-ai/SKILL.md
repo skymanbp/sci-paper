@@ -46,7 +46,8 @@ Pass 3 to proposals only. For technical prose, **neutral and precise IS the
 human voice** — this skill strips machine tells; it never adds personality,
 humor, or first-person flavor.
 
-**Boundary with `/sci-paper:condense` (canonical statement, mirrored there):**
+**Boundary with `/sci-paper:condense` (canonical home — this statement;
+mirrored verbatim in condense SKILL.md §0):**
 de-ai removes the *authorship fingerprint* (L0-L4 signals, structural tells,
 voice; its Pass-3 length cap only guards its own rewrites against growth).
 condense removes *redundancy and length* (cross-document deduplication under

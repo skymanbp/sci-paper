@@ -3,6 +3,39 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.24.0 — 2026-08-06
+
+Documentation-consistency release: two audit rounds (2026-08-06) drove
+every finding to closed; no behavior change to the L0 linter or the
+measurement axes.
+
+- **Docs single-sourcing.** The validator check list is now authoritative
+  in `validate_plugin.py` with descriptive mirrors marked as such
+  (`README.md`, `docs/DEAI_SUBSYSTEM.md`); the de-ai/condense boundary
+  block has one canonical home (`de-ai` SKILL.md §0); the product-tool
+  registry ownership is stated (`README.md` machine-checked,
+  `tools/README.md` adds calibration/failure detail).
+- **Contradictions closed.** `brainstorm` is now explicitly the one
+  non-normative skill in both `SCIPAPER_STANDARD.md` §7 and
+  `docs/DEAI_SUBSYSTEM.md` §7 (matching `NORMATIVE_SKILLS`);
+  `extract_style.py` no longer invites hand-editing generated evidence;
+  stale v0.14.0 anchors in `DEAI_SUBSYSTEM.md` §11 and `EVALUATION.md`
+  §12 are dated or superseded by the current release-gate record;
+  perceptual AUC unified at 0.444 (EVALUATION §7).
+- **Command fixes.** The whole-document calibration command in
+  `tools/README.md` now matches the real CLI (`--field` + `--calibrate`
+  `--corpus-dir`); the dead cross-repo link in `EVALUATION.md` §11 is a
+  commit-pinned citation.
+- **Registry completeness.** `style-profile/README.md` layout now lists
+  `voice_model_evaluation.json`, `anchoring_baseline.json`, negative/extra
+  banks, and `docval/`, and documents the second populated field
+  (`wgl-letter`, 11-paper Letter-register corpus, built 2026-07); the
+  `figure-review` frontmatter carries `disable-model-invocation` and an
+  `argument-hint` like every other skill.
+- **Tool hygiene.** The validator's exit-2 fixture no longer leaks a
+  spurious stderr line above the first `[ok]`; `deai_metrics._bucket_for`
+  narrows its exception guard with a stated reason.
+
 ## v0.23.0 — 2026-07-18
 
 Skill consolidation: 11 skills become 8 mutually orthogonal directions.

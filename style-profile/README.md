@@ -27,10 +27,20 @@ style-profile/
     ├── deai_policy.json                    # optional calibrated operating points
     ├── voice_model.joblib                  # optional learned field-similarity model
     ├── voice_features_cache.npz            # learned-model feature cache
+    ├── voice_model_evaluation.json         # learned-model audit record (train_voice_model.py)
+    ├── anchoring_baseline.json             # claim-anchoring band (deai_anchoring.py --calibrate)
+    ├── ai_ism_negatives_*.jsonl            # harvested negative paragraph banks
+    ├── human_*_extra.jsonl                 # supplementary human-positive banks
+    ├── docval/                             # document-level validation working set
     └── hardset/
         ├── deai_hardset_KEY.csv             # local item key/provenance
         └── deai_hardset_LABEL_ME.csv        # user-authored difficult-case labels
 ```
+
+Two fields are populated locally as of 2026-08-06: `wgl` (the full asset set
+above, built from the 31-paper corpus) and `wgl-letter` (descriptive subset —
+lexicon, sentence stats, transitions, exemplars, dossier — built from the
+11-paper Letter-register corpus for `--field wgl-letter`).
 
 An absent artifact remains absent evidence. The corresponding axis must report
 `unmeasured` or `degraded`; tools must not convert absence into zero findings.

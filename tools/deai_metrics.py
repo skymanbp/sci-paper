@@ -137,9 +137,11 @@ def paragraph_line_ranges(text: str, start_line: int = 1
 
 
 def _bucket_for(raw_label: str) -> str:
+    # classify_section itself never raises on a str; the guard covers a
+    # non-string label from a malformed \section capture upstream.
     try:
         return es.classify_section(raw_label)
-    except Exception:
+    except (AttributeError, TypeError):
         return "unknown"
 
 

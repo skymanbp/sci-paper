@@ -4,7 +4,7 @@ A Claude Code plugin for scientific writing, rewriting, source-traced review,
 figure review, narrative analysis, adversarial critique, and research ideation.
 
 The single normative authority is
-[`docs/SCIPAPER_STANDARD.md`](docs/SCIPAPER_STANDARD.md) (v3). It defines scientific
+[`docs/SCIPAPER_STANDARD.md`](docs/SCIPAPER_STANDARD.md) (v3.4). It defines scientific
 integrity blockers, narrow L0 rewrite targets, ranked advisories, explicit measurement
 states, author dispositions, and scientific-fidelity requirements. It also **is** the
 de-AI standard: the layered signal model (L0–L4), the document-scale detection core,
@@ -58,8 +58,8 @@ See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 | `tools/fetch_arxiv_abstracts.py` | Fetches dated abstract corpora for controlled model evaluation/training. |
 
 The repository validator, `tools/validate_plugin.py`, is a development/release tool and
-is not counted as a shipped product tool. See [tools/README.md](tools/README.md) for the
-complete registry and failure behavior.
+is not counted as a shipped product tool. [tools/README.md](tools/README.md) repeats
+this registry with per-tool calibration and failure behavior.
 
 ## Core feedback model
 
@@ -203,15 +203,17 @@ python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The validator checks release metadata, skill frontmatter, standard references, stale
-contract markers, product registries, Python syntax, runtime imports, CLI entry points,
-schema fields, linter exits, Tier B behavior, tests, and CI wiring.
+The validator checks release metadata, skill frontmatter, standard references,
+normative/evaluation document authority boundaries, stale contract markers, product
+registries, Python syntax, runtime imports, CLI entry points, schema fields, linter
+exits, Tier B behavior, tests, and CI wiring (authoritative list:
+`validate_plugin.py` itself).
 
 A release additionally requires independent code review and clean-checkout verification.
 
 ## Status
 
-Current: **v0.23.0**. Full per-version history is in
+Current: **v0.24.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
 - **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.4 — the complete de-AI

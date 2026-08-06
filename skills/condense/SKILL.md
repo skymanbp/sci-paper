@@ -22,7 +22,8 @@ mechanical length gate. It is the plugin's redundancy/length action surface:
 *executes* the removal. `--report-only` stops after §1: the ranked redundancy
 map is returned with no deletion applied.
 
-**Boundary with `/sci-paper:de-ai` (canonical statement, mirrored there):**
+**Boundary with `/sci-paper:de-ai` (canonical home: de-ai SKILL.md §0;
+mirrored here verbatim):**
 de-ai removes the *authorship fingerprint* (L0-L4 signals, structural tells,
 voice; its Pass-3 length cap only guards its own rewrites against growth).
 condense removes *redundancy and length* (cross-document deduplication under
