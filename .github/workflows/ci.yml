@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Manual retry lever: the 2026-08-06 GitHub Actions outage left pushes
+  # with no run created and no way to re-trigger without an empty commit.
+  workflow_dispatch:
 
 jobs:
   validate:
