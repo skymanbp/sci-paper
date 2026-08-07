@@ -3,6 +3,26 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.25.1 — 2026-08-06
+
+CI-repair patch; no behavior change to any tool or skill.
+
+- **CI green for the first time since v0.20.0.** The numpy-backed
+  bootstrap-AUC test lacked the optional-dependency guard the two
+  joblib-gated tests already had, so every hosted run since 2026-07-17
+  failed with `ModuleNotFoundError` (the workflow installs no optional
+  dependencies by design). Guard added in `67a6b55`, verified both ways
+  locally (115 discover tests with numpy; skip-not-error with numpy
+  import-blocked); first green runs are 31133202443 (push) and
+  31133215203 (manual dispatch).
+- **`workflow_dispatch` trigger added** (`6886679`) so CI can be
+  retried without an empty commit — during the 2026-08-06 GitHub
+  Actions outage, pushes produced no runs and there was no manual
+  lever.
+- Release gate: validator 8/8, 115 unit/CLI tests, and a green hosted
+  CI run on the release tree (the CI-green condition is recorded in
+  EVALUATION §12 as part of the standing gate).
+
 ## v0.25.0 — 2026-08-06
 
 Hardening patch on the v0.24.0 consistency release.
