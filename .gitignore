@@ -56,6 +56,7 @@ memory/
 Thumbs.db
 .vscode/
 .idea/
+.ce/
 
 # Build artefacts from any test runs
 *.aux
