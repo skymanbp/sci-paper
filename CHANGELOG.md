@@ -3,6 +3,71 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.26.0 — 2026-08-16
+
+Two new corpus-referenced axes, and the reduction fix that made the first
+of them measurable at all. Both answer one reader complaint from
+different directions: a draft can pass every existing axis and still read
+as a machine inventory written for a neighbouring discipline.
+
+- **Fixed: every numeral in a LaTeX manuscript was invisible to the
+  subsystem.** `extract_style.latex_to_plain` replaces each math span
+  with the token `[math]`, which is right for lexical and sentence-shape
+  statistics and destroys the digits. Any signal about how a passage
+  distributes its measured quantities therefore read identically zero on
+  real `.tex` input — a recital-dense abstract measured 0.0 numeric
+  density. The new `latex_to_numeral_text` is a second named projection
+  sharing the same pattern set and differing in one decision: it keeps
+  the numerals inside *inline* math. Displayed equations are dropped by
+  both, because their digits are the constants of a definition rather
+  than quantities the prose reports. `latex_to_plain` is unchanged, so
+  every existing calibration asset stays valid.
+
+- **New axis `L2.salience_hierarchy` (`deai_salience.py`).** Measures
+  whether a passage ranks what it reports or recites it. The
+  discriminating quantity is not numeric density — a quantitative
+  abstract is supposed to carry numbers — but how far the numerals run
+  without an interpreting sentence between them. Calibrated per section
+  bucket on the field's own passage banks (13,438 abstracts for the
+  `wgl` abstract reference) and read as P(X ≤ x) against a 0.01 quantile
+  grid, because two of the three features are ratios of small integers
+  and a coarse grid swallows a passage that lands on a tie plateau. One
+  finding per over-recital passage, led by its most extreme feature;
+  emitting one per feature tripled the count of a single defect.
+
+- **New axis `L0.register` (`deai_register.py`).** Flags terms the
+  manuscript leans on that the field's own corpus does not carry — the
+  tell of a paper written in a neighbouring discipline's register. The
+  judgement is corpus document frequency, never a curated "foreign word"
+  list, and the corpus says why: in the 15,599-passage astronomy
+  reference `AUC` appears in 1 passage while `epoch` appears in 402 and
+  `accuracy` in 774, so any hand-written cross-discipline blacklist
+  flags all three. Three constructions that defeat a naive frequency
+  test are handled rather than thresholded away: hyphenated compounds
+  are judged by their rarest part (`aperture-mass` is native via
+  `aperture`), subscript decorations in macro bodies are not terms
+  (`\Kraw` renders `S_sad`, not the word "sad"), and possessives fold
+  onto the bare term. Advisories only — field register is the author's
+  judgement, and a corpus-rare term may be the concept the paper
+  introduces.
+
+- **Guard: a reference with no spread above the advisory gate abstains.**
+  When every reference passage above p90 shares one value, P(X ≤ x)
+  reaches 1.0 there and an ordinary passage reads as the 100th
+  percentile. The affected feature declines to rank rather than
+  inventing a finding.
+
+- **Recorded negative result.** A subordination-versus-coordination
+  ratio was prototyped as the formalisation of "flat prose" and refuted
+  against the same human reference: the manuscript under review sits at
+  the 77th percentile of hypotaxis, above the human median, so flatness
+  is not a deficit of subordinate structure. Not shipped; recorded in
+  `docs/EVALUATION.md` §14 so it is not re-proposed.
+
+- Both axes are wired into `ai_ism_lint` (`--register` / `--salience`,
+  default on) and emit advisories only, so the 0/1/2 exit contract is
+  unchanged. 32 new tests (147 total); standard updated to v3.5.
+
 ## v0.25.1 — 2026-08-06
 
 CI-repair patch; no behavior change to any tool or skill.

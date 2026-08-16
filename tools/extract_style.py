@@ -158,6 +158,21 @@ RE_TEX_BEGIN_END = re.compile(r"\\(?:begin|end)\{[^}]*\}")
 RE_TEX_SIMPLE_CMD = re.compile(r"\\[a-zA-Z]+\*?(\[[^\]]*\])?(\{([^{}]*)\})?")
 RE_TEX_BRACES = re.compile(r"[{}]")
 RE_TEX_TILDE = re.compile(r"(?<![\\])~")
+# Used only by latex_to_numeral_text below: strip a command name without
+# consuming its argument, so the digits inside survive.
+RE_TEX_MATH_CMD = re.compile(r"\\[a-zA-Z]+\*?")
+# LaTeX writes a thousands separator as 14{,}850; collapsing it first keeps
+# that one quantity one numeral instead of three.
+RE_TEX_THIN_COMMA = re.compile(r"\{\s*,\s*\}")
+
+
+def _math_numerals(match: "re.Match[str]") -> str:
+    """Reduce one math span to its bare numerals and operators."""
+    body = RE_TEX_THIN_COMMA.sub(",", match.group(0))
+    body = RE_TEX_MATH_CMD.sub(" ", body)
+    for token in ("{", "}", "$"):
+        body = body.replace(token, " ")
+    return " " + body + " "
 
 RE_SECTION = re.compile(
     r"\\(section|subsection|chapter)\*?\{([^}]+)\}", re.IGNORECASE
@@ -188,6 +203,41 @@ def latex_to_plain(text: str) -> str:
     text = RE_TEX_BRACES.sub("", text)
     text = RE_TEX_TILDE.sub(" ", text)
     return text
+
+
+def latex_to_numeral_text(text: str) -> str:
+    """Reduce LaTeX to prose while PRESERVING the numerals inside math.
+
+    :func:`latex_to_plain` replaces every math span with the token ``[math]``,
+    which is correct for lexical and sentence-shape statistics: a formula is
+    not prose, and its symbols would pollute word counts. That reduction also
+    destroys every numeral in a LaTeX manuscript, so any signal about *how a
+    passage distributes its measured quantities* is identically zero on real
+    `.tex` input. This second projection exists for those signals only
+    (`deai_salience`); it keeps the digits and drops the markup around them.
+
+    Both projections share one set of patterns above, so the two views of a
+    document can never drift apart in how they treat comments, citations,
+    labels, or commands. They differ in exactly one decision: what happens to
+    the contents of an *inline* math span.
+
+    A displayed equation is dropped by both. Its digits are the constants of a
+    definition, not quantities the prose is reporting; counting the 3 in a
+    volume formula as a reported result would make every derivation look like a
+    recital of measurements.
+    """
+    text = RE_TEX_COMMENT.sub("", text)
+    text = RE_TEX_DISPLAY_MATH.sub(" ", text)
+    text = RE_TEX_INLINE_MATH.sub(_math_numerals, text)
+    text = RE_TEX_ENV_FIGURE_TABLE.sub(" ", text)
+    text = RE_TEX_CITE.sub(" ", text)
+    text = RE_TEX_LABEL_REF.sub("", text)
+    text = RE_TEX_INCLUDEGRAPHICS.sub("", text)
+    text = RE_TEX_BEGIN_END.sub("", text)
+    text = RE_TEX_SIMPLE_CMD.sub(lambda m: m.group(3) or "", text)
+    text = RE_TEX_BRACES.sub("", text)
+    text = RE_TEX_TILDE.sub(" ", text)
+    return re.sub(r"[ \t]+", " ", text)
 
 
 def split_into_sections(raw_tex: str) -> dict[str, str]:

@@ -20,6 +20,8 @@ sys.path.insert(0, str(TOOLS_DIR))
 import deai_docstructure  # noqa: E402  sibling tool import after path setup
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_metrics  # noqa: E402  distribution and canonical ranges
+import deai_register  # noqa: E402  domain-register detector
+import deai_salience  # noqa: E402  salience-hierarchy detector
 import deai_structure  # noqa: E402  sentence-construction detector
 
 REPO_ROOT = TOOLS_DIR.parent
@@ -324,10 +326,17 @@ def collect_feedback(path: Path, field_profile_dir: Path | None, *,
                      ai_classifier: bool = False, ai_threshold: float = 0.7,
                      distribution: bool = True, structure: bool = True,
                      document_structure: bool = True, oracle: bool = False,
-                     voice: bool = False) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+                     voice: bool = False, register: bool = True,
+                     salience: bool = True) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     text = path.read_text(encoding="utf-8", errors="replace")
     findings, axes = lexical_findings(
         text, path, field_profile_dir, ai_classifier, ai_threshold)
+    if register:
+        findings.extend(deai_register.register_findings(text, field_profile_dir, path))
+        axes.append(deai_register.register_axis_status(field_profile_dir))
+    if salience:
+        findings.extend(deai_salience.salience_findings(text, field_profile_dir, path))
+        axes.append(deai_salience.salience_axis_status(field_profile_dir))
     if distribution:
         findings.extend(deai_metrics.distribution_findings(text, field_profile_dir, path))
         axes.append(deai_metrics.distribution_axis_status(field_profile_dir))
@@ -363,7 +372,8 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
          distribution: bool = True, structure: bool = True,
          oracle: bool = False, voice: bool = False,
          document_structure: bool = True, output_format: str = "text",
-         output: Path | None = None, top: int | None = None) -> int:
+         output: Path | None = None, top: int | None = None,
+         register: bool = True, salience: bool = True) -> int:
     del summary  # retained as a compatibility option; reports always include totals
     if not path.exists():
         print(f"[ai_ism_lint] file not found: {path}", file=sys.stderr)
@@ -373,7 +383,7 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
             path, field_profile_dir, ai_classifier=ai_classifier,
             ai_threshold=ai_threshold, distribution=distribution,
             structure=structure, document_structure=document_structure,
-            oracle=oracle, voice=voice)
+            oracle=oracle, voice=voice, register=register, salience=salience)
         report = feedback.build_report(path=path, findings=findings, axes=axes, top=top)
         rendered = (feedback.dump_report(report)
                     if output_format == "json" else feedback.render_text(report) + "\n")
@@ -404,6 +414,10 @@ def main(argv: list[str] | None = None) -> int:
                         default=True)
     parser.add_argument("--document-structure", action=argparse.BooleanOptionalAction,
                         default=True)
+    parser.add_argument("--register", action=argparse.BooleanOptionalAction,
+                        default=True)
+    parser.add_argument("--salience", action=argparse.BooleanOptionalAction,
+                        default=True)
     parser.add_argument("--oracle", action="store_true")
     parser.add_argument("--voice", action="store_true")
     parser.add_argument("--format", choices=("text", "json"), default="text")
@@ -422,7 +436,7 @@ def main(argv: list[str] | None = None) -> int:
         distribution=args.distribution, structure=args.structure,
         document_structure=args.document_structure, oracle=args.oracle,
         voice=args.voice, output_format=args.format, output=args.output,
-        top=args.top,
+        top=args.top, register=args.register, salience=args.salience,
     )
 
 

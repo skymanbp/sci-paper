@@ -6,7 +6,16 @@
 > implement this document. If a skill,
 > tool, style profile, or workflow conflicts with this file, this file wins.
 >
-> Status: **v3.4 (2026-07-18)**. v3.4 records the skill consolidation
+> Status: **v3.5 (2026-08-16)**. v3.5 adds two corpus-referenced axes that
+> close a coverage gap rather than change any policy: `L2.salience_hierarchy`
+> (does a passage rank what it reports, or recite it) and `L0.register` (does
+> the draft speak the field's vocabulary or a neighbouring discipline's).
+> Both are advisory-only and calibrated on the field's own passage banks, so
+> the consequence classes, exit contract, and ranking of §§0-6 are unchanged.
+> v3.5 also records that the shared LaTeX reduction had made numeral-bearing
+> signals unmeasurable on `.tex` input, and adds the second named projection
+> that fixes it (§8, `latex_to_numeral_text`).
+> v3.4 records the skill consolidation
 > (11 → 8 orthogonal skills): the former paper-style, rewrite-in-voice and
 > academic-humanizer fold into the single `de-ai` skill; mainline and
 > paper-attack-tree fold into paper-review dimensions E and M; the new
@@ -158,6 +167,18 @@ but it is not an L0 target. Classifier signals, sentence templates,
 three-part structures, corpus-distance signals, and ordinary style preferences
 are not L0 targets.
 
+A second lexical axis, `L0.register` (`deai_register`), sits at this layer
+without joining the to-zero set. It measures whether the draft speaks its own
+field's vocabulary, by comparing terms the manuscript leans on against document
+frequency in the field's own corpus. The evidence must be corpus frequency and
+never a curated list of another discipline's words: in the astronomy reference
+`AUC` appears in 1 passage of 15,599 while `epoch` appears in 402 and
+`accuracy` in 774, so a hand-written "ML vocabulary" list flags all three. A
+hyphenated compound is judged by its rarest part, because hyphenation is an
+open construction and every compound is corpus-rare. Register findings are
+always advisories: a corpus-rare term may be a borrowed method's accepted name,
+or the concept the paper is introducing, and only the author can say which.
+
 ### L1: information distribution
 
 L1 measures distributional properties against a field and section reference,
@@ -219,6 +240,23 @@ A separate L2 writing-quality axis, `L2.claim_anchoring` (`deai_anchoring`),
 measures section-class conditional anchored-sentence rates. It is a
 writing-quality band, **not an AI-discrimination axis**: the "under-anchoring is
 the AI tell" hypothesis is refuted for strong-model generations (EVALUATION §9.6).
+
+A third L2 axis, `L2.salience_hierarchy` (`deai_salience`), measures whether a
+passage ranks the quantities it reports or recites them. Sentence structure and
+document shape both stay silent here: a passage can vary its sentence lengths,
+sit inside the human dispersion band, and still hand the reader an undifferentiated
+inventory of results. The measured quantity is deliberately not numeric density,
+because a quantitative abstract is supposed to carry numbers; it is how far the
+numerals run without an interpreting sentence between them. A human writer stops
+to say what a result establishes before reporting the next one. Calibration is
+per section bucket on the field's own passage banks, at one unit (a passage) on
+both sides, and the reading is P(X ≤ x) against a fine quantile grid, because two
+of the three features are ratios of small integers whose reference distributions
+are tie-heavy. Where a reference has no spread above the advisory gate the
+feature abstains: with every upper-tail passage sharing one value, P(X ≤ x)
+reaches 1.0 there and an ordinary passage would read as the 100th percentile.
+The repair is ranking, never deletion, and a number that is the sole support of
+a claim stays where it is.
 
 A detector needs enough sections and substantial paragraphs to support the
 measurement. Otherwise it reports `insufficient_evidence` and leaves the axis
@@ -454,6 +492,14 @@ confound-free self-checks.
    Tier B word within its section cap. `ai_ism_lint` gates this; L0 is the only
    axis rewritten *to zero*.
 
+1b. **L0 register (corpus-referenced, author-decided).** Where `deai_register`
+   reports a term the field's corpus does not carry, choose one of three
+   dispositions and record it: name the quantity the field already has a word
+   for, keep the borrowed term but define it at first use in field terms, or
+   confirm the definition is present if the paper is introducing the concept.
+   This step never runs to zero and never swaps a term whose replacement would
+   change the claim.
+
 2. **L1 distribution.** Where a section is flagged for low burstiness or
    connective-opener signposting, restore field-appropriate sentence-length
    variation and delete roadmap connectives. Do not manufacture random variety;
@@ -462,6 +508,16 @@ confound-free self-checks.
 3. **L2 sentence structure.** Dissolve announced enumeration, setup-list-wrap
    patterns, repeated modal or anaphoric frames, and symmetric closers into prose
    the argument carries, keeping genre-appropriate organization.
+
+3b. **L2 salience hierarchy.** Where `deai_salience` reports a passage reciting
+   its quantities, rank them instead of deleting them: keep the numbers the
+   passage's own claim rests on, state what they establish, and let the section
+   that argues from a supporting value carry it. A number that is the sole
+   support of a claim never leaves. Because the repair moves emphasis rather
+   than facts, it is subject to §6 eligibility and the §5.3 budget like any
+   other rewrite, and an accepted disposition is the right outcome wherever the
+   density is what the genre requires (a methods paragraph specifying a
+   parameter grid).
 
 4. **L2 document structure (the keystone).** If the dispersion manifold or
    role-coupling flags over-uniformity, apply `deai_partition` merge/split
@@ -596,6 +652,8 @@ scope, not a standard-reference obligation.
 | `deai_metrics.py` | L1 | Emit calibrated distribution findings and explicit missing-baseline status. |
 | `deai_oracle.py` | L1 | Emit surprisal/UID findings with observed and reference values; advisory-success exit 0. |
 | `deai_structure.py` | L2 sentence | Emit template evidence with calibration metadata; advisory-success exit 0. |
+| `deai_salience.py` | L2 salience | Measure recital structure against a per-section human passage reference at one shared unit; one finding per passage; abstain where the reference cannot resolve above the gate. Sole consumer of `extract_style.latex_to_numeral_text`, the numeral-preserving projection (`latex_to_plain` replaces math with `[math]`, which zeroes every numeral signal on `.tex` input). |
+| `deai_register.py` | L0 register | Compare manuscript vocabulary against field-corpus document frequency; judge compounds by their rarest part; read macro bodies but not subscript decorations; emit advisories only, never `l0_target`s. |
 | `deai_docstructure.py` | L2 document | Measure document shape (per-stratum dispersion manifold, role coupling, split-conformal) with sample-sufficiency checks; one shared `manifold_operating_point` scoring entry. |
 | `deai_anchoring.py` | L2 | Emit the section-class claim-anchoring band as a writing-quality axis, never an AI-discrimination axis. |
 | `deai_voice.py` | L3 | Emit calibrated similarity evidence, model metadata, and confound status without authorship claims; degraded, offline audit instrument. |
@@ -671,6 +729,9 @@ audit and keeping the suite and validator green, and updates this table and
 | Item | Disposition | Reason |
 |---|---|---|
 | Document-scale detection core (dispersion manifold, role coupling, split-conformal, per-stratum) | **Shipped, `measured`** | Calibrated on the complete human corpus; falsification and length-fair AUCs in EVALUATION §9.2–9.5. |
+| Salience hierarchy (`L2.salience_hierarchy`) | **Shipped, `measured`** | Per-bucket passage reference from the field's own banks; abstains where the reference cannot resolve above the gate (EVALUATION §14). |
+| Domain register (`L0.register`) | **Shipped, `measured`** | Corpus document frequency with compound-by-rarest-part and macro-subscript handling; precision verified against native-term controls (EVALUATION §14). |
+| Hypotaxis ratio as the formalisation of "flat prose" | **Rejected** | Refuted on the human abstract reference: the flagged manuscript sits above the human median in subordination, so flatness is not a subordination deficit (EVALUATION §14). |
 | Cooperative layer (`deai_partition`, `deai_anchoring`, `deai_provenance`, `deai_personal`) | **Shipped** | Partition/anchoring `measured`; provenance/personal `unmeasured` by design until the author supplies own history/papers. |
 | `L3.voice` operating point | **Decided degraded** | Offline audit instrument; per-paragraph unit near-unjudgeable and document-level surprisal refuted (§2 L3, EVALUATION §7, §9.8). |
 | `L1.distribution` operating point | **Decided degraded** | No `deai_policy.json` field-calibrated operating point; burstiness/signposting summaries exist but carry no policy threshold (EVALUATION §2). |

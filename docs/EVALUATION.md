@@ -1,7 +1,7 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.25.1
+# EVALUATION: de-AI subsystem for `sci-paper` v0.26.0
 
 First recorded 2026-07-12; axis table and repository-verification counts current as of
-2026-08-06.
+2026-08-16.
 
 ## 1. Evaluation contract
 
@@ -22,6 +22,8 @@ result.
 | L0 lexical/punctuation | measured | Deterministic Tier A, em-dash, and Tier B cap implementation with CLI regression tests. | Continue regression coverage when policy changes. |
 | L1 distribution | degraded | Field sentence/connective summaries exist; compatibility thresholds are not a documented policy operating point. | `deai_policy.json` with corpus unit, uncertainty, applicability, and validation behavior. |
 | L1 UID | degraded | [`style-profile/wgl/uid_baseline.json`](../style-profile/wgl/uid_baseline.json) records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
+| L2 salience hierarchy | measured | §14: per-bucket passage reference from the field's own banks (abstract n=13,438; method n=1,377); P(X ≤ x) on a 0.01 quantile grid; abstains where the reference cannot resolve above the gate. | Buckets below the 30-passage floor; a human-judgement validation set. |
+| L0 register | measured | §14: document frequency over 15,599 corpus passages, 41,933 terms; compound-by-rarest-part and macro-subscript handling; native-term controls pass. | Corpus composition bias toward abstract vocabulary; recall below the 5-use floor. |
 | L2 sentence structure | measured for deterministic matches; degraded for strength | [`style-profile/wgl/structure_baseline.json`](../style-profile/wgl/structure_baseline.json) provides section-level reference fractions. | Calibrated strong-advisory thresholds and author-labelled difficult cases. |
 | L2 document structure | measured | §9: cross-paragraph dispersion calibrated one-observation-per-paper over 14 complete human `wgl` papers; leave-one-paper-out false-flag rate ~0.07 at n=14. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field. | Continue recalibration when the corpus changes. |
 | L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, hard-set true-provenance AUC 0.937, but 32–41% false-positive rate on field-topic AI text. Document-level now measured (§9.8): surprisal dispersion (0.757) is weaker than the model-free manifold (0.881) and adds nothing to it, so L3 stays degraded for a measured reason. | A field-topic-robust operating point with provenance and uncertainty; the surprisal path is measured not to provide one. |
@@ -40,8 +42,8 @@ python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The working tree passes the validator and all 115 unit/CLI tests (11 test files, collected
-2026-08-06). These commands must be rerun after every subsequent code or release-metadata
+The working tree passes the validator and all 147 unit/CLI tests (13 test files, collected
+2026-08-16). These commands must be rerun after every subsequent code or release-metadata
 change; the release record must quote the fresh output rather than a past result.
 
 ## 4. L0 behavior
@@ -708,8 +710,8 @@ the exemplar bank or the the manuscript manuscript before that decision.
 
 ## 12. Release evidence boundary
 
-Current release gates (v0.25.1, 2026-08-06): `validate_plugin.py` all 8 checks
-pass and the full unit/CLI suite (115 tests, 11 files) passes on a clean tree;
+Current release gates (v0.26.0, 2026-08-16): `validate_plugin.py` all 8 checks
+pass and the full unit/CLI suite (147 tests, 13 files) passes on a clean tree;
 both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
 release commit must also be green (first green runs: 31133202443 push,
 31133215203 manual dispatch).
@@ -820,3 +822,184 @@ scored near 2), so the tell-turnover reading, not the score, carries the
 signal. The aphoristic-closer class has no detector and relies on
 rewrite-instruction coverage; residual instances survive in A2 (the intro
 requirement cadence one judge still names).
+
+## 14. Salience hierarchy and domain register (v0.26.0)
+
+Date: 2026-08-16. Two axes added after a reader complaint no existing axis could
+express: a draft that passes L0, sits inside the document manifold, and still
+reads as an undifferentiated inventory of results written in a neighbouring
+discipline's vocabulary. All measurements below use the `wgl` field profile.
+
+### 14.1 The reduction defect that preceded both
+
+The first prototype measured `recital_frac = 0.0` on an abstract carrying
+`$500$`, `$14{,}850{,}000$`, `$62\%$`, `$0.98\%$`, `$34.6\%$`, `$\AUC=0.817$`
+and five more quantities. `extract_style.latex_to_plain` — the shared front end
+for every axis — replaces each math span with the token `[math]`, so **every
+numeral in a LaTeX manuscript is destroyed before any detector sees it**. That
+reduction is correct for the lexical and sentence-shape statistics it was
+written for, and it makes any numeral-bearing signal identically zero on `.tex`
+input. No earlier axis could have found this class of defect.
+
+`latex_to_numeral_text` is a second named projection. It shares the same pattern
+set and differs in one decision: numerals inside *inline* math survive.
+Displayed equations are dropped by both, because their digits are the constants
+of a definition — counting the 3 in a volume formula as a reported quantity made
+every derivation paragraph read as a recital of measurements. The LaTeX
+thousands form `14{,}850{,}000` collapses to one numeral rather than three.
+`latex_to_plain` is untouched, so no existing calibration asset moves.
+
+### 14.2 Salience reference and operating points
+
+Calibrated per section bucket at one shared unit (a passage) on the reference
+and measurement sides, from the field's own banks:
+
+| Bucket | n | Sources |
+|---|---:|---|
+| abstract | 13,438 | `human_abstracts_extra.jsonl`, `exemplar_paragraphs.jsonl` |
+| method | 1,377 | `exemplar_paragraphs.jsonl` |
+| intro | 88 | `exemplar_paragraphs.jsonl` |
+| discussion | 35 | `exemplar_paragraphs.jsonl` |
+| conclusion | 26 | `exemplar_paragraphs.jsonl` |
+
+Human abstract percentiles:
+
+| Feature | p50 | p75 | p90 | p95 |
+|---|---:|---:|---:|---:|
+| `max_recital_run_frac` | 0.20 | 0.33 | 0.50 | 0.67 |
+| `recital_frac` | 0.29 | 0.50 | 0.67 | 0.78 |
+| `numerals_per_sentence` | 0.57 | 1.25 | 2.00 | 2.70 |
+
+The gate is P(X ≤ x) > 0.90 for an advisory and > 0.95 for a strong one. Two
+implementation facts are load-bearing:
+
+- **Grid resolution.** Two of the three features are ratios of small integers,
+  so the reference distributions are tie-heavy. On a 0.05 grid the plateau
+  around 0.5 collapses onto one stored point, and a passage landing there reads
+  as exactly p90 when its true P(X ≤ x) is 0.91 — the reading that suppressed
+  the very case the axis was built for. The stored grid is 0.01.
+- **Tie direction.** The percentile is read at the top of the plateau a value
+  lands on. Reading the lower edge reports a passage as typical whenever its
+  value happens to be a common one.
+
+**Abstain rule.** Where every reference passage above the gate shares one value,
+P(X ≤ x) reaches 1.0 there and an ordinary passage reads as the 100th
+percentile. `resolves_above_gate` makes the affected feature decline to rank
+rather than invent a finding; a 40-identical-passage reference is the regression
+test.
+
+### 14.3 Salience on the case document
+
+`Letter/main.tex` (804 lines, read 2026-08-16) against the wgl reference:
+
+| Passage | `max_recital_run` | `run_frac` (pct) | `recital_frac` (pct) | `num/sent` (pct) |
+|---|---|---|---|---|
+| abstract | 4 of 8 | 0.50 (p91) | 0.50 (p78) | 1.38 (p79) |
+| grid definition (L137) | 2 of 5 | 0.40 (p90) | 0.60 (p91) | 8.20 (p100) |
+| source model (L179) | 4 of 4 | 1.00 (p100) | 1.00 (p100) | 4.00 (p99) |
+| detector block (L210) | 3 of 3 | 1.00 (p100) | 1.00 (p100) | 3.33 (p99) |
+| twin fit (L541) | 5 of 6 | 0.83 (p98) | 0.83 (p97) | 1.67 (p95) |
+
+Run length is the discriminating feature for the abstract (p91) while density is
+unremarkable (p78/p79). That is the intended behaviour: a quantitative abstract
+is supposed to carry numbers, and what separates this one from a human abstract
+is that four of its eight sentences report quantities with nothing between them.
+
+Method-section findings are numerous (15 of 19 strong) and are **expected
+accepted dispositions, not false positives**: a parameter grid is specified by
+enumeration, and the reference says only that this specification is denser than
+90% of human method passages. The standard's disposition machinery, not a
+tuned-down threshold, is the correct handling.
+
+**Redundancy fix.** The first implementation emitted one finding per feature per
+passage — 40 findings for this document, three of them describing one defect.
+One finding per passage, led by its most extreme feature with the others carried
+as observed evidence, gives 19.
+
+### 14.4 Register reference and precision
+
+Document frequency over 15,599 passages (1,957 exemplar paragraphs + 13,642
+abstracts), 41,933 terms. Firing rule: ≥ 5 manuscript uses **and** corpus df
+rate < 1e-4.
+
+Controls that must not fire:
+
+| Term | df | Judged on | Rate | Result |
+|---|---:|---|---:|---|
+| `accuracy` | 774 | itself | 5.0e-2 | not flagged |
+| `epoch` | 402 | itself | 2.6e-2 | not flagged |
+| `same-plane` | 536 | `plane` | 3.4e-2 | not flagged |
+| `aperture-mass` | 312 | `aperture` | 2.0e-2 | not flagged |
+| `training` | 155 | itself | 9.9e-3 | not flagged |
+| `benchmark` | 81 | itself | 5.2e-3 | not flagged |
+| `classifier` | 29 | itself | 1.9e-3 | not flagged |
+| `held-out` | 24 | `held` | 1.5e-3 | not flagged |
+
+`epoch` and `accuracy` are why the rule cannot be a curated list: both are
+ordinary astronomy vocabulary (an observation time; plain English), and both
+appear on any hand-written "machine-learning words" list.
+
+Positives on the case document:
+
+| Term | Manuscript uses | Corpus df | Rate |
+|---|---:|---:|---:|
+| `AUC` | 12 | 1 | 6.4e-5 |
+| `logit` | 6 | 0 | 0 |
+| `REDACTEDTERM` | 7 | 0 | 0 |
+
+`REDACTEDTERM` is the concept the paper introduces, so its correct disposition
+is the third the action offers (confirm the first occurrence carries a
+definition) rather than replacement. The axis cannot distinguish an introduced
+concept from a borrowed one and does not try to, which is why it emits
+advisories only.
+
+**Precision history.** The unguarded first implementation produced 48 findings on
+this document, of which roughly six were real. Three construction classes
+accounted for the rest, each handled structurally rather than by raising a
+threshold:
+
+- *Subscript decorations.* `\newcommand{\Kraw}{S_\mathrm{sad}}` yielded the fake
+  terms `sad`, `det`, `nat`, `crit`, `ang`, `eff`, `sep`. Macro bodies are still
+  read — a term bound to a macro is by construction repeated, and the shared
+  reduction erases it, so 12 uses of `\AUC` leave no "AUC" in reduced prose — but
+  a `\mathrm{}` preceded by `_` or `^` is a decoration, not a word.
+- *Compounds.* Hyphenation is an open construction, so almost every compound is
+  corpus-rare: `aperture-mass`, this field's core observable, appears in 8
+  passages as a string. Judging a compound by its rarest part fixes it while
+  keeping `cross-validation` foreign via `validation`.
+- *Possessives.* `sub-halo's` and `campaign's` fold onto their bare terms.
+
+After the fix: 3 findings, all substantive.
+
+**Recall cost, stated.** `probit` (df 0) and `pooled` (df 0) are used 3 and 4
+times, below the 5-use floor, and are not reported. The floor buys precision at
+the price of terms used a handful of times; below it the corpus's own sampling
+gaps dominate the comparison.
+
+### 14.5 Rejected: hypotaxis ratio
+
+The most direct-seeming formalisation of "flat prose" is a deficit of
+subordinate structure — propositions strung at equal weight (parataxis) rather
+than ranked by subordination and causal linkage (hypotaxis). It was prototyped
+as subordinators and causal-inferential markers over subordinators plus
+coordinators, measured on the same human reference (n = 7,869 abstracts under
+the numeral-preserving reduction).
+
+Human abstracts: p50 = 0.167, p75 = 0.286, p90 = 0.400. The case document's
+abstract: **0.286, the 77th percentile** — above the human median, not below it.
+
+The hypothesis is refuted for this document class. Flatness of emphasis is not a
+shortage of subordinate clauses, and the recital-run measurement locates it
+instead. The signal is not shipped; this subsection exists so it is not
+re-proposed as an obvious gap.
+
+### 14.6 Limits
+
+One field, one case document. Buckets other than `abstract` and `method` rest on
+26–88 reference passages; `conclusion` (n = 26) sits below the 30-passage floor
+and is honestly `degraded`. Register document frequency inherits the corpus's
+composition: a term absent from an abstract-heavy corpus may be common in the
+body text of the same papers, which biases the axis toward flagging
+body-section vocabulary. Neither axis has a human-judgement validation set. Both
+are calibrated distance statements against a human reference, in the same sense
+as every other L1/L2 axis here, and neither is an authorship claim.

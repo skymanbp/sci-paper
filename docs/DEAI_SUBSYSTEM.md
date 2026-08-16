@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.25.1)
+# De-AI subsystem architecture (current as of v0.26.0)
 
 ## 1. Purpose
 
@@ -105,6 +105,18 @@ The command-line exit contract is deliberately narrow:
 - `1`: one or more L0 targets;
 - `2`: invalid input, configuration failure, or execution failure.
 
+[`../tools/deai_register.py`](../tools/deai_register.py) adds a second lexical
+axis at this layer that never joins the to-zero set. It asks whether the draft
+speaks its own field's vocabulary, by comparing terms the manuscript leans on
+(≥ 5 uses) against document frequency in the field's own corpus. The evidence is
+frequency, never a curated list of a neighbouring discipline's words, because a
+list cannot separate `AUC` (1 corpus passage) from `epoch` (402) and `accuracy`
+(774). Three constructions are handled rather than thresholded: hyphenated
+compounds are judged by their rarest part, `\mathrm{}` preceded by `_` or `^` in
+a macro body is a subscript decoration rather than a term, and possessives fold
+onto the bare term. Macro bodies are read because the shared reduction erases
+macro-bound vocabulary entirely. Findings are always advisories.
+
 ### L1: information distribution
 
 [`../tools/deai_metrics.py`](../tools/deai_metrics.py) measures section-aware
@@ -131,6 +143,33 @@ structural patterns that keyword replacement cannot repair:
 
 These are advisories. A detector match identifies a construction to inspect; it does
 not establish that the construction is wrong or machine-generated.
+
+### L2: salience hierarchy
+
+[`../tools/deai_salience.py`](../tools/deai_salience.py) measures whether a
+passage ranks the quantities it reports or recites them. Sentence templates and
+document shape are both silent here: prose can vary its sentence lengths, sit
+inside the human dispersion band, and still hand the reader an undifferentiated
+inventory of results.
+
+The measured quantity is deliberately not numeric density, since a quantitative
+abstract is supposed to carry numbers. It is how far the numerals run without an
+interpreting sentence between them, alongside density and per-sentence numeral
+count as supporting features. Calibration is per section bucket from the field's
+own passage banks, at one shared unit, and the reading is P(X ≤ x) against a 0.01
+quantile grid taken at the top of any tie plateau — two of the three features are
+ratios of small integers, so their reference distributions are tie-heavy and a
+coarse grid or a lower-edge reading swallows exactly the passages the axis exists
+to find. Where a reference has no spread above the advisory gate the feature
+abstains rather than reporting an ordinary passage as the 100th percentile.
+
+This detector is the sole consumer of
+[`extract_style.latex_to_numeral_text`](../tools/extract_style.py), the second
+LaTeX projection. `latex_to_plain` replaces every math span with `[math]`, which
+is right for lexical and shape statistics and zeroes every numeral signal on
+`.tex` input; the numeral-preserving projection shares the same pattern set and
+differs only in what happens inside an inline math span. Displayed equations are
+dropped by both.
 
 ### L2: whole-document rhetorical shape
 

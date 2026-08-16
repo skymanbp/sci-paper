@@ -30,7 +30,7 @@ provide evidence; they do not define a separate paper verdict.
 
 See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 
-### Tools (22)
+### Tools (24)
 
 | Tool | Purpose |
 |---|---|
@@ -45,6 +45,8 @@ See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 | `tools/deai_feedback.py` | Implements `sci-paper.feedback.v1`: stable IDs, consequence classes, measurement states, dispositions, ranking, summaries, and rendering. |
 | `tools/deai_metrics.py` | L1 model-free information-distribution findings with explicit calibration state. |
 | `tools/deai_structure.py` | L2 sentence/paragraph construction analysis for enumeration, repeated frames, parallel runs, symmetry, and related templates. |
+| `tools/deai_salience.py` | L2 salience hierarchy: how far a passage's measured quantities run without an interpreting sentence between them, against a per-section human reference. The only consumer of the numeral-preserving LaTeX reduction. |
+| `tools/deai_register.py` | L0 domain register: terms the manuscript leans on that the field's own corpus does not carry, judged by corpus document frequency rather than a curated cross-discipline list. Compounds are judged by their rarest part. |
 | `tools/deai_docstructure.py` | Whole-document rhetorical-shape analysis and complete-document calibration: dispersion band, joint (per-length-stratum) manifold, role coupling, split-conformal operating points. |
 | `tools/deai_partition.py` | Fidelity-free merge/split suggestions that move a document toward the human dispersion band; suggest-only, zero-token operations. |
 | `tools/deai_anchoring.py` | Section-class conditional claim-anchoring band; a writing-quality axis, explicitly not an AI-discrimination axis. |
@@ -213,7 +215,7 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.25.1**. Full per-version history is in
+Current: **v0.26.0**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
 - **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.4 — the complete de-AI

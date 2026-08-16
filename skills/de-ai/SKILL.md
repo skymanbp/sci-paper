@@ -107,8 +107,8 @@ condense's ranked sweep.
 
 ```bash
 python tools/ai_ism_lint.py <file> --field <field> \
-  --structure --distribution --document-structure --oracle --voice \
-  --summary --format json --output <scratch>/feedback-before.json
+  --structure --distribution --document-structure --register --salience \
+  --oracle --voice --summary --format json --output <scratch>/feedback-before.json
 ```
 
 Read the output as `sci-paper.feedback.v1`; record every axis state
@@ -126,6 +126,20 @@ Axes and tools:
   `style-profile/<field>/lexicon.json` is separate calibration data: only its
   `llm_words_absent_from_corpus` key is read, and only for the advisory
   `corpus-zero:` rule.
+- **L0 register** (`deai_register`) — terms the manuscript leans on that the
+  field's own corpus does not carry: the tell of a paper written in a
+  neighbouring discipline's vocabulary. Evidence is corpus document frequency,
+  never a curated list of another field's words, because a list cannot separate
+  `AUC` (1 astronomy passage in 15,599) from `epoch` (402) and `accuracy` (774).
+  Advisories only; a corpus-rare term may be a borrowed method's accepted name
+  or the concept the paper introduces.
+- **L2 salience hierarchy** (`deai_salience`) — whether a passage ranks the
+  quantities it reports or recites them. Not numeric density (a quantitative
+  abstract is supposed to carry numbers) but how far the numerals run without an
+  interpreting sentence between them, against a per-section human reference.
+  This is the only axis that reads the numeral-preserving LaTeX projection; the
+  others read `latex_to_plain`, which replaces math with `[math]` and therefore
+  measures zero numerals on any `.tex` file.
 - **L1 distribution** (`deai_metrics`, `deai_oracle`) — burstiness,
   connective openers, surprisal/UID. Degraded without a field operating
   point; rank-only.
@@ -302,6 +316,58 @@ findings. For each selected paragraph:
    changed region in context. Run the Pass-2 self-interrogation on the
    applied text.
 
+### 4.1 Ranking a recital passage (`salience-recital`)
+
+A recital finding is not an instruction to delete numbers. It says the passage
+has not told the reader which of its quantities matter, and the repair is
+hierarchy, not subtraction. Work in this order, inside the same claim-record
+protocol as any other rewrite:
+
+1. **Name the passage's one claim.** Write it as a sentence with no number in
+   it. If the passage supports two claims it is two passages, and the partition
+   suggestions of §4 apply instead.
+2. **Ask each quantity what it establishes.** A number that is the evidence for
+   the claim stays, and the sentence carrying it says what it establishes. A
+   number that is merely something the work produced belongs to the section that
+   argues from it. Moving a value is a fidelity-neutral operation only if it
+   lands somewhere; dropping it is not, and a number that is the sole support of
+   a claim never leaves.
+3. **Break the run.** The measured defect is consecutive numeral-bearing
+   sentences. One interpreting sentence between two reported quantities removes
+   the finding *and* is the sentence a reader wanted; adding a filler clause to
+   the same sentence is the §5.3 explanatory patch and is not the fix.
+4. **For an abstract, check three sentences exist.** What was not known, what
+   this work establishes, and what follows for someone else's analysis. A
+   quantity list can satisfy none of these while every number in it is correct.
+   State the contrast the result creates against what was assumed before, when
+   the manuscript already supports that contrast; never manufacture novelty
+   language to supply it.
+
+An `accepted` disposition is the right outcome wherever the density is what the
+genre requires: a methods paragraph specifying a parameter grid is an
+enumeration by nature, and the finding only reports that it is denser than most
+human method passages.
+
+### 4.2 Register dispositions (`register-foreign`)
+
+Three dispositions, in preference order, each recorded:
+
+1. **Name the field's own quantity.** Prefer the term the audience reads in,
+   when one exists and means the same thing. A weak-lensing reader asks about
+   completeness and purity at a given false-alarm rate; a discrimination summary
+   borrowed from another field may be exactly the same number under a name they
+   do not use. Only make this swap when the replacement is the same quantity —
+   renaming a statistic to something it is not is an integrity defect, not a
+   register fix.
+2. **Keep the term and define it.** Where the borrowed name is the accepted one,
+   define it at first use and say what it measures in field terms.
+3. **Confirm the definition, for a term this paper introduces.** A corpus
+   frequency of zero is equally consistent with a foreign term and a new one;
+   the detector cannot tell them apart and does not try.
+
+Never swap a term whose replacement would change the claim, and never introduce
+a field term the manuscript has not earned.
+
 **Document-shape findings** (dispersion manifold, role coupling) cannot be
 moved by word-level rewriting. Run `python tools/deai_partition.py <file>
 --field <field>` and surface its fidelity-free merge/split suggestions to the
@@ -385,7 +451,8 @@ When the corpus changes, re-run `tools/extract_style.py` and
 - `/sci-paper:final-review` — runs this skill `--audit-only` as an isolated
   reviewer.
 - Tools: `ai_ism_lint` (L0 hub + aggregation), `deai_metrics`,
-  `deai_oracle`, `deai_structure`, `deai_docstructure`, `deai_anchoring`,
+  `deai_oracle`, `deai_structure`, `deai_salience`, `deai_register`,
+  `deai_docstructure`, `deai_anchoring`,
   `deai_voice`, `deai_partition`, `deai_provenance`, `deai_personal`,
   `rewrite_reward` (fidelity + length gate), `retrieve_exemplars`,
   `extract_style`, `build_profile`, `deai_feedback` (schema + ranking).
