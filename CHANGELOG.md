@@ -3,6 +3,154 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.26.1 — 2026-08-16
+
+One new normative section and the evidence for why it ships without a
+detector, plus the corpus tooling that produced that evidence. No axis,
+threshold, or exit code changed.
+
+### The thesis spine (`SCIPAPER_STANDARD` §5.4)
+
+Reader complaint: a draft lists everything its authors did and everything
+they measured, and never says which result is *the* result. §5.3 cannot
+reach this, because condense removes what is **repeated** and an inventory
+repeats nothing — what it lacks is rank.
+
+- **`SCIPAPER_STANDARD` §5.4** states one rule at three nested scales. The
+  **document** has exactly one central result, statable in one sentence,
+  and every section earns its place by serving it; the reader must finish
+  able to say what was done, what the result is, and what it changes. A
+  **paragraph** carries one claim, and every other sentence answers "on
+  what grounds" or "therefore what". A **clause** either introduces a
+  checkable new fact or binds two propositions already in play; one that
+  does neither is evaluation, purpose attribution, or restatement. The
+  diagnostic is a pointer to the antecedent, not a search for a
+  connective.
+- **The qualifier class is what this section most endangers**, so the
+  protection is stated inside it: a clause that narrows a claim — a
+  condition, range, uncertainty, scope limit, negation, or conceded
+  limitation — is load-bearing by definition and is never padding. §6
+  eligibility outranks the whole section.
+- **`skills/paper`** gains the operational form: write the thesis line
+  before drafting or revising, then fill the **inventory test** table
+  (section → the one sentence it contributes → where it is carried). A
+  section with no such sentence is inventory; two sections with the same
+  sentence are one section.
+- **`skills/de-ai`** Pass 3 gains step 1b and §4.3, the **binding
+  ledger**: every clause of a rewritten paragraph is labelled `fact`,
+  `link`, or `none` with its antecedent named, and no candidate may carry
+  a clause the ledger marked `none`. A paragraph that is all `none` rows
+  is handed to `condense` rather than rewritten.
+- **It is deliberately not a measured axis**, and §5.4 forbids building a
+  threshold on it without new evidence.
+
+### Why there is no detector (`EVALUATION` §15)
+
+- **Two more surface features refuted.** Inert-clause runs do not separate
+  human from AI once genre is matched (human span 0.500–0.778, AI span
+  0.667–0.889, overlapping, with one AI bank *below* one human bank), and
+  the inference-connective rate reverses sign between two AI banks
+  (Claude generations median 0.200 against human abstracts' 0.000; RAID
+  generations 0.000 with p90 0.125 against the human p90 of 0.222). A
+  connective is therefore not evidence of an inference. With claim
+  anchoring (§9.6) and the hypotaxis ratio (§14.5), that is three
+  independent surface statistics and one outcome.
+- **The replacement statistic is a lead, not a result.** A blinded pilot
+  (20 passages, 152 clauses, key read only after annotation, blind-file
+  SHA-256 matched across a replay) put the domain-matched AUC at 0.756
+  with an exact permutation p of 0.032 — but the Hanley–McNeil interval
+  at n = 9 vs 5 is [0.441, 1.071], which covers chance. Ten of twenty
+  passages scored 1.000, two of them AI, so it cannot be a detector;
+  every passage below 0.833 was AI and no human fell below it, so the
+  usable form is a one-sided low-tail band. Annotator contamination is
+  unquantified and the AUC is an upper bound.
+- **Null: a subfield reference does not move the salience gate.** A
+  254-abstract weak-lensing top-tier bank reproduces the broad bank's p90
+  gates (0.500/0.500, 0.667/0.667, 2.000/2.200) and the case document
+  reads p = 0.91 against either. `salience_baseline.json` needs no
+  rebuild. Genre separates at the discipline level, not between astro-ph
+  subfields.
+- **The same bank must not become the register reference.** 254 documents
+  cannot express a rate below 1/254 = 3.9e-3, 39.4× coarser than the 1e-4
+  threshold, so `saddle`, `classifier`, `recall`, and `ablation` flip to
+  foreign on zero counts. A register reference needs of order 10,000
+  documents. The bank is stored and wired to nothing.
+
+### Corpus tooling
+
+The measurements above needed a weak-lensing top-tier reference to exist,
+and building one exposed three gaps in the fetcher and one in the existing
+banks. The human bank is astro-ph at large rather than the weak-lensing
+subfield. The two
+`ai_ism_negatives_generated*` banks carry no per-record generator, date, or
+prompt, only the asset-level description in this file's v0.13 entry. And
+the pre-2022 date filter turns out to bound less than it appears to.
+
+- **The "pre-LLM human reference" guarantee was weaker than stated.**
+  `--date-hi` filters `submittedDate`, which dates arXiv v1; the API's
+  `summary` is always the *latest* version's abstract. 6,552 of the
+  13,642 records in `human_abstracts_extra` (48.0%) are non-v1, and a live
+  probe of twelve 2021 weak-lensing submissions found eleven with
+  `updated > published`, two of them revised after 2022-11 — after the
+  text could have been touched by a public LLM. `fetch_page` now records
+  `published` and `updated`, and `--updated-before YYYY-MM-DD` drops every
+  record whose latest version is dated on or after the cutoff. A record
+  with no `updated` is dropped rather than assumed clean. The existing
+  bank predates this field and is unaffected; re-deriving its text vintage
+  needs a refetch.
+
+- **`fetch_arxiv_abstracts.py` captures `journal_ref` and `doi`**, and
+  gains `--journals apj,apjl,aa` to keep only those refereed venues.
+  Selection is client-side against the literal `journal_ref` shapes seen
+  live, because the API's own `jr:` prefix is a loose token match: a
+  `jr:"Astronomy and Astrophysics"` probe returned *Research in Astronomy
+  and Astrophysics*, a different journal. The Letters pattern is ordered
+  before the main-journal pattern it is a substring of, and ApJS, A&A
+  Review, and RAA are pinned as explicit negatives.
+- **`--query-set wl`** adds a weak-lensing-only sweep, for a reference
+  matched to the subfield rather than to astro-ph at large. The `broad`
+  default is byte-identical to the previous query list.
+- **Fixed: a rate-limited sweep was indistinguishable from a complete
+  one.** The abstract path had no 429 handling at all — it caught the
+  error, emptied the page, hit `if not page: break`, and abandoned that
+  query, then walked into the same wall on every remaining query. A live
+  run lost 11 of 16 queries this way, wrote 195 records, and exited 0.
+  The full-text path *did* have a 60 s backoff, so this was one root
+  cause at two sites: both now share `urlopen_backoff`, which escalates
+  through a backoff schedule and then raises `Throttled`. A throttled
+  abstract sweep stops, prints a TRUNCATED report naming the query it
+  stopped at, and **exits 2**.
+- **`--resume`** seeds from the existing output file, so a run cut short
+  by throttling is extended rather than replaced. Without it the writer
+  truncates its target, which is also why a journal or subfield run now
+  must pass `--out-name`: reusing the default would have destroyed the
+  broad corpus the calibration baselines are built from.
+- **Measured, and it is a null: the subfield reference does not move the
+  salience gate.** A 254-abstract weak-lensing top-tier bank (ApJ 75,
+  ApJL 8, A&A 171; submitted 2010-01 to 2021-12, every latest version
+  dated before 2022-11) reproduces the broad bank's p90 gates —
+  `max_recital_run_frac` 0.500 vs 0.500, `recital_frac` 0.667 vs 0.667,
+  `numerals_per_sentence` 2.000 vs 2.200 — and the same manuscript reads
+  p=0.91 against either. `salience_baseline.json` therefore needs no
+  rebuild, and an earlier p91 finding is not an artefact of the reference
+  population. This does not contradict the discipline-level genre effect
+  seen against cross-domain banks: genre separates at the discipline
+  level, not between astro-ph subfields.
+- **The same bank must NOT become the register reference.** `deai_register`
+  calls a term foreign below a document-frequency rate of 1e-4, but 254
+  documents cannot express a non-zero rate below 1/254 = 3.9e-3, 39x
+  coarser than the threshold. Under that reference `saddle` — the central
+  concept of one of this suite's manuscripts — flips from native to
+  foreign purely on zero counts, as do `classifier`, `recall`, and
+  `ablation`. A register reference needs of order 10,000 documents for a
+  single occurrence to land at the threshold, so the broad bank stays.
+  The new bank is stored but wired to nothing.
+- **`tests/test_fetch_arxiv_abstracts.py`** (new, 25 tests): journal
+  classification including the four near-miss venues, `fetch_page` over a
+  canned feed (namespace-scoped `journal_ref`, whitespace-wrapped values,
+  `published` vs `updated`), the backoff schedule under mocked 429s, the
+  text-vintage filter, and the resume/truncate contract.
+
 ## v0.26.0 — 2026-08-16
 
 Two new corpus-referenced axes, and the reduction fix that made the first

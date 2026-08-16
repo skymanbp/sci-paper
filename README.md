@@ -4,7 +4,7 @@ A Claude Code plugin for scientific writing, rewriting, source-traced review,
 figure review, narrative analysis, adversarial critique, and research ideation.
 
 The single normative authority is
-[`docs/SCIPAPER_STANDARD.md`](docs/SCIPAPER_STANDARD.md) (v3.4). It defines scientific
+[`docs/SCIPAPER_STANDARD.md`](docs/SCIPAPER_STANDARD.md) (v3.6). It defines scientific
 integrity blockers, narrow L0 rewrite targets, ranked advisories, explicit measurement
 states, author dispositions, and scientific-fidelity requirements. It also **is** the
 de-AI standard: the layered signal model (L0–L4), the document-scale detection core,
@@ -57,7 +57,7 @@ See [CHANGELOG.md](CHANGELOG.md) for per-version history.
 | `tools/deai_voice.py` | Optional learned field-similarity triage; a bundle without an operating point is degraded and never an authorship verdict. |
 | `tools/train_voice_model.py` | Trains the optional field-similarity model with source-paper grouping. Confound audits remain mandatory. |
 | `tools/rewrite_reward.py` | Applies hard scientific-fidelity eligibility before ranking rewrite candidates. |
-| `tools/fetch_arxiv_abstracts.py` | Fetches dated abstract corpora for controlled model evaluation/training. |
+| `tools/fetch_arxiv_abstracts.py` | Fetches dated abstract corpora for controlled model evaluation/training, optionally restricted to a subfield query set and to named refereed journals. Rate limiting stops the sweep and exits 2 rather than writing a truncated corpus as if it were complete. |
 
 The repository validator, `tools/validate_plugin.py`, is a development/release tool and
 is not counted as a shipped product tool. [tools/README.md](tools/README.md) repeats
@@ -215,16 +215,17 @@ A release additionally requires independent code review and clean-checkout verif
 
 ## Status
 
-Current: **v0.26.0**. Full per-version history is in
+Current: **v0.26.1**. Full per-version history is in
 [CHANGELOG.md](CHANGELOG.md).
 
-- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.4 — the complete de-AI
+- **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.6 — the complete de-AI
   standard (layered model, document-scale core, cooperative layer,
   `calibration_unit` cap, the §5.2 de-AI-ization procedure, the §5.3
-  condense-not-accumulate rule with mechanical enforcement, auxiliary L2
-  template families with the blind perceptual panel as an L2 validation
-  instrument, and a disposition for every open item). There is no separate
-  de-AI standard.
+  condense-not-accumulate rule with mechanical enforcement, the §5.4 thesis
+  spine shipped deliberately without a detector, auxiliary L2 template
+  families with the blind perceptual panel as an L2 validation instrument,
+  and a disposition for every open item). There is no separate de-AI
+  standard.
 - **Skills (8):** `paper`, `de-ai`, `condense`, `paper-review`,
   `figure-review`, `brainstorm`, `final-review`, `proposal-polish`.
 - **Tools (22):** exact product registry above.

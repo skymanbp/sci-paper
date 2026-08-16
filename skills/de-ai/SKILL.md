@@ -285,12 +285,16 @@ findings. For each selected paragraph:
    scope, stance, qualifiers. Re-read every numeric and citation source in
    the same turn. Snapshot the original verbatim (`<scratch>/original.txt`)
    as the §5.3 length baseline.
+1b. **Bind.** Fill the binding ledger (§4.3) for the paragraph. It is not
+   optional and no detector emits it; every `none` row is a clause the rewrite
+   must drop rather than carry forward.
 2. **Generate.** Produce N candidates (default 5) *from the claim record*,
    not by editing sentence-by-sentence. Each preserves every protected item,
    states the claim at the same strength and scope, adds no new fact, avoids
    Tier A and em-dashes, keeps Tier B within cap, breaks the specific L2
-   pattern that motivated the rewrite, keeps technically necessary lists, and
-   is no longer than the original unless a protected invariant forces it.
+   pattern that motivated the rewrite, keeps technically necessary lists, is
+   no longer than the original unless a protected invariant forces it, and
+   carries no clause that the ledger marked `none`.
 3. **Gate + rank.**
    ```bash
    python tools/rewrite_reward.py --field <field> \
@@ -373,6 +377,50 @@ moved by word-level rewriting. Run `python tools/deai_partition.py <file>
 --field <field>` and surface its fidelity-free merge/split suggestions to the
 author verbatim; they change zero tokens and are applied by hand, never
 automatically.
+
+### 4.3 The binding ledger (SCIPAPER_STANDARD §5.4)
+
+**No detector produces this finding.** §4.1 and §4.2 act on measured advisories;
+this one is a mandatory unmeasured pass, run on every paragraph selected for
+rewrite. The reason it has no tool is recorded: three surface statistics were
+built for it and all three were refuted (EVALUATION §9.6, §14.5, §15.1). The
+defect is not a property of a clause but of the relation between a clause and
+the propositions around it, so the ledger is filled by judgement and made
+checkable by its output shape, not by a threshold.
+
+**Fill it before generating candidates**, on the original paragraph:
+
+| clause | kind | antecedent |
+|---|---|---|
+| … | `fact` / `link` / **`none`** | a number, an equation, a citation, or the id of an earlier clause |
+
+- **`fact`** — introduces something checkable that was not in play: a number, a
+  measurement, a named object, a concrete procedure.
+- **`link`** — binds two propositions already in play. Name both.
+- **`none`** — no antecedent can be named. This is a claim about the text, so
+  write it only after trying to find one.
+
+A causal, purposive, or evaluative frame with a `none` antecedent is the
+padding case: the sentence has the shape of an argument and none of the
+substance. Delete it in the rewrite; do not repair it by inventing the
+antecedent, which manufactures a claim the sources do not support.
+
+Two traps make this pass fail in opposite directions:
+
+- **A connective is not an inference.** Machine prose supplies "therefore",
+  "thereby", "through", and "which in turn" and leaves the antecedent unbound;
+  one AI bank carries inference markers two to three times more often than
+  human abstracts (EVALUATION §15.1). Judge the antecedent, never the marker.
+- **A hedge is not padding.** A clause that narrows a claim — a condition, a
+  range, an uncertainty, a scope limit, a negation, a conceded limitation — is
+  load-bearing by definition and is `fact`, not `none`, however evaluative it
+  reads. §6 eligibility already protects the qualifier class and outranks this
+  pass entirely.
+
+Where a whole paragraph resolves to `none` rows, the repair is deletion and
+belongs to `/sci-paper:condense`, not to a rewrite; hand it over rather than
+rewriting inert text into better inert text. Where the paragraph's `fact` rows
+are unranked instead of unbound, that is the recital case — use §4.1.
 
 ### Optional self-distillation (`--distill`)
 

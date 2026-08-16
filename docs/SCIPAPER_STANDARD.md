@@ -6,7 +6,18 @@
 > implement this document. If a skill,
 > tool, style profile, or workflow conflicts with this file, this file wins.
 >
-> Status: **v3.5 (2026-08-16)**. v3.5 adds two corpus-referenced axes that
+> Status: **v3.6 (2026-08-16)**. v3.6 adds §5.4, the thesis spine: a paper has
+> one central result, and the document, each paragraph, and each clause are
+> ranked against it. It is the answer to a draft that inventories everything
+> its authors did, which §5.3 cannot reach because condense removes what is
+> repeated and an inventory repeats nothing. §5.4 ships as a **writing rule
+> with no detector**: three surface formalisations of the signal have been
+> measured and refuted (EVALUATION §9.6, §14.5, §15.1), and the section
+> forbids building a threshold on it without new evidence. §6 eligibility
+> outranks it, and the qualifier class is named inside it as the thing it
+> most endangers. The consequence classes, exit contract, and ranking of
+> §§0-6 are otherwise unchanged.
+> v3.5 adds two corpus-referenced axes that
 > close a coverage gap rather than change any policy: `L2.salience_hierarchy`
 > (does a passage rank what it reports, or recite it) and `L0.register` (does
 > the draft speak the field's vocabulary or a neighbouring discipline's).
@@ -595,6 +606,61 @@ rendered prose. Snapshot the pre-edit version (a scratch copy or the git ref)
 before the first edit of every loop, so the gate always has an honest
 baseline.
 
+### 5.4 Thesis spine: one result, everything subordinate to it (文章主旨)
+
+A paper that reports everything its authors did, in the order they did it, has
+an inventory where its thesis should be. Every entry can be true, sourced, and
+non-redundant, and the reader still finishes it knowing what was *done* rather
+than what was *found*. This is the failure §5.3 cannot reach: condense removes
+what is **repeated**, and an inventory repeats nothing. What it lacks is rank.
+
+The rule is one rule applied at three nested scales.
+
+**Document.** The paper has exactly one central result, and it is statable in
+one sentence. Every section earns its place by serving that sentence — setting
+it up, introducing it, explaining it, deriving it, or arguing for it. A second
+result is either subordinate to the first or belongs in a second paper.
+The reader must finish able to answer three questions in order: what was done,
+what the result is, and why it changes anything. A draft that answers only the
+first is an inventory regardless of how well written it is.
+
+**Paragraph.** One claim per paragraph, carried by its own sentence. Every
+other sentence in the paragraph answers one of two questions about that claim:
+on what grounds, or therefore what. A sentence that answers neither is cut, or
+the paragraph has two claims and should be split.
+
+**Clause.** Every clause either introduces a checkable new fact — a number, a
+measurement, a named object, a concrete procedure — or binds two propositions
+already in play. A clause that does neither is evaluation, purpose attribution,
+or restatement, and it goes. The diagnostic form is a pointer: name the earlier
+sentence, equation, or citation the clause depends on. A clause whose
+antecedent cannot be named does not have one.
+
+**The inventory test** makes this checkable rather than aspirational. For each
+section, write two things: the one sentence that section contributes to the
+central result, and the location in the section that carries it. A section with
+no such sentence is inventory and is cut or folded. Two sections whose
+sentences say the same thing are one section. The test is cheap, its output is
+a table, and a reader can falsify any row in seconds.
+
+**Protection outranks all of it.** Every §6 invariant survives unchanged, and
+the qualifier class is the one this section most endangers: a clause that
+narrows a claim — a condition, a range, an uncertainty, a scope limit, a
+negation, a conceded limitation — is load-bearing **by definition** and is
+never padding, however evaluative it sounds. A pass that shortens a paper by
+deleting its hedges has damaged it, not improved it.
+
+**Measurement status: this section is a writing rule, not a measured axis.**
+No detector reports it and none is calibrated for it, because the underlying
+signal has been measured three times and refuted three times — claim anchoring
+against strong-model generations (EVALUATION §9.6), the hypotaxis ratio
+(EVALUATION §14.5), and inert-clause runs plus inference-connective rate
+(EVALUATION §15.1). The defect is a relation between a clause and the
+propositions around it, not a surface property of the clause, so surface
+statistics do not see it. Nothing in this section may be turned into a
+threshold, an exit code, or an advisory count without new evidence, and a
+later session proposing one of the three refuted features must read §14 first.
+
 ---
 
 ## 6. Rewrite eligibility and reward
@@ -625,8 +691,8 @@ for scientific changes, source verification.
 
 | Skill | Required role |
 |---|---|
-| `paper` | Load this standard; provide canonical L0 lists and detailed writing/QD guidance. |
-| `de-ai` | The single de-AI surface: Pass 1 subsystem measurement (L0–L4), Pass 2 vendored humanizer structural-tell audit, Pass 3 claim-first faithful rewrite under §6 eligibility and the §5.3 length budget; provide the descriptive field-calibration assets; never redefine consequence classes. |
+| `paper` | Load this standard; provide canonical L0 lists and detailed writing/QD guidance; operationalise the §5.4 thesis spine, including the thesis line and the inventory test, before drafting or revising a section. |
+| `de-ai` | The single de-AI surface: Pass 1 subsystem measurement (L0–L4), Pass 2 vendored humanizer structural-tell audit, Pass 3 claim-first faithful rewrite under §6 eligibility and the §5.3 length budget; fill the §5.4 binding ledger for every rewritten paragraph, an unmeasured pass no detector emits; provide the descriptive field-calibration assets; never redefine consequence classes. |
 | `condense` | The redundancy/length action surface: execute §5.3 (delete > condense-in-place > same-length; growth only with recorded justification) with one-canonical-home-per-fact deduplication, proven by the length gate; never delete a fact's sole support. |
 | `paper-review` | Produce typed findings across dimensions A–R, including the narrative-spine protocol (dimension E) and adversarial escalation (dimension M); verify integrity evidence; allow multiple explicitly related contributions; treat an escalation `CONFIRMED` as a critique that survived verification, then classify its consequence separately; avoid a universal paper verdict. |
 | `figure-review` | Separate objective scientific/rendering blockers from aesthetic advisories; measure canvas balance at the pixel level. |
@@ -732,6 +798,10 @@ audit and keeping the suite and validator green, and updates this table and
 | Salience hierarchy (`L2.salience_hierarchy`) | **Shipped, `measured`** | Per-bucket passage reference from the field's own banks; abstains where the reference cannot resolve above the gate (EVALUATION §14). |
 | Domain register (`L0.register`) | **Shipped, `measured`** | Corpus document frequency with compound-by-rarest-part and macro-subscript handling; precision verified against native-term controls (EVALUATION §14). |
 | Hypotaxis ratio as the formalisation of "flat prose" | **Rejected** | Refuted on the human abstract reference: the flagged manuscript sits above the human median in subordination, so flatness is not a subordination deficit (EVALUATION §14). |
+| Thesis spine (§5.4) as a measured axis | **Shipped as a writing rule, deliberately unmeasured** | Three surface formalisations refuted (EVALUATION §9.6, §14.5, §15.1); the replacement statistic's domain-matched interval still covers chance at pilot size (§15.2). No threshold, exit code, or advisory count may be built on it without new evidence. |
+| Inert-clause runs and inference-connective rate | **Rejected** | Inert runs do not separate once genre is matched, and the connective rate reverses sign between two AI banks, so a connective is not evidence of an inference (EVALUATION §15.1). |
+| Subfield reference for the salience axis | **Rejected as unnecessary** | A 254-abstract weak-lensing top-tier bank reproduces the broad bank's p90 gates and the same manuscript percentile; genre separates at the discipline level, not between astro-ph subfields (EVALUATION §15.4). |
+| Subfield reference for the register axis | **Rejected as harmful** | 254 documents cannot express a rate below 1/254, 39.4× coarser than the 1e-4 threshold, so core field terms flip to foreign on zero counts (EVALUATION §15.5). |
 | Cooperative layer (`deai_partition`, `deai_anchoring`, `deai_provenance`, `deai_personal`) | **Shipped** | Partition/anchoring `measured`; provenance/personal `unmeasured` by design until the author supplies own history/papers. |
 | `L3.voice` operating point | **Decided degraded** | Offline audit instrument; per-paragraph unit near-unjudgeable and document-level surprisal refuted (§2 L3, EVALUATION §7, §9.8). |
 | `L1.distribution` operating point | **Decided degraded** | No `deai_policy.json` field-calibrated operating point; burstiness/signposting summaries exist but carry no policy threshold (EVALUATION §2). |

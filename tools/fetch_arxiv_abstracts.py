@@ -40,6 +40,39 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 API = "http://export.arxiv.org/api/query"
 ATOM = "{http://www.w3.org/2005/Atom}"
+ARXIV = "{http://arxiv.org/schemas/atom}"
+
+# Journal selection is done HERE, not in the API query: the API's jr: prefix
+# is a loose token match, and jr:"Astronomy and Astrophysics" was observed to
+# return "Research in Astronomy and Astrophysics" (a different journal). Each
+# entry is (key, include, exclude) and the first match wins, so the Letters
+# pattern must precede the main-journal pattern it is a substring of. The
+# include forms are the literal shapes seen in live journal_ref values
+# ("Astrophys. J. 934, no.2, 129 (2022)", "ApJ, 927, 101 (2022)",
+# "The Astrophysical Journal Letters, Volume 924 (2022), Number 1, L3",
+# "A&A 660, A114 (2022)"), not remembered canonical names.
+JOURNAL_FILTERS = (
+    ("apjl",
+     re.compile(r"(?i)\b(?:ApJL|ApJ\.?\s*Lett\w*|Astrophys\w*\.?\s*J\w*\.?\s*Lett\w*)"),
+     None),
+    ("apj",
+     re.compile(r"(?i)\b(?:ApJ|Astrophys\w*\.?\s*J\w*)"),
+     re.compile(r"(?i)(?:Lett|Suppl|ApJS)")),
+    ("aa",
+     re.compile(r"(?i)(?:\bA&A\b|\bAstronomy\s*(?:&|and)\s*Astrophysics\b)"),
+     re.compile(r"(?i)(?:Research\s+in\s+Astronomy|\bRAA\b|\bRev(?:iew)?s?\b"
+                r"|New\s+Astronomy)")),
+)
+
+
+def classify_journal(journal_ref: str | None) -> str | None:
+    """Return the journal key for a journal_ref string, or None if unmatched."""
+    if not journal_ref:
+        return None
+    for key, include, exclude in JOURNAL_FILTERS:
+        if include.search(journal_ref) and not (exclude and exclude.search(journal_ref)):
+            return key
+    return None
 
 # Breadth: lensing/cluster terms + the main astro-ph subfields.
 QUERIES = [
@@ -74,6 +107,67 @@ AUTHOR_QUERIES = [
     "au:Fu_L AND abs:lensing",
 ]
 
+# Weak-lensing-only sweep, for a reference matched to THIS suite's subfield
+# rather than to astro-ph at large. Used with --journals to keep only the
+# refereed top-tier record; the breadth queries above stay the default.
+WL_QUERIES = [
+    'cat:astro-ph.CO AND abs:"weak lensing"',
+    'cat:astro-ph.CO AND abs:"weak gravitational lensing"',
+    'cat:astro-ph.CO AND abs:"cosmic shear"',
+    'cat:astro-ph.CO AND abs:"shear catalog"',
+    'cat:astro-ph.CO AND abs:"shear measurement"',
+    'cat:astro-ph.CO AND abs:"aperture mass"',
+    'cat:astro-ph.CO AND abs:"mass map"',
+    'cat:astro-ph.CO AND abs:"convergence map"',
+    'cat:astro-ph.CO AND abs:"lensing peak"',
+    'cat:astro-ph.CO AND abs:"peak statistics"',
+    'cat:astro-ph.CO AND abs:"cluster lensing"',
+    'cat:astro-ph.CO AND abs:"mass reconstruction"',
+    'cat:astro-ph.CO AND abs:lensing AND abs:substructure',
+    'cat:astro-ph.CO AND abs:lensing AND abs:"halo mass"',
+    'cat:astro-ph.GA AND abs:"weak lensing"',
+    'cat:astro-ph.IM AND abs:"weak lensing"',
+]
+QUERY_SETS = {"broad": QUERIES + AUTHOR_QUERIES, "wl": WL_QUERIES}
+
+
+class Throttled(Exception):
+    """arXiv answered 429 and kept answering 429 after every backoff.
+
+    Distinct from an ordinary network hiccup because the response differs: a
+    hiccup is skipped and the sweep continues, whereas throttling means every
+    later request will fail too, so the sweep must stop and SAY it stopped.
+    """
+
+
+# Escalating waits, in seconds, after a 429. Exhausting them raises Throttled.
+BACKOFF_SCHEDULE = (60, 120, 240)
+
+
+def urlopen_backoff(request: urllib.request.Request, timeout: int) -> bytes:
+    """Single retry-on-429 path shared by the abstract and full-text modes.
+
+    Both modes previously needed this and only the full-text one had it, so a
+    throttled abstract sweep silently produced a truncated corpus that looked
+    exactly like a complete one.
+    """
+    for attempt, wait in enumerate((*BACKOFF_SCHEDULE, None)):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            if error.code != 429 or wait is None:
+                if error.code == 429:
+                    raise Throttled(
+                        f"429 after {attempt} backoffs "
+                        f"totalling {sum(BACKOFF_SCHEDULE)} s") from error
+                raise
+            print(f"[fetch] HTTP 429; backing off {wait} s "
+                  f"(attempt {attempt + 1}/{len(BACKOFF_SCHEDULE)})",
+                  file=sys.stderr, flush=True)
+            time.sleep(wait)
+    raise Throttled("unreachable")  # the None sentinel always raises above
+
 
 def fetch_page(query: str, start: int, n: int, date_lo: str, date_hi: str) -> list[dict]:
     q = f"({query}) AND submittedDate:[{date_lo} TO {date_hi}]"
@@ -83,8 +177,7 @@ def fetch_page(query: str, start: int, n: int, date_lo: str, date_hi: str) -> li
     })
     url = f"{API}?{params}"
     req = urllib.request.Request(url, headers={"User-Agent": "sci-paper-voice/0.13"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        xml = r.read().decode("utf-8", "replace")
+    xml = urlopen_backoff(req, timeout=60).decode("utf-8", "replace")
     root = ET.fromstring(xml)
     out = []
     for e in root.findall(f"{ATOM}entry"):
@@ -94,9 +187,25 @@ def fetch_page(query: str, start: int, n: int, date_lo: str, date_hi: str) -> li
         text = " ".join(summ.split()).strip()
         year = int(pub[:4]) if pub[:4].isdigit() else 0
         arid = aid.rsplit("/", 1)[-1] if aid else ""
+        # `published` dates v1; `summary` is the LATEST version's abstract, so
+        # submittedDate alone does not date the text. Measured on a live
+        # 2010-2021 weak-lensing page, 11 of 12 entries had updated > published
+        # and two landed after 2022-11 — i.e. after the text could have been
+        # revised with a public LLM. `updated` is what dates the abstract.
+        updated = e.findtext(f"{ATOM}updated") or ""
+        # journal_ref and doi live in the arXiv namespace, not Atom's, and only
+        # ~37% of entries carry a journal_ref at all (measured on a live WL
+        # query), so any journal-restricted run has to over-fetch.
+        journal_ref = e.findtext(f"{ARXIV}journal_ref")
+        if journal_ref:
+            journal_ref = " ".join(journal_ref.split())
         if text and len(text.split()) >= 40:
             out.append({"section": "abstract", "text": text,
-                        "source": f"arxiv:{arid}", "year": year})
+                        "source": f"arxiv:{arid}", "year": year,
+                        "published": pub[:10], "updated": updated[:10],
+                        "journal_ref": journal_ref,
+                        "journal": classify_journal(journal_ref),
+                        "doi": e.findtext(f"{ARXIV}doi")})
     return out
 
 
@@ -121,8 +230,7 @@ def _eprint_bytes(arxiv_id: str) -> bytes:
     req = urllib.request.Request(
         EPRINT + urllib.parse.quote(arxiv_id),
         headers={"User-Agent": "sci-paper-voice/0.14 (corpus builder)"})
-    with urllib.request.urlopen(req, timeout=120) as response:
-        return response.read()
+    return urlopen_backoff(req, timeout=120)
 
 
 def _tex_members(raw: bytes) -> dict[str, str] | None:
@@ -197,6 +305,11 @@ def _candidate_ids(args) -> list[str]:
                 page = fetch_page(query, start,
                                   min(args.page, args.per_query - start),
                                   args.date_lo, args.date_hi)
+            except Throttled as error:
+                print(f"[fulltext] THROTTLED building candidates: {error}; "
+                      f"proceeding with {len(candidates)} found so far",
+                      file=sys.stderr)
+                return candidates
             except Exception as error:  # network/API hiccup: report, keep going
                 print(f"[fulltext] {query!r} start={start} error: {error}",
                       file=sys.stderr)
@@ -230,25 +343,18 @@ def fetch_fulltext(args) -> int:
             continue
         try:
             raw = _eprint_bytes(arxiv_id)
+        except Throttled as error:
+            # Backoff is exhausted inside urlopen_backoff; today's budget is
+            # spent, so stop cleanly. The per-paper directories make this
+            # resumable on a later run.
+            print(f"[fulltext] {error}; stopping with kept={kept} "
+                  f"(rerun later to resume)", file=sys.stderr)
+            break
         except urllib.error.HTTPError as error:
-            if error.code == 429:
-                # Rate-limited: one long backoff then one retry; a second 429
-                # means today's budget is spent, so stop cleanly (resumable).
-                print(f"[fulltext] 429 on {arxiv_id}; backing off 60 s",
-                      file=sys.stderr)
-                time.sleep(60)
-                try:
-                    raw = _eprint_bytes(arxiv_id)
-                except Exception as retry_error:
-                    print(f"[fulltext] still throttled ({retry_error}); "
-                          f"stopping with kept={kept} (rerun later to resume)",
-                          file=sys.stderr)
-                    break
-            else:
-                print(f"[fulltext] {arxiv_id}: HTTP {error.code}", file=sys.stderr)
-                failed += 1
-                time.sleep(args.sleep)
-                continue
+            print(f"[fulltext] {arxiv_id}: HTTP {error.code}", file=sys.stderr)
+            failed += 1
+            time.sleep(args.sleep)
+            continue
         except Exception as error:  # per-paper failure must not kill the sweep
             print(f"[fulltext] {arxiv_id}: download error: {error}", file=sys.stderr)
             failed += 1
@@ -294,30 +400,109 @@ def main(argv: list[str] | None = None) -> int:
                         "per paper) instead of abstracts")
     p.add_argument("--max-papers", type=int, default=300,
                    help="full-text mode: stop after this many kept papers")
+    p.add_argument("--query-set", choices=sorted(QUERY_SETS), default="broad",
+                   help="'broad' = astro-ph breadth + authoritative authors "
+                        "(default); 'wl' = weak-lensing subfield only")
+    p.add_argument("--journals", default="",
+                   help="comma-separated journal keys to keep "
+                        f"({', '.join(k for k, _, _ in JOURNAL_FILTERS)}); "
+                        "empty keeps every record, refereed or not")
+    p.add_argument("--out-name", default="human_abstracts_extra.jsonl",
+                   help="output filename under the field profile directory. "
+                        "A journal-restricted or subfield run MUST pass a "
+                        "different name: the writer truncates its target, so "
+                        "reusing the default would destroy the broad corpus.")
+    p.add_argument("--updated-before", default="",
+                   help="YYYY-MM-DD; drop records whose LATEST arXiv version "
+                        "is dated on or after this. --date-hi bounds the v1 "
+                        "submission, which does not date the returned "
+                        "abstract; only this bounds the text itself.")
+    p.add_argument("--resume", action="store_true",
+                   help="seed from the existing --out-name file and keep its "
+                        "records, so a run cut short by rate limiting is "
+                        "extended rather than replaced")
     args = p.parse_args(argv)
     if args.sleep < 3.0:
         p.error("--sleep must be >= 3 seconds (arXiv rate guidance)")
     if args.fulltext:
         return fetch_fulltext(args)
 
+    wanted = {k.strip().lower() for k in args.journals.split(",") if k.strip()}
+    known = {key for key, _, _ in JOURNAL_FILTERS}
+    if wanted - known:
+        p.error(f"unknown journal key(s): {sorted(wanted - known)}; known: {sorted(known)}")
+    if (wanted or args.query_set != "broad") and \
+            args.out_name == "human_abstracts_extra.jsonl":
+        p.error("a journal-restricted or subfield run needs --out-name; "
+                "writing to human_abstracts_extra.jsonl would truncate the "
+                "broad corpus that the calibration baselines are built from")
+
     field_dir = args.profile_root / args.field
     field_dir.mkdir(parents=True, exist_ok=True)
     seen: set[str] = set()
     recs: list[dict] = []
-    # Topic/breadth queries first, then the authoritative-author queries.
-    for query in QUERIES + AUTHOR_QUERIES:
+    dropped_no_ref = dropped_other = dropped_revised = 0
+    if args.updated_before and not re.fullmatch(r"\d{4}-\d{2}-\d{2}",
+                                                args.updated_before):
+        p.error("--updated-before must be YYYY-MM-DD")
+    if args.resume:
+        # Rate limiting makes a full sweep a multi-run affair, and the writer
+        # truncates its target, so without this a rerun would shrink the corpus
+        # instead of growing it.
+        existing = field_dir / args.out_name
+        if existing.exists():
+            with existing.open(encoding="utf-8") as handle:
+                for line in handle:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    record = json.loads(line)
+                    if record.get("source") not in seen:
+                        seen.add(record["source"])
+                        recs.append(record)
+            print(f"[fetch] resume: {len(recs)} records carried over from "
+                  f"{existing.name}", file=sys.stderr)
+    queries = QUERY_SETS[args.query_set]
+    throttled_at: str | None = None
+    for index, query in enumerate(queries):
+        if throttled_at:
+            break
         got = 0
         for start in range(0, args.per_query, args.page):
             try:
                 page = fetch_page(query, start, min(args.page, args.per_query - start),
                                   args.date_lo, args.date_hi)
+            except Throttled as e:
+                # Not a hiccup: every later request would fail too. Stop the
+                # sweep so the truncation is reported instead of being written
+                # out as if it were the complete corpus.
+                print(f"[fetch] THROTTLED on {query!r} start={start}: {e}",
+                      file=sys.stderr)
+                throttled_at = f"query {index + 1}/{len(queries)} {query!r} start={start}"
+                break
             except Exception as e:  # network/API hiccup on one page: report, keep going
                 print(f"[fetch] {query!r} start={start} error: {e}", file=sys.stderr)
                 page = []
             new = 0
             for r in page:
-                if r["source"] not in seen:
-                    seen.add(r["source"]); recs.append(r); new += 1; got += 1
+                if r["source"] in seen:
+                    continue
+                seen.add(r["source"])
+                # ISO dates compare correctly as strings; a record with no
+                # updated field cannot be shown to predate the cutoff, so it
+                # is dropped rather than assumed clean.
+                if args.updated_before and not (
+                        r["updated"] and r["updated"] < args.updated_before):
+                    dropped_revised += 1
+                    continue
+                if wanted:
+                    if not r["journal_ref"]:
+                        dropped_no_ref += 1
+                        continue
+                    if r["journal"] not in wanted:
+                        dropped_other += 1
+                        continue
+                recs.append(r); new += 1; got += 1
             print(f"[fetch] {query!r} start={start}: +{new} (total {len(recs)})",
                   file=sys.stderr)
             if not page:
@@ -325,13 +510,30 @@ def main(argv: list[str] | None = None) -> int:
             time.sleep(args.sleep)
         print(f"[fetch] {query!r}: {got} kept", file=sys.stderr)
 
-    out = field_dir / "human_abstracts_extra.jsonl"
+    out = field_dir / args.out_name
     with out.open("w", encoding="utf-8") as f:
         for r in recs:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     years = sorted({r["year"] for r in recs})
     print(f"[fetch] wrote {len(recs)} dated curated-field abstracts -> {out}")
     print(f"[fetch] year span: {years[0] if years else '-'}..{years[-1] if years else '-'}")
+    if wanted:
+        by_journal: dict[str, int] = {}
+        for r in recs:
+            by_journal[r["journal"]] = by_journal.get(r["journal"], 0) + 1
+        print(f"[fetch] journal filter {sorted(wanted)}: kept "
+              f"{sorted(by_journal.items())}; dropped {dropped_no_ref} with no "
+              f"journal_ref, {dropped_other} in other journals")
+    if args.updated_before:
+        print(f"[fetch] text-vintage filter updated < {args.updated_before}: "
+              f"dropped {dropped_revised} records revised on or after it")
+    if throttled_at:
+        # Exit 2, not 0: a truncated corpus that reports success is how a
+        # rate-limited run gets mistaken for an exhaustive one.
+        print(f"[fetch] TRUNCATED — stopped at {throttled_at}; "
+              f"{len(queries)} queries planned. Rerun later with --resume to "
+              f"extend; records already written are valid.", file=sys.stderr)
+        return 2
     return 0
 
 

@@ -38,6 +38,59 @@ When the three-part arc fits:
 3. **Validation**: state what the results establish, compare like with like, and
    delimit the evidence and limitations.
 
+#### 文章主旨 / Thesis spine — one result, everything subordinate to it
+
+> **Normative authority: `docs/SCIPAPER_STANDARD.md` §5.4.** That section is
+> the policy; this is how to write to it. It is a writing rule, not a measured
+> axis — no linter reports it and none may be built on it without new evidence
+> (EVALUATION §15.1).
+
+The arc above says what *order* to write in. It does not say what to leave out,
+and that is where drafts fail: an arc filled with everything the authors did is
+still an inventory. Choose the one result first, then let the arc carry it.
+
+**Before drafting or revising any section, write the thesis line.** One
+sentence, the paper's single central result. Not the topic, not the method, not
+a list — the finding. Everything in the paper then exists to 铺垫 / 介绍 /
+解释 / 推理 / 论证 that sentence. A second result is either subordinate to it
+or belongs in a second paper.
+
+The reader must finish able to answer three questions **in this order**:
+
+1. 我们做了什么 — what was done;
+2. 成果是什么 — what the result is;
+3. 牛逼在哪里 — what it changes that was not true before.
+
+A draft that answers only (1) is an inventory however well written. A draft
+that answers (1) and (2) but not (3) has reported a measurement and not made a
+claim. Question (3) is the one that must be argued, not asserted: name what was
+previously believed, or previously impossible, and what this result replaces it
+with.
+
+**The inventory test.** Build this table before editing, and again after:
+
+| section | the one sentence it contributes to the thesis | where it is carried |
+|---|---|---|
+
+A section with no such sentence is inventory: cut it, or fold its load-bearing
+clause into a section that has one. Two sections whose sentences say the same
+thing are one section. Any row a reader can falsify in seconds is doing its
+job; a row you cannot fill is the finding.
+
+**Do not confuse this with condensing.** `/sci-paper:condense` removes what is
+**repeated**; this removes what is **unranked**. A section can be perfectly
+non-redundant, fully sourced, and still be an inventory entry.
+
+**Rank, do not delete, the supporting results.** A result that does not carry
+the thesis is not thereby worthless: state it where it does work, in one
+sentence, subordinate to the claim it supports. A number that is the sole
+support of a claim never leaves the paper (§6 eligibility).
+
+**Never cut to sharpen.** Conditions, ranges, uncertainties, scope limits,
+negations, and conceded limitations are load-bearing by definition and are
+never inventory, however secondary they sound. A paper made punchier by
+deleting its hedges has been damaged.
+
 ### Structural Updates · Forward Narrative / 结构式更新 · 正向叙述
 
 > **每一次写作、修订、纠错都必须把文章重写到"当前真值的最终态"——禁止把"旧态 → 新态"的迁移痕迹留在正文里。**

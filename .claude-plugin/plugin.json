@@ -1,6 +1,6 @@
 {
   "name": "sci-paper",
-  "version": "0.26.0",
+  "version": "0.26.1",
   "description": "Scientific paper writing + review + ideation pipeline for top-tier journals (ApJ/MNRAS/PRD/JCAP-class). Ships 8 skills and 24 tools under one typed scientific-writing standard: source-traced integrity blockers, zero-target L0, ranked advisories, explicit measurement states, a unified three-pass de-AI skill (subsystem measurement, two vendored humanizer audits, claim-first rewriting), corpus-referenced salience-hierarchy and domain-register axes, a condense skill executing the hard length budget with one-canonical-home deduplication, A-R review with narrative-spine and adversarial-escalation dimensions, pixel-measured figure balance, and isolated multi-review orchestration. See CHANGELOG.md for per-version history.",
   "author": {
     "name": "skymanbp",

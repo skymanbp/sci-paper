@@ -1,4 +1,4 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.26.0
+# EVALUATION: de-AI subsystem for `sci-paper` v0.26.1
 
 First recorded 2026-07-12; axis table and repository-verification counts current as of
 2026-08-16.
@@ -710,8 +710,8 @@ the exemplar bank or the the manuscript manuscript before that decision.
 
 ## 12. Release evidence boundary
 
-Current release gates (v0.26.0, 2026-08-16): `validate_plugin.py` all 8 checks
-pass and the full unit/CLI suite (147 tests, 13 files) passes on a clean tree;
+Current release gates (v0.26.1, 2026-08-16): `validate_plugin.py` all 8 checks
+pass and the full unit/CLI suite (172 tests, 14 files) passes on a clean tree;
 both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
 release commit must also be green (first green runs: 31133202443 push,
 31133215203 manual dispatch).
@@ -1003,3 +1003,160 @@ body text of the same papers, which biases the axis toward flagging
 body-section vocabulary. Neither axis has a human-judgement validation set. Both
 are calibrated distance statements against a human reference, in the same sense
 as every other L1/L2 axis here, and neither is an authorship claim.
+
+---
+
+## 15. Narrative salience: two more refuted features, and two reference nulls (v0.26.1)
+
+Origin: a reader complaint that AI prose inflates a one-fact paragraph into
+five clauses, and separately that it recites results without ever concluding
+from them. Both are now policy in SCIPAPER_STANDARD §5.4 as a **writing rule**.
+This section records why none of it is a measured axis.
+
+### 15.1 Rejected: inert-clause runs and inference-connective rate
+
+Every sentence was labelled on three tests: GROUNDED (a number, math, a
+citation, or an explicit comparison — `deai_anchoring`'s anchor definition),
+INFERENTIAL (a closed set of connective, deductive, and contrastive markers),
+and INERT (neither). Two hypotheses followed: AI prose runs longer INERT
+streaks, and AI prose carries fewer inference markers.
+
+Both fail.
+
+**Inert runs, length-matched to 60–240 words:**
+
+| bank | inert rate | max inert run |
+|---|---|---|
+| human arXiv abstracts (n = 11,177) | 0.500 | 0.333 |
+| human RAID reference (n = 764) | 0.778 | 0.500 |
+| AI RAID generations (n = 527) | 0.889 | 0.636 |
+| AI Claude generations (n = 551) | 0.667 | 0.500 |
+
+The human span is [0.500, 0.778] and the AI span [0.667, 0.889]. They overlap,
+and one AI bank sits *below* one human bank. Genre separates these banks;
+authorship does not.
+
+**Inference-connective rate — the two AI banks disagree in sign:**
+
+| bank | median | p75 | p90 |
+|---|---|---|---|
+| human arXiv abstracts | 0.000 | 0.125 | 0.222 |
+| AI RAID generations | 0.000 | 0.000 | 0.125 |
+| AI Claude generations | 0.200 | 0.400 | 0.600 |
+
+One AI bank uses inference markers less than humans, the other two to three
+times more. A feature whose direction depends on the generator is not a
+feature. The corollary matters for the writing rule: **the presence of a
+connective is not evidence of an inference.** Machine prose supplies the causal
+frame and leaves the antecedent unbound, which is why §5.4's diagnostic is a
+pointer to the antecedent rather than a search for the connective.
+
+A first pass measured the human inference rate as identically zero. That was an
+artefact: the classifier assigned one label per sentence with GROUNDED taking
+priority, which erased every human sentence that both reports and concludes —
+the exact move under study. The table above uses independent flags.
+
+This is the third refutation of a surface feature for this defect, after claim
+anchoring (§9.6) and the hypotaxis ratio (§14.5). Three independent surface
+statistics, one outcome: the defect is a relation between a clause and the
+propositions around it, and surface statistics do not see relations.
+
+### 15.2 Spine fraction: a lead, not a result
+
+The replacement hypothesis is **spine fraction** — bound clauses over total
+clauses, where a clause is bound if it introduces a checkable fact or binds two
+propositions already in play. Because the instrument is an LLM judgement, the
+pilot was blinded: 20 passages (10 per class) sampled at a fixed seed, clause
+split on a fixed separator set, 152 clauses annotated from a label-free file,
+and the key read only afterwards. The blind file's SHA-256 was recorded before
+and after a replay that added sub-bank tracking, and matched.
+
+| contrast | human | AI | AUC | exact permutation p |
+|---|---|---|---|---|
+| class-level (not domain-matched) | 10 | 10 | 0.875 | 0.0008 |
+| arXiv human vs Claude astro generations | 9 | 5 | 0.756 | 0.032 |
+| arXiv human vs RAID cross-domain | 9 | 5 | 0.989 | 0.0010 |
+
+The near-perfect cross-domain figure is the genre confound again. The
+domain-matched effect survives but is **not established**: at n = 9 vs 5 the
+Hanley–McNeil interval on AUC 0.756 is [0.441, 1.071], which covers chance.
+Closing it to a half-width of 0.086 needs 60 per class.
+
+Two further facts shape the intended use. Ten of the twenty passages scored
+exactly 1.000, **two of them AI** — a well-bound machine passage is
+indistinguishable, so this cannot be a detector. But every passage below 0.833
+was AI (0.714, 0.667, 0.571, 0.500) and no human fell below it, so the usable
+form is a one-sided low-tail quality band, which is what §5.4 asks for.
+
+The dominant unquantified risk is annotator contamination: the annotator was
+blind to the label but can often infer it from style, so the AUC is an upper
+bound. The de-contamination protocol (pointer-valued annotation, adversarial
+refutation of every unbound verdict, a sealed guess record for conditional
+analysis, and a same-title paired corpus) is designed but not executed.
+
+### 15.3 Corpus provenance: the pre-LLM guarantee was weaker than stated
+
+`--date-hi` filters arXiv's `submittedDate`, which dates v1. The API's
+`summary` is always the **latest** version's abstract. 6,552 of the 13,642
+records in `human_abstracts_extra` (48.0%) are non-v1, and a live probe of
+twelve 2021 weak-lensing submissions found eleven with `updated > published`,
+two of them revised after 2022-11 — after the text could have been touched by a
+public LLM. Submission date does not date the text.
+
+`fetch_arxiv_abstracts` now records `published` and `updated` and accepts
+`--updated-before`; a record with no `updated` is dropped rather than assumed
+clean. The existing bank predates the field, so its text vintage is unknown
+rather than clean, and re-deriving it needs a refetch.
+
+### 15.4 Null: a subfield reference does not move the salience gate
+
+A weak-lensing top-tier bank was built to test whether §14.2's astro-ph-wide
+reference is the wrong population for a weak-lensing manuscript: 254 abstracts
+(A&A 171, ApJ 75, ApJL 8), submitted 2010-01-05 to 2021-12-14, every latest
+version dated on or before 2022-09-12.
+
+| feature | broad p90 | WL p90 | broad median | WL median |
+|---|---|---|---|---|
+| `max_recital_run_frac` | 0.500 | 0.500 | 0.200 | 0.200 |
+| `recital_frac` | 0.667 | 0.667 | 0.286 | 0.333 |
+| `numerals_per_sentence` | 2.000 | 2.200 | 0.571 | 0.667 |
+
+The case document's abstract reads p = 0.91 against either reference, and its
+revision p = 0.26 versus 0.23. `salience_baseline.json` needs no rebuild and
+§14.3's percentile is not an artefact of the reference population.
+
+This does not contradict the genre effect in §15.1 and §15.2. Genre separates
+at the **discipline** level — astronomy against news, reviews, and recipes —
+not between astro-ph subfields.
+
+### 15.5 The same bank cannot be the register reference
+
+`deai_register` calls a term foreign below a document-frequency rate of 1e-4.
+A 254-document corpus cannot express a non-zero rate below 1/254 = 3.94e-3,
+**39.4× coarser than the threshold**; a single occurrence lands at the
+threshold only at about 10,000 documents.
+
+The consequence is not hypothetical. Under the subfield reference `saddle` —
+the central concept of the case document — flips from native (16/13,642) to
+foreign (0/254), as do `classifier`, `recall`, and `ablation`, all on zero
+counts rather than on any property of the field's vocabulary. There are not
+10,000 weak-lensing ApJ/ApJL/A&A papers in the window, so the register
+reference stays on the broad bank as a hard constraint. The subfield bank is
+stored and wired to nothing.
+
+The v0.26.0 register finding is unaffected and reproduces under both
+references: `AUC` is 1/13,642 in the broad bank and 0/254 in the subfield bank,
+while `epoch` (0.024) and `accuracy` (0.057) are native in both.
+
+### 15.6 Limits
+
+The refutations in §15.1 come from a regex classifier written for the purpose,
+so they are weaker evidence than a null from a tuned instrument would be — but
+the disagreement in sign between two AI banks is robust to instrument quality
+in a way a null is not. §15.2 rests on one annotator, 20 passages, and one
+field. §15.4's WL reference is 53× smaller than the broad one, so its p90 is
+the noisier of the two; the medians agree as well, which is why the null is
+read as distributional agreement rather than a single-quantile coincidence.
+`--updated-before` systematically excludes late-revised papers, a selection
+effect on the reference that is not quantified. Only the salience and register
+axes were compared across references; `docstructure` and `voice` were not.
