@@ -93,9 +93,9 @@ python tools/train_voice_model.py --field <name>
 > `method`, and `Acknowledgements`/`Bibliography` were ingested as prose instead
 > of being skipped. Every per-section asset above that was built before v0.27.0
 > carries that mis-bucketing. Measured on the 31-paper `wgl` corpus, rebuilding
-> with the fixed classifier moves `method` 1770 → 1672, `discussion` 43 → 97,
-> `conclusion` 30 → 51, and `results` 0 → 10 (still below the 30-passage floor,
-> so that bucket stays omitted), with the total dropping 1957 → 1944 as back
+> with the fixed classifier moves `method` 1770 → 1671, `discussion` 43 → 97,
+> `conclusion` 30 → 50, and `results` 0 → 10 (still below the 30-passage floor,
+> so that bucket stays omitted), with the total dropping 1957 → 1942 as back
 > matter is skipped.
 >
 > **Until you rebuild, treat every section-keyed axis as `degraded`** whatever
