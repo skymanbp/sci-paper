@@ -102,6 +102,18 @@ python tools/train_voice_model.py --field <name>
 > its recorded status says: rerun `build_profile.py` and then each `--calibrate`
 > above. `docs/architecture/EVALUATION.md` §2 carries the same notice.
 
+Snapshot before any rebuild — a recalibration overwrites artifacts that can take
+hours of GPU time to regenerate:
+
+```bash
+cp -r style-profile ".backups/style-profile-$(date +%Y%m%d-%H%M%S)"
+```
+
+`.backups/` is gitignored and lives **inside the repository**. A snapshot placed
+beside it instead reads as a project of its own in the parent directory, and it
+holds copies of the same corpus-derived, copyright-sensitive artifacts these
+rules exclude, so it must not drift outside the repository's ignore rules.
+
 `deai_policy.json` is not synthesized by the basic builder. Add it only when the
 sample unit, corpus selection, uncertainty, applicability, operating point, and
 validation behavior are documented in the asset and `EVALUATION.md`.

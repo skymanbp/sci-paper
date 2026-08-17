@@ -51,6 +51,13 @@ CLAUDE.local.md
 # notes + topic/session indexes). Regenerable; never commit.
 memory/
 
+# Local snapshots taken before a profile rebuild or recalibration. They hold
+# copies of the same corpus-derived, copyright-sensitive artifacts the
+# style-profile rules above exclude, so they carry the same never-commit
+# treatment. They live HERE rather than beside the repository: a sibling
+# directory under the projects root reads as a project of its own.
+.backups/
+
 # OS / editor
 .DS_Store
 Thumbs.db
