@@ -45,12 +45,17 @@ def load_voice_model(field_profile_dir: Path | None):
     if not path.exists():
         _MODEL_CACHE[key] = None
         return None
-    import joblib
     try:
+        # Imported inside the guard because joblib is an OPTIONAL dependency
+        # (requirements.txt): with a bundle present but joblib uninstalled, a
+        # module-level import raised ModuleNotFoundError straight through the
+        # caller instead of degrading the L3 axis to unavailable.
+        import joblib
         bundle = joblib.load(path)
     except Exception as error:
-        # A truncated or corrupt bundle must degrade to "unavailable" so the
-        # axis reports unmeasured with a reason, never crash the caller.
+        # A truncated or corrupt bundle, or a missing joblib, must degrade to
+        # "unavailable" so the axis reports unmeasured with a reason, never
+        # crash the caller.
         print(f"[deai_voice] unreadable voice_model.joblib ({error}); "
               "treating the L3 axis as unavailable", file=sys.stderr)
         _MODEL_CACHE[key] = None

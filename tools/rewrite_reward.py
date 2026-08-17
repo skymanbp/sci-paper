@@ -27,14 +27,71 @@ import deai_voice as dv  # noqa: E402  sibling import after path setup
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
-_NUM_RE = re.compile(r"(?<![A-Za-z])[-+]?\d[\d,]*(?:\.\d+)?(?:\s*[×x]\s*10\^?[-+]?\d+)?")
+# A numeral token must END in a digit. `\d[\d,]*` was greedy across the
+# comma that separates list items, so "1200, 2400, and 4800" tokenized as
+# {"1200,", "2400,", "4800"} and a candidate that merely dropped the Oxford
+# comma was reported as simultaneously MISSING "2400," and INVENTING "2400"
+# -- a faithful rewrite hard-rejected (combined = -inf) on punctuation. The
+# thousands separator inside a number ("1,234") is still captured.
+_NUMBER_TOKEN = r"[-+]?\d(?:[\d,]*\d)?(?:\.\d+)?"
+_NUM_RE = re.compile(rf"(?<![A-Za-z]){_NUMBER_TOKEN}(?:\s*[×x]\s*10\^?[-+]?\d+)?")
 _CITE_RE = re.compile(r"\\cite\w*\{([^}]+)\}")
 _MATH_RE = re.compile(r"\$([^$]+)\$")
 _ACRONYM_RE = re.compile(r"\b[A-Z][A-Z0-9-]{1,}\b")
-_UNIT_RE = re.compile(
-    r"(?<![A-Za-z])[-+]?\d[\d,]*(?:\.\d+)?\s*(?:\\,)?\s*"
-    r"(\\mathrm\{[^}]+\}|\\text\{[^}]+\}|[%°]|[A-Za-z]+(?:\s*[/-]\s*[A-Za-z]+)*)"
+# Same root cause as _NUM_RE, and the binding one once numbers were fixed: the
+# separator was `\s*(?:\\,)?\s*`, so a plain space let ANY following word become
+# a "unit". "in 2020 we found" yielded unit {"we"} and "1200, 2400 sources"
+# yielded {"sources"}, so a faithful rewrite that changed the word after a
+# numeral was rejected as having dropped and invented a unit.
+#
+# A unit is recognised in two forms, and the separator decides which test the
+# token has to pass:
+#
+#   BOUND  -- adjacent, or separated only by LaTeX spacing (`\,` `\;` `\!` `\ `
+#             `~`), or written as \mathrm{}/\text{}/%/°. This is how the corpus
+#             typesets units, so any token in that position is taken as one.
+#   SPACED -- a single ASCII space, the ordinary prose form ("1.5 Mpc"). Here
+#             the token must be a KNOWN unit, because an unrestricted `[A-Za-z]+`
+#             turned every word after a numeral into a protected invariant
+#             ("in 2020 we found" yielded unit "we") and hard-rejected faithful
+#             rewrites. Dropping the spaced form entirely was the first attempt
+#             and went too far the other way: it stopped catching `1.5 Mpc` ->
+#             `1.5 kpc`, a factor-1000 physics error, in the gate whose whole
+#             job is to catch exactly that.
+_LATEX_THIN_SPACE = r"(?:\\[,;:!]|\\ |~)*"
+_UNIT_TOKEN = r"[A-Za-z]+(?:\s*[/-]\s*[A-Za-z]+)*"
+_UNIT_BOUND_RE = re.compile(
+    rf"(?<![A-Za-z]){_NUMBER_TOKEN}{_LATEX_THIN_SPACE}"
+    # `\%` before bare `%`: an unescaped `%` starts a LaTeX comment and is
+    # stripped upstream (as it always has been for every projection-based
+    # category), so `10\%` is the form that survives to be measured.
+    rf"(\\mathrm\{{[^}}]+\}}|\\text\{{[^}}]+\}}|\\%|[%°]|{_UNIT_TOKEN})"
 )
+_UNIT_SPACED_RE = re.compile(rf"(?<![A-Za-z]){_NUMBER_TOKEN} ({_UNIT_TOKEN})")
+# Physical units a numeral is followed by in this literature. Deliberately a
+# closed vocabulary and deliberately NOT a detection policy: it decides only
+# whether a space-separated token is eligible to be a protected invariant, so a
+# missing entry costs protection on that one unit and never produces a finding.
+# Ambiguous single letters that are ordinary English words ("a", "i") are
+# excluded; the rest are unambiguous after a numeral in scientific prose.
+_UNIT_VOCABULARY = frozenset({
+    # length / distance
+    "pc", "kpc", "mpc", "gpc", "au", "ly", "m", "km", "cm", "mm", "um", "nm",
+    "angstrom", "å",
+    # time
+    "s", "ms", "us", "ns", "ps", "yr", "yrs", "gyr", "myr", "kyr", "hr", "h",
+    "d", "day", "days", "year", "years", "min", "sec",
+    # angle
+    "deg", "degree", "degrees", "arcmin", "arcsec", "mas", "rad", "sr",
+    # frequency / energy / power
+    "hz", "khz", "mhz", "ghz", "thz", "ev", "kev", "mev", "gev", "tev",
+    "erg", "ergs", "j", "w", "kw", "mw",
+    # mass / flux / magnitude
+    "kg", "g", "msun", "jy", "mjy", "ujy", "mag", "mags",
+    # misc physical
+    "k", "t", "v", "n", "c", "f", "pa", "mol", "dex", "sigma", "σ", "bit",
+    "bits", "byte", "bytes", "gb", "mb", "kb", "tb", "px", "pixel", "pixels",
+})
 _DIRECTION_RE = re.compile(
     r"\b(increase[sd]?|decrease[sd]?|higher|lower|greater|less|above|below|"
     r"positive|negative|improve[sd]?|worsen(?:ed|s)?|exceed[sd]?|underperform(?:s|ed)?)\b",
@@ -55,13 +112,6 @@ _FORMATTING_MACROS = frozenset({
     "newline", "cite", "citep", "citet", "citealt", "citealp",
     "citeauthor", "citeyear",
 })
-# Meaning can flip when one of these categories GAINS a marker (adding "not",
-# "therefore", or "lower" inverts or invents a claim), so additions there are
-# just as disqualifying as drops.
-_REVERSIBLE_CATEGORIES = (
-    "negation", "comparison_direction", "causal_direction",
-)
-
 # The ranking term that used to be `specificity` (fraction of reference numbers
 # preserved) is identically 1.0 for every eligible candidate, because
 # fidelity_eligibility already rejects any candidate missing a reference number.
@@ -110,19 +160,86 @@ def _normalized(items) -> set[str]:
     return {re.sub(r"\s+", "", item).lower() for item in items}
 
 
+_ENV_WRAPPER_RE = re.compile(r"\\(?:begin|end)\{[^}]*\}")
+_EQUATION_NOISE_RE = re.compile(r"\\(?:nonumber|notag)\b")
+
+
+def _uncommented(text: str) -> str:
+    """Text with LaTeX comments removed.
+
+    Every category that reads the RAW text — citations, inline and display
+    math, semantic macros, units — must strip comments first, because both
+    named projections do it as their first substitution and because commented
+    LaTeX is not rendered and therefore carries no scientific content. Without
+    this, a commented-out equation, citation or macro becomes a hard protected
+    invariant and deleting dead markup hard-rejects the candidate at -inf.
+    """
+    return df.es.RE_TEX_COMMENT.sub("", text)
+
+
+def _display_math_bodies(text: str) -> list[str]:
+    """Reduced ``\\begin{equation}``/``align``/``gather``/… bodies.
+
+    Both named LaTeX projections drop displayed equations deliberately, so
+    anything a displayed equation alone carries is invisible to every category
+    computed from them: a value silently changed inside ``\\begin{equation}``
+    passed as fully faithful. These bodies are therefore read from the raw
+    text — but they must first pass through the SAME reductions the projections
+    apply, or the raw span smuggles in three kinds of non-content:
+
+    * **comments.** ``RE_TEX_COMMENT`` is the first substitution in both
+      projections; without it a commented-out dead equation becomes a hard
+      invariant and deleting it hard-rejects the candidate.
+    * **the environment wrapper.** Keeping ``\\begin{equation}`` in the token
+      makes ``equation`` -> ``equation*`` a fidelity violation.
+    * **labels.** ``\\label`` is in ``_FORMATTING_MACROS`` precisely because it
+      carries no scientific content, so renaming ``eq:mass`` must not be a
+      violation — and its digits (``eq:m200``) must not enter the number set.
+    """
+    reduced = _uncommented(text)
+    bodies = []
+    for match in df.es.RE_TEX_DISPLAY_MATH.finditer(reduced):
+        body = _ENV_WRAPPER_RE.sub(" ", match.group(0))
+        body = df.es.RE_TEX_LABEL_REF.sub(" ", body)
+        body = _EQUATION_NOISE_RE.sub(" ", body)
+        if body.strip():
+            bodies.append(body)
+    return bodies
+
+
 def _numbers(text: str) -> set[str]:
-    return _normalized(_NUM_RE.findall(df.es.latex_to_plain(text)))
+    numbers = _normalized(_NUM_RE.findall(df.es.latex_to_plain(text)))
+    for body in _display_math_bodies(text):
+        numbers |= _normalized(_NUM_RE.findall(body))
+    return numbers
 
 
 def _citations(text: str) -> set[str]:
     keys = []
-    for group in _CITE_RE.findall(text):
+    for group in _CITE_RE.findall(_uncommented(text)):
         keys.extend(key.strip() for key in group.split(",") if key.strip())
     return set(keys)
 
 
+def _math_normalized(items) -> set[str]:
+    """Whitespace-insensitive but CASE-SENSITIVE normalization.
+
+    Unlike prose, LaTeX control words are case-sensitive and the case carries
+    the physics: ``\\Delta\\Sigma`` and ``\\delta\\Sigma`` are different
+    quantities, as are ``\\Omega``/``\\omega`` and ``\\Phi``/``\\phi``. Folding
+    case here would let a case-only symbol substitution pass the gate as fully
+    faithful.
+    """
+    return {re.sub(r"\s+", "", item) for item in items}
+
+
 def _math(text: str) -> set[str]:
-    return _normalized(_MATH_RE.findall(text))
+    # Inline spans plus reduced displayed-equation bodies. Whitespace is
+    # stripped, so re-wrapping or re-indenting an equation is not a change;
+    # altering a symbol, a coefficient or an exponent is.
+    spans = _math_normalized(_MATH_RE.findall(_uncommented(text)))
+    spans |= _math_normalized(_display_math_bodies(text))
+    return spans
 
 
 def _acronyms(text: str) -> set[str]:
@@ -130,12 +247,23 @@ def _acronyms(text: str) -> set[str]:
 
 
 def _units(text: str) -> set[str]:
-    return _normalized(_UNIT_RE.findall(text))
+    prose = _uncommented(text)
+    units = _normalized(_UNIT_BOUND_RE.findall(prose))
+    for token in _UNIT_SPACED_RE.findall(prose):
+        head = re.split(r"[\s/-]", token, maxsplit=1)[0].lower()
+        if head in _UNIT_VOCABULARY:
+            units |= _normalized([token])
+    return units
 
 
 def _macros(text: str) -> set[str]:
-    """Semantic macro names in the RAW text (latex_to_plain would erase them)."""
-    return {name.lower() for name in _MACRO_RE.findall(text)
+    """Semantic macro names in the raw text (latex_to_plain would erase them).
+
+    Comments are stripped first: a macro that appears only inside a `%` comment
+    is not rendered, so treating it as a protected invariant rejected the
+    removal of dead markup.
+    """
+    return {name.lower() for name in _MACRO_RE.findall(_uncommented(text))
             if name.lower() not in _FORMATTING_MACROS}
 
 
@@ -321,6 +449,21 @@ def main(argv: list[str] | None = None) -> int:
                         help="record an author-approved reason that lifts the "
                              "length-budget gate for this run")
     args = parser.parse_args(argv)
+    try:
+        return _run(args)
+    except Exception as error:
+        # Deliberately broad, and mandatory once exit 1 became a MEASURED
+        # outcome: without this guard an uncaught exception also left the
+        # interpreter at 1, so a crash was indistinguishable from — and would
+        # be acted on as — "no candidate was eligible, regenerate tighter".
+        # This is the same guard ai_ism_lint and length_gate already carry.
+        # KeyboardInterrupt/SystemExit are BaseException and still propagate.
+        print(f"[rewrite_reward] execution failed: "
+              f"{type(error).__name__}: {error}", file=sys.stderr)
+        return 2
+
+
+def _run(args) -> int:
     field_dir = args.profile_root / args.field
     if dv.load_voice_model(field_dir) is None:
         print(f"[rewrite_reward] no voice_model.joblib in {field_dir}", file=sys.stderr)
@@ -359,9 +502,16 @@ def main(argv: list[str] | None = None) -> int:
     eligible = [item for item in ranked
                 if item[1]["faithful"] and item[1]["length_eligible"]]
     if not eligible:
+        # Exit 1, not 2. Every candidate being ineligible is a MEASURED outcome
+        # the caller acts on -- de-ai §4.3 step 3 says to preserve the original
+        # and regenerate tighter -- not an execution failure. Reporting it as 2
+        # made a successful, correct run indistinguishable from a crash or a
+        # missing profile. Registered in SCIPAPER_STANDARD §0.1 alongside
+        # length_gate's narrow actionable contract.
         print("\n[rewrite_reward] no candidate passed fidelity and length-budget "
-              "eligibility", file=sys.stderr)
-        return 2
+              "eligibility; preserve the original and regenerate tighter",
+              file=sys.stderr)
+        return 1
     best_index = eligible[0][0]
     print(f"\n[best] candidate {best_index}: {args.candidates[best_index].name}")
     return 0

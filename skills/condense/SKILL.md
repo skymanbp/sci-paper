@@ -1,6 +1,6 @@
 ---
 name: condense
-description: 精简技能。对整篇文档剔除**所有**不必要的、以及上下文/全文其他地方已有重复的内容：跨节重复的 claim/数字、零信息增量段落、死定义/死图表、冗长表达。执行 SCIPAPER_STANDARD §5.3（改写、删减、精简，而不是堆叠）：默认方向永远是更短，删除 > 原地压缩 > 等长改写，增长最后且必须有记录理由。每个事实只保留一个 canonical 位置，副本删除或改为交叉引用。保真不变量（§6）全程保护。Use when 用户说 "精简" / "太长了" / "重复" / "废话太多" / "condense" / "trim" / "去冗余"，或 paper-review 维度 I 的冗余 finding 需要执行修复时。
+description: Whole-document condensation. Removes every passage that is unnecessary or already stated elsewhere: claims and numbers repeated across sections, zero-information paragraphs, dead definitions and uncited figures, verbose constructions. Executes SCIPAPER_STANDARD §5.3 (condense, do not accumulate): the default direction of every edit is shorter — delete > compress in place > same-length rewrite, with growth last and only under a recorded justification. Each fact keeps exactly one canonical home; the copies are deleted or replaced by a cross-reference. Fidelity invariants (§6) are protected throughout, and the mechanical length gate closes the loop. Use when: "condense" / "trim" / "too long" / "repetitive" / "cut the padding" / 精简 / 太长了 / 重复 / 废话太多 / 去冗余, or when a paper-review dimension-I redundancy finding needs to be executed.
 disable-model-invocation: false
 argument-hint: "<file_path> [--section <name>] [--max-iter N] [--report-only] [--field <name>]"
 ---
@@ -94,10 +94,11 @@ For each map entry, in rank order:
 3. **Dead artifacts (c):** delete the artifact and every orphaned mention;
    re-run the deadness grep afterward to confirm nothing dangles.
 4. **Verbose spans (d):** rewrite shorter. Gate every shortened rewrite with
-   `python tools/rewrite_reward.py --reference <claim-record> --original
-   <span> --candidates ...` — a candidate that drops a protected invariant is
-   ineligible regardless of its brevity; among eligible candidates the
-   shorter wins.
+   `python tools/rewrite_reward.py --field <field> --reference <claim-record>
+   --original <span> --candidates ...` — a candidate that drops a protected
+   invariant is ineligible regardless of its brevity; among eligible
+   candidates the shorter wins. `--field` is required by the tool (it exits 2
+   without one); resolve it as in §1 step 1.
 
 Apply each change with a minimal Edit and re-read the affected region plus
 every cross-reference into it.

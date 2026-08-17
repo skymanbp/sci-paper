@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: 全自动辐射状探索器。可用于发散式寻找研究 ideas，也可用于穷尽地寻找解决某个切实难题的途径。以"系统发生树（phylogenetic tree）"为数据模型：root = 起点（topic / 问题 / 当前研究状态）；node = 一个想法；depth = 发散层数；width = 最终结果数。每一节点用多种视角（first-principles / 反演 / 跨学科迁移 / 对抗 / 约束变换 / 尺度外推 / office-hours / contrarian / 失效驱动 / high-risk / 元层 等）穷尽 brainstorm，每个分支完整严谨推导（数学/物理/逻辑/文献核对/可行性/可证伪性），递归发散直至每一最深叶节点完整推进。启动时强制 §2.0 glossary grill 预热（与 mattpocock-skills:grill-with-docs 同源），把 root 节点术语锁到项目 FACTS.md。默认 width / depth / rounds **全部不限**，由收敛判据终止。**严禁** "defer / 因成本限制 / future work / TODO" 等推脱式不完整结果。强制 cc-enslaver 七规则全程证据可追溯。Use when 用户说 "brainstorm" / "发散思考" / "找研究方向" / "怎么解决这个难题" / "explore options" / 想穷尽某个研究问题的解法 / 论文 motivation 阶段需要 radial 探索。
+description: Fully automatic radial exploration engine for divergent research ideation, or for exhaustively finding ways to solve one concrete hard problem. The data model is a phylogenetic tree: root = the starting point (topic / problem / current research state), node = one idea, depth = number of divergence layers, width = number of final results. Every node is brainstormed through twelve framing passes (first-principles, inversion, cross-disciplinary transport, adversarial, constraint relaxation, scale extrapolation, office-hours, contrarian, failure-driven, high-risk, meta), every branch gets a complete rigorous derivation (mathematics / physics / logic / literature check / feasibility / falsifiability), and divergence recurses until every deepest leaf is fully advanced. A mandatory glossary grill locks the root node's terminology to the project FACTS.md before exploration starts. width / depth / rounds default to unlimited and stop on convergence criteria. Deferred or incomplete leaves ('defer', 'cost limits', 'future work', 'TODO') are hard-banned. Use when: "brainstorm" / "explore options" / "find research directions" / "how do I solve this problem" / 发散思考 / 找研究方向 / 怎么解决这个难题 / 穷尽某个研究问题的解法 / 论文 motivation 阶段需要 radial 探索.
 disable-model-invocation: false
 argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max-branches N|∞] [--field <name>] [--out <dir>] [--seed <text>] [--no-online] — 不传 topic 则自动从当前项目状态推断"
 ---
@@ -13,7 +13,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 
 ---
 
-## 0. 数据模型（visual metaphor — width × depth × node）
+## 数据模型（visual metaphor — width × depth × node）
 
 把整棵探索想象成下面这张径向树（参考用户示例图）：
 
@@ -44,7 +44,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
    收敛必须满足§6 的全部硬判据，**且**最近 2 轮分支生成中"新颖分支 / 总分支"比 < 0.15，**且**至少触发过§3 全部 framing pass 各 1 次。
 
 6. **禁止用户中断决策**——本 skill 是全自动的。
-   遇到歧义优先选**信息量最大**的分支继续；只有当 (a) 触及不可逆操作、(b) 触及 §0.7 资源安全阀、(c) 用户原始 topic 完全无法解析时才停下。
+   遇到歧义优先选**信息量最大**的分支继续；只有当 (a) 触及不可逆操作、(b) 触及 §0.7 资源安全阀、(c) 用户原始 topic 完全无法解析、(d) §2.0 glossary grill 判定 MISSING / AMBIGUOUS（一次性提问）或 CONFLICT（硬停，等用户裁决）时才停下。术语歧义是 root 节点的缺陷，绕过它会让整棵树建立在错误定义上。
 
 7. **资源参数（默认全部不限；caps 仅在用户显式提供数值时生效）**：
    - `--width N` 默认 ∞ — 最终叶节点总数上限
@@ -55,7 +55,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
    - **不允许 skill 内部自行扩大 cap**；也不允许内部自行缩小默认 ∞ 为某个有限值。
    - 旧版的 `--max-nodes 200` / `--max-time-min 60` 已**移除**。"探索成本太大"不构成停止理由；这是本 skill 与普通 brainstorm 工具的关键区别。
 
-8. **完整推进禁令（hard ban on deferred / incomplete leaves）** —— 见§0 数据模型最后一条：
+8. **完整推进禁令（hard ban on deferred / incomplete leaves）** —— 见「数据模型」最后一条：
    - 任何叶节点的任何字段中含以下字样均视为**违规半成品**，节点状态强制改为 `INCOMPLETE_FORBIDDEN`，必须继续推进至完整：
      - "defer" / "deferred" / "待定" / "留后"
      - "因成本限制" / "因算力限制" / "因时间限制" / "时间不够" / "算力不够"
@@ -177,7 +177,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 
 > **核心创新点**：每个节点走完 §3.A–§3.L 全部 12 条 framing pass，每条至少产出 1 个分支；
 > 之后由§4 完整推导每个分支，§5 评估并决定是否进一步展开。
-> "全部"是硬性要求 —— `--min-frameworks` 仅控制下限可放宽至 5（紧急快速场景），不允许低于 5。
+> "全部"是硬性要求 —— `--min-frameworks` 的下限即全 12 条（§1 flag 表、§3 完成判据、§9 反模式同此）。它只能放大所需的 framing 数，不能低于 12。
 
 ### §3.A — First-principles / Constructor-theoretic
 - 把当前节点的所有"约定俗成"假设列出来；逐条问"如果这条不成立呢？"

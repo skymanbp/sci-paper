@@ -1,13 +1,13 @@
 ---
 name: de-ai
-description: 唯一的去 AI 技能。对一个目标文件串联三过：(1) 内部 de-AI 子系统测量（L0 词汇 + L1-L4 结构/学习信号）、(2) 两个 vendor 仓库的 humanizer 结构 tell 审计（AIScientists-Dev/academic-humanizer Layers 1-5 + blader/humanizer patterns 2.12-2.16 与 Pass-2 自审）、(3) claim-first 忠实改写（保真 eligibility + §5.3 长度硬门）。保留每个数字、公式与引用。Use when 用户说 "太 AI 了" / "去 AI 感" / "像人写的" / "de-AI" / "rewrite in voice" / "机器味太重"，或被 paper-review / final-review 作为结构 tell 审计步调用（--audit-only）。
+description: The single de-AI skill. Chains three passes over one target file: (1) in-house de-AI subsystem measurement (L0 lexicon plus L1-L4 structural and learned signals), (2) a vendored humanizer structural-tell audit (AIScientists-Dev/academic-humanizer Layers 1-5 plus blader/humanizer patterns 2.12-2.16 and the Pass-2 self-interrogation), and (3) claim-first faithful rewriting under hard fidelity eligibility and the §5.3 length budget. Every number, formula and citation is preserved; it strips machine tells rather than adding personality. Use when: "de-AI" / "too AI" / "make it read like a human wrote it" / "rewrite in voice" / 太 AI 了 / 去 AI 感 / 像人写的 / 机器味太重, or when paper-review / final-review invokes it as the structural-tell audit step (--audit-only).
 disable-model-invocation: false
 argument-hint: "<file_path> [--section <name>] [--n N] [--max-iter N] [--audit-only] [--no-apply] [--distill] [--field <name>]"
 ---
 
 > **Normative authority:** `docs/SCIPAPER_STANDARD.md`. Where this file and the
-> standard disagree, the standard wins. `docs/DEAI_SUBSYSTEM.md` explains the
-> design; `docs/EVALUATION.md` records the empirical evidence. Style profiles
+> standard disagree, the standard wins. `docs/architecture/DEAI_SUBSYSTEM.md` explains the
+> design; `docs/architecture/EVALUATION.md` records the empirical evidence. Style profiles
 > and learned models supply evidence and positive anchors, never competing
 > policy.
 >
@@ -302,7 +302,9 @@ findings. For each selected paragraph:
      --candidates <scratch>/cand_0.txt <scratch>/cand_1.txt ...
    ```
    `eligible=False` (fidelity failure, or longer than the original → `-inf`)
-   cannot be selected; `--allow-growth "<reason>"` only with an
+   cannot be selected; the tool exits 1 when NO candidate is eligible (a
+   measured outcome, not a failure — regenerate tighter) and 2 only on invalid
+   input or a missing profile; `--allow-growth "<reason>"` only with an
    author-approved justification, printed into the run record. Among
    eligible candidates rank by L0 reduction, semantic fidelity, voice score,
    and condensation. If none is eligible, preserve the original and

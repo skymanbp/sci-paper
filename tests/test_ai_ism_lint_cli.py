@@ -171,6 +171,45 @@ class LinterCliTests(unittest.TestCase):
             report = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(report["schema"], "sci-paper.feedback.v1")
 
+    def test_paragraph_initial_connector_counts_once(self):
+        # `Crucially` is in both TIER_A_PATTERN and the paragraph-connector
+        # list, so without the span guard the same word produced two L0
+        # targets, while `Notably`/`Importantly` (Tier B) produced one.
+        result = self.run_lint(
+            "\\section{Results}\nCrucially, the estimate is reproducible.\n",
+            *self.isolated, "--format", "json")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        report = json.loads(result.stdout)
+        targets = [finding["rule"] for finding in report["findings"]
+                   if finding["kind"] == "l0_target"]
+        self.assertEqual(targets, ["tier-a:paragraph-start:crucially"])
+
+    def test_tier_a_word_still_flagged_mid_sentence(self):
+        # The guard must suppress only the connector's own span.
+        result = self.run_lint(
+            "\\section{Results}\nThe estimate is crucially dependent on it.\n",
+            *self.isolated)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("tier-a:crucially", result.stdout)
+
+    def test_malformed_profile_asset_is_execution_failure_not_l0(self):
+        # Exit 1 means "an L0 target is present". A crash reported as 1 would
+        # present an execution failure as a prose verdict, so any unexpected
+        # exception must surface as 2.
+        with tempfile.TemporaryDirectory() as temporary:
+            profile_root = Path(temporary)
+            field = profile_root / "testfield"
+            field.mkdir()
+            # Valid JSON, wrong shape: a list where an object is required.
+            (field / "lexicon.json").write_text('["not", "an", "object"]',
+                                                encoding="utf-8")
+            result = self.run_lint(
+                "\\section{Introduction}\nPlain scientific prose.\n",
+                "--field", "testfield", *self.isolated,
+                profile_root=profile_root)
+        self.assertEqual(result.returncode, 2, result.stdout)
+        self.assertIn("execution failed", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

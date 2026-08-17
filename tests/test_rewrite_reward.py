@@ -80,6 +80,204 @@ class RewriteFidelityTests(unittest.TestCase):
                         (result["missing"], result["invented"]))
 
 
+class InvariantTokenizationTests(unittest.TestCase):
+    """Punctuation and neighbouring prose are not protected invariants.
+
+    Both regexes used to absorb the character after the quantity: `\\d[\\d,]*`
+    kept the comma that separates list items, and the unit's `\\s*` separator
+    let any following word become a "unit". Together they hard-rejected
+    faithful rewrites (`combined = -inf`) for changing punctuation or the word
+    after a numeral.
+    """
+
+    def test_list_comma_is_not_part_of_the_number(self):
+        self.assertEqual(
+            rewrite_reward._numbers("We analyze 1200, 2400, and 4800 sources."),
+            {"1200", "2400", "4800"})
+
+    def test_thousands_separator_stays_inside_the_number(self):
+        self.assertIn("1,234", rewrite_reward._numbers("A total of 1,234 halos."))
+
+    def test_dropping_an_oxford_comma_stays_eligible(self):
+        reference = "We analyze 1200, 2400, and 4800 sources."
+        candidate = "We analyze 1200, 2400 and 4800 sources."
+        result = rewrite_reward.fidelity_eligibility(candidate, reference)
+        self.assertTrue(result["eligible"],
+                        (result["missing"], result["invented"]))
+
+    def test_word_after_a_numeral_is_not_a_unit(self):
+        self.assertEqual(rewrite_reward._units("in 2020 we found"), set())
+        self.assertEqual(rewrite_reward._units("in 1200, 2400 sources"), set())
+
+    def test_rewording_after_a_numeral_stays_eligible(self):
+        reference = r"In 2020 we measured 5\,\mathrm{Mpc}."
+        candidate = r"In 2020 the team measured 5\,\mathrm{Mpc}."
+        result = rewrite_reward.fidelity_eligibility(candidate, reference)
+        self.assertTrue(result["eligible"],
+                        (result["missing"], result["invented"]))
+
+    def test_bound_units_are_still_protected(self):
+        for text, expected in [
+            (r"a 5\,\mathrm{Mpc} scale", r"\mathrm{mpc}"),
+            ("a 5~km scale", "km"),
+            ("a 5km scale", "km"),
+            # `10\%` is the LaTeX-correct percent; an unescaped `%` starts a
+            # comment and is stripped, as it is for every other category.
+            (r"a 10\% increase", r"\%"),
+        ]:
+            with self.subTest(text=text):
+                self.assertIn(expected, rewrite_reward._units(text))
+
+    def test_changed_unit_is_still_ineligible(self):
+        reference = r"The scale is 5\,\mathrm{Mpc}."
+        candidate = r"The scale is 5\,\mathrm{kpc}."
+        result = rewrite_reward.fidelity_eligibility(candidate, reference)
+        self.assertFalse(result["eligible"])
+        self.assertIn(r"\mathrm{mpc}", result["missing"]["units"])
+
+    def test_changed_number_is_still_ineligible(self):
+        result = rewrite_reward.fidelity_eligibility("We find 4900 sources.",
+                                                     "We find 4800 sources.")
+        self.assertFalse(result["eligible"])
+        self.assertIn("4800", result["missing"]["numbers"])
+
+
+class DisplayMathFidelityTests(unittest.TestCase):
+    """Numbers inside a displayed equation are protected.
+
+    Both named LaTeX projections drop `\\begin{equation}` bodies by design, so
+    every category computed from them was blind to display math: a value
+    silently changed inside a displayed equation passed as fully faithful.
+    """
+
+    REFERENCE = (
+        "The scaling is\n"
+        "\\begin{equation}\n"
+        "M = 4.2 \\times 10^{14} h^{-1} M_\\odot\n"
+        "\\end{equation}\n"
+        "for the stacked sample of 43 clusters."
+    )
+
+    def test_display_math_numbers_are_collected(self):
+        numbers = rewrite_reward._numbers(self.REFERENCE)
+        self.assertIn("4.2", numbers)
+        self.assertIn("14", numbers)
+        self.assertIn("43", numbers)
+
+    def test_changed_value_inside_equation_is_ineligible(self):
+        candidate = self.REFERENCE.replace("4.2", "5.7")
+        result = rewrite_reward.fidelity_eligibility(candidate, self.REFERENCE)
+        self.assertFalse(result["eligible"])
+        self.assertIn("4.2", result["missing"]["numbers"])
+
+    def test_changed_exponent_is_ineligible(self):
+        candidate = self.REFERENCE.replace("10^{14}", "10^{15}")
+        result = rewrite_reward.fidelity_eligibility(candidate, self.REFERENCE)
+        self.assertFalse(result["eligible"])
+
+    def test_reindenting_the_equation_stays_eligible(self):
+        candidate = self.REFERENCE.replace("\\begin{equation}\nM", "\\begin{equation}\n    M")
+        result = rewrite_reward.fidelity_eligibility(candidate, self.REFERENCE)
+        self.assertTrue(result["eligible"],
+                        (result["missing"], result["invented"]))
+
+    def test_rewording_prose_around_the_equation_stays_eligible(self):
+        candidate = self.REFERENCE.replace("for the stacked sample",
+                                           "across the stacked sample")
+        result = rewrite_reward.fidelity_eligibility(candidate, self.REFERENCE)
+        self.assertTrue(result["eligible"],
+                        (result["missing"], result["invented"]))
+
+    def test_commented_out_equation_is_not_an_invariant(self):
+        # Both projections strip comments first; reading the raw span without
+        # doing so made a dead commented-out equation a hard invariant, so
+        # deleting it scored -inf.
+        reference = ("We adopt the fiducial cosmology.\n"
+                     "% \\begin{equation}\n"
+                     "% M = 9.9 \\times 10^{9}\n"
+                     "% \\end{equation}\n"
+                     "The sample has 43 clusters.")
+        candidate = "We adopt the fiducial cosmology. The sample has 43 clusters."
+        self.assertEqual(rewrite_reward._numbers(reference), {"43"})
+        result = rewrite_reward.fidelity_eligibility(candidate, reference)
+        self.assertTrue(result["eligible"],
+                        (result["missing"], result["invented"]))
+
+    LABELLED = ("\\begin{equation}\n\\label{eq:m200}\n"
+                "M = 4.2 \\times 10^{14}\n\\end{equation}")
+
+    def test_label_digits_do_not_enter_the_number_set(self):
+        # `eq:m200` used to contribute the junk token "00".
+        self.assertNotIn("00", rewrite_reward._numbers(self.LABELLED))
+
+    def test_renaming_a_label_is_not_a_fidelity_change(self):
+        # `label` is in _FORMATTING_MACROS precisely because it carries no
+        # scientific content; the math category must agree with that.
+        candidate = self.LABELLED.replace("eq:m200", "eq:mass")
+        result = rewrite_reward.fidelity_eligibility(candidate, self.LABELLED)
+        self.assertTrue(result["eligible"],
+                        (result["missing"], result["invented"]))
+
+    def test_starring_the_environment_is_not_a_fidelity_change(self):
+        candidate = self.LABELLED.replace("{equation}", "{equation*}")
+        result = rewrite_reward.fidelity_eligibility(candidate, self.LABELLED)
+        self.assertTrue(result["eligible"],
+                        (result["missing"], result["invented"]))
+
+    def test_case_only_symbol_substitution_is_ineligible(self):
+        # LaTeX control words are case-sensitive and the case carries the
+        # physics: \Delta\Sigma and \delta\Sigma are different quantities.
+        reference = r"\begin{equation}\Delta\Sigma(R) = \bar{\Sigma}(<R)\end{equation}"
+        candidate = reference.replace(r"\Delta", r"\delta")
+        result = rewrite_reward.fidelity_eligibility(candidate, reference)
+        self.assertFalse(result["eligible"])
+
+
+class SpacedUnitTests(unittest.TestCase):
+    """`1.5 Mpc` is the ordinary prose form and must stay protected.
+
+    Requiring adjacency or LaTeX spacing removed the false positives but also
+    stopped catching `1.5 Mpc` -> `1.5 kpc`, a factor-1000 physics error, in
+    the gate whose whole job is to catch exactly that. A space-separated token
+    is now protected when it is a known unit.
+    """
+
+    def test_spaced_unit_change_is_ineligible(self):
+        for reference, candidate in [
+            ("The scale is 1.5 Mpc.", "The scale is 1.5 kpc."),
+            ("Speed is 300 km/s here.", "Speed is 300 m/s here."),
+            ("Resolution is 0.7 arcsec.", "Resolution is 0.7 arcmin."),
+        ]:
+            with self.subTest(reference=reference):
+                result = rewrite_reward.fidelity_eligibility(candidate, reference)
+                self.assertFalse(result["eligible"], result)
+
+    def test_ordinary_word_after_a_numeral_is_still_not_a_unit(self):
+        for reference, candidate in [
+            ("In 2020 we found it.", "In 2020 the team found it."),
+            ("We analyze 1200, 2400 sources.", "We analyze 1200, 2400 objects."),
+        ]:
+            with self.subTest(reference=reference):
+                result = rewrite_reward.fidelity_eligibility(candidate, reference)
+                self.assertTrue(result["eligible"],
+                                (result["missing"], result["invented"]))
+
+
+class MainExitContractTests(unittest.TestCase):
+    """Exit 1 means "no candidate eligible"; a crash must not borrow it."""
+
+    def test_unreadable_input_is_execution_failure(self):
+        import io
+        from contextlib import redirect_stderr, redirect_stdout
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            status = rewrite_reward.main([
+                "--field", "no-such-field",
+                "--reference", "no_such_reference.tex",
+                "--candidates", "no_such_candidate.tex",
+            ])
+        self.assertEqual(status, 2)
+
+
 class LengthBudgetTests(unittest.TestCase):
     """SCIPAPER_STANDARD section 5.3: candidates must not outgrow the original."""
 

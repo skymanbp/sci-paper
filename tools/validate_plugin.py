@@ -22,7 +22,31 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 TOOLS = REPO / "tools"
 SKILLS = REPO / "skills"
+TESTS = REPO / "tests"
+DOCS = REPO / "docs"
 SCHEMA = "sci-paper.feedback.v1"
+
+# docs/ is categorized: the normative contract sits at the root beside the
+# index, current engineering references under architecture/, and frozen
+# non-authoritative notes under design-notes/.
+STANDARD_DOC = "docs/SCIPAPER_STANDARD.md"
+DOCS_INDEX = "docs/README.md"
+SUBSYSTEM_DOC = "docs/architecture/DEAI_SUBSYSTEM.md"
+EVALUATION_DOC = "docs/architecture/EVALUATION.md"
+DESIGN_NOTES = (
+    "docs/design-notes/DEAI_ARCHITECTURE_ROADMAP.md",
+    "docs/design-notes/DEAI_FRONTIER.md",
+)
+# Paths a doc must NOT reappear at. Each entry was a real location before the
+# v0.27.0 reorganisation, so a stale copy would read as authoritative.
+FORBIDDEN_DOC_COPIES = (
+    "EVALUATION.md",
+    "docs/EVALUATION.md",
+    "docs/DEAI_SUBSYSTEM.md",
+    "docs/DEAI_ARCHITECTURE_ROADMAP.md",
+    "docs/DEAI_FRONTIER.md",
+    "docs/HANDOFF.md",
+)
 
 NORMATIVE_SKILLS = {
     "paper",
@@ -137,7 +161,7 @@ def check_manifests() -> str:
     # Versioned doc headers ("current as of vX") must track the release;
     # they sat outside every check until the v0.24.0 release shipped with
     # two stale ones.
-    for doc_name in ("docs/DEAI_SUBSYSTEM.md", "docs/EVALUATION.md"):
+    for doc_name in (SUBSYSTEM_DOC, EVALUATION_DOC):
         first_line = read_text(REPO / doc_name).splitlines()[0]
         require(f"v{plugin_v}" in first_line,
                 f"{doc_name} header line does not carry v{plugin_v}")
@@ -193,7 +217,7 @@ def check_skills() -> str:
             require(marker not in text,
                     f"skills/{name}/SKILL.md contains stale marker {marker!r}: {explanation}")
 
-    standard = read_text(REPO / "docs" / "SCIPAPER_STANDARD.md")
+    standard = read_text(REPO / STANDARD_DOC)
     for token in (
         SCHEMA,
         "integrity_blocker",
@@ -210,23 +234,83 @@ def check_skills() -> str:
 
 
 def check_documentation_boundaries() -> str:
-    # v0.21.0: docs/EVALUATION.md is the single canonical evaluation record
-    # (all five documentation files live under docs/). A root-level copy is
-    # the stub-plus-canonical accumulation pattern the move eliminated.
-    evaluation = read_text(REPO / "docs" / "EVALUATION.md")
-    require("(SCIPAPER_STANDARD.md)" in evaluation,
-            "docs/EVALUATION.md must link the normative standard as a sibling "
-            "(SCIPAPER_STANDARD.md) — a bare name mention is not enough")
+    # v0.21.0 made docs/EVALUATION.md the single canonical evaluation record;
+    # v0.27.0 categorized docs/ and moved it under architecture/. A copy left
+    # at any former location is the stub-plus-canonical accumulation pattern
+    # both moves eliminated.
+    evaluation = read_text(REPO / EVALUATION_DOC)
+    require("(../SCIPAPER_STANDARD.md)" in evaluation,
+            f"{EVALUATION_DOC} must link the normative standard by path "
+            "(../SCIPAPER_STANDARD.md) — a bare name mention is not enough")
     require(SCHEMA in evaluation,
-            f"docs/EVALUATION.md must identify the {SCHEMA} contract")
+            f"{EVALUATION_DOC} must identify the {SCHEMA} contract")
 
-    require(not (REPO / "EVALUATION.md").exists(),
-            "root EVALUATION.md found; docs/EVALUATION.md is the single "
-            "canonical record — remove the root copy")
+    for stale in FORBIDDEN_DOC_COPIES:
+        require(not (REPO / stale).exists(),
+                f"{stale} exists; the canonical documents are {STANDARD_DOC}, "
+                f"{SUBSYSTEM_DOC}, {EVALUATION_DOC} and docs/design-notes/ — "
+                "remove the stale copy")
 
-    require(not (REPO / "docs" / "HANDOFF.md").exists(),
-            "docs/HANDOFF.md is a transient session artifact and must not ship")
-    return "normative/evaluation documentation boundaries are unambiguous"
+    # Every shipped document must be reachable from the index, so a new doc
+    # cannot land in the tree as an orphan nothing links to.
+    index = read_text(REPO / DOCS_INDEX)
+    shipped = sorted(
+        path.relative_to(DOCS).as_posix()
+        for path in DOCS.rglob("*.md")
+        if path.name != "README.md"
+    )
+    missing = [name for name in shipped if f"]({name})" not in index]
+    require(not missing,
+            f"{DOCS_INDEX} does not link: {', '.join(missing)}")
+    for note in DESIGN_NOTES:
+        header = "\n".join(read_text(REPO / note).splitlines()[:4])
+        require("design note" in header.lower(),
+                f"{note} lives under design-notes/ but its header does not "
+                "declare it a design note; a frozen note must not read as "
+                "current status")
+    return (f"documentation boundaries are unambiguous "
+            f"({len(shipped)} documents, all indexed)")
+
+
+def _discovered_test_count() -> tuple[int, int]:
+    """(test count, test-file count) from real unittest discovery."""
+    import unittest
+    suite = unittest.defaultTestLoader.discover(str(TESTS), top_level_dir=str(TESTS))
+
+    def count(item) -> int:
+        if isinstance(item, unittest.TestSuite):
+            return sum(count(child) for child in item)
+        require(item.__class__.__name__ != "_FailedTest",
+                f"a test module failed to import: {item}")
+        return 1
+
+    return count(suite), len(list(TESTS.glob("test_*.py")))
+
+
+TEST_COUNT_RE = re.compile(r"(\d[\d,]*) unit/CLI tests? \((\d+) test files?")
+SUITE_COUNT_RE = re.compile(r"\((\d[\d,]*) tests?, (\d+) files?\)")
+
+
+def check_recorded_test_counts() -> str:
+    """Every recorded suite size must match the suite that actually exists.
+
+    docs/architecture/EVALUATION.md quoted two different sizes for the same
+    release (147/13 in section 3, 172/14 in section 12) because nothing
+    compared either figure with the repository. A count is a measurement, so
+    it is validated like one.
+    """
+    tests, files = _discovered_test_count()
+    text = read_text(REPO / EVALUATION_DOC)
+    claims: list[tuple[int, int]] = []
+    for pattern in (TEST_COUNT_RE, SUITE_COUNT_RE):
+        for claimed_tests, claimed_files in pattern.findall(text):
+            claims.append((int(claimed_tests.replace(",", "")), int(claimed_files)))
+    require(claims, f"{EVALUATION_DOC} records no suite size to verify")
+    wrong = [claim for claim in claims if claim != (tests, files)]
+    require(not wrong,
+            f"{EVALUATION_DOC} records suite size(s) "
+            f"{sorted(set(wrong))} but discovery finds ({tests}, {files})")
+    return f"recorded suite size matches discovery ({tests} tests, {files} files)"
 
 
 def product_tool_files() -> set[str]:
@@ -236,7 +320,9 @@ def product_tool_files() -> set[str]:
 
 
 def parse_declared_count(text: str, heading: str) -> int:
-    match = re.search(rf"^### {re.escape(heading)} \((\d+)\)\s*$", text, re.MULTILINE)
+    # Any heading level: the contract is the declared count, not how deep the
+    # README nests its registry sections.
+    match = re.search(rf"^#{{2,4}} {re.escape(heading)} \((\d+)\)\s*$", text, re.MULTILINE)
     require(match is not None, f"README missing '{heading} (N)' heading")
     return int(match.group(1))
 
@@ -391,10 +477,16 @@ def check_tests_and_ci() -> str:
 
 
 def main() -> int:
+    # Failure messages quote document text containing en/em dashes; a redirected
+    # stdout under a non-UTF-8 locale would turn a readable contract violation
+    # into a UnicodeEncodeError traceback.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     checks = (
         check_manifests,
         check_skills,
         check_documentation_boundaries,
+        check_recorded_test_counts,
         check_registry_counts,
         check_tools_syntax,
         check_runtime_contract,

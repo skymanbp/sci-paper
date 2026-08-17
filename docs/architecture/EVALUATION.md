@@ -1,4 +1,4 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.26.2
+# EVALUATION: de-AI subsystem for `sci-paper` v0.27.0
 
 First recorded 2026-07-12; axis table and repository-verification counts current as of
 2026-08-16.
@@ -7,7 +7,7 @@ First recorded 2026-07-12; axis table and repository-verification counts current
 
 This file records current measurements, unavailable evidence, and known confounds.
 It is not normative policy. The policy authority is
-[`SCIPAPER_STANDARD.md`](SCIPAPER_STANDARD.md), and the implementation
+[`SCIPAPER_STANDARD.md`](../SCIPAPER_STANDARD.md), and the implementation
 architecture is [`DEAI_SUBSYSTEM.md`](DEAI_SUBSYSTEM.md).
 
 All machine-readable findings use the `sci-paper.feedback.v1` contract. The learned
@@ -17,17 +17,57 @@ result.
 
 ## 2. Current axis status
 
+> ### ⚠️ Every per-section reference below is stale as of v0.27.0
+>
+> `extract_style.classify_section` matched section titles in the singular only,
+> so `Results`, `Conclusions` and `Systematics` were bucketed as `method`, and
+> `Acknowledgements`/`Bibliography` were ingested as prose rather than skipped.
+> v0.27.0 fixes both. **Every number in this section and in §5, §6, §14 and §15
+> that is keyed by section bucket was measured under the defect.**
+>
+> The impact is measured, not estimated. Rebuilding the same 31-paper `wgl`
+> corpus with the fixed classifier, into a scratch profile root so the shipped
+> assets were untouched:
+>
+> | bucket | pre-fix | post-fix | change |
+> |---|---:|---:|---:|
+> | abstract | 15 | 15 | 0 |
+> | intro | 99 | 99 | 0 |
+> | method | 1770 | 1671 | −99 |
+> | discussion | 43 | 97 | **+126%** |
+> | conclusion | 30 | 50 | **+67%** |
+> | results | 0 | 10 | **0 → 10** |
+> | **total** | **1957** | **1942** | −15 (back matter now skipped) |
+>
+> Consequences, stated rather than smoothed over:
+>
+> - `discussion` and `conclusion` reference distributions change materially;
+>   `method` loses 5.6% of its passages, all of them Results/Conclusions prose.
+> - `results` exists for the first time but at **n = 10**, below the documented
+>   30-passage floor, so that bucket is honestly omitted until the corpus grows.
+> - The register corpus loses 15 of 15,599 passages (0.096%) — the back matter
+>   that is now skipped, plus the ligature expansion below. Document frequency
+>   shifts by less than the 1e-4 threshold's resolution, but it is not zero.
+> - **Until the profile is rebuilt and each `--calibrate` re-run, treat every
+>   section-keyed axis below as `degraded`, whatever this table says.** The
+>   repository ships no baseline (all are gitignored), so a fresh clone is
+>   `unmeasured` and unaffected; this notice is for machines that already hold a
+>   pre-v0.27.0 profile.
+>
+> Rebuild: `python tools/build_profile.py --field <field>` then the
+> `--calibrate` commands listed in `style-profile/README.md`.
+
 | Axis | Status | Current evidence | Required next evidence |
 |---|---|---|---|
 | L0 lexical/punctuation | measured | Deterministic Tier A, em-dash, and Tier B cap implementation with CLI regression tests. | Continue regression coverage when policy changes. |
 | L1 distribution | degraded | Field sentence/connective summaries exist; compatibility thresholds are not a documented policy operating point. | `deai_policy.json` with corpus unit, uncertainty, applicability, and validation behavior. |
-| L1 UID | degraded | [`style-profile/wgl/uid_baseline.json`](../style-profile/wgl/uid_baseline.json) records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
+| L1 UID | degraded | `style-profile/wgl/uid_baseline.json` records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
 | L2 salience hierarchy | measured | §14: per-bucket passage reference from the field's own banks (abstract n=13,438; method n=1,377); P(X ≤ x) on a 0.01 quantile grid; abstains where the reference cannot resolve above the gate. | Buckets below the 30-passage floor; a human-judgement validation set. |
 | L0 register | measured | §14: document frequency over 15,599 corpus passages, 41,933 terms; compound-by-rarest-part and macro-subscript handling; native-term controls pass. | Corpus composition bias toward abstract vocabulary; recall below the 5-use floor. |
-| L2 sentence structure | measured for deterministic matches; degraded for strength | [`style-profile/wgl/structure_baseline.json`](../style-profile/wgl/structure_baseline.json) provides section-level reference fractions. | Calibrated strong-advisory thresholds and author-labelled difficult cases. |
+| L2 sentence structure | measured for deterministic matches; degraded for strength | `style-profile/wgl/structure_baseline.json` provides section-level reference fractions. | Calibrated strong-advisory thresholds and author-labelled difficult cases. |
 | L2 document structure | measured | §9: cross-paragraph dispersion calibrated one-observation-per-paper over 14 complete human `wgl` papers; leave-one-paper-out false-flag rate ~0.07 at n=14. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field. | Continue recalibration when the corpus changes. |
 | L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, hard-set true-provenance AUC 0.937, but 32–41% false-positive rate on field-topic AI text. Document-level now measured (§9.8): surprisal dispersion (0.757) is weaker than the model-free manifold (0.881) and adds nothing to it, so L3 stays degraded for a measured reason. | A field-topic-robust operating point with provenance and uncertainty; the surprisal path is measured not to provide one. |
-| Rewrite scientific fidelity | measured for protected invariants | Unit tests cover preserved invariants, dropped number, dropped citation, and reversed comparison. | Real manuscript before/after demonstration, including scope and stance review. |
+| Rewrite scientific fidelity | measured for protected invariants | Unit tests cover preserved invariants, dropped number, dropped citation, reversed comparison, display-math values and exponents (v0.27.0), and the punctuation/adjacent-word tokenizer boundaries (§8). | Real manuscript before/after demonstration, including scope and stance review; the plain-ASCII-space unit boundary in §8 remains open. |
 
 A missing baseline is not interpreted as zero findings.
 
@@ -42,7 +82,7 @@ python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The working tree passes the validator and all 147 unit/CLI tests (13 test files, collected
+The working tree passes the validator and all 208 unit/CLI tests (15 test files, collected
 2026-08-16). These commands must be rerun after every subsequent code or release-metadata
 change; the release record must quote the fresh output rather than a past result.
 
@@ -66,12 +106,12 @@ Current regression cases include:
 - `--top` truncates emitted details without changing full-report totals.
 
 These tests are in
-[`tests/test_ai_ism_lint_cli.py`](../tests/test_ai_ism_lint_cli.py).
+[`tests/test_ai_ism_lint_cli.py`](../../tests/test_ai_ism_lint_cli.py).
 
 ## 5. Sentence-structure reference evidence
 
-[`style-profile/wgl/structure_baseline.json`](../style-profile/wgl/structure_baseline.json)
-contains 1,952 paragraph observations across its recorded section buckets. The file
+`style-profile/wgl/structure_baseline.json`
+contains 1,957 paragraph observations across its recorded section buckets. The file
 records reference fractions for announced enumeration, ordinal runs, tricolon-like
 setup/list patterns, anaphora, balanced closers, and aggregate templating.
 
@@ -86,7 +126,7 @@ Interpretation limits:
 
 ## 6. UID reference evidence
 
-[`style-profile/wgl/uid_baseline.json`](../style-profile/wgl/uid_baseline.json) records
+`style-profile/wgl/uid_baseline.json` records
 1,957 paragraphs that met its token requirement. It stores pooled and section-level
 means, standard deviations, and counts for global UID, local UID, and mean surprisal
 under GPT-2-large.
@@ -99,11 +139,11 @@ threshold.
 ## 7. Learned field-similarity model
 
 The current
-[`style-profile/wgl/voice_model.joblib`](../style-profile/wgl/voice_model.joblib) bundle
+`style-profile/wgl/voice_model.joblib` bundle
 was retrained on an expanded corpus and evaluated with the confound-aware audit on
 2026-07-12 (cloud run on an RTX PRO 6000 Blackwell GPU; artifacts SHA-256 verified on
 retrieval). The full machine-readable audit is
-[`style-profile/wgl/voice_model_evaluation.json`](../style-profile/wgl/voice_model_evaluation.json)
+`style-profile/wgl/voice_model_evaluation.json`
 (schema `sci-paper.voice-model-evaluation.v1`).
 
 | Metadata | Value |
@@ -195,7 +235,7 @@ the hard-set perception metric:
    property, and no document-level calibration set exists yet (§9).
 
 The provenance result (0.94) shows the model is a useful field-similarity triage signal,
-not that it is a calibrated AI detector. [`tools/deai_voice.py`](../tools/deai_voice.py)
+not that it is a calibrated AI detector. [`tools/deai_voice.py`](../../tools/deai_voice.py)
 enforces the degraded posture: an uncalibrated bundle emits only rank-ordered triage,
 never a universal cutoff.
 
@@ -211,16 +251,44 @@ never a universal cutoff.
 
 ## 8. Rewrite eligibility
 
-[`tools/rewrite_reward.py`](../tools/rewrite_reward.py) checks protected invariants before
+[`tools/rewrite_reward.py`](../../tools/rewrite_reward.py) checks protected invariants before
 ranking. The protected set includes numbers, units, citations, inline mathematics,
 uppercase acronyms, comparison direction, negation, and causal direction.
+
+**Three properties of the protected set, recorded rather than implied:**
+
+- **Display math is protected as of v0.27.0.** Both LaTeX projections drop
+  `\begin{equation}`/`align`/`gather` bodies by design, so until v0.27.0 every
+  category computed from them was blind to displayed equations and a value
+  silently changed *inside* one passed as fully faithful. `rewrite_reward` now
+  reads those bodies from the raw text, through the same reductions the
+  projections apply — comments, the environment wrapper and `\label{}` are
+  stripped first, so deleting a commented-out dead equation, renaming a label,
+  or switching `equation` to `equation*` are all non-changes. Whitespace is
+  normalized, so re-wrapping or re-indenting is not a change. The math category
+  is compared **case-sensitively**, because LaTeX control words are: a
+  `\Delta\Sigma` → `\delta\Sigma` substitution is a different physical quantity
+  and is rejected.
+- **A unit is recognised in two forms** (v0.27.0). Bound to its number —
+  adjacent, LaTeX-spaced, or `\mathrm{}`/`\text{}`/`%`/`°` — any token counts.
+  Separated by a plain ASCII space, the token must be in a closed unit
+  vocabulary, because an unrestricted pattern made every word after a numeral a
+  protected invariant (`in 2020 we found` yielded unit `we`). **The remaining
+  boundary is that vocabulary**: a spaced unit outside it loses unit-level
+  protection, though its number stays protected. It gates eligibility only and
+  never produces a finding, so a missing entry costs protection on one unit and
+  cannot create a false positive.
+- **Every candidate being ineligible is exit 1, not exit 2** (v0.27.0). It is a
+  measured outcome the caller acts on — preserve the original and regenerate
+  tighter — so reporting it as an execution failure made a correct run
+  indistinguishable from a crash. Registered in `SCIPAPER_STANDARD` §0.1.
 
 An ineligible candidate receives a combined score of negative infinity. This replaces
 the former relative semantic-similarity band, under which a fluent but scientifically
 altered candidate could remain competitive.
 
 Current tests in
-[`tests/test_rewrite_reward.py`](../tests/test_rewrite_reward.py) verify:
+[`tests/test_rewrite_reward.py`](../../tests/test_rewrite_reward.py) verify:
 
 - a candidate preserving protected invariants remains eligible;
 - dropping a number makes it ineligible;
@@ -234,12 +302,12 @@ application to the manuscript remain pending.
 
 ## 9. Whole-document cross-paragraph dispersion (the keystone axis)
 
-The architecture reflection ([`DEAI_ARCHITECTURE_ROADMAP.md`](DEAI_ARCHITECTURE_ROADMAP.md))
+The architecture reflection ([`DEAI_ARCHITECTURE_ROADMAP.md`](../design-notes/DEAI_ARCHITECTURE_ROADMAP.md))
 identified the document scale as the confound-orthogonal signal: field register shifts the
 *level* of per-paragraph features, while AI-uniformity compresses their *spread* across a
 document, which no per-paragraph score can see (the 32–41% field-topic FPR of §7.2).
 
-[`tools/deai_docstructure.py`](../tools/deai_docstructure.py) now measures, per model-free
+[`tools/deai_docstructure.py`](../../tools/deai_docstructure.py) now measures, per model-free
 per-paragraph feature, the cross-paragraph dispersion of a complete document
 (`deai_features.cross_paragraph_dispersion`), and flags a document that varies a feature
 below the human low tail. Calibrated one-observation-per-paper over 14 complete human
@@ -636,7 +704,7 @@ author usually does, and is `unmeasured` below three prior papers.
 
 ## 10. Hard-set human input
 
-[`style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv`](../style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv)
+`style-profile/wgl/hardset/deai_hardset_LABEL_ME.csv`
 contains 75 difficult paragraphs with recorded true provenance in
 `deai_hardset_key.csv` (21 generated, 54 human). On 2026-07-12 the author supplied all 75
 perceptual `ai_feel_1to5` labels (distribution: 20×1, 28×2, 19×3, 8×4; no 5s), evaluated
@@ -710,8 +778,8 @@ the exemplar bank or the the manuscript manuscript before that decision.
 
 ## 12. Release evidence boundary
 
-Current release gates (v0.26.2, 2026-08-16): `validate_plugin.py` all 8 checks
-pass and the full unit/CLI suite (172 tests, 14 files) passes on a clean tree;
+Current release gates (v0.27.0, 2026-08-16): `validate_plugin.py` all 9 checks
+pass and the full unit/CLI suite (208 tests, 15 files) passes on a clean tree;
 both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
 release commit must also be green (first green runs: 31133202443 push,
 31133215203 manual dispatch).

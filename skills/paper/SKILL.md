@@ -214,8 +214,8 @@ LLM 生成的学术写作有一组明显的 tell；本节保留既有 L0 词汇�
 `docs/SCIPAPER_STANDARD.md` 的 consequence class、measurement state、ranking
 和 disposition 规则决定。
 
-**根本层（fundamental）—— 结构性 AI 味，关键词 lint 抓不到。** 上面的
-Tier A/B 是**词汇层**（lexical），必要但不充分：一篇文章可以 0 关键词命中、
+**根本层（fundamental）—— 结构性 AI 味，关键词 lint 抓不到。** 本节后面
+列出的 Tier A/B 是**词汇层**（lexical），必要但不充分：一篇文章可以 0 关键词命中、
 甚至逐段读着都像人，却仍通篇 AI 味。真正的 tell 活在结构里，分两个尺度：
 
 1. **信息分布层**（token / 句长）：过度均匀的信息密度、句长同质、重复的
@@ -232,7 +232,7 @@ Tier A/B 是**词汇层**（lexical），必要但不充分：一篇文章可以
 这些模式不是单次出现即错误。它们在适用 baseline 下构成测量证据；阈值、样本量、
 置信度和效应量属于 `EVALUATION.md` 或 profile calibration，不写死在规范里。
 
-这一层由 de-AI 子系统统一度量（`docs/DEAI_SUBSYSTEM.md`）：
+这一层由 de-AI 子系统统一度量（`docs/architecture/DEAI_SUBSYSTEM.md`）：
 
 ```bash
 python tools/ai_ism_lint.py <file> --field <field> \

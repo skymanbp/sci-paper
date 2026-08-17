@@ -171,6 +171,12 @@ def lexical_findings(text: str, path: Path,
     for line_no, line in enumerate(lines, start=1):
         section = section_for_line(line_no, ranges)
         excerpt = line.strip()
+        # Resolved before the Tier A/B scans because one paragraph-initial
+        # connector must produce exactly one L0 target. `Crucially` sits in both
+        # TIER_A_PATTERN and this connector list, so without the same span guard
+        # the Tier B loop already applies it would be counted twice, while
+        # `Notably`/`Importantly`/`Interestingly` (Tier B) are counted once.
+        connector = TIER_A_PARAGRAPH_CONNECTOR_PATTERN.match(line)
         if EM_DASH_PATTERN.search(line):
             findings.append(_finding(
                 path=path, kind="l0_target", layer="L0", rule="em-dash",
@@ -179,6 +185,8 @@ def lexical_findings(text: str, path: Path,
                 action="Replace with punctuation that matches the sentence relation.",
             ))
         for match in TIER_A_PATTERN.finditer(line):
+            if connector and match.start() < connector.end():
+                continue
             word = match.group(0).lower()
             findings.append(_finding(
                 path=path, kind="l0_target", layer="L0", rule=f"tier-a:{word}",
@@ -193,7 +201,6 @@ def lexical_findings(text: str, path: Path,
                 message="A zero-reference boilerplate opener is present.",
                 action="Open with the specific scientific problem or evidence.",
             ))
-        connector = TIER_A_PARAGRAPH_CONNECTOR_PATTERN.match(line)
         if connector:
             word = connector.group(1).lower()
             findings.append(_finding(
@@ -391,8 +398,15 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
             output.write_text(rendered, encoding="utf-8")
         else:
             print(rendered, end="")
-    except (OSError, ValueError, json.JSONDecodeError) as error:
-        print(f"[ai_ism_lint] execution failed: {error}", file=sys.stderr)
+    except Exception as error:
+        # Deliberately broad: exit 1 is reserved for "an L0 target is present",
+        # so ANY execution failure must surface as 2. A narrow tuple let a
+        # malformed profile asset (a lexicon.json holding a JSON list rather
+        # than an object -> AttributeError) escape and exit 1, reporting a
+        # crash as a clean prose verdict. KeyboardInterrupt/SystemExit are
+        # BaseException and still propagate.
+        print(f"[ai_ism_lint] execution failed: {type(error).__name__}: {error}",
+              file=sys.stderr)
         return 2
     return 1 if report["summary"]["by_kind"]["l0_target"] else 0
 

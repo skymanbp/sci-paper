@@ -200,14 +200,25 @@ class TestFindingsAndCalibration(unittest.TestCase):
                              "degraded")
 
 
-class TestShippedReference(unittest.TestCase):
-    """The axis must behave on the reference the plugin actually ships."""
+class TestLocalReference(unittest.TestCase):
+    """The axis on a real locally-built reference, when one is present.
+
+    The plugin ships NO baseline -- every `style-profile/**` artifact is
+    gitignored on purpose, so these assertions never run on a clean clone or in
+    CI, and that is by design rather than an accident to be fixed. The previous
+    name and docstring claimed the opposite ("the reference the plugin actually
+    ships"), which read as CI coverage that does not exist. Deterministic
+    behaviour is covered by the fixture-built baselines in the classes above;
+    this class only adds a smoke check on the author's own corpus.
+    """
 
     PROFILE = Path(__file__).resolve().parents[1] / "style-profile" / "wgl"
 
     def setUp(self):
         if salience.load_baseline(self.PROFILE) is None:
-            self.skipTest("shipped wgl salience baseline is unavailable")
+            self.skipTest(
+                "no locally-built wgl salience baseline (expected on a clean "
+                "clone: style-profile artifacts are gitignored)")
 
     def test_axis_is_measured(self):
         self.assertEqual(salience.salience_axis_status(self.PROFILE)["status"],

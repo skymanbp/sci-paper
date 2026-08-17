@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+import io
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 import urllib.error
 import urllib.request
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parents[1] / "tools"
@@ -261,9 +262,13 @@ class TextVintageFilterTest(unittest.TestCase):
 
             fetch.fetch_page = one_page
             try:
-                fetch.main(["--field", "wgl", "--profile-root", str(tmp),
-                            "--query-set", "wl", "--out-name", "v.jsonl",
-                            "--per-query", "100"] + extra)
+                # The CLI's progress log is the suite's only stdout noise and
+                # prints an absolute temp path; capture it so a test run stays
+                # readable, the same technique validate_plugin.py uses.
+                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                    fetch.main(["--field", "wgl", "--profile-root", str(tmp),
+                                "--query-set", "wl", "--out-name", "v.jsonl",
+                                "--per-query", "100"] + extra)
             finally:
                 fetch.fetch_page = real
             text = (tmp / "wgl" / "v.jsonl").read_text(encoding="utf-8").strip()
@@ -288,6 +293,52 @@ class TextVintageFilterTest(unittest.TestCase):
             self._run([], ["--updated-before", "2022"])
 
 
+class IncompleteSweepTest(unittest.TestCase):
+    """A page error must not masquerade as an exhausted query.
+
+    A failed page and an empty page both arrived as `page = []`, and the
+    `if not page: break` that ends pagination cannot tell them apart — so one
+    transient error silently truncated that query while the run still exited 0,
+    reporting a short corpus as a complete one.
+    """
+
+    def _run(self, pages) -> tuple[int, list[dict]]:
+        with tempfile.TemporaryDirectory() as temporary:
+            tmp = Path(temporary)
+            calls = {"n": 0}
+
+            def flaky(*args, **kwargs):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    return pages
+                raise RuntimeError("simulated transient API failure")
+
+            real = fetch.fetch_page
+            fetch.fetch_page = flaky
+            try:
+                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as err:
+                    status = fetch.main([
+                        "--field", "wgl", "--profile-root", str(tmp),
+                        "--query-set", "wl", "--out-name", "v.jsonl",
+                        "--per-query", "100", "--page", "1",
+                    ])
+            finally:
+                fetch.fetch_page = real
+            self.assertIn("INCOMPLETE", err.getvalue())
+            written = tmp / "wgl" / "v.jsonl"
+            records = []
+            if written.exists():
+                records = [json.loads(line) for line
+                           in written.read_text(encoding="utf-8").splitlines() if line]
+            return status, records
+
+    def test_page_error_reports_incomplete_and_exits_two(self):
+        status, records = self._run([_record("arxiv:2001.1v1", "ApJ, 927, 101 (2021)")])
+        self.assertEqual(status, 2)
+        # Records fetched before the error are still valid and still written.
+        self.assertEqual(len(records), 1)
+
+
 class ResumeTest(unittest.TestCase):
     """A rerun after rate limiting must extend the corpus, never shrink it."""
 
@@ -295,10 +346,11 @@ class ResumeTest(unittest.TestCase):
         real = fetch.fetch_page
         fetch.fetch_page = lambda *a, **k: []      # no network in tests
         try:
-            return fetch.main(["--field", "wgl", "--profile-root", str(tmp),
-                               "--query-set", "wl", "--journals", "apj",
-                               "--out-name", "carry.jsonl",
-                               "--per-query", "100"] + extra)
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                return fetch.main(["--field", "wgl", "--profile-root", str(tmp),
+                                   "--query-set", "wl", "--journals", "apj",
+                                   "--out-name", "carry.jsonl",
+                                   "--per-query", "100"] + extra)
         finally:
             fetch.fetch_page = real
 
@@ -347,10 +399,11 @@ class ResumeTest(unittest.TestCase):
 
             fetch.fetch_page = one_page
             try:
-                fetch.main(["--field", "wgl", "--profile-root", str(tmp),
-                            "--query-set", "wl", "--journals", "apj",
-                            "--out-name", "carry.jsonl", "--per-query", "100",
-                            "--resume"])
+                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                    fetch.main(["--field", "wgl", "--profile-root", str(tmp),
+                                "--query-set", "wl", "--journals", "apj",
+                                "--out-name", "carry.jsonl", "--per-query", "100",
+                                "--resume"])
             finally:
                 fetch.fetch_page = real
             lines = out.read_text(encoding="utf-8").strip().splitlines()

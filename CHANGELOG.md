@@ -3,6 +3,280 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.27.0 — 2026-08-16
+
+A repository audit, the defects it confirmed, and the structure that stops them
+recurring. An adversarially verified multi-agent sweep (7 dimensions, every
+finding re-derived by an independent refuter) produced 59 candidates; 12 were
+refuted and the rest are fixed here. No consequence class, exit code, or
+normative policy in `SCIPAPER_STANDARD` §§0-6 changed.
+
+### The section-bucket defect, and what it invalidates
+
+`extract_style.classify_section` matched section titles **in the singular
+only**. `\bresult\b` does not match "Results", `\bconclusion\b` does not match
+"Conclusions", and `\bsystematic\b` does not match "Systematics" — the standard
+ApJ/MNRAS/PRD headings. All of them fell through to `DEFAULT_SECTION_BUCKET` and
+were measured against the **methods** reference. The symptom was visible in the
+shipped bank all along and had not been read as one: 31 weak-lensing papers
+produced 1770 `method` paragraphs and **zero** `results`.
+
+The same defect had a second form. `\b(acknowledg|bibliograph)\b` was written as
+if those were stems, but the closing `\b` means each can only ever match that
+exact string, so "Acknowledgements" and "Bibliography" were never skipped and
+were ingested as prose.
+
+- Every noun in `SECTION_PATTERNS` now carries its plural, and the two stems
+  carry `\w*` in place of a closing word boundary.
+- **Every per-section asset built before this release carries the
+  mis-bucketing, and the impact is measured rather than estimated.** Rebuilding
+  the same 31-paper `wgl` corpus with the fixed classifier, into a scratch
+  profile root so the shipped assets were untouched:
+
+  | bucket | pre-fix | post-fix | change |
+  |---|---:|---:|---:|
+  | abstract | 15 | 15 | 0 |
+  | intro | 99 | 99 | 0 |
+  | method | 1770 | 1671 | −99 |
+  | discussion | 43 | 97 | **+126%** |
+  | conclusion | 30 | 50 | **+67%** |
+  | results | 0 | 10 | **0 → 10** |
+  | **total** | **1957** | **1942** | −15 (back matter now skipped) |
+
+  `discussion` and `conclusion` change materially; `results` exists for the
+  first time but at n = 10, below the documented 30-passage floor, so that
+  bucket stays honestly omitted until the corpus grows. `EVALUATION.md` §2
+  carries this table as a standing notice, and `style-profile/README.md` says
+  to treat every section-keyed axis as `degraded` until the profile is rebuilt
+  and each `--calibrate` re-run. The repository ships no baseline, so a fresh
+  clone is `unmeasured` and unaffected.
+- `tests/test_extract_style.py` is new. `extract_style` is imported by eight
+  sibling tools and owns both LaTeX projections, yet had no test file — which is
+  how a singular-only vocabulary survived. The back-matter form above was found
+  *by that new test*, not by the audit.
+
+### Fidelity gate: two regexes that rejected faithful rewrites
+
+`rewrite_reward` reported honest rewrites as unfaithful — in the over-strict
+direction (`combined = -inf`) — for reasons with nothing to do with science.
+
+- **Numbers absorbed the following comma.** `\d[\d,]*` tokenized "1200, 2400,
+  and 4800" as `{"1200,", "2400,", "4800"}`, so dropping an Oxford comma was
+  reported as simultaneously *missing* `2400,` and *inventing* `2400`. A numeral
+  token must now end in a digit; thousands separators still parse.
+- **Units absorbed the following word.** The `\s*` separator let any word after
+  a numeral become a "unit": "in 2020 we found" yielded unit `we`. A unit must
+  now bind to its number the way the corpus writes it — adjacent, or separated
+  only by LaTeX spacing (`\,` `\;` `\!` `\ ` `~`). This deliberately narrows the
+  category: a plain-ASCII-space "5 km" no longer registers a unit, though its
+  number stays protected.
+- Changed numbers and changed units remain ineligible, now under test.
+
+### Display math was invisible to the fidelity gate
+
+Both named LaTeX projections drop `\begin{equation}`/`align`/`gather` bodies by
+design, and every protected category was computed from them — so a value
+silently changed *inside* a displayed equation passed as fully faithful. That is
+the one defect in this release that let an unfaithful candidate through rather
+than rejecting a faithful one.
+
+- `rewrite_reward` now reads displayed bodies from the raw text, adding their
+  numerals to the number category and the whole body to the math category.
+  Whitespace normalizes before comparison, so re-indenting an equation is not a
+  change while altering a coefficient or an exponent is.
+- **Exit 1, not 2, when no candidate is eligible.** Every candidate failing
+  eligibility is a measured outcome the caller acts on (preserve the original,
+  regenerate tighter), so reporting it as an execution failure made a correct
+  run indistinguishable from a crash. `SCIPAPER_STANDARD` §0.1 now registers
+  `rewrite_reward` alongside `length_gate` as carrying a narrow actionable
+  contract in which `1` means a measured outcome.
+
+### Reference rates are computed over the set they are compared against
+
+The signposting finding printed a "reference corpus rate" derived from
+`blacklist_present_in_corpus`, which `extract_style` keys to its own 12-entry
+`PARAGRAPH_INITIAL_LLM_OPENERS` — several of them multi-word phrases that can
+never match a single paragraph-initial word. The draft, meanwhile, is measured
+against `deai_metrics.CONNECTIVE_OPENERS`, 22 single words. The two numbers were
+printed side by side and were never comparable; the reference read roughly seven
+times too low.
+
+- `extract_style` now stores the complete `paragraph_initial_counts` counter as
+  evidence, and `deai_metrics` computes its reference rate over its own opener
+  set. The extractor supplies observations; the detector owns its policy.
+- A profile predating that key cannot yield a comparable rate, so the finding
+  omits the reference clause and says why, instead of quoting a wrong number.
+
+### Grouped cross-validation, and a cache that notices its own dependency
+
+- `train_ai_ism_classifier` splits with `StratifiedGroupKFold` grouped by source
+  paper. Paragraphs from one paper are not independent, and the ungrouped split
+  reported F1 0.876 where the grouped split gives 0.823. `cv_grouped` travels
+  with the metrics and the CLI prints which split ran, so the two can never be
+  read for each other.
+- `train_voice_model`'s feature-cache fingerprint includes embedder
+  availability. Rows computed without `sentence-transformers` carry
+  `corpus_cos = 0.0`; a fingerprint blind to that kept serving them unchanged
+  after the dependency was installed, so a degraded value persisted while
+  looking measured.
+
+### Other confirmed findings closed
+
+- `deai_oracle` declares `calibration_unit="paragraph"`. It was the one
+  paragraph-scope detector that never did, so its findings shipped at confidence
+  1.0 and outranked their capped siblings.
+- `fetch_arxiv_abstracts` no longer lets a transient page error masquerade as an
+  exhausted query. A failed page and an empty page both arrived as `page = []`,
+  which silently ended that query's pagination while the run still exited 0.
+  Affected queries are now named in an `INCOMPLETE` report and the run exits 2.
+- `extract_style` expands typographic ligatures on the PDF path. A PDF text
+  layer emits `ﬁ`/`ﬂ`/`ﬀ` as single codepoints, so the tokenizer split
+  "significant" into fragments that entered the lexicon and the exemplar bank as
+  words.
+- `extract_style` and `validate_plugin` gained the stdout re-encoding guard the
+  other CLIs already had; both print non-ASCII and both die on a redirected
+  stdout under a non-UTF-8 locale. `deai_feedback` was checked and needs none —
+  it has no `main()` and no non-ASCII.
+- `aggregate_sentence_stats` and `train_and_save` docstrings now describe what
+  the code does: tier weights are carried but not applied, the analyzer is
+  word-level rather than character-level, and the returned keys are the ones
+  actually returned.
+- `gather_corpus_files`'s docstring describes the implemented **depth** rule
+  rather than a co-location rule it never had.
+- `TestShippedReference` is renamed `TestLocalReference`. The plugin ships no
+  baseline — every `style-profile/**` artifact is gitignored on purpose — so its
+  claim to test "the reference the plugin actually ships" read as CI coverage
+  that does not exist.
+- The `fetch` tests capture the CLI's progress log, which was the suite's only
+  stdout noise and printed an absolute temp path.
+
+### Linter contract
+
+- **Exit 1 no longer reports a crash.** `lint()` caught only
+  `(OSError, ValueError, JSONDecodeError)`, so any other exception — a
+  `lexicon.json` holding a JSON list raises `AttributeError` — escaped and the
+  interpreter exited 1, the status the contract reserves for "an L0 target is
+  present". Every execution failure now returns 2.
+- **A paragraph-initial connector counts once.** `Crucially` sits in both
+  `TIER_A_PATTERN` and the connector list and produced two L0 targets for one
+  word, while `Notably`/`Importantly`/`Interestingly` produced one. The Tier A
+  scan now applies the same span guard the Tier B scan already used.
+
+### Optional dependencies degrade instead of crashing
+
+- `deai_oracle` probes `transformers`/`torch` before use. Their absence now
+  reports `L1.uid` as `unmeasured` with the reason instead of raising
+  `ModuleNotFoundError` mid-run; an explicit `--calibrate` that cannot run exits
+  2 rather than dying part-way through the corpus.
+- `deai_voice` imports `joblib` inside its existing guard, so a present bundle
+  with the optional dependency uninstalled degrades the L3 axis instead of
+  raising through the caller.
+- `deai_provenance` passes `encoding="utf-8"` to its git subprocesses. With
+  `text=True` alone they decoded with the locale codepage, so on a non-UTF-8
+  Windows locale a tracked file containing an em-dash made the ancestor read as
+  "unreadable or untracked" — an axis unmeasured for a decoding reason.
+- `retrieve_exemplars` rejects `--k < 1` (exit 2). `--k 0` returned an empty
+  list that surfaced as "No paragraphs in section=…", a false claim about the
+  bank; a small negative `k` silently returned all-but-the-last exemplar.
+
+### Documentation is categorized, indexed, and mechanically checked
+
+`docs/` now separates what decides from what describes from what is frozen:
+
+```
+docs/README.md                          index + authority order
+docs/SCIPAPER_STANDARD.md               normative
+docs/architecture/DEAI_SUBSYSTEM.md     implementation
+docs/architecture/EVALUATION.md         evidence
+docs/design-notes/                      frozen, dated reasoning records
+```
+
+`validate_plugin.py` gained a ninth check and three new invariants, so this
+class of drift fails CI instead of accumulating:
+
+- **recorded suite sizes are validated against real test discovery.**
+  `EVALUATION.md` had quoted two different sizes for the same release — 147/13
+  in §3 and 172/14 in §12 — because nothing compared either with the repository;
+- every document under `docs/` must be linked from the index (no orphans);
+- each `design-notes/` file must declare itself a design note in its header;
+- no document may reappear at a location it was moved away from.
+
+Corrected in the same pass: the `EVALUATION` §5 baseline total (1,952 → 1,957,
+the value the same file already used in §6 and §14.4); the roadmap's disposition
+parenthetical, which listed ranks 3 and 6 in the opposite order from
+`SCIPAPER_STANDARD` §11, the file it names as the single status home; the
+frontier note's "ranks 2-8", which contradicted its own header; the README's
+stale tool count; the hard-set filename case in `style-profile/README.md`; and
+seven `EVALUATION` links that pointed at deliberately gitignored artifacts and
+so resolved on no clone. `style-profile/README.md` now documents
+`salience_baseline.json` and `register_lexicon.json` with the `--calibrate`
+commands that build them.
+
+### README and discoverability
+
+- `README.md` is rebuilt around what the plugin does, how the loop works, and
+  what it refuses to do, with skills grouped by job (write / revise / review /
+  explore) and tools grouped by measurement layer. `README.zh-CN.md` is the
+  full Chinese counterpart.
+- Manifest keywords expanded from 8 to 23 and marketplace tags from 4 to 8;
+  five skill descriptions are English-first with their Chinese trigger phrases
+  retained, so trigger behaviour is unchanged while the plugin is findable in
+  English.
+
+### Skills
+
+- `condense`'s `rewrite_reward.py` example was missing the tool's required
+  `--field`, so the documented command exited 2 without doing any work.
+- `brainstorm` resolved three internal contradictions: a `--min-frameworks`
+  floor of 5 that contradicted the flag table, the §3 completion criterion and
+  the anti-pattern list (all 12); two headings both numbered `## 0.`; and a
+  §0.6 stopping list that omitted the glossary grill's own hard stop.
+
+### The independent review of this release, and what it caught
+
+Before tagging, the diff itself went through an adversarially verified review
+(5 dimensions, every finding re-derived by an independent refuter): 29
+candidates, 18 refuted, 11 confirmed — **most of them regressions introduced by
+this release**, which is the reason the round happened at all.
+
+- **`rewrite_reward` exit 1 had no execution-failure guard.** Promoting 1 to a
+  measured outcome without one meant an uncaught exception also exited 1, so a
+  crash was indistinguishable from "no candidate was eligible" — the very bug
+  this release fixed in `ai_ism_lint`, reintroduced one file over. `main()` now
+  wraps its body and returns 2, matching `length_gate` and `ai_ism_lint`.
+- **Reading raw text without the projections' reductions.** Scanning displayed
+  equations from the raw source skipped the comment stripping both projections
+  do first, so a commented-out dead equation became a hard invariant and
+  deleting it scored `-inf`. The fix is one shared `_uncommented()` applied to
+  **all five** raw-text categories — citations, inline math, display math,
+  macros, units — not to the one site the review happened to name. Display
+  bodies additionally drop the `\begin{}`/`\end{}` wrapper and `\label{}`, so
+  renaming `eq:mass` or starring an environment is no longer a violation and a
+  label's digits (`eq:m200`) no longer enter the number set as `00`.
+- **The unit narrowing went too far.** Requiring adjacency or LaTeX spacing
+  removed the false positives but also stopped catching `1.5 Mpc` → `1.5 kpc`,
+  a factor-1000 physics error, in the gate whose whole job is to catch it. A
+  space-separated token is protected again when it is in a closed unit
+  vocabulary — keeping `in 2020 we found` unprotected and `1.5 Mpc` protected.
+- **The math category is now case-sensitive.** `_normalized` lowercases, so a
+  `\Delta\Sigma` → `\delta\Sigma` substitution — a different physical
+  quantity — passed as fully faithful.
+- **The headline evidence table did not reproduce.** The bucket counts were
+  measured before the ligature fix landed in this same release, so three of
+  seven numbers were stale. Re-measured against the tagged code: `method` 1770 →
+  1671, `discussion` 43 → 97, `conclusion` 30 → 50, `results` 0 → 10, total
+  1957 → 1942.
+- Documentation overstatements corrected: §12's release gate was half-updated
+  (v0.27.0's suite size beside v0.26.2's check count), and the rewritten README
+  generalised a true statement about *findings* into a false one about *tools*
+  (10 of the 24 entries emit none).
+
+### Verification
+
+`validate_plugin.py` 9/9 checks pass; the suite is **208 tests in 15 files**
+(was 172 in 14), all green, with every new test written to fail against the
+pre-fix code — including one regression test per confirmed review finding.
+
 ## v0.26.2 — 2026-08-16
 
 Evidence only. The validation v0.26.1 said was designed but not executed was
@@ -705,7 +979,7 @@ rather than deleted.
 ### Document-scale dispersion detector + hard-set correction
 
 **Document-scale cross-paragraph dispersion detector (architecture keystone).** A
-five-lens architecture reflection ([`docs/DEAI_ARCHITECTURE_ROADMAP.md`](docs/DEAI_ARCHITECTURE_ROADMAP.md))
+five-lens architecture reflection ([`docs/DEAI_ARCHITECTURE_ROADMAP.md`](docs/design-notes/DEAI_ARCHITECTURE_ROADMAP.md))
 identified that AI-ness in scientific writing concentrates at the document scale, which
 the paragraph-level detectors structurally cannot see.
 
@@ -909,7 +1183,7 @@ verification.
 **Fundamental (non-keyword) de-AI subsystem** — a four-layer capability that
 detects and removes the *structural* AI-ness (smoothed per-token surprisal,
 homogeneous sentence length, paragraph signposting) that survives keyword
-cleaning. Design + guardrails: [docs/DEAI_SUBSYSTEM.md](docs/DEAI_SUBSYSTEM.md).
+cleaning. Design + guardrails: [docs/DEAI_SUBSYSTEM.md](docs/architecture/DEAI_SUBSYSTEM.md).
 
 - **Layer A — `tools/deai_metrics.py`** (model-free): flags sentence-length
   burstiness / connective-opener signposting outside the human-corpus baseline.

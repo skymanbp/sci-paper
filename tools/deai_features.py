@@ -27,7 +27,6 @@ Lib:  from deai_features import paragraph_features, FEATURE_NAMES, features_vect
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import random
 import re
@@ -74,6 +73,24 @@ def _embedder():
         from sentence_transformers import SentenceTransformer
         _EMB_CACHE["m"] = SentenceTransformer(EMBED_MODEL)
     return _EMB_CACHE["m"]
+
+
+def embedder_available() -> bool:
+    """Whether the optional embedder can be constructed. Probes the import only.
+
+    Feature rows computed without it carry ``corpus_cos = 0.0``, so availability
+    is part of what produced a cached row and belongs in any cache fingerprint:
+    otherwise a cache built while sentence-transformers was missing is reused
+    unchanged after the dependency is installed, and the degraded value persists
+    while looking like a measured one.
+    """
+    if "m" in _EMB_CACHE:
+        return True
+    try:
+        import sentence_transformers  # noqa: F401  availability probe only
+    except ImportError:
+        return False
+    return True
 
 
 def corpus_centroid(field_profile_dir: Path) -> "object | None":
@@ -186,7 +203,7 @@ def features_vector(text: str, **kw) -> list[float]:
 # levels, so it is fooled by on-topic AI prose (the 32-41% field-topic FPR). The
 # spread of the same features across a whole document is orthogonal to topic and
 # is where a human paper's list/argument/result paragraphs differ from an evenly
-# drafted AI section. See docs/DEAI_ARCHITECTURE_ROADMAP.md.
+# drafted AI section. See docs/design-notes/DEAI_ARCHITECTURE_ROADMAP.md.
 DISPERSION_STATS = ("std", "cv", "iqr", "lag1_autocorr", "min_gap")
 
 

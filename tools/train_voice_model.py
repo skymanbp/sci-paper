@@ -117,6 +117,11 @@ def feature_cache_fingerprint(field_dir: Path, recs: list[dict],
         "feature_names": df.FEATURE_NAMES,
         "model": model_name,
         "embedding_model": df.EMBED_MODEL,
+        # Availability is an input to the cached rows, not an environment
+        # detail: without the embedder every row carries corpus_cos = 0.0, and
+        # a fingerprint blind to it kept serving those degraded rows after the
+        # dependency was installed.
+        "embedder_available": df.embedder_available(),
         "records": [
             {key: record.get(key) for key in ("text", "label", "source", "section")}
             for record in recs

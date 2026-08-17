@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import argparse
 import difflib
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -164,16 +163,23 @@ def git_file_at(path: Path, ref: str) -> str | None:
     """
     path = path.resolve()
     try:
+        # encoding is explicit because `text=True` alone decodes with the
+        # locale codepage: on a non-UTF-8 Windows locale a tracked file holding
+        # an em-dash decoded to mojibake or raised, and the ledger reported the
+        # ancestor "unreadable or untracked" -- an axis silently unmeasured for
+        # a decoding reason rather than a provenance one.
         top = subprocess.run(
             ["git", "-C", str(path.parent), "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=15)
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=15)
         if top.returncode != 0:
             return None
         repo = Path(top.stdout.strip())
         rel = path.relative_to(repo).as_posix()
         show = subprocess.run(
             ["git", "-C", str(repo), "show", f"{ref}:{rel}"],
-            capture_output=True, text=True, timeout=15)
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=15)
         if show.returncode != 0:
             return None
         return show.stdout

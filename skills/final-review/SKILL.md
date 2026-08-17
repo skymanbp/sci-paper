@@ -1,6 +1,6 @@
 ---
 name: final-review
-description: 投稿前最终审阅编排器。每轮加载 paper 与 SCIPAPER_STANDARD 作为框架，并在独立 worktree 中运行 paper-review（A–R 全维度，含叙事主线与对抗升级）、figure-review、de-ai（--audit-only 结构 tell 审计）和 parent-level modern-physics-review。合并 sci-paper.feedback.v1 typed findings：科学完整性 blocker 必须解决，L0 target 必须清零，strong advisory 必须 disposition，ordinary advisory 与 unavailable axes 保留报告。连续多轮验证该状态稳定，不把所有 editorial feedback 强行清零，也不输出通用 paper PASS/FAIL。Use for final-review、投稿前总审、submission-readiness evidence gathering 和所有审查 skill 的隔离编排。
+description: Pre-submission final-review orchestrator. Each round loads /sci-paper:paper and SCIPAPER_STANDARD as the framework, then runs paper-review (all A-R dimensions, including the narrative spine and adversarial escalation), figure-review, de-ai (--audit-only structural-tell audit) and a parent-level modern-physics-review in isolated worktrees. Merges sci-paper.feedback.v1 typed findings: scientific-integrity blockers must be resolved, L0 targets must reach zero, strong advisories must carry a disposition, and ordinary advisories plus unavailable axes stay visible in the report. Verifies that this disposition-complete state is stable across consecutive rounds rather than forcing all editorial feedback to zero, and never emits a universal paper PASS/FAIL. Use for: final review, submission-readiness evidence gathering, isolated orchestration of every review skill, 投稿前总审.
 disable-model-invocation: false
 argument-hint: "<file_path> [--max-rounds N] [--skip <skill>[,<skill>...]] [--field <name>] [--out <dir>] [--require-consecutive N]"
 ---

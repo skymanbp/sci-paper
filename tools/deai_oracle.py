@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import statistics
 import sys
 from pathlib import Path
@@ -159,11 +158,32 @@ def _ref_for(baseline: dict, bucket: str, key: str) -> dict:
     return baseline.get("pooled", {}).get(key, {"mean": 0.0, "stdev": 0.0})
 
 
+def model_runtime_available() -> tuple[bool, str]:
+    """(available, reason) for the optional transformers/torch surprisal stack.
+
+    Probes the imports without downloading or loading a model. Both packages are
+    OPTIONAL in requirements.txt, so their absence must reach the report as an
+    `unmeasured` L1.uid axis with a reason; before this probe existed the CLI
+    raised ModuleNotFoundError out of `_get_model` and died mid-run.
+    """
+    try:
+        import torch          # noqa: F401  availability probe only
+        import transformers   # noqa: F401  availability probe only
+    except ImportError as error:
+        missing = getattr(error, "name", None) or "transformers/torch"
+        return False, f"the optional surprisal runtime is not installed ({missing})"
+    return True, ""
+
+
 def uid_axis_status(field_profile_dir: Path | None) -> dict:
     if load_baseline(field_profile_dir) is None:
         return feedback.axis_status(
             "L1.uid", "unmeasured", reason="uid_baseline.json is unavailable",
             detector="deai_oracle")
+    available, reason = model_runtime_available()
+    if not available:
+        return feedback.axis_status(
+            "L1.uid", "unmeasured", reason=reason, detector="deai_oracle")
     return feedback.axis_status(
         "L1.uid", "degraded",
         reason="the compatibility z operating point has not yet been field-policy calibrated",
@@ -177,6 +197,12 @@ def uid_findings(
     """Structured UID findings with observed/reference values and provenance."""
     baseline = load_baseline(field_profile_dir)
     if baseline is None:
+        return []
+    # Paired with the identical probe in uid_axis_status: the caller's report
+    # carries `unmeasured` + reason for this same condition, so returning no
+    # findings here is the honest empty set for an axis that did not run, not
+    # an unavailable measurement silently rendered as zero findings.
+    if not model_runtime_available()[0]:
         return []
     model_name = model_name or baseline.get("model", DEFAULT_MODEL)
     findings: list[dict] = []
@@ -202,6 +228,12 @@ def uid_findings(
                 findings.append(feedback.make_finding(
                     kind="advisory", layer="L1", rule=f"uid-low:{bucket}",
                     scope="paragraph", line=paragraph_start, end_line=paragraph_end,
+                    # Declared because this detector emits at paragraph scale and
+                    # a single paragraph is near-unjudgeable (perceptual AUC
+                    # 0.444). Without it these findings shipped at confidence 1.0
+                    # and outranked their capped siblings -- deai_oracle was the
+                    # one paragraph-scope detector that never declared its unit.
+                    calibration_unit="paragraph",
                     section=raw_label, path=path, detector="deai_oracle",
                     detector_version=model_name,
                     calibration_asset=BASELINE_NAME,
@@ -259,6 +291,15 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.calibrate:
+        # An explicit --calibrate that cannot run is a configuration failure
+        # (exit 2), not a clean run: refusing here beats a ModuleNotFoundError
+        # traceback halfway through the corpus.
+        available, reason = model_runtime_available()
+        if not available:
+            print(f"[deai_oracle] cannot calibrate: {reason}. "
+                  "Install the optional extras: pip install transformers torch",
+                  file=sys.stderr)
+            return 2
         model_name = args.model or DEFAULT_MODEL
         print(f"[deai_oracle] calibrating UID baseline on {field_dir.name} "
               f"with {model_name} ...", file=sys.stderr)

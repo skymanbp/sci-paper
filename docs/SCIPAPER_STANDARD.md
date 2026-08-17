@@ -99,10 +99,17 @@ reference. They must not claim that a machine wrote it.
 
 Standalone advisory tools return `0` when measurement completes, whether or
 not advisories are found. They return nonzero only for invalid input,
-configuration failure, or execution failure. One exception carries its own
-narrow actionable contract: `length_gate.py` returns 0 when the document's
-net unjustified prose growth is within tolerance, 1 when it exceeds the
-tolerance, and 2 for invalid input or execution failure (§5.3).
+configuration failure, or execution failure. Two exceptions carry their own
+narrow actionable contracts, and in both the meaning of `1` is a measured
+outcome the caller must act on, never a failure:
+
+- `length_gate.py` returns 0 when the document's net unjustified prose growth
+  is within tolerance, 1 when it exceeds the tolerance, and 2 for invalid input
+  or execution failure (§5.3);
+- `rewrite_reward.py` returns 0 when at least one candidate is eligible, 1 when
+  every candidate fails scientific-fidelity or length-budget eligibility (the
+  caller preserves the original and regenerates tighter, §6), and 2 for invalid
+  input or missing required configuration.
 
 Scientific-integrity review is broader than the linter and is reported through
 typed findings. It is never compressed into the linter's L0 exit status.
@@ -140,7 +147,7 @@ AI-feel is not a vocabulary. Keyword replacement leaves deeper regularities:
    quality the system intends to improve.
 
 The evidence for the current detectors, measured effects, known confounds, and
-field-specific operating points belongs in [`EVALUATION.md`](EVALUATION.md),
+field-specific operating points belongs in [`EVALUATION.md`](architecture/EVALUATION.md),
 not in this normative document.
 
 ---
@@ -700,7 +707,7 @@ for scientific changes, source verification.
 | `final-review` | Preserve independent isolated reviews (paper-review, figure-review, de-ai audit, MPR); merge typed findings; resolve blockers and L0 targets; record advisory dispositions and unmeasured axes. |
 | `proposal-polish` | Funding-proposal register (vision plus feasibility): keep backed ambition, enforce claim-feasibility matching, apply the L0 policy and §6 rewrite invariants unchanged; never fabricate support. |
 
-`docs/DEAI_SUBSYSTEM.md` documents architecture. `EVALUATION.md` records
+`docs/architecture/DEAI_SUBSYSTEM.md` documents architecture. `EVALUATION.md` records
 empirical evidence. Neither overrides this standard.
 
 All of the above except `brainstorm` are normative implementers and must
@@ -786,7 +793,7 @@ leave it explicitly unresolved.
 
 ## 11. De-AI subsystem status and open-item dispositions
 
-The ranked de-AI frontier is complete ([`DEAI_FRONTIER.md`](DEAI_FRONTIER.md)).
+The ranked de-AI frontier is complete ([`DEAI_FRONTIER.md`](design-notes/DEAI_FRONTIER.md)).
 Every remaining engineering item has a decided disposition, so the standard rests
 on no undecided obstacle. Adoption of any item requires passing the §9 confound
 audit and keeping the suite and validator green, and updates this table and

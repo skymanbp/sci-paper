@@ -464,6 +464,7 @@ def main(argv: list[str] | None = None) -> int:
                   f"{existing.name}", file=sys.stderr)
     queries = QUERY_SETS[args.query_set]
     throttled_at: str | None = None
+    incomplete_queries: list[str] = []
     for index, query in enumerate(queries):
         if throttled_at:
             break
@@ -480,9 +481,16 @@ def main(argv: list[str] | None = None) -> int:
                       file=sys.stderr)
                 throttled_at = f"query {index + 1}/{len(queries)} {query!r} start={start}"
                 break
-            except Exception as e:  # network/API hiccup on one page: report, keep going
+            except Exception as e:
+                # A failed page and an exhausted query both used to arrive here
+                # as `page = []`, and the `if not page: break` below cannot tell
+                # them apart -- so one hiccup silently ended that query's
+                # pagination and the run still exited 0, reporting a short
+                # corpus as a complete one. Record the query as incomplete and
+                # stop paginating IT, without claiming the sweep succeeded.
                 print(f"[fetch] {query!r} start={start} error: {e}", file=sys.stderr)
-                page = []
+                incomplete_queries.append(f"{query!r} start={start}: {e}")
+                break
             new = 0
             for r in page:
                 if r["source"] in seen:
@@ -533,6 +541,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[fetch] TRUNCATED — stopped at {throttled_at}; "
               f"{len(queries)} queries planned. Rerun later with --resume to "
               f"extend; records already written are valid.", file=sys.stderr)
+        return 2
+    if incomplete_queries:
+        # Same principle at query granularity: these queries stopped early on a
+        # transient error, so the corpus is short by an unknown amount. Naming
+        # them and exiting 2 is the only way the caller can tell this run from
+        # an exhaustive one.
+        print(f"[fetch] INCOMPLETE — {len(incomplete_queries)} of "
+              f"{len(queries)} queries stopped early on a page error:",
+              file=sys.stderr)
+        for entry in incomplete_queries:
+            print(f"[fetch]   {entry}", file=sys.stderr)
+        print("[fetch] Rerun with --resume to extend; records already written "
+              "are valid.", file=sys.stderr)
         return 2
     return 0
 

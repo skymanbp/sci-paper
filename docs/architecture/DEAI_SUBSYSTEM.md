@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.26.2)
+# De-AI subsystem architecture (current as of v0.27.0)
 
 ## 1. Purpose
 
@@ -7,7 +7,7 @@ the objective. It analyzes how information is distributed, how sentences and
 paragraphs are built, how sections relate across a document, and whether a rewrite
 preserves the scientific claim.
 
-The normative authority is [`SCIPAPER_STANDARD.md`](SCIPAPER_STANDARD.md). This
+The normative authority is [`SCIPAPER_STANDARD.md`](../SCIPAPER_STANDARD.md). This
 document explains the implementation. Corpus dossiers, learned models, thresholds,
 and evaluation results are evidence. They cannot redefine the standard.
 
@@ -59,7 +59,7 @@ accepted, or rejected as false positives.
 
 ## 4. Shared data contract
 
-[`../tools/deai_feedback.py`](../tools/deai_feedback.py) implements
+[`../tools/deai_feedback.py`](../../tools/deai_feedback.py) implements
 `sci-paper.feedback.v1`. A finding carries:
 
 - a stable content-derived `finding_id`;
@@ -95,7 +95,7 @@ ranked report drives both text and JSON output.
 
 ### L0: lexical and punctuation targets
 
-[`../tools/ai_ism_lint.py`](../tools/ai_ism_lint.py) implements the canonical
+[`../tools/ai_ism_lint.py`](../../tools/ai_ism_lint.py) implements the canonical
 Tier A, em-dash, and Tier B cap rules. Corpus-zero vocabulary is advisory because a
 field corpus can be incomplete.
 
@@ -105,7 +105,7 @@ The command-line exit contract is deliberately narrow:
 - `1`: one or more L0 targets;
 - `2`: invalid input, configuration failure, or execution failure.
 
-[`../tools/deai_register.py`](../tools/deai_register.py) adds a second lexical
+[`../tools/deai_register.py`](../../tools/deai_register.py) adds a second lexical
 axis at this layer that never joins the to-zero set. It asks whether the draft
 speaks its own field's vocabulary, by comparing terms the manuscript leans on
 (≥ 5 uses) against document frequency in the field's own corpus. The evidence is
@@ -119,19 +119,19 @@ macro-bound vocabulary entirely. Findings are always advisories.
 
 ### L1: information distribution
 
-[`../tools/deai_metrics.py`](../tools/deai_metrics.py) measures section-aware
+[`../tools/deai_metrics.py`](../../tools/deai_metrics.py) measures section-aware
 sentence-length variation and paragraph-opening connective density. A compatibility
 heuristic may produce degraded evidence. A strong advisory requires an applicable
 calibrated policy and sufficient reference support.
 
-[`../tools/deai_oracle.py`](../tools/deai_oracle.py) optionally measures token
+[`../tools/deai_oracle.py`](../../tools/deai_oracle.py) optionally measures token
 surprisal and Uniform Information Density features. Missing model assets leave the
 axis unmeasured. The compatibility `FLAG_Z` remains degraded until field calibration
 provides an operating point with provenance and uncertainty.
 
 ### L2: sentence and paragraph construction
 
-[`../tools/deai_structure.py`](../tools/deai_structure.py) detects deterministic
+[`../tools/deai_structure.py`](../../tools/deai_structure.py) detects deterministic
 structural patterns that keyword replacement cannot repair:
 
 - announced enumeration and ordinal runs;
@@ -146,7 +146,7 @@ not establish that the construction is wrong or machine-generated.
 
 ### L2: salience hierarchy
 
-[`../tools/deai_salience.py`](../tools/deai_salience.py) measures whether a
+[`../tools/deai_salience.py`](../../tools/deai_salience.py) measures whether a
 passage ranks the quantities it reports or recites them. Sentence templates and
 document shape are both silent here: prose can vary its sentence lengths, sit
 inside the human dispersion band, and still hand the reader an undifferentiated
@@ -164,7 +164,7 @@ to find. Where a reference has no spread above the advisory gate the feature
 abstains rather than reporting an ordinary passage as the 100th percentile.
 
 This detector is the sole consumer of
-[`extract_style.latex_to_numeral_text`](../tools/extract_style.py), the second
+[`extract_style.latex_to_numeral_text`](../../tools/extract_style.py), the second
 LaTeX projection. `latex_to_plain` replaces every math span with `[math]`, which
 is right for lexical and shape statistics and zeroes every numeral signal on
 `.tex` input; the numeral-preserving projection shares the same pattern set and
@@ -173,7 +173,7 @@ dropped by both.
 
 ### L2: whole-document rhetorical shape
 
-[`../tools/deai_docstructure.py`](../tools/deai_docstructure.py) measures shape similarity:
+[`../tools/deai_docstructure.py`](../../tools/deai_docstructure.py) measures shape similarity:
 
 - `within_section_similarity`;
 - `cross_section_similarity`;
@@ -192,10 +192,10 @@ implementation must not synthesize a document baseline from paragraph exemplars.
 
 ### L3: learned field similarity
 
-[`../tools/deai_features.py`](../tools/deai_features.py) exposes reusable
+[`../tools/deai_features.py`](../../tools/deai_features.py) exposes reusable
 model-free, UID, and embedding features.
-[`../tools/train_voice_model.py`](../tools/train_voice_model.py) trains the optional
-model, and [`../tools/deai_voice.py`](../tools/deai_voice.py) reports its result as
+[`../tools/train_voice_model.py`](../../tools/train_voice_model.py) trains the optional
+model, and [`../tools/deai_voice.py`](../../tools/deai_voice.py) reports its result as
 field-similarity triage.
 
 A bundle without a documented calibrated operating point is degraded. Evaluation
@@ -227,7 +227,7 @@ place by default. It reconstructs prose from the scientific argument:
 6. re-measure the selected rewrite and record before/after findings;
 7. disposition every strong advisory and retain ordinary residual advisories.
 
-[`../tools/rewrite_reward.py`](../tools/rewrite_reward.py) protects numbers, units,
+[`../tools/rewrite_reward.py`](../../tools/rewrite_reward.py) protects numbers, units,
 citations, inline mathematics, uppercase acronyms, comparison direction, negation,
 and causal direction. An ineligible candidate receives a combined score of negative
 infinity and cannot win. If no candidate is eligible, rewriting stops instead of
@@ -298,7 +298,7 @@ standard.
 
 ## 10. Validation and release boundary
 
-[`../tools/validate_plugin.py`](../tools/validate_plugin.py) checks:
+[`../tools/validate_plugin.py`](../../tools/validate_plugin.py) checks:
 
 - manifest, README, and CHANGELOG version agreement;
 - skill frontmatter and standard references;

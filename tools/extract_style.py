@@ -23,7 +23,6 @@ import statistics
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CORPUS_ROOT = REPO_ROOT / "style-corpus"
@@ -77,13 +76,24 @@ def resolve_field(arg_field: str | None, corpus_root: Path) -> str:
 # "skip" excludes the section from analysis entirely.
 # Order matters: discussion BEFORE conclusion so "Discussion and Conclusions"
 # and "Summary and discussion" both bucket as discussion (richer content).
+# Every noun carries its plural. The singular-only forms these patterns used
+# until 2026-08-16 made `\bresult\b` miss "Results", `\bconclusion\b` miss
+# "Conclusions" and `\bsystematic\b` miss "Systematics" -- the standard
+# ApJ/MNRAS/PRD headings -- so those sections fell through to
+# DEFAULT_SECTION_BUCKET and were measured against the methods reference. The
+# symptom was a corpus that produced 1770 "method" and zero "results"
+# paragraphs from 31 weak-lensing papers.
 SECTION_PATTERNS: list[tuple["re.Pattern[str]", str]] = [
-    (re.compile(r"(?i)\b(acknowledg|appendix|bibliograph|references?|literature\s+cited|disclosure)\b"), "skip"),
+    # `acknowledg` and `bibliograph` are stems, so they carry `\w*` instead of a
+    # closing `\b`: written as `\b(acknowledg|bibliograph)\b` they could only
+    # ever match those exact strings, and the real headings "Acknowledgements"
+    # and "Bibliography" fell through to DEFAULT_SECTION_BUCKET as prose.
+    (re.compile(r"(?i)\b(?:acknowledg\w*|bibliograph\w*|appendi(?:x|ces)|references?|literature\s+cited|disclosures?)\b"), "skip"),
     (re.compile(r"(?i)\babstract\b"), "abstract"),
-    (re.compile(r"(?i)\b(discussion|caveat|limitation|systematic|implication|comparison)\b"), "discussion"),
-    (re.compile(r"(?i)\b(conclusion|outlook|summary)\b"), "conclusion"),
-    (re.compile(r"(?i)\b(introduction|motivation)\b"), "intro"),
-    (re.compile(r"(?i)\b(result|detected|shear-selected|catalog\s+of)\b"), "results"),
+    (re.compile(r"(?i)\b(discussions?|caveats?|limitations?|systematics?|implications?|comparisons?)\b"), "discussion"),
+    (re.compile(r"(?i)\b(conclusions?|outlooks?|summar(?:y|ies))\b"), "conclusion"),
+    (re.compile(r"(?i)\b(introductions?|motivations?)\b"), "intro"),
+    (re.compile(r"(?i)\b(results?|detected|shear-selected|catalogs?\s+of)\b"), "results"),
 ]
 DEFAULT_SECTION_BUCKET = "method"
 
@@ -327,10 +337,12 @@ def count_em_dashes(text: str) -> int:
 def gather_corpus_files(field_corpus_dir: Path) -> dict[str, list[Path]]:
     """field_corpus_dir is the field-specific dir, e.g. style-corpus/wgl/.
 
-    Picks up `.tex`, `.txt`, and standalone `.pdf` sources. **PDFs that live
-    alongside a `.tex` file in the same directory are skipped** — those are
-    figure files bundled with arXiv source tarballs, not whole papers
-    (e.g., 'forward_G3.pdf' next to 'main.tex'). PDF parsing is best-effort
+    Picks up `.tex`, `.txt`, and standalone `.pdf` sources. **A `.pdf` is
+    accepted only directly under the tier directory (depth 1); anything nested
+    deeper is skipped** as a figure or supplemental file inside an arXiv-source
+    bundle, which ships 5-50 of them alongside the `.tex`. The rule is depth,
+    not co-location with a `.tex`: a figure PDF placed directly in the tier
+    directory is still ingested as if it were a paper. PDF parsing is best-effort
     via pymupdf; if pymupdf is unavailable the standalone PDF rows are
     still listed and `analyse_paper` will skip them with a warning.
     """
@@ -427,7 +439,21 @@ def extract_pdf_text(path: Path) -> str:
     # Within a single block, soft-hyphenated wrap is still possible
     # ("method-\nology"). De-hyphenate.
     text = re.sub(r"-\n(\w)", r"\1", text)
+    # PDF text layers emit typographic ligatures as single codepoints, so the
+    # tokenizer splits "significant" into "signi" + "cant" and the fragments
+    # enter the lexicon and the exemplar bank as if they were words. Expanding
+    # them here keeps the fix at the one place ligatures can enter the corpus.
+    text = text.translate(LIGATURE_TABLE)
     return text
+
+
+# Typographic ligatures a PDF text layer emits as one codepoint. Left in place
+# they fragment the words they appear in -- "ﬁ" alone accounts for `signi`/`cant`
+# style fragments across the corpus.
+LIGATURE_TABLE = str.maketrans({
+    "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl",
+    "ﬃ": "ffi", "ﬄ": "ffl", "ﬅ": "st", "ﬆ": "st",
+})
 
 
 def _classify_pdf_heading(stripped: str) -> str | None:
@@ -558,7 +584,13 @@ def analyse_paper(path: Path) -> dict | None:
 
 
 def aggregate_sentence_stats(per_paper: list[tuple[float, dict]]) -> dict:
-    """Per-section sentence-length stats, weighted by tier weight."""
+    """Per-section sentence-length stats, pooled across papers.
+
+    Tier weights are carried through the bucket but NOT applied: the stats
+    below flatten to the bare lengths, so a tier-1 and a tier-3 paper
+    contribute equally. Applying them needs weighted percentiles (numpy),
+    and this module is standard-library only.
+    """
     bucket: dict[str, list[tuple[float, int]]] = defaultdict(list)
     for weight, paper in per_paper:
         for sec, st in paper["by_section"].items():
@@ -633,6 +665,14 @@ def aggregate_transitions(per_paper: list[tuple[float, dict]]) -> dict:
         ],
         "blacklist_present_in_corpus": forbidden_present,
         "blacklist_absent_from_corpus": forbidden_absent,
+        # The complete paragraph-initial counter, so a consumer can compute a
+        # reference rate over ITS OWN opener set. The two curated lists above
+        # are this extractor's descriptive view; a detector that measures a
+        # draft against a different set (deai_metrics.CONNECTIVE_OPENERS) must
+        # not be handed a rate computed over this one, which is how the
+        # reported "reference corpus rate" came to be incomparable with the
+        # fraction it was printed beside.
+        "paragraph_initial_counts": dict(counter),
     }
 
 
@@ -821,6 +861,12 @@ def write_dossier(
 
 
 def main(argv: list[str] | None = None) -> int:
+    # This module prints non-ASCII (arrows, en dashes). With stdout redirected
+    # to a pipe or a file under a non-UTF-8 locale -- exactly what
+    # build_profile.py does when it captures this tool's output -- the default
+    # encoder raises UnicodeEncodeError and the run dies after the work is done.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--field", default=None,
                    help="Field name (subdir under style-corpus/). "

@@ -68,10 +68,24 @@ def load_reference(field_profile_dir: Path | None) -> dict[str, Any] | None:
         if mean > 0:
             cv[bucket] = stdev / mean
     pooled_cv = statistics.median(cv.values()) if cv else 0.0
+    # The reference rate must be computed over the SAME opener set the draft is
+    # measured against (CONNECTIVE_OPENERS). The profile's own
+    # `blacklist_present_in_corpus` is keyed to extract_style's curated
+    # PARAGRAPH_INITIAL_LLM_OPENERS -- a different, smaller set whose multi-word
+    # entries can never match a single paragraph-initial word -- so using it
+    # printed a reference rate roughly seven times below the one the observed
+    # fraction is comparable with. A profile predating
+    # `paragraph_initial_counts` cannot supply a comparable rate at all, so the
+    # reference is reported as None rather than as an incomparable number.
     n_paragraphs = trans.get("n_paragraphs", 0)
-    present = trans.get("blacklist_present_in_corpus", [])
-    connective_paragraphs = sum(count for _, count in present) if present else 0
-    corpus_signpost = connective_paragraphs / n_paragraphs if n_paragraphs else 0.0
+    counts = trans.get("paragraph_initial_counts")
+    if counts and n_paragraphs:
+        connective_paragraphs = sum(
+            count for word, count in counts.items()
+            if word.lower() in CONNECTIVE_OPENERS)
+        corpus_signpost = connective_paragraphs / n_paragraphs
+    else:
+        corpus_signpost = None
     return {
         "cv": cv,
         "pooled_cv": pooled_cv,
@@ -246,8 +260,14 @@ def distribution_findings(text: str, field_profile_dir: Path | None,
                                 "basis": f"{len(openers)} paragraphs"},
                     message=(f"Section {raw_label!r} opens {n_connective}/"
                              f"{len(openers)} paragraphs with connectives "
-                             f"({fraction:.0%}); reference corpus rate is "
-                             f"{reference['corpus_signpost']:.1%}."),
+                             f"({fraction:.0%}); "
+                             + (f"reference corpus rate is "
+                                f"{reference['corpus_signpost']:.1%}."
+                                if reference["corpus_signpost"] is not None else
+                                "the profile predates the comparable "
+                                "paragraph-initial counter, so no reference "
+                                "rate is quoted (rebuild it with "
+                                "tools/extract_style.py).")),
                     action="Remove roadmap openers that restate the logical connection already carried by the argument.",
                     evidence=[n_connective, len(openers), round(fraction, 6)],
                 ))

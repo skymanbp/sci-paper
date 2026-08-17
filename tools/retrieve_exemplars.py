@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -211,6 +210,16 @@ def main(argv: list[str] | None = None) -> int:
              "Strictly worse retrieval.",
     )
     args = p.parse_args(argv)
+
+    # Guarded because the retrieval helpers slice `candidates[:k]`, where k <= 0
+    # is a silent wrong answer rather than an error: --k 0 returned an empty
+    # list that surfaced as "No paragraphs in section=..." (a false claim about
+    # the bank), and a small negative k returned all-but-the-last exemplar with
+    # no diagnostic at all.
+    if args.k < 1:
+        print(f"[retrieve_exemplars] --k must be >= 1 (got {args.k}).",
+              file=sys.stderr)
+        return 2
 
     field = resolve_field(args.field, args.profile_root)
     field_profile_dir = args.profile_root / field

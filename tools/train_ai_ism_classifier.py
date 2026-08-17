@@ -63,7 +63,15 @@ def resolve_field(arg_field: str | None, profile_root: Path) -> str:
     return fields[0]
 
 
-def load_positives(jsonl_path: Path, min_words: int = 30) -> list[str]:
+def load_positives(jsonl_path: Path,
+                   min_words: int = 30) -> list[tuple[str, str]]:
+    """(paragraph, source-paper) pairs.
+
+    The source travels with the text because paragraphs from one paper are not
+    independent: an ungrouped split puts siblings in train and test at once and
+    reports an optimistic score. 28 source papers back the 1957 `wgl`
+    paragraphs, so grouping is available and is used.
+    """
     pos = []
     with jsonl_path.open(encoding="utf-8") as f:
         for line in f:
@@ -76,7 +84,7 @@ def load_positives(jsonl_path: Path, min_words: int = 30) -> list[str]:
                 continue
             text = rec.get("text", "").strip()
             if text and rec.get("n_words", 0) >= min_words:
-                pos.append(text)
+                pos.append((text, str(rec.get("source") or f"unknown:{len(pos)}")))
     return pos
 
 
@@ -104,9 +112,15 @@ def train_and_save(
     negatives: list[str],
     output_path: Path,
     seed: int = 0,
+    groups: list[str] | None = None,
 ) -> dict:
-    """Train logistic regression on char-3-5 n-gram TF-IDF; save to joblib.
-    Returns {n_pos, n_neg, cv_accuracy, cv_f1}."""
+    """Train logistic regression on word 1-2 gram TF-IDF; save to joblib.
+
+    Returns {n_pos, n_neg, cv_accuracy_mean, cv_accuracy_std, cv_f1_mean,
+    cv_f1_std}. The analyzer is word-level, not character-level: char
+    n-grams over-fitted on the mutation experiment (see the vectorizer
+    comment below).
+    """
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import Pipeline
@@ -135,11 +149,28 @@ def train_and_save(
         )),
     ])
 
-    # Stratified 5-fold so each fold has both classes (handcrafted is rare).
-    from sklearn.model_selection import StratifiedKFold
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
-    acc_scores = cross_val_score(pipeline, X, y, cv=skf, scoring="accuracy")
-    f1_scores = cross_val_score(pipeline, X, y, cv=skf, scoring="f1")
+    # Stratified 5-fold so each fold has both classes (handcrafted is rare),
+    # and GROUPED by source paper when groups are supplied: paragraphs from one
+    # paper are not independent observations, and an ungrouped split lets
+    # siblings sit in train and test simultaneously. Measured on the `wgl`
+    # corpus the difference is F1 0.876 ungrouped vs 0.823 grouped, so the
+    # ungrouped number was optimistic by ~0.05. `cv_grouped` travels with the
+    # metrics so a consumer can never read one for the other.
+    from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
+    n_splits = 5
+    cv_grouped = bool(groups) and len(set(groups)) >= n_splits
+    if cv_grouped:
+        splitter = StratifiedGroupKFold(n_splits=n_splits, shuffle=True,
+                                        random_state=seed)
+        split_kwargs = {"groups": groups}
+    else:
+        splitter = StratifiedKFold(n_splits=n_splits, shuffle=True,
+                                   random_state=seed)
+        split_kwargs = {}
+    acc_scores = cross_val_score(pipeline, X, y, cv=splitter,
+                                 scoring="accuracy", **split_kwargs)
+    f1_scores = cross_val_score(pipeline, X, y, cv=splitter, scoring="f1",
+                                **split_kwargs)
 
     pipeline.fit(X, y)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -152,6 +183,7 @@ def train_and_save(
         "cv_accuracy_std": float(acc_scores.std()),
         "cv_f1_mean": float(f1_scores.mean()),
         "cv_f1_std": float(f1_scores.std()),
+        "cv_grouped": cv_grouped,
     }
 
 
@@ -176,8 +208,11 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     print(f"[train_ai_ism_classifier] field={field!r}")
-    positives = load_positives(pos_jsonl)
-    print(f"  positives (corpus): {len(positives)}")
+    positive_pairs = load_positives(pos_jsonl)
+    positives = [text for text, _source in positive_pairs]
+    positive_groups = [source for _text, source in positive_pairs]
+    print(f"  positives (corpus): {len(positives)} "
+          f"from {len(set(positive_groups))} source papers")
 
     handcrafted = load_handcrafted_negatives(HANDCRAFTED_NEGATIVES)
     print(f"  handcrafted negatives: {len(handcrafted)} "
@@ -204,7 +239,12 @@ def main(argv: list[str] | None = None) -> int:
 
     output = field_profile_dir / "ai_ism_classifier.joblib"
     print(f"\n[train_ai_ism_classifier] training (this takes ~10-30 s)...")
-    metrics = train_and_save(positives, negatives, output, seed=args.seed)
+    # Each negative is its own group: handcrafted items are independently
+    # authored and extracted ones come from unrelated documents, so none of
+    # them shares a source with another row.
+    negative_groups = [f"negative:{index}" for index in range(len(negatives))]
+    metrics = train_and_save(positives, negatives, output, seed=args.seed,
+                             groups=positive_groups + negative_groups)
 
     print(f"\n[train_ai_ism_classifier] OK.")
     print(f"  n_pos = {metrics['n_pos']}, n_neg = {metrics['n_neg']}")
@@ -212,6 +252,8 @@ def main(argv: list[str] | None = None) -> int:
           f"{metrics['cv_accuracy_mean']:.3f} ± {metrics['cv_accuracy_std']:.3f}")
     print(f"  5-fold CV F1 (AI-ish): "
           f"{metrics['cv_f1_mean']:.3f} ± {metrics['cv_f1_std']:.3f}")
+    print(f"  CV split: "
+          f"{'grouped by source paper' if metrics['cv_grouped'] else 'UNGROUPED (optimistic)'}")
     print(f"  → {output}")
     print()
     print("To use the classifier:")

@@ -37,7 +37,7 @@ METRIC_NAMES = (
 )
 
 # Model-free per-paragraph features whose cross-paragraph DISPERSION is the
-# document-scale, confound-orthogonal AI signal (docs/DEAI_ARCHITECTURE_ROADMAP.md).
+# document-scale, confound-orthogonal AI signal (docs/design-notes/DEAI_ARCHITECTURE_ROADMAP.md).
 # Each feature is compared against its OWN human dispersion distribution during
 # calibration, so no magic-constant scaling or cross-feature z-scoring is needed.
 # Surprisal and embedding dispersion (GPT-2-large, all-MiniLM) are added by the
