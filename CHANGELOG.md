@@ -3,6 +3,73 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.27.1 — 2026-08-17
+
+v0.27.0 fixed the section classifier and measured what it would change. This
+release carries out the rebuild that fix required and writes the resulting
+numbers back into the evaluation record. No code, consequence class, exit code,
+or normative policy changed; every edit here is a measurement or a document.
+
+### The rebuild, and what it moved
+
+The full `wgl` profile was rebuilt with the fixed classifier — extraction, then
+each `--calibrate` stage, then a complete `train_voice_model.py` retrain
+(18,647 rows, 20/20 audit splits completed). `wgl-letter` was rebuilt alongside
+it. Every figure below is read from the rebuilt artifact, not from the v0.27.0
+projection.
+
+- **Reference banks.** `structure_baseline` and `uid_baseline` now hold 1,942
+  paragraph observations across six buckets rather than 1,957 across five;
+  `results` gains a surprisal reference for the first time. Salience buckets
+  move `method` 1,377 → 1,303, `discussion` 35 → 78, `conclusion` 26 → 41, and
+  gain `results` at n=10. `conclusion` crosses the 30-passage floor, so it is
+  `measured` rather than rank-only for the first time. The register reference
+  goes 15,599 → 15,584 passages and 41,933 → 41,714 terms.
+- **The learned model barely moved, and that is the result.** Comparing the new
+  audit against the pre-rebuild record key by key, every headline figure changed
+  by at most 0.002 in AUC (primary split 0.9414 → 0.9399; 20-split mean 0.9324 →
+  0.9320) and the negative-control false-positive rates by at most 0.005. L3
+  stays `degraded` with no operating point, for the same measured reasons.
+- **What did move is the per-section audit strata, which were degenerate.** The
+  `discussion` stratum held a median of 5 positive rows and some splits held
+  none, so its minimum F1 and recall were both 0.000; post-rebuild the median is
+  19 and those minima are 0.857 and 0.850. The `conclusion` stratum's smallest
+  split rose from 3 rows to 9. Before the fix that breakdown was not measuring
+  section behaviour — it was measuring an empty cell.
+- **§15 was checked and left alone.** Its figures come from the abstract and
+  generated banks, which are not section-bucketed; the rebuilt abstract
+  percentile grids are byte-identical to the pre-rebuild ones. The v0.27.0
+  notice that named §15 as affected was over-broad and is corrected.
+
+### A stale artifact the rebuild exposed
+
+The local `voice_model_evaluation.json` predated the hard-set restructure: it
+carried only the retired `auc_low_score_predicts_strong_ai_feel` key, while
+`EVALUATION.md` §7.3 already documented `primary_provenance` and
+`perception_baseline`. The document was ahead of the artifact on disk, which no
+gate checked because nothing compared documented figures against the file they
+describe. The retrain regenerates the record in the current schema, and §7.3's
+0.937 / 0.444 now reproduce from it.
+
+### Resolved limitation
+
+`EVALUATION.md` §7.5 recorded that the cloud bundle was built with scikit-learn
+1.4.2 and emitted an unpickle-version warning under a newer local install, and
+predicted a local rebuild would clear it. Verified: the retrained bundle loads
+under local scikit-learn 1.8.0 with no warnings. The limitation is removed
+rather than restated.
+
+### Corrections
+
+- `style-profile/README.md` quoted the pre-ligature-fix projection (`method`
+  1672, `conclusion` 51, total 1944) where `CHANGELOG.md` and `EVALUATION.md`
+  carried the re-measured 1671 / 50 / 1942. It was missed in the v0.27.0
+  re-measurement sweep and now agrees with the artifact it describes.
+- Profile snapshots taken before a rebuild now live in the gitignored
+  `.backups/` inside the repository. A snapshot placed beside the repository
+  reads as a project of its own in the parent directory and escapes the ignore
+  rules that cover the same corpus-derived files.
+
 ## v0.27.0 — 2026-08-16
 
 A repository audit, the defects it confirmed, and the structure that stops them

@@ -1,7 +1,7 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.27.0
+# EVALUATION: de-AI subsystem for `sci-paper` v0.27.1
 
-First recorded 2026-07-12; axis table and repository-verification counts current as of
-2026-08-16.
+First recorded 2026-07-12; every section-keyed measurement re-derived against the
+rebuilt `wgl` profile on 2026-08-17.
 
 ## 1. Evaluation contract
 
@@ -17,13 +17,17 @@ result.
 
 ## 2. Current axis status
 
-> ### ⚠️ Every per-section reference below is stale as of v0.27.0
+> ### ⚠️ Section buckets were mis-assigned before v0.27.0 — profile rebuilt 2026-08-17
 >
 > `extract_style.classify_section` matched section titles in the singular only,
 > so `Results`, `Conclusions` and `Systematics` were bucketed as `method`, and
 > `Acknowledgements`/`Bibliography` were ingested as prose rather than skipped.
-> v0.27.0 fixes both. **Every number in this section and in §5, §6, §14 and §15
-> that is keyed by section bucket was measured under the defect.**
+> v0.27.0 fixes both. **Every section-keyed number in §5, §6, §7 and §14 has
+> been re-measured against a profile rebuilt with the fixed classifier and now
+> reports post-rebuild values.** §15 is unaffected and was left alone: its
+> figures come from the abstract and generated banks, which are not section-
+> bucketed — verified by comparing the rebuilt artifacts against the pre-rebuild
+> snapshot key by key.
 >
 > The impact is measured, not estimated. Rebuilding the same 31-paper `wgl`
 > corpus with the fixed classifier, into a scratch profile root so the shipped
@@ -48,22 +52,24 @@ result.
 > - The register corpus loses 15 of 15,599 passages (0.096%) — the back matter
 >   that is now skipped, plus the ligature expansion below. Document frequency
 >   shifts by less than the 1e-4 threshold's resolution, but it is not zero.
-> - **Until the profile is rebuilt and each `--calibrate` re-run, treat every
->   section-keyed axis below as `degraded`, whatever this table says.** The
->   repository ships no baseline (all are gitignored), so a fresh clone is
->   `unmeasured` and unaffected; this notice is for machines that already hold a
->   pre-v0.27.0 profile.
+> - **A machine still holding a pre-v0.27.0 profile must treat every
+>   section-keyed axis below as `degraded`, whatever this table says**, until it
+>   reruns the rebuild. The repository ships no baseline (all are gitignored), so
+>   a fresh clone is `unmeasured` and unaffected; this notice is for machines that
+>   already hold a pre-v0.27.0 profile.
 >
 > Rebuild: `python tools/build_profile.py --field <field>` then the
-> `--calibrate` commands listed in `style-profile/README.md`.
+> `--calibrate` commands listed in `style-profile/README.md`. The reference
+> profile these measurements are read from was rebuilt that way on 2026-08-17,
+> including a full `train_voice_model.py` retrain (§7).
 
 | Axis | Status | Current evidence | Required next evidence |
 |---|---|---|---|
 | L0 lexical/punctuation | measured | Deterministic Tier A, em-dash, and Tier B cap implementation with CLI regression tests. | Continue regression coverage when policy changes. |
 | L1 distribution | degraded | Field sentence/connective summaries exist; compatibility thresholds are not a documented policy operating point. | `deai_policy.json` with corpus unit, uncertainty, applicability, and validation behavior. |
 | L1 UID | degraded | `style-profile/wgl/uid_baseline.json` records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
-| L2 salience hierarchy | measured | §14: per-bucket passage reference from the field's own banks (abstract n=13,438; method n=1,377); P(X ≤ x) on a 0.01 quantile grid; abstains where the reference cannot resolve above the gate. | Buckets below the 30-passage floor; a human-judgement validation set. |
-| L0 register | measured | §14: document frequency over 15,599 corpus passages, 41,933 terms; compound-by-rarest-part and macro-subscript handling; native-term controls pass. | Corpus composition bias toward abstract vocabulary; recall below the 5-use floor. |
+| L2 salience hierarchy | measured | §14: per-bucket passage reference from the field's own banks (abstract n=13,438; method n=1,303); P(X ≤ x) on a 0.01 quantile grid; abstains where the reference cannot resolve above the gate. | Buckets below the 30-passage floor (`results`, n=10); a human-judgement validation set. |
+| L0 register | measured | §14: document frequency over 15,584 corpus passages, 41,714 terms; compound-by-rarest-part and macro-subscript handling; native-term controls pass. | Corpus composition bias toward abstract vocabulary; recall below the 5-use floor. |
 | L2 sentence structure | measured for deterministic matches; degraded for strength | `style-profile/wgl/structure_baseline.json` provides section-level reference fractions. | Calibrated strong-advisory thresholds and author-labelled difficult cases. |
 | L2 document structure | measured | §9: cross-paragraph dispersion calibrated one-observation-per-paper over 14 complete human `wgl` papers; leave-one-paper-out false-flag rate ~0.07 at n=14. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field. | Continue recalibration when the corpus changes. |
 | L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, hard-set true-provenance AUC 0.937, but 32–41% false-positive rate on field-topic AI text. Document-level now measured (§9.8): surprisal dispersion (0.757) is weaker than the model-free manifold (0.881) and adds nothing to it, so L3 stays degraded for a measured reason. | A field-topic-robust operating point with provenance and uncertainty; the surprisal path is measured not to provide one. |
@@ -83,7 +89,7 @@ python -m unittest discover -s tests -v
 ```
 
 The working tree passes the validator and all 208 unit/CLI tests (15 test files, collected
-2026-08-16). These commands must be rerun after every subsequent code or release-metadata
+2026-08-17). These commands must be rerun after every subsequent code or release-metadata
 change; the release record must quote the fresh output rather than a past result.
 
 ## 4. L0 behavior
@@ -111,7 +117,8 @@ These tests are in
 ## 5. Sentence-structure reference evidence
 
 `style-profile/wgl/structure_baseline.json`
-contains 1,957 paragraph observations across its recorded section buckets. The file
+contains 1,942 paragraph observations across six section buckets — `method` 1,671,
+`intro` 99, `discussion` 97, `conclusion` 50, `abstract` 15, `results` 10. The file
 records reference fractions for announced enumeration, ordinal runs, tricolon-like
 setup/list patterns, anaphora, balanced closers, and aggregate templating.
 
@@ -127,9 +134,11 @@ Interpretation limits:
 ## 6. UID reference evidence
 
 `style-profile/wgl/uid_baseline.json` records
-1,957 paragraphs that met its token requirement. It stores pooled and section-level
+1,942 paragraphs that met its 25-token requirement. It stores pooled and section-level
 means, standard deviations, and counts for global UID, local UID, and mean surprisal
-under GPT-2-large.
+under GPT-2-large. The rebuild adds a sixth section bucket: `results` (n=10) has a
+surprisal reference for the first time, where the pre-v0.27.0 baseline carried five
+buckets and no `results` at all. Pooled global UID is 3.329 ± 0.391 over all 1,942.
 
 This supports comparative evidence, but the current subsystem reports degraded status
 because the profile does not document an operating point, uncertainty-to-action rule,
@@ -140,21 +149,23 @@ threshold.
 
 The current
 `style-profile/wgl/voice_model.joblib` bundle
-was retrained on an expanded corpus and evaluated with the confound-aware audit on
-2026-07-12 (cloud run on an RTX PRO 6000 Blackwell GPU; artifacts SHA-256 verified on
-retrieval). The full machine-readable audit is
+was **retrained locally on 2026-08-17** (RTX 4060 Ti) after the §2 section-classification
+fix changed the curated-field bank, and re-evaluated with the same confound-aware audit.
+It supersedes the 2026-07-12 cloud run (RTX PRO 6000 Blackwell; artifacts SHA-256 verified
+on retrieval) whose figures this section previously carried. The full machine-readable
+audit is
 `style-profile/wgl/voice_model_evaluation.json`
-(schema `sci-paper.voice-model-evaluation.v1`).
+(schema `sci-paper.voice-model-evaluation.v1`, `generated_utc` `2026-08-17T05:18:20Z`).
 
 | Metadata | Value |
 |---|---:|
 | classifier | logistic regression |
-| positive-class records (curated field + dated arXiv + public human) | 16,394 |
+| positive-class records (curated field + dated arXiv + public human) | 16,382 |
 | negative-class records (generated field + generated public) | 2,265 |
-| total records | 18,659 |
-| primary grouped-split held-out AUC | 0.9414 |
-| primary grouped-split F1 (positive class) | 0.9266 |
-| primary grouped-split balanced accuracy | 0.8580 |
+| total records | 18,647 |
+| primary grouped-split held-out AUC | 0.9399 |
+| primary grouped-split F1 (positive class) | 0.9246 |
+| primary grouped-split balanced accuracy | 0.8571 |
 | feature count | 14 |
 | operating point in bundle | absent |
 | `measurement_status` | degraded |
@@ -172,15 +183,26 @@ variation; they are not independent-sample confidence intervals.
 
 | Metric | mean | 2.5% | 97.5% |
 |---|---:|---:|---:|
-| overall AUC (raw UID) | 0.9324 | 0.9220 | 0.9424 |
-| overall balanced accuracy | 0.8515 | 0.8378 | 0.8641 |
-| matched-stratum AUC (section × length × math × field-term) | 0.9242 | 0.9085 | 0.9416 |
-| overall AUC (section-normalized UID) | 0.9366 | 0.9288 | 0.9445 |
+| overall AUC (raw UID) | 0.9320 | 0.9218 | 0.9416 |
+| overall balanced accuracy | 0.8509 | 0.8382 | 0.8642 |
+| matched-stratum AUC (section × length × math × field-term) | 0.9236 | 0.9044 | 0.9414 |
+| overall AUC (section-normalized UID) | 0.9358 | 0.9280 | 0.9438 |
 
 The matched-stratum AUC stays within ~0.01 of the overall AUC, so the separation is not
 merely a topic, length, or mathematical-density artifact. Section-normalizing the UID
 features changes overall AUC by only +0.004 on average, so raw UID is not the dominant
 lever.
+
+**What the section fix did and did not move.** Comparing this audit against the
+pre-rebuild record key by key, every headline figure moved by at most 0.002 in AUC
+(primary split 0.9414 → 0.9399; 20-split mean 0.9324 → 0.9320) — the fix does not change
+what the model measures or its `degraded` posture. The change is in the per-section audit
+strata, which were degenerate before: the `discussion` stratum held a median of 5 positive
+rows and some splits contained none at all, so its minimum F1 and recall were both 0.000.
+Post-rebuild it holds a median of 19, and those minima are 0.857 and 0.850. The
+`conclusion` stratum's smallest split rose from 3 rows to 9. Before the fix the
+by-section breakdown of this audit was not measuring section behavior; it was measuring
+an empty cell.
 
 ### 7.2 Negative controls — the confound the audit exposes
 
@@ -190,13 +212,14 @@ as curated-field-like (mean across 20 splits):
 | Generated-negative control | false-positive rate |
 |---|---:|
 | public-generic AI text | 0.086 |
-| field-topic AI text | 0.316 |
-| field-jargon-dense AI text | 0.412 |
+| field-topic AI text | 0.318 |
+| field-jargon-dense AI text | 0.417 |
 
 Generic public AI prose is easy (8.6% FPR), but AI text written in the field's topic and
-jargon fools the model 32–41% of the time. The learned score partly measures field
+jargon fools the model 32–42% of the time. The learned score partly measures field
 register, so it is unreliable on the exact distribution — field-topic AI prose — that a
-manuscript de-AI pass must catch.
+manuscript de-AI pass must catch. The retrain moved these rates by at most +0.005, so the
+confound is a property of the feature set rather than of one training bank.
 
 ### 7.3 Author hard set — true provenance is the yardstick, perception is not
 
@@ -208,7 +231,7 @@ the provenance is the meaningful one. Every AUC below is reported with a seeded 
 
 | Question | AUC | 95% CI |
 |---|---:|---:|
-| Does the **model** score separate true generated from human? (low compatibility = generated) | 0.937 | 0.860–0.990 |
+| Does the **model** score separate true generated from human? (low compatibility = generated) | 0.937 | 0.861–0.990 |
 | Can the **author's `ai_feel`** separate the same true provenance? | 0.444 | 0.304–0.582 |
 
 The model separates true AI-vs-human prose well (0.94). The author's single-paragraph
@@ -217,10 +240,10 @@ does not carry enough signal for reliable human AI-judgement. Mean `ai_feel` by 
 source confirms this — author drafts were rated *most* AI-feeling (2.68) and actual
 generated text less so (~2.0), so the perceptual axis does not track provenance.
 
-An earlier version of this section reported an AUC of 0.354 for "low compatibility
+An earlier version of this section reported an AUC of 0.353 for "low compatibility
 predicts strong `ai_feel`" and called it decisive proof that the model measures field
 register, not AI-ness. That was wrong: it scored the model against the near-chance
-perceptual axis, and with only 8 strong-feel labels its interval is 0.141–0.588, which
+perceptual axis, and with only 8 strong-feel labels its interval is 0.140–0.585, which
 straddles 0.5 and is not distinguishable from random. It is retained only as a low-power
 secondary line in `voice_model_evaluation.json`, not as evidence about the model.
 
@@ -229,8 +252,9 @@ secondary line in `voice_model_evaluation.json`, not as evidence about the model
 L3 stays `degraded` with **no operating point** — but for the well-powered reasons, not
 the hard-set perception metric:
 
-1. the field-topic and field-jargon-dense negative controls (§7.2, n=167/81) show a
-   32–41% false-positive rate on exactly the AI prose a manuscript pass must catch;
+1. the field-topic and field-jargon-dense negative controls (§7.2, n=167/81 in the
+   primary split) show a 32–42% false-positive rate on exactly the AI prose a manuscript
+   pass must catch;
 2. AI-ness in scientific writing is substantially a document- and cross-paragraph
    property, and no document-level calibration set exists yet (§9).
 
@@ -243,11 +267,15 @@ never a universal cutoff.
 
 - Grouping by source paper reduces same-paper leakage; the matched-stratum result adds
   section/length/math/jargon control, but observational separation is not causal proof.
-- The bundle was trained on the cloud with scikit-learn 1.4.2; loading it under a newer
-  local scikit-learn emits an unpickle-version warning. The model is gitignored and
-  rebuilt per field, so a local rebuild removes the mismatch.
+- The `results` audit stratum exists for the first time but holds n=10, so its per-section
+  figures are reported and not interpreted.
 - Held-out classification performance alone is insufficient for rewrite ranking outside
   the training distribution; §8 gates ranking on measured calibration.
+
+The earlier cloud bundle was trained with scikit-learn 1.4.2 and emitted an
+unpickle-version warning when loaded under a newer local scikit-learn. The 2026-08-17
+local retrain resolves it by the mechanism this section predicted: the rebuilt bundle
+loads under local scikit-learn 1.8.0 with no warnings.
 
 ## 8. Rewrite eligibility
 
@@ -778,11 +806,17 @@ the exemplar bank or the the manuscript manuscript before that decision.
 
 ## 12. Release evidence boundary
 
-Current release gates (v0.27.0, 2026-08-16): `validate_plugin.py` all 9 checks
+Current release gates (v0.27.1, 2026-08-17): `validate_plugin.py` all 9 checks
 pass and the full unit/CLI suite (208 tests, 15 files) passes on a clean tree;
 both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
 release commit must also be green (first green runs: 31133202443 push,
 31133215203 manual dispatch).
+
+A v0.27.1-specific gate applies because this release is a measurement write-back
+rather than a code change: every section-keyed figure in this document is
+re-read from the rebuilt artifact in the same pass that writes it, and the
+pre-rebuild snapshot under `.backups/` is compared key by key so a figure that
+moved cannot be reported as unchanged.
 
 Historical record — v0.14.0 release gates and their status on 2026-07-12:
 
@@ -925,10 +959,17 @@ and measurement sides, from the field's own banks:
 | Bucket | n | Sources |
 |---|---:|---|
 | abstract | 13,438 | `human_abstracts_extra.jsonl`, `exemplar_paragraphs.jsonl` |
-| method | 1,377 | `exemplar_paragraphs.jsonl` |
+| method | 1,303 | `exemplar_paragraphs.jsonl` |
 | intro | 88 | `exemplar_paragraphs.jsonl` |
-| discussion | 35 | `exemplar_paragraphs.jsonl` |
-| conclusion | 26 | `exemplar_paragraphs.jsonl` |
+| discussion | 78 | `exemplar_paragraphs.jsonl` |
+| conclusion | 41 | `exemplar_paragraphs.jsonl` |
+| results | 10 | `exemplar_paragraphs.jsonl` — below the 30-passage floor, rank-only |
+
+Counts are post-rebuild (2026-08-17). The pre-v0.27.0 reference read `method` 1,377,
+`discussion` 35, `conclusion` 26 and had no `results` bucket at all; `conclusion` now
+clears the 30-passage floor, and `discussion` more than doubles. The `abstract` bucket
+and every percentile below are unchanged — abstracts were never mis-bucketed, and the
+rebuilt grids are byte-identical to the pre-rebuild ones.
 
 Human abstract percentiles:
 
@@ -986,9 +1027,10 @@ as observed evidence, gives 19.
 
 ### 14.4 Register reference and precision
 
-Document frequency over 15,599 passages (1,957 exemplar paragraphs + 13,642
-abstracts), 41,933 terms. Firing rule: ≥ 5 manuscript uses **and** corpus df
-rate < 1e-4.
+Document frequency over 15,584 passages (1,942 exemplar paragraphs + 13,642
+abstracts), 41,714 terms. Firing rule: ≥ 5 manuscript uses **and** corpus df
+rate < 1e-4. The rebuild drops 15 passages (the skipped back matter) and 219 terms,
+0.096% and 0.52% respectively — below the 1e-4 threshold's resolution, but not zero.
 
 Controls that must not fire:
 
@@ -997,7 +1039,7 @@ Controls that must not fire:
 | `accuracy` | 774 | itself | 5.0e-2 | not flagged |
 | `epoch` | 402 | itself | 2.6e-2 | not flagged |
 | `same-plane` | 536 | `plane` | 3.4e-2 | not flagged |
-| `aperture-mass` | 312 | `aperture` | 2.0e-2 | not flagged |
+| `aperture-mass` | 313 | `aperture` | 2.0e-2 | not flagged |
 | `training` | 155 | itself | 9.9e-3 | not flagged |
 | `benchmark` | 81 | itself | 5.2e-3 | not flagged |
 | `classifier` | 29 | itself | 1.9e-3 | not flagged |

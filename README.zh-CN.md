@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.27.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.27.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
@@ -333,7 +333,7 @@ Validator 检查发布元数据、skill frontmatter、规范引用、文档权�
 
 ## 现状
 
-当前版本：**v0.27.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本：**v0.27.1**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 - **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.6 —— 完整的去 AI 标准全在这一个文件里
   （分层模型、全文尺度检测核心、协作层、`calibration_unit` 置信度封顶、§5.2 去 AI 化步骤、

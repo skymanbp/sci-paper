@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.27.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.27.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
@@ -353,7 +353,7 @@ verification, and a green hosted CI run on the release commit.
 
 ## Status
 
-Current: **v0.27.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.27.1**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 - **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.6 — the complete de-AI
   standard in one file (layered model, document-scale detection core,
