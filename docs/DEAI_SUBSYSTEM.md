@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.26.1)
+# De-AI subsystem architecture (current as of v0.26.2)
 
 ## 1. Purpose
 

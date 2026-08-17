@@ -1,4 +1,4 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.26.1
+# EVALUATION: de-AI subsystem for `sci-paper` v0.26.2
 
 First recorded 2026-07-12; axis table and repository-verification counts current as of
 2026-08-16.
@@ -710,7 +710,7 @@ the exemplar bank or the the manuscript manuscript before that decision.
 
 ## 12. Release evidence boundary
 
-Current release gates (v0.26.1, 2026-08-16): `validate_plugin.py` all 8 checks
+Current release gates (v0.26.2, 2026-08-16): `validate_plugin.py` all 8 checks
 pass and the full unit/CLI suite (172 tests, 14 files) passes on a clean tree;
 both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
 release commit must also be green (first green runs: 31133202443 push,
@@ -1088,11 +1088,54 @@ indistinguishable, so this cannot be a detector. But every passage below 0.833
 was AI (0.714, 0.667, 0.571, 0.500) and no human fell below it, so the usable
 form is a one-sided low-tail quality band, which is what §5.4 asks for.
 
-The dominant unquantified risk is annotator contamination: the annotator was
-blind to the label but can often infer it from style, so the AUC is an upper
-bound. The de-contamination protocol (pointer-valued annotation, adversarial
-refutation of every unbound verdict, a sealed guess record for conditional
-analysis, and a same-title paired corpus) is designed but not executed.
+The dominant risk was annotator contamination: the annotator was blind to the
+label but can often infer it from style. That risk was then measured, and it
+is what killed the statistic.
+
+### 15.2b Refuted: the adversarial pass removes the domain-matched effect entirely
+
+Every clause the first annotator called unbound was handed to a second
+annotator, blind to the class and to every other file in the study, whose task
+was to *find* an antecedent. Opposite incentives make the overturn rate a
+contamination measure, and the protocol pre-registered failure above 30%.
+
+**9 of 20 challenged clauses were overturned, a rate of 0.450.**
+
+| contrast | AUC before | AUC after | p after |
+|---|---|---|---|
+| class-level (not domain-matched) | 0.875 | 0.750 | 0.016 |
+| arXiv human vs Claude astro (matched) | 0.756 | **0.500** | **1.000** |
+| arXiv human vs RAID (cross-domain) | 0.989 | 1.000 | 0.0005 |
+
+After correction all five Claude-generated astronomy passages score exactly
+1.000, identical to all nine human arXiv passages, so the domain-matched
+contrast is exactly chance. Every one of the eleven clauses whose unbound
+verdict survived refutation lies in the cross-domain RAID bank; **not one
+domain-matched generated passage contained a clause without an antecedent.**
+The residual class-level separation is the genre confound in isolation.
+
+The overturns are diagnostic of the contamination rather than of careless
+annotation. Six of the nine fell on the Claude astronomy passages, and the
+refuter's antecedents were exact: "We are convinced that polarimetric mapping
+of this kind will become indispensable" and "This near-criticality is a
+profound clue" were marked unbound because they *read* as machine prose, while
+their demonstratives point at named earlier propositions. The first annotator's
+authorship instinct, not the binding rule, produced those verdicts.
+
+**Spine fraction is therefore refuted as a discriminator at pilot scale**, on
+its own pre-registered condition, and no tool is built. The finding vindicates
+the shipping decision rather than undermining it: SCIPAPER_STANDARD §5.4 ships
+as a writing rule that explicitly forbids building a threshold on this signal,
+and the evidence now says that restraint was correct. What survives is the
+refuter's own dividing line, which is a **writing** distinction and not a
+detection one: a demonstrative pointing at a single earlier proposition is a
+real antecedent, whereas a generic self-reference ("our results", "this
+paper") predicated on an unfalsifiable relevance claim is not.
+
+Two limits stand. n is 20 passages and one annotator pair, so the refutation is
+as small as the effect it refutes. And the second annotator is the same model
+family as the first, so a shared blind spot would not show up as disagreement;
+the overturn rate bounds contamination from below, not from above.
 
 ### 15.3 Corpus provenance: the pre-LLM guarantee was weaker than stated
 

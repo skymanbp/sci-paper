@@ -3,6 +3,41 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.26.2 — 2026-08-16
+
+Evidence only. The validation v0.26.1 said was designed but not executed was
+executed, and it **refuted** the statistic v0.26.1 recorded as a lead. No
+skill, tool, threshold, or exit code changed.
+
+- **Spine fraction is refuted as a discriminator, on its own pre-registered
+  condition** (`EVALUATION` §15.2b). Every clause the first annotator called
+  unbound went to a second annotator, blind to the class and to every other
+  file in the study, whose task was to *find* an antecedent. The protocol
+  pre-registered failure above a 30% overturn rate. **The measured rate was
+  45%** (9 of 20). The domain-matched AUC fell from 0.756 to **exactly
+  0.500** (p = 1.000): after correction all five Claude-generated astronomy
+  passages score 1.000, identical to all nine human arXiv passages. Every
+  unbound verdict that survived refutation lies in the cross-domain bank, so
+  the residual class-level separation (0.750) is the genre confound alone.
+- **The overturns diagnose the contamination they were built to measure.** Six
+  of nine fell on the generated astronomy passages, and the refuter's
+  antecedents were exact: clauses were marked unbound because they *read* as
+  machine prose while their demonstratives pointed at named earlier
+  propositions. Authorship instinct produced those verdicts, not the binding
+  rule.
+- **This vindicates the v0.26.1 shipping decision rather than undermining it.**
+  §5.4 shipped as a writing rule that forbids building a threshold on this
+  signal; the evidence now says that restraint was correct. The §11
+  disposition table records `Spine fraction as a discriminator` as
+  **Rejected**.
+- What survives is a **writing** distinction, not a detection one: a
+  demonstrative pointing at a single earlier proposition is a real antecedent;
+  a generic self-reference predicated on an unfalsifiable relevance claim is
+  not. That is already how §5.4 and the de-ai binding ledger are written.
+- Limits recorded with the result: 20 passages and one annotator pair, and a
+  second annotator from the same model family, so the overturn rate bounds
+  contamination from below rather than from above.
+
 ## v0.26.1 — 2026-08-16
 
 One new normative section and the evidence for why it ships without a
