@@ -61,7 +61,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
      - "因成本限制" / "因算力限制" / "因时间限制" / "时间不够" / "算力不够"
      - "future work" / "留作 future work" / "TODO" / "FIXME"
      - "暂不展开" / "略" / "details omitted" / "省略" / "暂略"
-     - "应该" / "大概" / "我相信" / "通常" / "可能"（→ 触发 cc-enslaver rule 01）
+     - "应该" / "大概" / "我相信" / "通常" / "可能"（→ 触发 cc-enforcer rule 01）
    - 若推导**真的**需要外部资源（特定数据集、特定计算、特定文献全文），必须当轮通过 WebFetch / WebSearch / Bash / Read 获取；获取失败 → 改用§3.X / §3.E（约束变换）派生**替代方案分支**并完整推导。**禁止**留半成品节点声称"算最终叶"。
    - 这条禁令在**每一个节点**处都强制执行，不分主分支次分支、不分高分低分。
 
@@ -415,7 +415,7 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 
 ---
 
-## 8. 工具使用规范（cc-enslaver 投影）
+## 8. 工具使用规范（cc-enforcer 投影）
 
 | 任务 | 必用工具 | 禁止 |
 |---|---|---|
@@ -429,7 +429,7 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 **子代理使用建议**：
 - 当树宽度 ≥ 5 时，把每个 framing pass 派给一个 Explore subagent 并行；汇总后由主 agent 做§5 评估
 - 子代理 prompt 必须自包含（背景 + 当前节点 + 该 pass 的硬要求）
-- 子代理返回的引用主 agent 必须再 verify（cc-enslaver rule 04）
+- 子代理返回的引用主 agent 必须再 verify（cc-enforcer rule 04）
 
 ---
 
