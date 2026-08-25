@@ -35,6 +35,7 @@ universal paper PASS/FAIL.
 | Generated profile assets and build boundaries | [../style-profile/README.md](../style-profile/README.md) |
 | Per-version history | [../CHANGELOG.md](../CHANGELOG.md) |
 | Working rules for this repository | [../CLAUDE.md](../CLAUDE.md) |
+| Adapted-material attribution and adoption boundaries | [../ACKNOWLEDGMENTS.md](../ACKNOWLEDGMENTS.md) |
 
 ## Conventions this directory is held to
 
