@@ -32,7 +32,14 @@ SCHEMA = "sci-paper.feedback.v1"
 STANDARD_DOC = "docs/SCIPAPER_STANDARD.md"
 DOCS_INDEX = "docs/README.md"
 SUBSYSTEM_DOC = "docs/architecture/DEAI_SUBSYSTEM.md"
+# The evidence record is a hub plus parts under docs/architecture/evaluation/.
+# EVALUATION_DOC is the hub: it carries the contract, the axis-status table, the
+# section map, and the release boundary, and is what other documents cite.
+# EVALUATION_PARTS_DIR holds the section bodies. Any check that validates a
+# recorded measurement must scan the WHOLE record, not just the hub -- a stale
+# figure hiding in a part file is exactly the drift these checks exist to catch.
 EVALUATION_DOC = "docs/architecture/EVALUATION.md"
+EVALUATION_PARTS_DIR = "docs/architecture/evaluation"
 DESIGN_NOTES = (
     "docs/design-notes/DEAI_ARCHITECTURE_ROADMAP.md",
     "docs/design-notes/DEAI_FRONTIER.md",
@@ -300,17 +307,33 @@ def check_recorded_test_counts() -> str:
     it is validated like one.
     """
     tests, files = _discovered_test_count()
-    text = read_text(REPO / EVALUATION_DOC)
-    claims: list[tuple[int, int]] = []
-    for pattern in (TEST_COUNT_RE, SUITE_COUNT_RE):
-        for claimed_tests, claimed_files in pattern.findall(text):
-            claims.append((int(claimed_tests.replace(",", "")), int(claimed_files)))
-    require(claims, f"{EVALUATION_DOC} records no suite size to verify")
-    wrong = [claim for claim in claims if claim != (tests, files)]
+    # Scan the WHOLE evidence record. Before the record was split, checking the
+    # single EVALUATION.md was the same thing; afterwards it was not, and a
+    # stale count in a part file would have gone unchecked -- the precise
+    # failure mode this function exists to prevent.
+    documents = [REPO / EVALUATION_DOC]
+    documents.extend(sorted((REPO / EVALUATION_PARTS_DIR).glob("*.md")))
+    claims: list[tuple[tuple[int, int], str]] = []
+    for path in documents:
+        if not path.is_file():
+            continue
+        name = path.relative_to(REPO).as_posix()
+        text = read_text(path)
+        for pattern in (TEST_COUNT_RE, SUITE_COUNT_RE):
+            for claimed_tests, claimed_files in pattern.findall(text):
+                claims.append(((int(claimed_tests.replace(",", "")),
+                                int(claimed_files)), name))
+    require(claims,
+            f"the evaluation record ({EVALUATION_DOC} and "
+            f"{EVALUATION_PARTS_DIR}/) records no suite size to verify")
+    wrong = sorted({(claim, name) for claim, name in claims
+                    if claim != (tests, files)})
     require(not wrong,
-            f"{EVALUATION_DOC} records suite size(s) "
-            f"{sorted(set(wrong))} but discovery finds ({tests}, {files})")
-    return f"recorded suite size matches discovery ({tests} tests, {files} files)"
+            "evaluation record states suite size(s) "
+            + ", ".join(f"{claim} in {name}" for claim, name in wrong)
+            + f" but discovery finds ({tests}, {files})")
+    return (f"recorded suite size matches discovery ({tests} tests, {files} files; "
+            f"{len(claims)} claim(s) across {len(documents)} document(s))")
 
 
 def product_tool_files() -> set[str]:

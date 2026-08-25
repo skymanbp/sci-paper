@@ -119,13 +119,13 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 **二 · 全文尺度检测，因为段落尺度的去 AI 根本没用。** 本仓库最关键的一次测量：
 把段落级去 AI 改写当作攻击施加到 AI 文档上，**改动了 22% 的文本、删掉了全部 14 个
 em-dash**，而全文级 dispersion 几乎没动 —— 0.47 → 0.49，人类是 1.08
-（[§9.1](docs/architecture/EVALUATION.md)）。把每一段都朝"更像人"改，段落**彼此之间**
+（[§9.1](docs/architecture/evaluation/document-scale.md)）。把每一段都朝"更像人"改，段落**彼此之间**
 依然一样齐整。所以主检测器是一个**联合流形统计量**：把每份文档的 log dispersion 比值
 向量，对人类中心与协方差做 Mahalanobis 距离 —— 纯标准库的 11 维实现，带 ridge 稳定化。
 联合几何能抓住独立边缘分布抓不住的东西：形状对抗者可以凑出合理的逐特征离散度，
 却凑不出正确的协方差。另一条正交轴测 **role coupling** —— 人类是在**论证需要的地方**
-改变段落形状。在人类语料上，两条轴的 5% 尾部**完全不相交**
-（507 篇里 0 篇被两条同时标记；若独立应约 1.3 篇）。
+改变段落形状。在 507 篇的人类语料上，两条轴的 5% 尾部**完全不相交**
+（0 篇被两条同时标记；若独立应约 1.3 篇）。
 
 **三 · 操作点是 split-conformal 且按长度分层的。** 用同一批论文既拟合又定阈值，
 那是 in-sample。发布的操作点在留出的人类论文上标定 nonconformity 分数，
@@ -299,15 +299,15 @@ axis L2.document_structure: measured
 
 ### 全文尺度、长度公平的判别力
 
-对照 171 篇同长度层、留出的人类论文的 AUC —— 这是长度混淆被发现并修正之后的
-诚实协议。来源：[EVALUATION.md §9.5](docs/architecture/EVALUATION.md)。
+对照 169 篇同长度层、留出的人类论文的 AUC —— 这是长度混淆被发现并修正之后的
+诚实协议。来源：[§9.5](docs/architecture/evaluation/document-scale.md)，2026-08-25 重测。
 
 | 对比 | 流形 AUC | role-coupling AUC |
 |---|---:|---:|
-| 人类 vs **自然** AI | **0.873** | 0.703 |
-| 人类 vs **去 AI 化后**的 AI（把段落级去 AI 当作攻击） | **0.901** | 0.752 |
-| 人类 vs **形状对抗**的 AI（刻意制造参差） | 0.836 | **0.819** |
-| 人类 vs **骨架匹配**的结构克隆 | 0.822 | 0.516 |
+| 人类 vs **自然** AI | **0.928** | 0.702 |
+| 人类 vs **去 AI 化后**的 AI（把段落级去 AI 当作攻击） | **0.939** | 0.751 |
+| 人类 vs **形状对抗**的 AI（刻意制造参差） | 0.919 | **0.818** |
+| 人类 vs **骨架匹配**的结构克隆 | 0.916 | 0.515 |
 
 两条轴天生互补：流形对包括结构克隆在内的每一档都保持稳健判别，
 而 role 轴的真实功效恰好集中在把流形逼到最窄的那一档上。
@@ -316,28 +316,28 @@ axis L2.document_structure: measured
 
 Split-conformal，按长度三分位做 Mondrian 分层。保证：对可交换的人类论文，
 **有限样本、分布无关的 `P(误标) ≤ α`**。
-来源：[EVALUATION.md §9.5](docs/architecture/EVALUATION.md)。
+来源：[§9.5](docs/architecture/evaluation/document-scale.md)。
 
 | 量 | 流形 | role | 目标 |
 |---|---:|---:|---:|
-| 人类误标率（独立三分复现） | **0.029** | **0.069** | ≤ 0.05 |
+| 人类误标率（校准集上留一法） | **0.040** | **0.049** | ≤ 0.05 |
 | 逐特征带的 leave-one-out 标记率 | 0.051 | 0.051 | 0.05 |
 
 同一操作点下的尾部功效 —— 弱的地方也照实报：
 
 | 标记 | 自然 | 去 AI 化 | 对抗 | 骨架 |
 |---|---:|---:|---:|---:|
-| 流形 | 0.071 | 0.133 | 0.026 | 0.125 |
+| 流形 | 0.214 | 0.400 | 0.158 | 0.292 |
 | role-decoupling | 0.107 | 0.333 | 0.316 | 0.042 |
-| **并集** | 0.179 | 0.467 | 0.342 | 0.167 |
+| **并集** | 0.321 | 0.667 | 0.421 | 0.333 |
 
-短文档在流形轴上的 5% 尾部功效确实弱，因为短人类论文的距离分布是重尾的。
+短文档在流形轴上的尾部功效仍是最弱的一档，因为短人类论文的距离分布是重尾的。
 "长度感知流形"排在前沿队列里，而不是就地临时发明一个。
 
 ### 为什么没有单一分数：L3 的混淆
 
 学习型段落尺度模型效果不错 —— 而它**依然**以 `degraded` 发布，理由是测出来的。
-来源：[EVALUATION.md §7.1–7.3](docs/architecture/EVALUATION.md)。
+来源：[§7.1–7.3](docs/architecture/evaluation/learned-model.md)。
 
 | 指标 | 值 | 95% 区间 |
 |---|---:|---|
@@ -607,7 +607,7 @@ sci-paper/
 ├── .github/workflows/       ci.yml —— 每次 push 与 PR 跑 validator + 测试
 ├── docs/                    ← 索引与权威顺序在 docs/README.md
 │   ├── SCIPAPER_STANDARD.md      唯一规范契约（v3.6）
-│   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md
+│   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md（hub）+ evaluation/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
 ├── skills/<name>/SKILL.md   8 个 skill
 ├── tools/                   24 个产品工具 + 仓库 validator
@@ -646,7 +646,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 |---|---|
 | **没有学习型模型的操作点** | L3 以 `degraded` 发布。文档级 surprisal 路径已被*测量证明*给不出操作点（0.757 vs model-free 流形的 0.881）。 |
 | **领域主题假阳** | 在领域主题与术语密集 AI 文字上 32–42%。这就是没有单一分数的原因。 |
-| **短文档尾部功效** | 流形在短文档上对自然 AI 的 5% 尾部功效是 0.071。排序在长度匹配下站得住（AUC 0.873）；*尾部*站不住。 |
+| **短文档尾部功效** | 流形在短文档上对自然 AI 的 5% 尾部功效是 0.214 —— 2026-08-17 重建把它翻了三倍，但仍远低于 0.928 的长度公平排序所暗示的上限。 |
 | **`results` salience 桶** | n=10，低于 30 passage 下限 —— 语料变大之前仅用于排序。 |
 | **协作层工具** | `deai_provenance` 与 `deai_personal` 在作者提供自己的草稿历史或 ≥ 3 篇既往论文之前，诚实地保持 `unmeasured`。 |
 | **`L1.distribution` / `L2.sentence_structure`** | 按设计是 `degraded` —— 不存在 `deai_policy.json` 操作点。上面每个 demo 里都看得到。 |

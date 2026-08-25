@@ -7,8 +7,21 @@ only the first is normative.
 |---|---|---|---|
 | **Normative** | [SCIPAPER_STANDARD.md](SCIPAPER_STANDARD.md) | The single writing/review contract. If a skill, tool, profile, or workflow disagrees with it, **it wins**. | Always first. Everything else implements or measures this. |
 | **Architecture** | [architecture/DEAI_SUBSYSTEM.md](architecture/DEAI_SUBSYSTEM.md) | How the de-AI subsystem is built: layers, detectors, isolation, calibration artifacts. | You are changing a tool or tracing why a finding was emitted. |
-| **Evidence** | [architecture/EVALUATION.md](architecture/EVALUATION.md) | What is currently measured, what is degraded or unmeasured, and every known confound. | You want to know whether an axis can be trusted, and on what sample. |
+| **Evidence** | [architecture/EVALUATION.md](architecture/EVALUATION.md) — the hub | Evaluation contract, current per-axis status, repository verification, release evidence boundary, and the map of every section. | You want to know whether an axis can be trusted, and on what sample. **Start here**, then follow the map. |
 | **Frozen design notes** | [design-notes/DEAI_ARCHITECTURE_ROADMAP.md](design-notes/DEAI_ARCHITECTURE_ROADMAP.md)<br>[design-notes/DEAI_FRONTIER.md](design-notes/DEAI_FRONTIER.md) | Dated reasoning records, **not status documents**. Their present tense is the present tense of the day they were written. | You want to know *why* a design decision was taken. |
+
+The evidence record is one document split across five files, because a single one
+had grown past the point of being readable. Section numbers are **global**: §9.5 means
+the same thing wherever it is cited from, and the hub's section map says which file it
+lives in.
+
+| Part | Sections | Evidence |
+|---|---|---|
+| [architecture/EVALUATION.md](architecture/EVALUATION.md) | 1–3, 12 | The hub: contract, axis status, repository verification, release boundary, section map |
+| [architecture/evaluation/lexical-structure-uid.md](architecture/evaluation/lexical-structure-uid.md) | 4–6 | L0 behaviour, sentence-structure reference, UID reference |
+| [architecture/evaluation/learned-model.md](architecture/evaluation/learned-model.md) | 7, 8, 10 | Learned field similarity and its confound audit, rewrite eligibility, author hard set |
+| [architecture/evaluation/document-scale.md](architecture/evaluation/document-scale.md) | 9 | Whole-document dispersion: the keystone axis, its adversarial tiers and conformal operating points |
+| [architecture/evaluation/narrative-salience-register.md](architecture/evaluation/narrative-salience-register.md) | 11, 13–15 | Real rewrite evaluation, blind perceptual panel, salience hierarchy, domain register, narrative salience |
 
 ## The authority order
 

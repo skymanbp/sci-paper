@@ -132,7 +132,7 @@ See [demo 2](#2-the-fidelity-gate-rejects-the-best-scoring-candidate).
 The load-bearing measurement here: applying a paragraph-level de-AI rewrite to AI
 documents changed **22% of the text and removed all 14 em-dashes**, yet
 document-level dispersion barely moved — 0.47 → 0.49, against human 1.08
-([§9.1](docs/architecture/EVALUATION.md)). Rewriting each paragraph toward a
+([§9.1](docs/architecture/evaluation/document-scale.md)). Rewriting each toward a
 "more human" target still leaves the paragraphs uniform *relative to each other*.
 So the primary detector is a **joint manifold statistic**: the per-document
 vector of log dispersion ratios scored by Mahalanobis distance against the human
@@ -140,8 +140,8 @@ centre and covariance — a pure-stdlib 11-D implementation, ridge-stabilised. T
 joint geometry catches what independent marginals cannot: a shape adversary can
 land plausible per-feature spreads with the wrong covariance. An orthogonal axis
 measures **role coupling** — humans vary paragraph shape *where the argument
-demands it*. On the human corpus the two axes' 5% tails were **exactly disjoint**
-(0 of 507 papers flagged by both; independence predicts ~1.3).
+demands it*. On the 507-paper human corpus the two axes' 5% tails were **exactly
+disjoint** (0 flagged by both; independence predicts ~1.3).
 
 **3 · Operating points are split-conformal and length-stratified.** Percentile
 thresholds fit on the same papers that set them are in-sample. The shipped
@@ -332,16 +332,16 @@ README.
 
 ### Document-scale, length-fair discrimination
 
-AUC against 171 same-length-stratum held-out human papers — the honest protocol
+AUC against 169 same-length-stratum held-out human papers — the honest protocol
 after the length confound was found and corrected. Source:
-[EVALUATION.md §9.5](docs/architecture/EVALUATION.md).
+[§9.5](docs/architecture/evaluation/document-scale.md), re-measured 2026-08-25.
 
 | Contrast | Manifold AUC | Role-coupling AUC |
 |---|---:|---:|
-| human vs **natural** AI | **0.873** | 0.703 |
-| human vs **de-AI'd** AI (paragraph-level de-AI as an attack) | **0.901** | 0.752 |
-| human vs **shape-adversarial** AI (deliberate raggedness) | 0.836 | **0.819** |
-| human vs **skeleton-matched** structural clone | 0.822 | 0.516 |
+| human vs **natural** AI | **0.928** | 0.702 |
+| human vs **de-AI'd** AI (paragraph-level de-AI as an attack) | **0.939** | 0.751 |
+| human vs **shape-adversarial** AI (deliberate raggedness) | 0.919 | **0.818** |
+| human vs **skeleton-matched** structural clone | 0.916 | 0.515 |
 
 The axes are complementary by construction: the manifold carries robust
 discrimination against every tier including structure clones, while the role
@@ -351,11 +351,11 @@ axis's power concentrates on exactly the tier that narrows the manifold's margin
 
 Split-conformal, Mondrian-stratified by length tercile. Guarantee:
 finite-sample, distribution-free `P(false flag) ≤ α` for exchangeable human
-papers. Source: [EVALUATION.md §9.5](docs/architecture/EVALUATION.md).
+papers. Source: [§9.5](docs/architecture/evaluation/document-scale.md).
 
 | Quantity | Manifold | Role | Target |
 |---|---:|---:|---:|
-| Human false-flag rate, independent three-way replication | **0.029** | **0.069** | ≤ 0.05 |
+| Human false-flag rate, leave-one-out over the calibration set | **0.040** | **0.049** | ≤ 0.05 |
 | Leave-one-out per-feature band flag rate | 0.051 | 0.051 | 0.05 |
 
 Tail power at the same operating point — reported plainly, including where it is
@@ -363,11 +363,11 @@ weak:
 
 | Flag | natural | de-AI'd | adversarial | skeleton |
 |---|---:|---:|---:|---:|
-| manifold | 0.071 | 0.133 | 0.026 | 0.125 |
+| manifold | 0.214 | 0.400 | 0.158 | 0.292 |
 | role-decoupling | 0.107 | 0.333 | 0.316 | 0.042 |
-| **union** | 0.179 | 0.467 | 0.342 | 0.167 |
+| **union** | 0.321 | 0.667 | 0.421 | 0.333 |
 
-Short documents have honestly weak 5%-tail power on the manifold axis, because
+Short documents still have the weakest tail power on the manifold axis, because
 the short-human distance distribution is heavy-tailed. A length-aware manifold is
 queued rather than improvised.
 
@@ -375,7 +375,7 @@ queued rather than improvised.
 
 The learned paragraph-scale model is good — and ships `degraded` **anyway**, for
 a measured reason. Source:
-[EVALUATION.md §7.1–7.3](docs/architecture/EVALUATION.md).
+[§7.1–7.3](docs/architecture/evaluation/learned-model.md).
 
 | Metric | Value | 95% interval |
 |---|---:|---|
@@ -659,7 +659,7 @@ sci-paper/
 ├── .github/workflows/       ci.yml — validator + test suite on push and PR
 ├── docs/                    ← index + authority order at docs/README.md
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.6)
-│   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md
+│   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
 ├── skills/<name>/SKILL.md   8 skills
 ├── tools/                   24 product tools + the repository validator
@@ -703,7 +703,7 @@ de-AI standard.
 |---|---|
 | **No learned-model operating point** | L3 ships `degraded`. The document-level surprisal path was *measured* not to provide one (0.757 vs the model-free manifold's 0.881). |
 | **Field-topic false positives** | 32–42% on field-topic and jargon-dense AI prose. This is why there is no score. |
-| **Short-document tail power** | Manifold 5%-tail power on short documents is 0.071 for natural AI. The ranking survives length matching (AUC 0.873); the *tail* does not. |
+| **Short-document tail power** | Manifold 5%-tail power on short documents is 0.214 for natural AI — tripled by the 2026-08-17 rebuild, still well short of what the 0.928 length-fair ranking implies is available. |
 | **`results` salience bucket** | n=10, below the 30-passage floor — rank-only until the corpus grows. |
 | **Cooperative-layer tools** | `deai_provenance` and `deai_personal` are honestly `unmeasured` until the author supplies their own draft history or ≥ 3 prior papers. |
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` by design — no `deai_policy.json` operating point exists. Visible in every demo above. |
