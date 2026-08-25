@@ -5,14 +5,14 @@
 [![Version](https://img.shields.io/badge/version-0.27.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-214%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-222%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**8 skills · 25 tools · 214 tests · one normative contract · zero authorship verdicts.**
+**8 skills · 25 tools · 222 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
@@ -217,22 +217,22 @@ axis L2.document_structure: unmeasured: need at least 3 sections with at least 2
   ...
   L  3 [advisory L0 corpus-zero:pivotal] The field lexicon records zero occurrences of 'pivotal'.
   L 14 [advisory L2 structure-template:method] Paragraph contains repeated sentence-construction
-       template(s): announced-enumeration; reference method fraction 4.4% (n=135).
+       template(s): announced-enumeration; reference method fraction 3.7% (n=163).
 $ echo $?
 1
 ```
 
 Read the last finding closely. It is not "you used a list" — it is *this
-construction appears in 4.4% of the human method passages in your own corpus,
+construction appears in 3.7% of the human method passages in your own corpus,
 and yours is one of them*, with the reference sample size stated so you can
-judge how much that 4.4% is worth.
+judge how much that 3.7% is worth.
 
 After a claim-first rewrite:
 
 ```console
 $ python tools/ai_ism_lint.py after.tex --field wgl \
     --structure --distribution --register --salience --document-structure
-findings: blockers=0 L0=0 advisories=2 (strong=0)          # exit 0
+findings: blockers=0 L0=0 advisories=1 (strong=0)          # exit 0
 
 $ python tools/length_gate.py after.tex --before before.tex
 section                       before   after   delta  status
@@ -247,17 +247,17 @@ findings: blockers=0 L0=0 advisories=0 (strong=0)          # exit 0
 |---|---:|---:|
 | L0 targets | 10 | **0** |
 | integrity blockers | 0 | 0 |
-| advisories (of which strong) | 10 (0) | **2 (0)** |
+| advisories (of which strong) | 10 (0) | **1 (0)** |
 | linter exit code | `1` | **`0`** |
 | document length | 198 w | **163 w** (−35) |
 | length-gate advisories | — | **0** |
 | protected numbers preserved | — | **7 / 7** |
 
-**It did not converge to zero, and that is correct.** The two residual advisories
-are a salience reading on the rewritten method paragraph (p89 against an n=109
-human method reference) and a low-burstiness note on the same section. Neither is
-strong, and the answer is a recorded disposition rather than a tuned-down
-threshold: a parameter grid is *supposed* to carry numbers.
+**It did not converge to zero, and that is correct.** One advisory survives: a
+low-burstiness note on the Method section (sentence-length CV 0.35 against a 0.61
+reference). It is not strong, and the answer is a recorded disposition rather than
+a tuned-down threshold — the section states a parameter grid, and grids are
+regular.
 
 **The gate caught the author, twice.** The first rewrite attempt grew the Method
 section by 60 words and the gate flagged it (`+60 GROWTH`). The second fixed that
@@ -410,7 +410,7 @@ row, including interpreter startup.
 | `+ --oracle` (GPT-2-large token surprisal) | 5,225 w | 25.3 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 5,225 w | 47.2 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` (9 contract checks) | repository | 2.0 s | stdlib |
-| Full test suite (214 tests) | repository | 82.9 s | stdlib |
+| Full test suite (222 tests) | repository | 82.9 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,225-word manuscript costs
 ~270 ms of analysis above the interpreter floor**, with no optional dependency
@@ -422,7 +422,7 @@ which is the intended shape — you should not need a GPU to lint a paper.
 | Check | Result |
 |---|---|
 | Contract validator | **9/9 checks pass** |
-| Unit / CLI tests | **214 passing** (15 files) |
+| Unit / CLI tests | **222 passing** (15 files) |
 | CI | validator + suite on every push and PR, Python 3.11, Ubuntu |
 
 ---
@@ -610,11 +610,11 @@ carries (read directly from the artifacts):
 
 | Asset | Scale |
 |---|---|
-| `exemplar_paragraphs.jsonl` | 578 section-typed paragraphs |
-| `register_lexicon.json` | 14,220 passages · 41,126 terms |
+| `exemplar_paragraphs.jsonl` | 593 section-typed paragraphs |
+| `register_lexicon.json` | 14,235 passages · 41,154 terms |
 | `docstructure_baseline.json` | 493 complete documents · conformal α 0.05 · length strata [46, 76] |
 | `anchoring_baseline.json` | 500 documents |
-| `salience_baseline.json` | abstract 13,438 · intro 110 · method 109 · data 106 · discussion 78 · conclusion 41 · results 31 — all six body buckets clear the 30-passage floor |
+| `salience_baseline.json` | abstract 13,438 · method 130 · data 102 · intro 94 · discussion 93 · conclusion 39 · results 26 (below the 30-passage floor, rank-only) |
 
 Corpus contents are **read-only, copyright-sensitive inputs** and are never
 committed. Generated dossiers and exemplars may quote source prose and must not be
@@ -663,7 +663,7 @@ sci-paper/
 │   └── design-notes/             frozen, dated reasoning records (not status)
 ├── skills/<name>/SKILL.md   8 skills
 ├── tools/                   25 product tools + the repository validator
-├── tests/                   15 test files, 214 tests
+├── tests/                   15 test files, 222 tests
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 ├── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ├── ACKNOWLEDGMENTS.md       adapted-material attribution and adoption boundaries
@@ -674,7 +674,7 @@ sci-paper/
 ## Development
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 214-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 222-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation authority boundaries and index completeness,
 recorded suite sizes against real discovery, stale contract markers, product
@@ -704,7 +704,7 @@ de-AI standard.
 | **No learned-model operating point** | L3 ships `degraded`. The document-level surprisal path was *measured* not to provide one (0.757 vs the model-free manifold's 0.881). |
 | **Field-topic false positives** | 32–42% on field-topic and jargon-dense AI prose. This is why there is no score. |
 | **Short-document tail power** | Manifold 5%-tail power on short documents is 0.214 for natural AI — tripled by the 2026-08-17 rebuild, still well short of what the 0.928 length-fair ranking implies is available. |
-| **Small body-section reference** | The 2026-08-25 section rebuild cleared `results` (10 → 31, now measured) by removing the mislabelled bulk of `method` (1,303 → 109). The body buckets are honestly small now; `results` clears the floor by one passage. |
+| **`results` bucket and a small body reference** | The 2026-08-25 rebuild removed the mislabelled bulk of `method` (1,303 → 130) and rebuilt PDF paragraphs, so every body bucket is now honestly small. `results` (n=26) is still under the 30-passage floor and stays rank-only: the binding constraint is corpus size, 31 ingestable papers. |
 | **Cooperative-layer tools** | `deai_provenance` and `deai_personal` are honestly `unmeasured` until the author supplies their own draft history or ≥ 3 prior papers. |
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` by design — no `deai_policy.json` operating point exists. Visible in every demo above. |
 | **No human-judgement validation set** | Salience and register operating points are corpus-referenced, not human-labelled. |

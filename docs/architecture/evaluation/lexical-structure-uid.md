@@ -37,10 +37,16 @@ These tests are in
 ## 5. Sentence-structure reference evidence
 
 `style-profile/wgl/structure_baseline.json`
-contains 1,942 paragraph observations across six section buckets — `method` 1,671,
-`intro` 99, `discussion` 97, `conclusion` 50, `abstract` 15, `results` 10. The file
-records reference fractions for announced enumeration, ordinal runs, tricolon-like
-setup/list patterns, anaphora, balanced closers, and aggregate templating.
+contains 593 paragraph observations across seven section buckets — `method` 163,
+`discussion` 118, `data` 112, `intro` 109, `conclusion` 48, `results` 28, `abstract` 15.
+The file records reference fractions for announced enumeration, ordinal runs,
+tricolon-like setup/list patterns, anaphora, balanced closers, and aggregate templating.
+
+Counts are post-2026-08-25. The pre-rebuild file read 1,942 observations with `method`
+at 1,671, but `method` was then `DEFAULT_SECTION_BUCKET` and absorbed every unnamed
+heading, and paragraphs were split from PDF line fragments rather than reconstructed
+(§14.2 records both fixes and their measured effect). `data` is a new bucket; `results`
+grew 10 → 28 and is still under the 30-passage floor.
 
 Interpretation limits:
 
@@ -54,11 +60,17 @@ Interpretation limits:
 ## 6. UID reference evidence
 
 `style-profile/wgl/uid_baseline.json` records
-1,942 paragraphs that met its 25-token requirement. It stores pooled and section-level
+593 paragraphs that met its 25-token requirement. It stores pooled and section-level
 means, standard deviations, and counts for global UID, local UID, and mean surprisal
-under GPT-2-large. The rebuild adds a sixth section bucket: `results` (n=10) has a
-surprisal reference for the first time, where the pre-v0.27.0 baseline carried five
-buckets and no `results` at all. Pooled global UID is 3.329 ± 0.391 over all 1,942.
+under GPT-2-large. Pooled global UID is **3.383 ± 0.680** over all 593, across seven
+buckets — `method` 163, `discussion` 118, `data` 112, `intro` 109, `conclusion` 48,
+`results` 28, `abstract` 15.
+
+Counts are post-2026-08-25 and are not comparable to the 1,942-paragraph / 3.329 ± 0.391
+figure the pre-rebuild file carried: that bank labelled most of its paragraphs `method`
+by default and split them from PDF line fragments, so both its size and its section
+keys described something other than what they claimed (§14.2). `data` is a new bucket
+and `results` has a surprisal reference for the first time.
 
 This supports comparative evidence, but the current subsystem reports degraded status
 because the profile does not document an operating point, uncertainty-to-action rule,

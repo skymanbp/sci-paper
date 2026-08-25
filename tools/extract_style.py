@@ -35,7 +35,9 @@ from extract_sections import (  # noqa: F401
     RE_TEX_CITE, RE_TEX_COMMENT, RE_TEX_DISPLAY_MATH,
     RE_TEX_ENV_FIGURE_TABLE, RE_TEX_INCLUDEGRAPHICS, RE_TEX_INLINE_MATH,
     RE_TEX_LABEL_REF, RE_TEX_MATH_CMD, RE_TEX_SIMPLE_CMD, RE_TEX_THIN_COMMA,
-    RE_TEX_TILDE, SECTION_PATTERNS, _classify_pdf_heading, _math_numerals,
+    RE_TEX_TILDE, RE_SENTENCE_TERMINAL, SECTION_PATTERNS,
+    PDF_HEADING_MIN_LETTER_FRAC, PDF_HEADING_MIN_LETTERS, PDF_HEADING_MIN_WORDS,
+    _classify_pdf_heading, _math_numerals, _rejoin_pdf_paragraphs,
     classify_section, extract_pdf_text, latex_to_numeral_text,
     latex_to_plain, split_into_sections, split_pdf_into_sections,
 )

@@ -242,6 +242,44 @@ RE_PDF_LINE_HEADER = re.compile(
 )
 
 
+# A block ends a paragraph only if it ends a sentence. Closing quotes/brackets
+# may follow the stop.
+RE_SENTENCE_TERMINAL = re.compile(r"[.!?][)\]\"'’”]*\s*$")
+
+
+def _rejoin_pdf_paragraphs(blocks: list[str]) -> list[str]:
+    """Rebuild paragraphs from a PDF text layer's blocks.
+
+    `get_text("blocks")` is documented as visually-distinct blocks, and the
+    original code took that to mean paragraphs. On real journal PDFs it does
+    not: measured over two corpus PDFs, blocks run to a median of 5 and 16
+    words and only 21-23% of them end a sentence, i.e. roughly four in five are
+    line fragments mid-paragraph. Downstream that was fatal, because the
+    exemplar bank drops paragraphs under 30 words and `document_shape` needs
+    sections carrying at least two substantial paragraphs: one 90-PDF corpus
+    yielded exemplars from 3 files, and a complete paper could reduce to a
+    single measurable section.
+
+    A block therefore continues the previous paragraph unless the previous one
+    ended a sentence. Headings are never absorbed and never absorb, so the
+    section splitter still sees them on their own line.
+    """
+    out: list[str] = []
+    prev_was_heading = False
+    for raw in blocks:
+        block = raw.strip()
+        if not block:
+            continue
+        is_heading = _classify_pdf_heading(block.splitlines()[0].strip()) is not None
+        if (out and not is_heading and not prev_was_heading
+                and not RE_SENTENCE_TERMINAL.search(out[-1])):
+            out[-1] = f"{out[-1]} {block}"
+        else:
+            out.append(block)
+        prev_was_heading = is_heading
+    return out
+
+
 def extract_pdf_text(path: Path) -> str:
     """Extract text from a PDF using pymupdf, with paragraph-level segmentation.
 
@@ -285,7 +323,7 @@ def extract_pdf_text(path: Path) -> str:
 
     # Join blocks with blank-line separators so downstream paragraph
     # splitters see real boundaries.
-    text = "\n\n".join(paragraphs)
+    text = "\n\n".join(_rejoin_pdf_paragraphs(paragraphs))
     # Within a single block, soft-hyphenated wrap is still possible
     # ("method-\nology"). De-hyphenate.
     text = re.sub(r"-\n(\w)", r"\1", text)
@@ -348,7 +386,23 @@ def _classify_pdf_heading(stripped: str) -> str | None:
     # sentences) — accept either way; ALL-CAPS body sentences are unusual.
 
     # Strip optional numbered prefix (e.g., "2 ", "10.", "3.1.4 ")
+    numbered = re.match(r"^\d+(?:\.\d+)*\.?\s+", stripped) is not None
     body = re.sub(r"^\d+(?:\.\d+)*\.?\s+", "", stripped)
+    # A numbered prefix on a short, non-sentence line is itself a heading
+    # signal, independent of case. Journals set section titles in title case
+    # ("2.1. Marine Ice Sheet Instability", "3. Controversial Ideas to MICI"),
+    # which neither the keyword list nor the ALL-CAPS test below can see; the
+    # titles were absorbed into the following paragraph and their documents
+    # collapsed to a single section. Bounded to short lines with no sentence
+    # punctuation so a numbered list item inside prose is not caught.
+    # The letter floor is what separates "3. Controversial Ideas" from a
+    # numeric table row like "3 4 5", which otherwise reads as a numbered
+    # heading with an unknown title.
+    if (numbered and body
+            and PDF_HEADING_MIN_WORDS <= len(body.split()) <= 10
+            and sum(1 for c in body if c.isalpha()) >= PDF_HEADING_MIN_LETTERS
+            and not RE_SENTENCE_TERMINAL.search(body)):
+        return classify_section(body)
     if len(body.split()) < PDF_HEADING_MIN_WORDS:
         return None
     letters = [c for c in body if c.isalpha()]
@@ -383,7 +437,14 @@ def split_pdf_into_sections(text: str) -> dict[str, str]:
         stripped = line.strip()
         bucket = _classify_pdf_heading(stripped)
         if bucket is not None:
-            current = bucket
+            # A heading whose own title names no section type is a SUBSECTION
+            # of whatever we are already in ("2.1 Map making" under "2 Method"),
+            # so it drops its line but inherits the parent bucket. Resetting to
+            # `unknown` here emptied the parent section: once numbered
+            # subsection titles became detectable, `results` fell from 26 to 7
+            # because each subsection re-bucketed away from its own parent.
+            if bucket != DEFAULT_SECTION_BUCKET:
+                current = bucket
             continue  # drop the header line itself
         if current == "skip":
             continue

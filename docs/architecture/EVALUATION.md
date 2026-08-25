@@ -95,8 +95,8 @@ result.
 | L0 lexical/punctuation | measured | Deterministic Tier A, em-dash, and Tier B cap implementation with CLI regression tests. | Continue regression coverage when policy changes. |
 | L1 distribution | degraded | Field sentence/connective summaries exist; compatibility thresholds are not a documented policy operating point. | `deai_policy.json` with corpus unit, uncertainty, applicability, and validation behavior. |
 | L1 UID | degraded | `style-profile/wgl/uid_baseline.json` records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
-| L2 salience hierarchy | measured | §14: per-bucket passage reference from the field's own banks (abstract n=13,438; then intro 110, method 109, data 106, discussion 78, conclusion 41, results 31 after the 2026-08-25 section rebuild); P(X ≤ x) on a 0.01 quantile grid; abstains where the reference cannot resolve above the gate. All six body buckets now clear the 30-passage floor. | A human-judgement validation set. `results` clears the floor by one passage, and the body-section reference is genuinely small now that the mislabelled bulk of `method` is gone. |
-| L0 register | measured | §14: document frequency over 14,220 corpus passages, 41,126 terms; compound-by-rarest-part and macro-subscript handling; native-term controls pass. | Corpus composition bias toward abstract vocabulary, sharpened by the section rebuild (abstracts are now 96% of the reference, up from 88%); recall below the 5-use floor. |
+| L2 salience hierarchy | measured | §14: per-bucket passage reference from the field's own banks (abstract n=13,438; then method 130, data 102, intro 94, discussion 93, conclusion 39, results 26 after the 2026-08-25 rebuild); P(X ≤ x) on a 0.01 quantile grid; abstains where the reference cannot resolve above the gate. | `results` (n=26) remains under the 30-passage floor and stays rank-only; a human-judgement validation set. The body reference is genuinely small now that the mislabelled bulk of `method` is gone, and the binding constraint is corpus size (31 ingestable papers). |
+| L0 register | measured | §14: document frequency over 14,235 corpus passages, 41,154 terms; compound-by-rarest-part and macro-subscript handling; native-term controls pass. | Corpus composition bias toward abstract vocabulary, sharpened by the section rebuild (abstracts are now 96% of the reference, up from 88%); recall below the 5-use floor. |
 | L2 sentence structure | measured for deterministic matches; degraded for strength | `style-profile/wgl/structure_baseline.json` provides section-level reference fractions. | Calibrated strong-advisory thresholds and author-labelled difficult cases. |
 | L2 document structure | measured | §9: cross-paragraph dispersion calibrated one-observation-per-paper over 493 complete human `wgl` papers; human false-flag at the shipped conformal operating point 0.0325 (manifold) and 0.0426 (role) against nominal α = 0.05. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field. | Continue recalibration when the corpus changes. |
 | L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, hard-set true-provenance AUC 0.937, but 32–41% false-positive rate on field-topic AI text. Document-level now measured (§9.8): surprisal dispersion (0.757) is weaker than the model-free manifold (0.881) and adds nothing to it, so L3 stays degraded for a measured reason. | A field-topic-robust operating point with provenance and uncertainty; the surprisal path is measured not to provide one. |
@@ -115,14 +115,14 @@ python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The working tree passes the validator and all 214 unit/CLI tests (15 test files, collected
+The working tree passes the validator and all 222 unit/CLI tests (15 test files, collected
 2026-08-17). These commands must be rerun after every subsequent code or release-metadata
 change; the release record must quote the fresh output rather than a past result.
 
 ## 12. Release evidence boundary
 
 Current release gates (v0.27.1, 2026-08-17): `validate_plugin.py` all 9 checks
-pass and the full unit/CLI suite (214 tests, 15 files) passes on a clean tree;
+pass and the full unit/CLI suite (222 tests, 15 files) passes on a clean tree;
 both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
 release commit must also be green (first green runs: 31133202443 push,
 31133215203 manual dispatch).

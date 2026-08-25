@@ -189,12 +189,12 @@ and measurement sides, from the field's own banks:
 | Bucket | n | 2026-08-17 | Sources |
 |---|---:|---:|---|
 | abstract | 13,438 | 13,438 | `human_abstracts_extra.jsonl`, `exemplar_paragraphs.jsonl` |
-| intro | **110** | 88 | `exemplar_paragraphs.jsonl` |
-| method | **109** | 1,303 | `exemplar_paragraphs.jsonl` |
-| data | **106** | — | `exemplar_paragraphs.jsonl` — new bucket |
-| discussion | 78 | 78 | `exemplar_paragraphs.jsonl` |
-| conclusion | 41 | 41 | `exemplar_paragraphs.jsonl` |
-| results | **31** | 10 | `exemplar_paragraphs.jsonl` — now clears the 30-passage floor |
+| method | **130** | 1,303 | `exemplar_paragraphs.jsonl` |
+| data | **102** | — | `exemplar_paragraphs.jsonl` — new bucket |
+| intro | **94** | 88 | `exemplar_paragraphs.jsonl` |
+| discussion | **93** | 78 | `exemplar_paragraphs.jsonl` |
+| conclusion | **39** | 41 | `exemplar_paragraphs.jsonl` |
+| results | **26** | 10 | `exemplar_paragraphs.jsonl` — still below the 30-passage floor, rank-only |
 
 Counts are post-rebuild (2026-08-25), and `method` is the headline: **it was never a
 1,303-passage reference.** `method` had no pattern of its own — it was
@@ -209,13 +209,27 @@ own. Giving `method` explicit vocabulary, giving `data` its own bucket, defaulti
 `unknown`, and requiring an ALL-CAPS heading to carry ≥ 2 words, ≥ 4 letters and ≥ 75%
 letters produces the left-hand column.
 
-Two consequences stated plainly. **`results` clears the floor for the first time**
-(10 → 31), so it is `measured` rather than rank-only. And the exemplar bank shrinks
-1,942 → 578 rows, because `write_exemplar_bank` has always excluded the `unknown`
-bucket — that rule was simply dormant while `unknown` could not occur. 578 is the
-honest count of passages whose section is identifiable; 1,942 was inflated by
-mislabelling. The `abstract` bucket and every percentile below are unchanged, because
-abstracts come from their own bank and were never mis-bucketed.
+A second fix landed in the same rebuild and pulls the other way. `extract_pdf_text`
+took pymupdf's `get_text("blocks")` to mean paragraphs; on real journal PDFs blocks
+run to a median of 5–16 words and only 21–23% end a sentence, so roughly four in five
+were mid-paragraph line fragments. Rejoining them produces real paragraphs — a corpus
+PDF goes from 438 fragments (median 5 words) to 105 paragraphs (median 84), and
+`document_shape` on it moves from `insufficient_evidence` to `measured` — but real
+paragraphs are fewer than fragments, so every bucket loses some count.
+
+**`results` therefore does not clear the floor.** It moved 10 → 31 on the classifier
+fix alone and settled at **26** once paragraphs and headings were reconstructed
+correctly, so it stays rank-only. Intermediate values of 31 and 24 were recorded here
+while the PDF fixes were landing; 26 is the number that survives all of them. The binding constraint is not labelling any more, it is
+corpus size: `gather_corpus_files` ingests **31** documents (28 `.tex` + 3 `.pdf`),
+because a PDF is accepted only at tier-directory depth 1 and the other 87 PDFs in the
+tree are figures inside arXiv source bundles. Growing `results` needs more papers.
+
+The exemplar bank shrinks 1,942 → 593 rows: `write_exemplar_bank` has always excluded
+the `unknown` bucket, a rule dormant while `unknown` could not occur. 593 is the honest
+count of correctly-paragraphed passages whose section is identifiable; 1,942 was
+inflated by mislabelling and by fragment-splitting. The `abstract` bucket and every
+percentile below are unchanged, because abstracts come from their own bank.
 
 Human abstract percentiles:
 
@@ -273,12 +287,12 @@ as observed evidence, gives 19.
 
 ### 14.4 Register reference and precision
 
-Document frequency over **14,220** passages (578 exemplar paragraphs + 13,642
-abstracts), **41,126** terms. Firing rule: ≥ 5 manuscript uses **and** corpus df
-rate < 1e-4. The 2026-08-25 section rebuild drops 1,364 passages and 588 terms
-(15,584 → 14,220, 41,714 → 41,126) as the exemplar bank sheds the paragraphs whose
+Document frequency over **14,235** passages (593 exemplar paragraphs + 13,642
+abstracts), **41,154** terms. Firing rule: ≥ 5 manuscript uses **and** corpus df
+rate < 1e-4. The 2026-08-25 rebuild drops 1,349 passages and 560 terms
+(15,584 → 14,235, 41,714 → 41,154) as the exemplar bank sheds the paragraphs whose
 section was never identifiable. The reference remains abstract-dominated — 13,642 of
-14,220 passages, now 96% rather than 88% — which sharpens the composition bias already
+14,235 passages, now 96% rather than 88% — which sharpens the composition bias already
 recorded in §14.6 rather than introducing a new one.
 
 Controls that must not fire:
@@ -354,12 +368,11 @@ re-proposed as an obvious gap.
 
 ### 14.6 Limits
 
-One field, one case document. After the 2026-08-25 section rebuild every non-abstract
-bucket rests on 31–110 reference passages — `abstract` (13,438) is two orders of
+One field, one case document. After the 2026-08-25 rebuild every non-abstract
+bucket rests on 26–130 reference passages — `abstract` (13,438) is two orders of
 magnitude larger than any of them, and `method` is no longer the second-largest bucket
-because most of what made it large was never method prose. All six clear the
-30-passage floor, `results` only barely (n = 31), so a modest corpus change could push
-it back under. **The body-section reference is now genuinely small**, which is the
+because most of what made it large was never method prose. Five of the six clear the
+30-passage floor; **`results` (n = 26) does not**, and stays rank-only. **The body-section reference is now genuinely small**, which is the
 honest cost of removing the mislabelled bulk: the axis trades an inflated reference for
 a correct one. Register document frequency inherits the corpus's composition: a term
 absent from an abstract-heavy corpus may be common in the body text of the same papers,
