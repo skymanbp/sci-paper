@@ -43,24 +43,47 @@ nothing here can redefine it. All machine-readable findings use the
 > | length-fair AUC, adversarial | 0.836 | **0.919** |
 > | length-fair AUC, skeleton | 0.822 | **0.916** |
 >
-> Human false-flag control held. Leave-one-out over the conformal calibration
-> set gives **0.0404** pooled on the manifold (0.0494 / 0.0345 / 0.0339 by
-> stratum, n = 81 / 58 / 59) and **0.0487** on the role axis (0.0473 / 0.0494 /
-> 0.0494, n = 169 / 162 / 162), both at or under the nominal α = 0.05. The extra
-> tail power is not borrowed from the human side.
+> Human false-flag control held. Scoring all 493 reference papers through the
+> shipped operating point directly: **manifold 16/493 = 0.0325**, **role
+> 21/493 = 0.0426**, both under the nominal α = 0.05 (union 37/493 = 0.0751).
+> Leave-one-out over the conformal calibration set alone agrees — manifold
+> 0.0404, role 0.0487. The extra tail power is not borrowed from the human side.
 >
-> **What was NOT re-measured, and why.** The human corpus is user-supplied and
-> lives outside this repository, and the baseline stores the two axes'
-> calibration scores without a shared document key. Anything needing the raw
-> human documents, or a per-document pairing across axes, could not be
-> reproduced from the artifact: the disjointness count in §9.1, the
-> score-versus-length correlation in §9.4, the skeleton-matched paired
-> construction in §9.3, and the document-level surprisal sweep in §9.8. Those
-> keep their 507-vintage figures and say so where they appear.
+> **The rest of §9, re-measured against the same corpus.** The human corpus is
+> user-supplied and gitignored — CI and a fresh clone cannot see it — but it is
+> present on any machine that holds the profile, at
+> `style-corpus/<field>/fulltext-arxiv/`, keyed by the same arXiv IDs the
+> baseline's `documents` list carries. Every remaining human-side figure was
+> therefore re-measured rather than left at its 507-paper vintage:
 >
-> Reproduce: score `style-profile/<field>/docval/ai_*` through
-> `manifold_operating_point` and `document_role_coupling`, using the baseline's
-> own per-stratum calibration lists as the human reference.
+> | quantity | 507-paper record | 493-paper rebuild |
+> |---|---:|---:|
+> | §9.1 disjointness, pre-conformal 5% tails | 0 of 507 (independence ~1.3) | **0 of 493** (independence ~1.27) |
+> | §9.1 disjointness, at the conformal operating point | — | **0** (independence ~0.68) |
+> | §9.3 paired skeleton-vs-its-own-twin AUC | 0.934 (twins held out of the fit) | **0.958** (shipped scorer, twins in reference — *not* the same protocol) |
+> | §9.4 r(manifold distance, paragraph count) | 0.353 | **−0.080** |
+>
+> Two of those deserve a sentence. The **disjointness result survives the
+> rebuild**: no human paper is flagged by both axes, on either the pre-conformal
+> tails or the shipped operating point, so the axes remain complementary rather
+> than redundant. And the **length confound has essentially gone** on the
+> shipped path — 0.353 was measured against the *pooled* manifold, whereas the
+> shipped scorer now sends each document to its own length-stratum manifold, and
+> against that the correlation is −0.080 with median distances of 2.481 / 2.099 /
+> 2.186 across the three strata. The Mondrian stratification of §9.5 is doing
+> the job it was introduced to do.
+>
+> **Still not re-measured:** the document-level surprisal sweep of §9.8, which
+> needs GPT-2 over all 493 papers (hours of compute, and its conclusion — the
+> surprisal path is weaker than the model-free manifold and adds nothing to it —
+> is only reinforced by a rebuild that raised the model-free numbers and left
+> the surprisal path untouched). Bootstrap CIs were not recomputed for any
+> post-rebuild point estimate; the pre-rebuild intervals belong to the
+> pre-rebuild points and are not transferred.
+>
+> Reproduce: score `style-profile/<field>/docval/ai_*` and the corpus papers
+> through `manifold_operating_point` and `document_role_coupling`, using the
+> baseline's own per-stratum calibration as the human reference.
 
 The architecture reflection ([`DEAI_ARCHITECTURE_ROADMAP.md`](../../design-notes/DEAI_ARCHITECTURE_ROADMAP.md))
 identified the document scale as the confound-orthogonal signal: field register shifts the
@@ -153,14 +176,14 @@ unstratified thresholds compared short AI documents against a reference dominate
 longer human papers, overstating power. Current honest operating characteristics are
 tabulated in 9.5. On the 507-paper human corpus the two flag sets at the pre-conformal
 5% tails were exactly disjoint (0 of 507 papers flagged by both; independence would
-predict ~1.3), so the axes are complementary rather than redundant. **That pairing was
-not re-measured on the 493-paper rebuild**: the baseline stores each axis's calibration
-scores without a shared document key, so the per-document overlap cannot be recovered
-from the artifact alone. The AI side of the rebuild is consistent with it — of the four
-tiers in §9.5, `natural` and `skeleton` show zero documents flagged by both axes, and
-`de-AI'd` and `adversarial` show one and two respectively, against union rates of 0.667
-and 0.421. Below `MIN_MANIFOLD_DOCUMENTS` reference papers the manifold is honestly
-omitted and the per-feature flags remain the primary (strong) findings.
+predict ~1.3), so the axes are complementary rather than redundant. **The result
+survives the rebuild**: re-measured over the 493 reference papers, the pre-conformal 5%
+tails still overlap in 0 papers (independence ~1.27), and so do the flag sets at the
+shipped conformal operating point (0 of 493, independence ~0.68). The AI side agrees —
+of the four tiers in §9.5, `natural` and `skeleton` show zero documents flagged by both
+axes, and `de-AI'd` and `adversarial` show one and two respectively, against union rates
+of 0.667 and 0.421. Below `MIN_MANIFOLD_DOCUMENTS` reference papers the manifold is
+honestly omitted and the per-feature flags remain the primary (strong) findings.
 
 ### 9.2 Honest limits of this validation
 
@@ -206,6 +229,14 @@ only costs power, it cannot inflate the AUC). The manifold is refit on 483 human
 papers with all 24 skeleton sources held out, so neither side of each pair is
 in-reference.
 
+> **Post-rebuild note.** Re-running the pairing through the *shipped* scorer on the
+> 493-paper baseline gives paired AUC **0.958** (24/24 pairs measurable, clone median
+> distance 4.104 versus human twin 2.381, one pair where the clone does not beat its
+> twin). That is **not** this section's protocol: the 0.934 below holds the 24 skeleton
+> sources out of the manifold fit, whereas the shipped baseline contains them, so 0.958
+> is the optimistic in-reference variant and 0.934 remains the honest held-out number.
+> Both agree on the conclusion — a structural clone does not escape the manifold.
+
 Result (`skeleton_eval.py`, seeded bootstrap): **paired AUC 0.934 (CI 0.830–1.000)**
 for the AI clone versus its own human source under an identical skeleton (AI median
 Mahalanobis distance 4.09 versus human 2.67), and 0.921 (CI 0.860–0.968) versus 100
@@ -220,12 +251,15 @@ enforced only at the section/paragraph level.
 
 ### 9.4 Role-coupled dispersion (frontier idea 1): variation must be explained
 
-> **Vintage:** every figure in 9.4 is measured on the **507**-paper reference and was
-> **not** re-measured on the 2026-08-17 rebuild — the score-versus-length correlation
-> and the per-document low-tail counts need the raw human corpus, which lives outside
-> this repository. The role axis's *operating characteristics* were re-measured and are
-> unchanged to the digit (see the §9 notice), so the mechanism described here stands;
-> the specific counts below are 507-vintage.
+> **Vintage:** the figures below are measured on the **507**-paper reference against the
+> **pooled** manifold. The headline length confound was re-measured post-rebuild against
+> the **shipped** scorer, which routes each document to its own length-stratum manifold:
+> `r(distance, paragraph count)` falls from **0.353** to **−0.080** over 493 papers, with
+> median distances 2.481 / 2.099 / 2.186 across the three strata. In other words the
+> confound this section identifies is real, and the Mondrian stratification introduced in
+> §9.5 in response to it has largely removed it from the shipped path. The role axis's
+> operating characteristics were re-measured and are unchanged to the digit (see the §9
+> notice), so the mechanism described here stands.
 
 The adversarial arc in 9.1 proved dispersion *magnitude* is gameable: forced variety
 lands inside (or past) the human band. What forced variety cannot do without actually
@@ -338,11 +372,15 @@ rates manifold 0.029 and role 0.069 — both within binomial noise of α; per-st
 on ~33 test papers wobble (one stratum hit 7/33 on the role axis), the expected
 conditional-coverage fluctuation at ~50 calibration papers per stratum plus residual
 within-bin length correlation. That replication was not repeated post-rebuild (it needs
-the raw human corpus). The available post-rebuild human check is leave-one-out over the
-shipped calibration set: **manifold 0.0404 pooled** (0.0494 / 0.0345 / 0.0339 by stratum,
-n = 81 / 58 / 59) and **role 0.0487 pooled** (0.0473 / 0.0494 / 0.0494, n = 169 / 162 /
-162), both at or under nominal α. The manifold's higher tail power is therefore not paid
-for on the human side.
+a fresh seeded three-way split). Two post-rebuild human checks stand in its place, and
+agree. Scoring all **493** reference papers through the shipped operating point directly:
+**manifold 16/493 = 0.0325**, **role 21/493 = 0.0426**, union 37/493 = 0.0751 — partly
+in-sample, since the 295 training papers are among them, so read it as the rule's
+behaviour on its own reference rather than as a held-out estimate. Leave-one-out over the
+conformal calibration set only, which *is* out-of-fit, gives **manifold 0.0404 pooled**
+(0.0494 / 0.0345 / 0.0339 by stratum, n = 81 / 58 / 59) and **role 0.0487 pooled**
+(0.0473 / 0.0494 / 0.0494, n = 169 / 162 / 162). Both sit at or under nominal α, so the
+manifold's higher tail power is not paid for on the human side.
 
 The discrimination signal itself survives length matching. Length-fair AUC against the
 **169** same-stratum (short) humans, post-rebuild:
