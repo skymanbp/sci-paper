@@ -5,13 +5,13 @@
 [![Version](https://img.shields.io/badge/version-0.27.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-213%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-214%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**8 个 skill · 25 个工具 · 213 个测试 · 一份规范 · 零作者身份判决。**
+**8 个 skill · 25 个工具 · 214 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
@@ -177,7 +177,7 @@ em-dash**，而全文级 dispersion 几乎没动 —— 0.47 → 0.49，人类�
 $ python tools/ai_ism_lint.py before.tex --field wgl \
     --structure --distribution --register --salience --document-structure
 
-findings: blockers=0 L0=10 advisories=11 (strong=0)
+findings: blockers=0 L0=10 advisories=10 (strong=0)
 axis L0.lexical: measured
 axis L0.register: measured
 axis L2.salience_hierarchy: measured
@@ -188,23 +188,22 @@ axis L2.document_structure: unmeasured: need at least 3 sections with at least 2
   L  3 [l0_target L0 tier-a:pivotal] Tier A lexical target 'pivotal' is present.
   L  9 [l0_target L0 em-dash] Em-dash punctuation is an L0 rewrite target.
   ...
-  L 14 [advisory L2 salience-recital:method] method passage recites its quantities:
-       max_recital_run_frac 0.60 (p95), recital_frac 0.60 (p91), numerals_per_sentence 0.70 (p85).
-       The longest uninterrupted run of numeral-bearing sentences is 6 of 10, against an
-       n=1303 human method reference.
+  L  3 [advisory L0 corpus-zero:pivotal] The field lexicon records zero occurrences of 'pivotal'.
+  L 14 [advisory L2 structure-template:method] Paragraph contains repeated sentence-construction
+       template(s): announced-enumeration; reference method fraction 4.4% (n=135).
 $ echo $?
 1
 ```
 
-注意 salience 那条 finding 实际说的是什么：不是"数字太多"，而是
-*你十句里有六句在报数值、中间没有一句解释，而人类 method 参照把这个放在第 95 百分位。*
+仔细读最后一条：它说的不是"你用了列表"，而是*这种句式在你自己语料的人类 method
+段落里只占 4.4%，而你这段是其中之一* —— 参照样本量一并给出，好让你判断这 4.4% 值多少。
 
 claim-first 改写之后：
 
 ```console
 $ python tools/ai_ism_lint.py after.tex --field wgl \
     --structure --distribution --register --salience --document-structure
-findings: blockers=0 L0=0 advisories=3 (strong=2)          # exit 0
+findings: blockers=0 L0=0 advisories=2 (strong=0)          # exit 0
 
 $ python tools/length_gate.py after.tex --before before.tex
 section                       before   after   delta  status
@@ -219,16 +218,16 @@ findings: blockers=0 L0=0 advisories=0 (strong=0)          # exit 0
 |---|---:|---:|
 | L0 target | 10 | **0** |
 | integrity blocker | 0 | 0 |
-| advisory（其中 strong） | 11（0） | **3（2）** |
+| advisory（其中 strong） | 10（0） | **2（0）** |
 | linter 退出码 | `1` | **`0`** |
 | 全文长度 | 198 词 | **163 词**（−35） |
 | 长度门 advisory | — | **0** |
 | 受保护数字保留 | — | **7 / 7** |
 
-**它没有收敛到零，而这是对的。** 剩下两条 strong 是 method 段落上的 salience
-advisory —— 那两段在规定参数网格。规范给出的答案是 `accepted` disposition，
-而不是把阈值调松：参数规格**本来就该**带数字，参照只是说这一段比 90% 的人类
-method 段落更密。
+**它没有收敛到零，而这是对的。** 剩下两条 advisory 分别是改写后 method 段落上的
+salience 读数（p89，对照 n=109 的人类 method 参照）和同一节的低 burstiness 提示。
+两条都不是 strong；规范给出的答案是记录一个 disposition，而不是把阈值调松：
+参数网格**本来就该**带数字。
 
 **长度门抓了作者两次。** 第一版改写把 Method 撑大了 60 词，门直接标出来
 （`+60 GROWTH`）。第二版修好了长度，却在精简时悄悄丢了两个数字 —— 被 demo 2 抓住。
@@ -267,7 +266,7 @@ rank cand  combined   voice  fidelity   Δadv eligible  L0(r/c)  words(o/c)
 ```console
 $ python tools/ai_ism_lint.py big.tex --field wgl --document-structure
 
-findings: blockers=0 L0=0 advisories=27 (strong=4)
+findings: blockers=0 L0=0 advisories=25 (strong=4)
 axis L2.document_structure: measured
 
   L 1 [advisory L2 document-dispersion-manifold strong] The document's joint cross-paragraph
@@ -370,7 +369,7 @@ Split-conformal，按长度三分位做 Mondrian 分层。保证：对可交换�
 | `+ --oracle`（GPT-2-large token surprisal） | 5,225 词 | 25.3 s | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 5,225 词 | 47.2 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py`（9 项契约检查） | 仓库 | 2.0 s | 标准库 |
-| 完整测试套件（213 个测试） | 仓库 | 82.9 s | 标准库 |
+| 完整测试套件（214 个测试） | 仓库 | 82.9 s | 标准库 |
 
 一句话：**一份 5,225 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
 270 ms**，而且不需要装任何可选依赖。两条模型驱动的轴贵 75–140 倍，并且是显式
@@ -381,7 +380,7 @@ opt-in 的 flag —— 这正是预期形状：lint 一篇论文不该需要一�
 | 检查 | 结果 |
 |---|---|
 | 契约 validator | **9/9 通过** |
-| 单元 / CLI 测试 | **213 通过**（15 个文件） |
+| 单元 / CLI 测试 | **214 通过**（15 个文件） |
 | CI | 每次 push 与 PR 跑 validator + 套件，Python 3.11，Ubuntu |
 
 ---
@@ -565,11 +564,11 @@ style-profile/<field>/                  生成的证据（gitignore）
 
 | 制品 | 规模 |
 |---|---|
-| `exemplar_paragraphs.jsonl` | 1,942 个按 section 分类的段落 |
-| `register_lexicon.json` | 15,584 个 passage · 41,714 个词条 |
+| `exemplar_paragraphs.jsonl` | 578 个按 section 分类的段落 |
+| `register_lexicon.json` | 14,220 个 passage · 41,126 个词条 |
 | `docstructure_baseline.json` | 493 篇完整文档 · conformal α 0.05 · 长度分层 [46, 76] |
 | `anchoring_baseline.json` | 500 篇文档 |
-| `salience_baseline.json` | abstract 13,438 · method 1,303 · intro 88 · discussion 78 · conclusion 41 · results 10（低于 30 passage 下限，仅排序） |
+| `salience_baseline.json` | abstract 13,438 · intro 110 · method 109 · data 106 · discussion 78 · conclusion 41 · results 31 —— 六个正文桶全部越过 30 passage 下限 |
 
 语料内容是**只读、受版权保护的输入**，永不入库。生成的 dossier 和范例可能引用源文字，
 除非权利允许否则不得公开。语料 dossier 是描述性证据 —— 不是规范，也不是作者身份的
@@ -612,7 +611,7 @@ sci-paper/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
 ├── skills/<name>/SKILL.md   8 个 skill
 ├── tools/                   25 个产品工具 + 仓库 validator
-├── tests/                   15 个测试文件、213 个测试
+├── tests/                   15 个测试文件、214 个测试
 ├── style-corpus/<field>/    用户提供的只读语料（gitignore）
 ├── style-profile/<field>/   生成与标定的证据（gitignore）
 ├── ACKNOWLEDGMENTS.md       改编来源的致谢与采纳边界
@@ -623,7 +622,7 @@ sci-paper/
 ## 开发与发布
 
 `python tools/validate_plugin.py` 跑 9 项契约检查，
-`python -m unittest discover -s tests -v` 跑 213 个测试；发布前两者都必须通过。
+`python -m unittest discover -s tests -v` 跑 214 个测试；发布前两者都必须通过。
 Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权威边界与索引完整性、
 记录的测试规模与真实发现的一致性、过期契约标记、产品注册表、Python 语法、
 运行时 import、CLI 入口、schema 字段、linter 退出语义、Tier B 行为、测试与 CI 接线 ——
@@ -648,7 +647,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 | **没有学习型模型的操作点** | L3 以 `degraded` 发布。文档级 surprisal 路径已被*测量证明*给不出操作点（0.757 vs model-free 流形的 0.881）。 |
 | **领域主题假阳** | 在领域主题与术语密集 AI 文字上 32–42%。这就是没有单一分数的原因。 |
 | **短文档尾部功效** | 流形在短文档上对自然 AI 的 5% 尾部功效是 0.214 —— 2026-08-17 重建把它翻了三倍，但仍远低于 0.928 的长度公平排序所暗示的上限。 |
-| **`results` salience 桶** | n=10，低于 30 passage 下限 —— 语料变大之前仅用于排序。 |
+| **正文 section 参照偏小** | 2026-08-25 的 section 重建清掉了 `results` 限制（10 → 31，现在是 measured），代价是去掉了 `method` 里被误标的大头（1,303 → 109）。正文各桶现在确实小，`results` 只比下限多一个 passage。 |
 | **协作层工具** | `deai_provenance` 与 `deai_personal` 在作者提供自己的草稿历史或 ≥ 3 篇既往论文之前，诚实地保持 `unmeasured`。 |
 | **`L1.distribution` / `L2.sentence_structure`** | 按设计是 `degraded` —— 不存在 `deai_policy.json` 操作点。上面每个 demo 里都看得到。 |
 | **没有人工判断验证集** | salience 与 register 的操作点是语料参照的，不是人工标注的。 |

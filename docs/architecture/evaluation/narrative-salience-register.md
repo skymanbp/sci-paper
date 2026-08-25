@@ -186,20 +186,36 @@ thousands form `14{,}850{,}000` collapses to one numeral rather than three.
 Calibrated per section bucket at one shared unit (a passage) on the reference
 and measurement sides, from the field's own banks:
 
-| Bucket | n | Sources |
-|---|---:|---|
-| abstract | 13,438 | `human_abstracts_extra.jsonl`, `exemplar_paragraphs.jsonl` |
-| method | 1,303 | `exemplar_paragraphs.jsonl` |
-| intro | 88 | `exemplar_paragraphs.jsonl` |
-| discussion | 78 | `exemplar_paragraphs.jsonl` |
-| conclusion | 41 | `exemplar_paragraphs.jsonl` |
-| results | 10 | `exemplar_paragraphs.jsonl` — below the 30-passage floor, rank-only |
+| Bucket | n | 2026-08-17 | Sources |
+|---|---:|---:|---|
+| abstract | 13,438 | 13,438 | `human_abstracts_extra.jsonl`, `exemplar_paragraphs.jsonl` |
+| intro | **110** | 88 | `exemplar_paragraphs.jsonl` |
+| method | **109** | 1,303 | `exemplar_paragraphs.jsonl` |
+| data | **106** | — | `exemplar_paragraphs.jsonl` — new bucket |
+| discussion | 78 | 78 | `exemplar_paragraphs.jsonl` |
+| conclusion | 41 | 41 | `exemplar_paragraphs.jsonl` |
+| results | **31** | 10 | `exemplar_paragraphs.jsonl` — now clears the 30-passage floor |
 
-Counts are post-rebuild (2026-08-17). The pre-v0.27.0 reference read `method` 1,377,
-`discussion` 35, `conclusion` 26 and had no `results` bucket at all; `conclusion` now
-clears the 30-passage floor, and `discussion` more than doubles. The `abstract` bucket
-and every percentile below are unchanged — abstracts were never mis-bucketed, and the
-rebuilt grids are byte-identical to the pre-rebuild ones.
+Counts are post-rebuild (2026-08-25), and `method` is the headline: **it was never a
+1,303-passage reference.** `method` had no pattern of its own — it was
+`DEFAULT_SECTION_BUCKET`, so it absorbed every heading the classifier could not name,
+and 92% of it was residue. Three sources fed it, all measured: `.tex` corpus files
+carrying no `\section` markup at all (one 100-page review, split into chunks,
+contributed 101 and 88 paragraphs at 100% "method"); PDF table cells accepted as
+headings by the ALL-CAPS heuristic (305 of 325 headings detected across the 90 corpus
+PDFs were cells such as "S", "RA", "NFW", "A85", each one switching the bucket that
+following prose was filed under); and data/observation sections with no bucket of their
+own. Giving `method` explicit vocabulary, giving `data` its own bucket, defaulting to
+`unknown`, and requiring an ALL-CAPS heading to carry ≥ 2 words, ≥ 4 letters and ≥ 75%
+letters produces the left-hand column.
+
+Two consequences stated plainly. **`results` clears the floor for the first time**
+(10 → 31), so it is `measured` rather than rank-only. And the exemplar bank shrinks
+1,942 → 578 rows, because `write_exemplar_bank` has always excluded the `unknown`
+bucket — that rule was simply dormant while `unknown` could not occur. 578 is the
+honest count of passages whose section is identifiable; 1,942 was inflated by
+mislabelling. The `abstract` bucket and every percentile below are unchanged, because
+abstracts come from their own bank and were never mis-bucketed.
 
 Human abstract percentiles:
 
@@ -257,10 +273,13 @@ as observed evidence, gives 19.
 
 ### 14.4 Register reference and precision
 
-Document frequency over 15,584 passages (1,942 exemplar paragraphs + 13,642
-abstracts), 41,714 terms. Firing rule: ≥ 5 manuscript uses **and** corpus df
-rate < 1e-4. The rebuild drops 15 passages (the skipped back matter) and 219 terms,
-0.096% and 0.52% respectively — below the 1e-4 threshold's resolution, but not zero.
+Document frequency over **14,220** passages (578 exemplar paragraphs + 13,642
+abstracts), **41,126** terms. Firing rule: ≥ 5 manuscript uses **and** corpus df
+rate < 1e-4. The 2026-08-25 section rebuild drops 1,364 passages and 588 terms
+(15,584 → 14,220, 41,714 → 41,126) as the exemplar bank sheds the paragraphs whose
+section was never identifiable. The reference remains abstract-dominated — 13,642 of
+14,220 passages, now 96% rather than 88% — which sharpens the composition bias already
+recorded in §14.6 rather than introducing a new one.
 
 Controls that must not fire:
 
@@ -335,12 +354,17 @@ re-proposed as an obvious gap.
 
 ### 14.6 Limits
 
-One field, one case document. Buckets other than `abstract` and `method` rest on
-26–88 reference passages; `conclusion` (n = 26) sits below the 30-passage floor
-and is honestly `degraded`. Register document frequency inherits the corpus's
-composition: a term absent from an abstract-heavy corpus may be common in the
-body text of the same papers, which biases the axis toward flagging
-body-section vocabulary. Neither axis has a human-judgement validation set. Both
+One field, one case document. After the 2026-08-25 section rebuild every non-abstract
+bucket rests on 31–110 reference passages — `abstract` (13,438) is two orders of
+magnitude larger than any of them, and `method` is no longer the second-largest bucket
+because most of what made it large was never method prose. All six clear the
+30-passage floor, `results` only barely (n = 31), so a modest corpus change could push
+it back under. **The body-section reference is now genuinely small**, which is the
+honest cost of removing the mislabelled bulk: the axis trades an inflated reference for
+a correct one. Register document frequency inherits the corpus's composition: a term
+absent from an abstract-heavy corpus may be common in the body text of the same papers,
+which biases the axis toward flagging body-section vocabulary, and the rebuild raises
+the abstract share from 88% to 96%. Neither axis has a human-judgement validation set. Both
 are calibrated distance statements against a human reference, in the same sense
 as every other L1/L2 axis here, and neither is an authorship claim.
 

@@ -13,6 +13,8 @@ and zero `results` ones.
 from __future__ import annotations
 
 import sys
+import pathlib
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -177,3 +179,27 @@ class LatexProjectionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CorpusGatheringTests(unittest.TestCase):
+    """`gather_corpus_files` must return its dict.
+
+    The 2026-08-25 split of extract_style.py cut this function's `return out`
+    off its end: the line moved into the new module, where it parsed as dead
+    code after another function's return, so imports succeeded and the whole
+    suite stayed green while extraction died with 'NoneType has no attribute
+    values' on the first real run. Nothing asserted the return value.
+    """
+
+    def test_returns_a_tier_keyed_mapping(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            field = pathlib.Path(tmp)
+            for tier in ("tier-1-top", "tier-2-mentor", "tier-3-reference"):
+                (field / tier).mkdir(parents=True)
+            (field / "tier-1-top" / "paper.tex").write_text(
+                "\section{Results}\ntext\n", encoding="utf-8")
+            out = es.gather_corpus_files(field)
+        self.assertIsInstance(out, dict)
+        self.assertEqual(set(out), {"tier-1-top", "tier-2-mentor", "tier-3-reference"})
+        self.assertEqual([p.name for p in out["tier-1-top"]], ["paper.tex"])
+        self.assertEqual(out["tier-2-mentor"], [])

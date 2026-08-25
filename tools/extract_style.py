@@ -200,6 +200,8 @@ def gather_corpus_files(field_corpus_dir: Path) -> dict[str, list[Path]]:
             elif suf == ".pdf" and p.parent == tier_dir:
                 files.append(p)
         out[tier] = files
+    return out
+
 
 def analyse_paper(path: Path) -> dict | None:
     """Parse one paper into per-section stats.

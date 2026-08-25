@@ -219,9 +219,6 @@ def split_into_sections(raw_tex: str) -> dict[str, str]:
     return {k: "\n\n".join(v) for k, v in sections.items()}
 
 
-    return out
-
-
 # Heading lines look like one of:
 #   "Introduction" / "INTRODUCTION"
 #   "1. Introduction" / "1 Introduction" / "1.2 Methods"
