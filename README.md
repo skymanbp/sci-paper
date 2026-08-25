@@ -5,19 +5,19 @@
 [![Version](https://img.shields.io/badge/version-0.27.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-208%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-213%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**8 skills · 24 tools · 208 tests · one normative contract · zero authorship verdicts.**
+**8 skills · 25 tools · 213 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
 [Benchmarks](#benchmark-dashboard) · [Install](#install) ·
-[Skills](#skills-8) · [Tools](#tools-24) ·
+[Skills](#skills-8) · [Tools](#tools-25) ·
 [Limitations](#status-known-limitations-and-roadmap) ·
 [The standard](docs/SCIPAPER_STANDARD.md) · [Docs](docs/README.md)
 
@@ -72,7 +72,7 @@ problem:
 | **7** | **Polish a funding proposal** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description, NIH Specific Aims, fellowships. Keeps the vision-and-feasibility register a paper would trim, enforces claim–feasibility matching, edits the score-forming first pages hardest. |
 | **8** | **Explore research directions** | [`brainstorm`](skills/brainstorm/SKILL.md) | Radial research-direction explorer: twelve framing passes per node, glossary-anchored terminology, complete derivation per branch, recursive divergence to convergence. Deferred or incomplete leaves are hard-banned. |
 
-All eight run over the same evidence layer — 24 tools emitting one schema,
+All eight run over the same evidence layer — 25 tools emitting one schema,
 `sci-paper.feedback.v1` — so a finding from the linter, the review skill, and
 the orchestrator are the same object with the same ID.
 
@@ -410,7 +410,7 @@ row, including interpreter startup.
 | `+ --oracle` (GPT-2-large token surprisal) | 5,225 w | 25.3 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 5,225 w | 47.2 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` (9 contract checks) | repository | 2.0 s | stdlib |
-| Full test suite (208 tests) | repository | 82.9 s | stdlib |
+| Full test suite (213 tests) | repository | 82.9 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,225-word manuscript costs
 ~270 ms of analysis above the interpreter floor**, with no optional dependency
@@ -422,7 +422,7 @@ which is the intended shape — you should not need a GPU to lint a paper.
 | Check | Result |
 |---|---|
 | Contract validator | **9/9 checks pass** |
-| Unit / CLI tests | **208 passing** (15 files) |
+| Unit / CLI tests | **213 passing** (15 files) |
 | CI | validator + suite on every push and PR, Python 3.11, Ubuntu |
 
 ---
@@ -495,11 +495,10 @@ Four jobs; what each one does is in [the eight functions](#the-eight-functions).
 - **Review** — [`paper-review`](skills/paper-review/SKILL.md) · [`figure-review`](skills/figure-review/SKILL.md) · [`final-review`](skills/final-review/SKILL.md)
 - **Explore** — [`brainstorm`](skills/brainstorm/SKILL.md)
 
-## Tools (24)
+## Tools (25)
 
-Every finding these tools emit uses the same `sci-paper.feedback.v1` contract;
-the corpus, training and data-asset entries produce artifacts rather than
-findings. Per-tool calibration and failure behavior: [tools/README.md](tools/README.md).
+One `sci-paper.feedback.v1` contract for every finding; corpus/training entries
+produce artifacts instead. Per-tool detail: [tools/README.md](tools/README.md).
 
 #### Contract, gates, and CLI
 
@@ -554,7 +553,8 @@ findings. Per-tool calibration and failure behavior: [tools/README.md](tools/REA
 | Tool | Purpose |
 |---|---|
 | `tools/build_profile.py` | Builds the basic field profile: extraction, optional legacy classifier, exemplar-cache warm-up. |
-| `tools/extract_style.py` | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. Owns the two named LaTeX projections and the section-bucket vocabulary. |
+| `tools/extract_style.py` | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. Re-exports every public name from `extract_sections.py`. |
+| `tools/extract_sections.py` | Source-text projection and section splitting: the section vocabulary and its classifier, both named LaTeX projections, and the PDF heading heuristic. Section buckets key every per-section reference, so changing this requires a profile rebuild. |
 | `tools/retrieve_exemplars.py` | Retrieves section- and topic-matched exemplar paragraphs, with embedding or explicit fallback retrieval. |
 | `tools/fetch_arxiv_abstracts.py` | Fetches dated abstract corpora for controlled evaluation and training, optionally restricted to a subfield query set and named refereed journals. Rate limiting **stops the sweep and exits 2** rather than writing a truncated corpus as if it were complete. |
 
@@ -662,8 +662,8 @@ sci-paper/
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
 ├── skills/<name>/SKILL.md   8 skills
-├── tools/                   24 product tools + the repository validator
-├── tests/                   15 test files, 208 tests
+├── tools/                   25 product tools + the repository validator
+├── tests/                   15 test files, 213 tests
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 ├── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ├── ACKNOWLEDGMENTS.md       adapted-material attribution and adoption boundaries
@@ -674,7 +674,7 @@ sci-paper/
 ## Development
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 208-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 213-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation authority boundaries and index completeness,
 recorded suite sizes against real discovery, stale contract markers, product

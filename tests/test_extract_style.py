@@ -80,12 +80,61 @@ class SectionClassificationTests(unittest.TestCase):
         self.assertEqual(es.classify_section("Summary and discussion"),
                          "discussion")
 
-    def test_thematic_headings_fall_back_to_method(self):
+    def test_thematic_headings_fall_back_to_the_default_bucket(self):
         for heading in ["Aperture mass", "Cosmological background",
                         "Object Detection"]:
             with self.subTest(heading=heading):
                 self.assertEqual(es.classify_section(heading),
                                  es.DEFAULT_SECTION_BUCKET)
+
+    def test_default_bucket_is_unknown_rather_than_method(self):
+        # `method` was the default until 2026-08-25, so it silently absorbed
+        # every unmatched heading: the wgl bank held 1,671 "method" passages
+        # against 10 "results". A residue bucket is not a section, and a
+        # per-section reference built from one does not describe that section.
+        self.assertEqual(es.DEFAULT_SECTION_BUCKET, "unknown")
+        self.assertNotEqual(es.DEFAULT_SECTION_BUCKET, "method")
+
+    def test_method_is_reached_by_its_own_vocabulary(self):
+        # Because the default moved away from `method`, the bucket only exists
+        # if real method headings still land in it.
+        for heading in ["Methods", "Methodology", "Weak-lensing analysis",
+                        "Simulations", "The model", "Formalism", "Pipeline"]:
+            with self.subTest(heading=heading):
+                self.assertEqual(es.classify_section(heading), "method")
+
+    def test_data_sections_are_not_counted_as_method(self):
+        for heading in ["Data", "Observations", "The data set",
+                        "Photometry", "Survey and sample"]:
+            with self.subTest(heading=heading):
+                self.assertEqual(es.classify_section(heading), "data")
+
+
+class PdfHeadingTests(unittest.TestCase):
+    """A PDF text layer interleaves table cells with prose.
+
+    Every string below was taken from the 90-PDF wgl corpus, where the
+    pre-2026-08-25 ALL-CAPS heuristic accepted 305 of 325 "headings" that were
+    really table cells. Each accepted cell switched the current section bucket,
+    so the prose after a table was filed under whatever the cell classified as.
+    """
+
+    TABLE_CELLS = ["S", "X", "N", "RA", "O", "XS", "RS|", "S/N", "SO", "Z",
+                   "gNFW", "NFW", "XSO", "P", "RA (J2000)", "E", "R", "ID",
+                   "BCG", "A85", "A1606", "(1014 M)", "B =", "XL", "L", "D"]
+
+    def test_table_cells_are_not_headings(self):
+        for cell in self.TABLE_CELLS:
+            with self.subTest(cell=cell):
+                self.assertIsNone(es._classify_pdf_heading(cell))
+
+    def test_real_headings_survive_the_tightened_thresholds(self):
+        expected = {"1. Introduction": "intro", "INTRODUCTION": "intro",
+                    "3 RESULTS": "results", "Conclusions": "conclusion",
+                    "2 Data": "data"}
+        for heading, bucket in expected.items():
+            with self.subTest(heading=heading):
+                self.assertEqual(es._classify_pdf_heading(heading), bucket)
 
 
 class LigatureTests(unittest.TestCase):

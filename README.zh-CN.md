@@ -5,17 +5,17 @@
 [![Version](https://img.shields.io/badge/version-0.27.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-208%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-213%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**8 个 skill · 24 个工具 · 208 个测试 · 一份规范 · 零作者身份判决。**
+**8 个 skill · 25 个工具 · 213 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
-[Skills](#skills8-个) · [Tools](#tools24-个) ·
+[Skills](#skills8-个) · [Tools](#tools25-个) ·
 [已知限制](#现状已知限制与路线图) ·
 [规范正文](docs/SCIPAPER_STANDARD.md) · [文档索引](docs/README.md)
 
@@ -64,7 +64,7 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 | **七** | **打磨基金申请书** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description、NIH Specific Aims、fellowship。保留论文会删掉的"愿景+可行性"语域，强制 claim 与可行性匹配，最狠地打磨决定评分的前几页。 |
 | **八** | **探索研究方向** | [`brainstorm`](skills/brainstorm/SKILL.md) | 辐射状研究方向探索器：每节点 12 条 framing pass、术语锚定到 glossary、每分支完整推导、递归发散直到收敛。严禁 defer / future-work / 半成品叶节点。 |
 
-八项功能跑在同一层证据之上 —— 24 个工具输出同一套 schema
+八项功能跑在同一层证据之上 —— 25 个工具输出同一套 schema
 `sci-paper.feedback.v1` —— 所以 linter、审查 skill 和编排器给出的 finding
 是同一个对象、同一个 ID。
 
@@ -370,7 +370,7 @@ Split-conformal，按长度三分位做 Mondrian 分层。保证：对可交换�
 | `+ --oracle`（GPT-2-large token surprisal） | 5,225 词 | 25.3 s | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 5,225 词 | 47.2 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py`（9 项契约检查） | 仓库 | 2.0 s | 标准库 |
-| 完整测试套件（208 个测试） | 仓库 | 82.9 s | 标准库 |
+| 完整测试套件（213 个测试） | 仓库 | 82.9 s | 标准库 |
 
 一句话：**一份 5,225 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
 270 ms**，而且不需要装任何可选依赖。两条模型驱动的轴贵 75–140 倍，并且是显式
@@ -381,7 +381,7 @@ opt-in 的 flag —— 这正是预期形状：lint 一篇论文不该需要一�
 | 检查 | 结果 |
 |---|---|
 | 契约 validator | **9/9 通过** |
-| 单元 / CLI 测试 | **208 通过**（15 个文件） |
+| 单元 / CLI 测试 | **213 通过**（15 个文件） |
 | CI | 每次 push 与 PR 跑 validator + 套件，Python 3.11，Ubuntu |
 
 ---
@@ -453,7 +453,7 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 - **审** —— [`paper-review`](skills/paper-review/SKILL.md) · [`figure-review`](skills/figure-review/SKILL.md) · [`final-review`](skills/final-review/SKILL.md)
 - **探索** —— [`brainstorm`](skills/brainstorm/SKILL.md)
 
-## Tools（24 个）
+## Tools（25 个）
 
 这些工具产出的每一条 finding 都遵循同一套 `sci-paper.feedback.v1` 契约；
 下面的语料、训练与数据资产类条目产出的是制品而非 finding。
@@ -512,7 +512,8 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 | 工具 | 用途 |
 |---|---|
 | `tools/build_profile.py` | 构建基础 field profile：抽取、可选的旧版分类器、范例缓存预热。 |
-| `tools/extract_style.py` | 抽取词表、句子统计、转折词、描述性 dossier 和按 section 分类的范例库。拥有两条命名 LaTeX 投影与 section 分桶词汇表。 |
+| `tools/extract_style.py` | 抽取词表、句子统计、转折词、描述性 dossier 和按 section 分类的范例库。 |
+| `tools/extract_sections.py` | 源文本投影与分节层：section 词表与分类器、两条命名 LaTeX 投影、PDF 标题启发式。section 桶是 profile 里每一条按 section 参照分布的键，所以改这里就要重建 profile。 |
 | `tools/retrieve_exemplars.py` | 按 section 与主题检索范例段落，走 embedding 或显式 fallback。 |
 | `tools/fetch_arxiv_abstracts.py` | 抓取带日期的摘要语料用于受控评估与训练，可限定子领域 query set 与指定的 refereed 期刊。触发限流时**停止抓取并 exit 2**，而不是把被截断的语料当作完整的写下去。 |
 
@@ -610,8 +611,8 @@ sci-paper/
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md（hub）+ evaluation/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
 ├── skills/<name>/SKILL.md   8 个 skill
-├── tools/                   24 个产品工具 + 仓库 validator
-├── tests/                   15 个测试文件、208 个测试
+├── tools/                   25 个产品工具 + 仓库 validator
+├── tests/                   15 个测试文件、213 个测试
 ├── style-corpus/<field>/    用户提供的只读语料（gitignore）
 ├── style-profile/<field>/   生成与标定的证据（gitignore）
 ├── ACKNOWLEDGMENTS.md       改编来源的致谢与采纳边界
@@ -622,7 +623,7 @@ sci-paper/
 ## 开发与发布
 
 `python tools/validate_plugin.py` 跑 9 项契约检查，
-`python -m unittest discover -s tests -v` 跑 208 个测试；发布前两者都必须通过。
+`python -m unittest discover -s tests -v` 跑 213 个测试；发布前两者都必须通过。
 Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权威边界与索引完整性、
 记录的测试规模与真实发现的一致性、过期契约标记、产品注册表、Python 语法、
 运行时 import、CLI 入口、schema 字段、linter 退出语义、Tier B 行为、测试与 CI 接线 ——
