@@ -176,6 +176,153 @@ def latex_to_numeral_text(text: str) -> str:
     return re.sub(r"[ \t]+", " ", text)
 
 
+# A LaTeX *document* root, as opposed to a piece of one. \documentstyle is
+# LaTeX 2.09 and still appears throughout pre-1995 arXiv sources.
+RE_TEX_DOC_MARKER = re.compile(r"\\document(?:class|style)\b|\\begin\{document\}")
+RE_TEX_INCLUDE = re.compile(r"\\(?:include|input)\s*\{?\s*([^}\s\\]+)")
+
+
+def _include_targets(text: str) -> list[str]:
+    """\\include / \\input targets on lines where the call is not commented out.
+
+    Comment-stripping matters: arXiv sources routinely park an alternative
+    build in comments (`% \\includeonly{WeakLens_7}`), and resolving those
+    would splice a chapter into the document twice.
+    """
+    names: list[str] = []
+    for line in text.splitlines():
+        live = RE_TEX_COMMENT.sub("", line)
+        names.extend(RE_TEX_INCLUDE.findall(live))
+    return names
+
+
+CLASSIFIED_BUCKETS = frozenset(
+    b for _p, b in SECTION_PATTERNS if b != "skip"
+)
+
+
+def _classified_word_count(path: Path) -> int:
+    """Words this file contributes to named section buckets. Used only to pick
+    the paper out of a bundle that also ships journal boilerplate."""
+    sections = split_into_sections(read_tex_document(path))
+    return sum(len(t.split()) for b, t in sections.items()
+               if b in CLASSIFIED_BUCKETS)
+
+
+def select_document_roots(tex_files: list[Path],
+                          bundle_root: Path | None = None) -> list[Path]:
+    """Keep one entry per LaTeX *document*, dropping the pieces of one.
+
+    arXiv source bundles routinely split a paper across a root file plus a
+    dozen chapter fragments -- Bartelmann & Schneider (2001) ships
+    `WeakLens.tex` alongside `WeakLens_1..10` and `WeakLens_D` -- and often
+    carry a separate `bib.tex`. Counting each as its own paper is
+    pseudoreplication: it multiplied that single review's contribution to
+    every downstream distribution twelvefold.
+
+    Within one bundle directory, a `.tex` is a fragment when either
+
+      (a) a sibling `.tex` \\include's or \\input's it, or
+      (b) it carries no document marker while some sibling does.
+
+    Clause (b) is gated on a marked sibling existing because plain-TeX papers
+    that predate LaTeX2e carry no marker at all -- Schneider (1996) is the
+    whole paper and has none -- so with no root to defer to, the file is the
+    root. Files outside any `.tex` bundle are returned untouched. Read the
+    survivors with `read_tex_document`, not `read_text`: dropping the
+    fragments without splicing them back in loses the prose they hold.
+
+    With `bundle_root` given, a *subdirectory* of it is one arXiv submission
+    and yields at most one paper -- the surviving root with the most
+    classified prose. arXiv bundles routinely ship the journal's own class
+    documentation and worked example next to the manuscript
+    (`mnras_guide.tex`, `mnras_template.tex`, `natbib.tex`, `aassymbols.tex`
+    in 27 of the 500 wgl bundles), and `mnras_template.tex` is a complete
+    sample paper populating all seven buckets, so nothing about its shape
+    marks it as boilerplate. Files sitting *directly* in `bundle_root` are
+    each their own paper and are never reduced this way.
+    """
+    by_dir: dict[Path, list[Path]] = defaultdict(list)
+    for p in tex_files:
+        by_dir[p.parent].append(p)
+
+    roots: list[Path] = []
+    for parent, group in by_dir.items():
+        texts: dict[Path, str] = {}
+        for p in group:
+            try:
+                texts[p] = p.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                texts[p] = ""
+        marked = {p for p, t in texts.items() if RE_TEX_DOC_MARKER.search(t)}
+        stems = {p.stem: p for p in group}
+        included: set[Path] = set()
+        for p, t in texts.items():
+            for name in _include_targets(t):
+                target = stems.get(Path(name).stem)
+                if target is not None and target != p:
+                    included.add(target)
+        kept = [p for p in group
+                if p not in included and not (marked and p not in marked)]
+        if len(kept) > 1 and bundle_root is not None and parent != bundle_root:
+            kept = [max(kept, key=_classified_word_count)]
+        roots.extend(kept)
+    return sorted(roots)
+
+
+def read_tex_document(path: Path, _seen: set[Path] | None = None) -> str:
+    """Read a `.tex` root with its \\include / \\input siblings spliced in.
+
+    A LaTeX document is assembled from files; only its root is named. Reading
+    the root alone is as wrong as counting each piece separately -- Bartelmann
+    & Schneider (2001) has 72 words in `WeakLens.tex` and its whole ~40,000
+    word body in the eleven chapter files that root includes.
+
+    A target is resolved against the root's directory first and, failing that,
+    against a sibling with the same stem. The fallback is not cosmetic: arXiv
+    flattens submissions, so `\\input{sections/introduction}` routinely names a
+    file that now sits beside the root. `select_document_roots` has always
+    matched includes by stem, so without the same fallback here it drops those
+    chapters as fragments and nothing splices them back -- which cost four wgl
+    bundles most of their prose, one of them 9,741 of 9,743 words.
+
+    An unresolvable target (`\\input{aa.cls}`) degrades to leaving the call in
+    place rather than failing. `_seen` breaks include cycles.
+    """
+    seen = _seen if _seen is not None else set()
+    resolved = path.resolve()
+    if resolved in seen:
+        return ""
+    seen.add(resolved)
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+    out: list[str] = []
+    for line in text.splitlines(keepends=True):
+        names = _include_targets(line)
+        if not names:
+            out.append(line)
+            continue
+        for name in names:
+            child = _resolve_include(path, name)
+            out.append(read_tex_document(child, seen) if child else line)
+    return "".join(out)
+
+
+def _resolve_include(root: Path, name: str) -> Path | None:
+    """The file an \\include/\\input target names, or None. Literal path first,
+    then a same-stem sibling (arXiv flattens submission directories)."""
+    literal = root.parent / name
+    if literal.suffix.lower() != ".tex":
+        literal = literal.with_suffix(".tex")
+    if literal.is_file():
+        return literal
+    sibling = root.parent / f"{Path(name).stem}.tex"
+    return sibling if sibling.is_file() else None
+
+
 def split_into_sections(raw_tex: str) -> dict[str, str]:
     """Best-effort split by \\section / \\subsection / \\chapter headers.
 
@@ -207,9 +354,23 @@ def split_into_sections(raw_tex: str) -> dict[str, str]:
             return {k: "\n\n".join(v) for k, v in sections.items()}
         return {"unknown": raw_tex}
 
+    # A subsection inherits the section that encloses it, exactly as on the PDF
+    # side. The vocabulary names sections, not subsections: "Covariance
+    # matrix", "Likelihood" and "Blinding" are method prose, but classified on
+    # their own they are `unknown` and get discarded. Measured over the 561-doc
+    # wgl corpus before this fix, 54.8% of all section words were reaching
+    # `unknown` that way. An inherited `skip` also stays skipped, so a
+    # \subsection inside an appendix no longer escapes into the distributions.
+    parent = DEFAULT_SECTION_BUCKET
     for i, m in enumerate(matches):
         name = m.group(2).strip()
         bucket = classify_section(name)
+        if m.group(1).lower() in ("section", "chapter"):
+            parent = bucket
+        elif parent == "skip":
+            bucket = "skip"
+        elif bucket == DEFAULT_SECTION_BUCKET:
+            bucket = parent
         if bucket == "skip":
             continue
         start = m.end()

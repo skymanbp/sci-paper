@@ -25,11 +25,24 @@ import json
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from extract_style import REFERENCE_DIR, TIER_WEIGHTS
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 DEFAULT_MODEL = "all-MiniLM-L6-v2"
 
-VALID_SECTIONS = {"abstract", "intro", "method", "results", "discussion", "conclusion"}
+VALID_SECTIONS = {"abstract", "intro", "method", "data", "results",
+                  "discussion", "conclusion"}
+
+# The bank serves two roles. Its curated rows are the imitation target; its
+# `REFERENCE_DIR` rows are the breadth corpus that makes the per-section
+# reference distributions measurable (see extract_style.REFERENCE_DIR).
+# Retrieval wants the first role, so it reads the curated tiers by default:
+# widening it silently would answer "show me how this field writes a Results
+# paragraph" with an arbitrary arXiv preprint instead of a chosen exemplar.
+CURATED_TIERS = frozenset(TIER_WEIGHTS)
+ALL_TIERS = CURATED_TIERS | {REFERENCE_DIR}
 
 
 def list_fields(profile_root: Path) -> list[str]:
@@ -135,9 +148,19 @@ def _build_or_load_embeddings(
     return embs, model
 
 
-def _retrieve_st(records, jsonl_path, profile_dir, model_name, section, topic, k):
+def _wanted(rec: dict, section: str, tiers) -> bool:
+    return rec.get("section") == section and rec.get("tier") in tiers
+
+
+def _retrieve_st(records, jsonl_path, profile_dir, model_name, section, topic,
+                 k, tiers):
     """Sentence-transformers retrieval. Returns top-K (score, record) for the
-    section, ranked by cosine similarity to topic."""
+    section, ranked by cosine similarity to topic.
+
+    Tier selection happens here, after the embeddings are read, and never
+    before: the `.npy` cache is positional against the full bank, so filtering
+    the record list up front would silently mis-align every row.
+    """
     import numpy as np
     embs, model = _build_or_load_embeddings(
         records, jsonl_path, profile_dir, model_name
@@ -151,23 +174,23 @@ def _retrieve_st(records, jsonl_path, profile_dir, model_name, section, topic, k
     # Cosine = dot product since both sides are L2-normalized
     sims = embs @ q
 
-    # Filter to target section, then take top-K by similarity
+    # Filter to target section and tier, then take top-K by similarity
     candidates = [
         (float(sims[i]), records[i])
         for i in range(len(records))
-        if records[i].get("section") == section
+        if _wanted(records[i], section, tiers)
     ]
     candidates.sort(key=lambda x: -x[0])
     return candidates[:k]
 
 
-def _retrieve_fallback(records, section, topic, k):
+def _retrieve_fallback(records, section, topic, k, tiers):
     """Keyword-overlap fallback when sentence-transformers is unavailable.
     Strictly worse than ST retrieval; use only as a last resort."""
     topic_kws = {w.lower() for w in topic.split() if len(w) > 3}
     scored = []
     for rec in records:
-        if rec.get("section") != section:
+        if not _wanted(rec, section, tiers):
             continue
         text_lc = rec.get("text", "").lower()
         score = sum(1 for kw in topic_kws if kw in text_lc)
@@ -209,7 +232,16 @@ def main(argv: list[str] | None = None) -> int:
              "naive topic-keyword overlap instead of erroring. "
              "Strictly worse retrieval.",
     )
+    p.add_argument(
+        "--include-reference",
+        action="store_true",
+        help=f"Also retrieve from the unweighted breadth corpus "
+             f"({REFERENCE_DIR}/). Default is the curated tiers only, which "
+             f"are the chosen imitation target; the breadth rows exist to "
+             f"make the reference distributions measurable.",
+    )
     args = p.parse_args(argv)
+    tiers = ALL_TIERS if args.include_reference else CURATED_TIERS
 
     # Guarded because the retrieval helpers slice `candidates[:k]`, where k <= 0
     # is a silent wrong answer rather than an error: --k 0 returned an empty
@@ -242,7 +274,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         results = _retrieve_st(
             records, bank, field_profile_dir, args.model,
-            args.section, args.topic, args.k,
+            args.section, args.topic, args.k, tiers,
         )
         mode = "cosine"
     except ImportError as e:
@@ -261,14 +293,23 @@ def main(argv: list[str] | None = None) -> int:
             f"falling back to keyword overlap.",
             file=sys.stderr,
         )
-        results = _retrieve_fallback(records, args.section, args.topic, args.k)
+        results = _retrieve_fallback(records, args.section, args.topic,
+                                     args.k, tiers)
         mode = "kw-overlap"
 
     if not results:
+        scope = "curated tiers" if tiers is CURATED_TIERS else "whole bank"
+        hint = ""
+        if tiers is CURATED_TIERS and any(
+            _wanted(r, args.section, {REFERENCE_DIR}) for r in records
+        ):
+            hint = ("\nThe breadth corpus does have rows for this section; "
+                    "pass --include-reference to retrieve from it.")
         print(
-            f"[retrieve_exemplars] No paragraphs in section={args.section!r}. "
-            f"Available sections: "
-            f"{sorted({r['section'] for r in records})}",
+            f"[retrieve_exemplars] No paragraphs in section={args.section!r} "
+            f"within the {scope}. Available sections there: "
+            f"{sorted({r['section'] for r in records if r.get('tier') in tiers})}"
+            f"{hint}",
             file=sys.stderr,
         )
         return 1

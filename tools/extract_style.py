@@ -8,10 +8,10 @@ best-effort and requires pymupdf.
 
 This module does not define consequence classes, authorship, or calibrated
 operating points. Its section detection and PDF block segmentation are
-heuristic; unmatched LaTeX sections default to ``method`` and non-LaTeX input to
-``unknown``. Fix extraction errors in the source or this extractor and
-regenerate rather than hand-editing generated evidence. Normative policy lives
-in ``docs/SCIPAPER_STANDARD.md``.
+heuristic; unmatched headings fall to ``unknown`` and are dropped rather than
+absorbed into a default bucket. Fix extraction errors in the source or this
+extractor and regenerate rather than hand-editing generated evidence. Normative
+policy lives in ``docs/SCIPAPER_STANDARD.md``.
 """
 
 from __future__ import annotations
@@ -29,17 +29,20 @@ from pathlib import Path
 # its size). Re-exported here because sibling tools and tests reach them as
 # es.<name>; the names below are unused in this module by design, which is
 # what the F401 waiver records.
-from extract_sections import (  # noqa: F401
+from extract_sections import (  # noqa: F401 -- re-export, unused here by design
+    CLASSIFIED_BUCKETS, _classified_word_count,
     DEFAULT_SECTION_BUCKET, LIGATURE_TABLE, RE_ABSTRACT_ENV,
     RE_PDF_LINE_HEADER, RE_SECTION, RE_TEX_BEGIN_END, RE_TEX_BRACES,
     RE_TEX_CITE, RE_TEX_COMMENT, RE_TEX_DISPLAY_MATH,
     RE_TEX_ENV_FIGURE_TABLE, RE_TEX_INCLUDEGRAPHICS, RE_TEX_INLINE_MATH,
+    RE_TEX_DOC_MARKER, RE_TEX_INCLUDE,
     RE_TEX_LABEL_REF, RE_TEX_MATH_CMD, RE_TEX_SIMPLE_CMD, RE_TEX_THIN_COMMA,
     RE_TEX_TILDE, RE_SENTENCE_TERMINAL, SECTION_PATTERNS,
     PDF_HEADING_MIN_LETTER_FRAC, PDF_HEADING_MIN_LETTERS, PDF_HEADING_MIN_WORDS,
-    _classify_pdf_heading, _math_numerals, _rejoin_pdf_paragraphs,
-    classify_section, extract_pdf_text, latex_to_numeral_text,
-    latex_to_plain, split_into_sections, split_pdf_into_sections,
+    _classify_pdf_heading, _include_targets, _math_numerals, _resolve_include,
+    _rejoin_pdf_paragraphs, classify_section, extract_pdf_text,
+    latex_to_numeral_text, latex_to_plain, read_tex_document,
+    select_document_roots, split_into_sections, split_pdf_into_sections,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -47,6 +50,17 @@ DEFAULT_CORPUS_ROOT = REPO_ROOT / "style-corpus"
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 
 TIER_WEIGHTS = {"tier-1-top": 0.5, "tier-2-mentor": 0.3, "tier-3-reference": 0.2}
+
+# Breadth corpus, distinct in role from the curated tiers above. The tiers
+# define what the dossier says we *imitate* and carry all weighted aggregate
+# statistics; this directory holds the bulk arXiv full-text pull
+# (fetch_arxiv_abstracts.py --fulltext) and exists so the per-section
+# *reference distributions* have enough observations to be measurable at all.
+# It is unweighted and excluded from every aggregate on purpose: breadth must
+# not restyle the imitation target. Both roles previously shared one file
+# list, which is why `results` sat at 26 observations -- under its own
+# 30-passage floor -- while 500 field papers sat unread on disk.
+REFERENCE_DIR = "fulltext-arxiv"
 
 
 def list_fields(corpus_root: Path) -> list[str]:
@@ -173,40 +187,54 @@ def count_em_dashes(text: str) -> int:
 def gather_corpus_files(field_corpus_dir: Path) -> dict[str, list[Path]]:
     """field_corpus_dir is the field-specific dir, e.g. style-corpus/wgl/.
 
-    Picks up `.tex`, `.txt`, and standalone `.pdf` sources. **A `.pdf` is
-    accepted only directly under the tier directory (depth 1); anything nested
-    deeper is skipped** as a figure or supplemental file inside an arXiv-source
-    bundle, which ships 5-50 of them alongside the `.tex`. The rule is depth,
-    not co-location with a `.tex`: a figure PDF placed directly in the tier
-    directory is still ingested as if it were a paper. PDF parsing is best-effort
-    via pymupdf; if pymupdf is unavailable the standalone PDF rows are
-    still listed and `analyse_paper` will skip them with a warning.
+    Returns `{source: [paths]}` for the three curated tiers plus, when it
+    exists, the breadth directory named by `REFERENCE_DIR`. Callers must not
+    assume every key is in `TIER_WEIGHTS`; the breadth source is unweighted
+    (see that constant).
+
+    Picks up `.tex`, `.txt`, and standalone `.pdf` sources. `.tex` files are
+    reduced to document roots by `select_document_roots`. **A `.pdf` is
+    accepted only directly under the source directory (depth 1); anything
+    nested deeper is skipped** as a figure or supplemental file inside an
+    arXiv-source bundle, which ships 5-50 of them alongside the `.tex`. The
+    rule is depth, not co-location with a `.tex`: a figure PDF placed directly
+    in the source directory is still ingested as if it were a paper. PDF
+    parsing is best-effort via pymupdf; if pymupdf is unavailable the
+    standalone PDF rows are still listed and `analyse_paper` will skip them
+    with a warning.
     """
     out: dict[str, list[Path]] = {}
-    for tier in TIER_WEIGHTS:
-        tier_dir = field_corpus_dir / tier
-        if not tier_dir.exists():
+    for source in (*TIER_WEIGHTS, REFERENCE_DIR):
+        source_dir = field_corpus_dir / source
+        if not source_dir.exists():
             continue
-        # PDFs are accepted ONLY when placed directly under the tier
+        # PDFs are accepted ONLY when placed directly under the source
         # directory (depth = 1). Anything nested deeper is treated as a
         # figure / supplemental file inside an arXiv-source bundle (those
         # bundles often ship 5-50 figure PDFs alongside the .tex), and
         # would otherwise dominate the corpus with near-empty parses.
-        files = []
-        for p in tier_dir.rglob("*"):
+        tex: list[Path] = []
+        files: list[Path] = []
+        for p in source_dir.rglob("*"):
             if not p.is_file():
                 continue
             suf = p.suffix.lower()
-            if suf in {".tex", ".txt"}:
+            if suf == ".tex":
+                tex.append(p)
+            elif suf == ".txt":
                 files.append(p)
-            elif suf == ".pdf" and p.parent == tier_dir:
+            elif suf == ".pdf" and p.parent == source_dir:
                 files.append(p)
-        out[tier] = files
+        out[source] = sorted(files + select_document_roots(tex, source_dir))
     return out
 
 
 def analyse_paper(path: Path) -> dict | None:
     """Parse one paper into per-section stats.
+
+    A `.tex` path is read as a whole document via `read_tex_document`, which
+    splices in the files it \\include's; `gather_corpus_files` hands over
+    document roots, and a root on its own is often just a wrapper.
 
     Returns None if the file cannot be parsed (currently: PDF + pymupdf
     missing). Otherwise returns the standard analysis dict; callers use
@@ -227,7 +255,7 @@ def analyse_paper(path: Path) -> dict | None:
             return None
         sections = split_pdf_into_sections(raw)
     elif is_tex:
-        raw = path.read_text(encoding="utf-8", errors="replace")
+        raw = read_tex_document(path)
         sections = split_into_sections(raw)
     else:
         raw = path.read_text(encoding="utf-8", errors="replace")
@@ -564,18 +592,29 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  profile: {field_profile}")
 
     files_by_tier = gather_corpus_files(field_corpus)
-    n_files = sum(len(v) for v in files_by_tier.values())
-    if n_files == 0:
+    # The warning below counts the CURATED tiers only. Breadth papers cannot
+    # stand in for them: they are excluded from every weighted aggregate, so
+    # counting them here would silence the warning while leaving the dossier
+    # exactly as thin as it was.
+    n_curated = sum(len(v) for k, v in files_by_tier.items() if k in TIER_WEIGHTS)
+    if sum(len(v) for v in files_by_tier.values()) == 0:
         print(f"[extract_style] No .tex/.txt files found under {field_corpus}/.")
         print(f"Add papers to style-corpus/{field}/tier-{{1,2,3}}-* and re-run.")
         return 1
-    if n_files < 5:
-        print(f"[extract_style] WARNING: only {n_files} corpus files. "
+    if n_curated < 5:
+        print(f"[extract_style] WARNING: only {n_curated} curated corpus files. "
               "Statistics will be noisy; recommended ≥ 8.")
 
+    # `per_paper` drives the weighted aggregates and the dossier and holds the
+    # curated tiers only; `reference_papers` is the unweighted breadth corpus.
+    # The exemplar bank is built from both -- it is the reference distribution
+    # every L1/L2 axis measures against, and needs the observations.
     per_paper: list[tuple[float, dict]] = []
-    for tier, files in files_by_tier.items():
-        weight = TIER_WEIGHTS[tier]
+    reference_papers: list[tuple[float, dict]] = []
+    for source, files in files_by_tier.items():
+        weight = TIER_WEIGHTS.get(source, 0.0)
+        sink = per_paper if source in TIER_WEIGHTS else reference_papers
+        verbose = source in TIER_WEIGHTS
         for f in files:
             try:
                 analysis = analyse_paper(f)
@@ -588,16 +627,22 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             # Tag tier + a stable, repo-relative source path so the exemplar
             # writer can include both fields per row without rebuilding state.
-            analysis["tier"] = tier
+            analysis["tier"] = source
             try:
                 analysis["source_path"] = str(
                     f.relative_to(args.corpus_root.parent)
                 ).replace("\\", "/")
             except ValueError:
                 analysis["source_path"] = str(f).replace("\\", "/")
-            per_paper.append((weight, analysis))
-            print(f"  parsed {tier}/{f.name}: {analysis['total_words']} words, "
-                  f"{analysis['total_em_dashes']} em-dashes")
+            sink.append((weight, analysis))
+            if verbose:
+                # The breadth corpus runs to hundreds of papers; printing a
+                # line each buries the curated tiers it is meant to complement.
+                print(f"  parsed {source}/{f.name}: {analysis['total_words']} "
+                      f"words, {analysis['total_em_dashes']} em-dashes")
+    if reference_papers:
+        print(f"  parsed {len(reference_papers)} reference papers from "
+              f"{REFERENCE_DIR}/ (unweighted; exemplar bank only)")
 
     if not per_paper:
         print("[extract_style] All files failed to parse.")
@@ -629,9 +674,10 @@ def main(argv: list[str] | None = None) -> int:
         field=field,
     )
 
-    n_exemplars = write_exemplar_bank(per_paper, field_profile)
+    n_exemplars = write_exemplar_bank(per_paper + reference_papers, field_profile)
 
-    print(f"\n[extract_style] OK. {len(per_paper)} papers processed for field {field!r}.")
+    print(f"\n[extract_style] OK. {len(per_paper)} curated + "
+          f"{len(reference_papers)} reference papers for field {field!r}.")
     print(f"  → {field_profile}/style_dossier.md")
     print(f"  → {field_profile}/{{sentence_stats,transition_inventory,lexicon}}.json")
     print(f"  → {field_profile}/exemplar_paragraphs.jsonl  ({n_exemplars} paragraphs)")

@@ -197,7 +197,7 @@ class CorpusGatheringTests(unittest.TestCase):
             for tier in ("tier-1-top", "tier-2-mentor", "tier-3-reference"):
                 (field / tier).mkdir(parents=True)
             (field / "tier-1-top" / "paper.tex").write_text(
-                "\section{Results}\ntext\n", encoding="utf-8")
+                r"\section{Results}" "\ntext\n", encoding="utf-8")
             out = es.gather_corpus_files(field)
         self.assertIsInstance(out, dict)
         self.assertEqual(set(out), {"tier-1-top", "tier-2-mentor", "tier-3-reference"})
@@ -289,3 +289,331 @@ class NumberedHeadingTests(unittest.TestCase):
         for cell in ["1. 2", "2. x", "3 4 5"]:
             with self.subTest(cell=cell):
                 self.assertIsNone(es._classify_pdf_heading(cell))
+
+
+class DocumentRootTests(unittest.TestCase):
+    r"""A LaTeX bundle is one paper, not one paper per .tex file.
+
+    Measured on the wgl corpus before the 2026-08-25 fix: `tier-1-top` held 20
+    .tex files but only 8 papers. Bartelmann & Schneider (2001) alone shipped
+    `WeakLens.tex` plus `WeakLens_1..10` and `WeakLens_D`, so that one review
+    entered every downstream distribution twelve times at tier-1 weight -- the
+    same pseudoreplication the project refuses elsewhere.
+    """
+
+    def _bundle(self, tmp: str, files: dict[str, str]) -> list[Path]:
+        d = pathlib.Path(tmp) / "bundle"
+        d.mkdir(parents=True, exist_ok=True)
+        for name, body in files.items():
+            (d / name).write_text(body, encoding="utf-8")
+        return sorted(d.glob("*.tex"))
+
+    def test_included_fragments_are_dropped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tex = self._bundle(tmp, {
+                "main.tex": r"\documentclass{article}" "\n"
+                            r"\begin{document}" "\n"
+                            r"\include{chap_1}" "\n"
+                            r"\input{chap_2}" "\n"
+                            r"\end{document}" "\n",
+                "chap_1.tex": r"\section{Results}" "\nfirst\n",
+                "chap_2.tex": r"\section{Discussion}" "\nsecond\n",
+            })
+            roots = es.select_document_roots(tex)
+        self.assertEqual([p.name for p in roots], ["main.tex"])
+
+    def test_unmarked_sibling_of_a_marked_root_is_dropped(self):
+        # bib.tex is neither \input nor marked, but it is not a paper either.
+        with tempfile.TemporaryDirectory() as tmp:
+            tex = self._bundle(tmp, {
+                "ms.tex": r"\documentclass{aastex}" "\n"
+                          r"\begin{document}" "\nbody\n"
+                          r"\end{document}" "\n",
+                "bib.tex": r"\bibitem{a} A. Author, 2001" "\n",
+            })
+            roots = es.select_document_roots(tex)
+        self.assertEqual([p.name for p in roots], ["ms.tex"])
+
+    def test_a_lone_unmarked_file_is_still_the_paper(self):
+        # Plain-TeX papers predating LaTeX2e carry no document marker at all;
+        # Schneider (1996) in the wgl corpus is one, and it IS the paper.
+        with tempfile.TemporaryDirectory() as tmp:
+            tex = self._bundle(tmp, {
+                "aperture.tex": r"\def\ave#1{\langle #1\rangle}" "\n"
+                                r"\section{Introduction}" "\nbody\n",
+            })
+            roots = es.select_document_roots(tex)
+        self.assertEqual([p.name for p in roots], ["aperture.tex"])
+
+    def test_documentstyle_counts_as_a_document_marker(self):
+        # LaTeX 2.09; still used by pre-1995 arXiv sources such as
+        # Kaiser, Squires & Broadhurst (1995) and Refregier (2003).
+        with tempfile.TemporaryDirectory() as tmp:
+            tex = self._bundle(tmp, {
+                "main.tex": r"\documentstyle[aaspp]{article}" "\nbody\n",
+                "macros.tex": r"\def\x{1}" "\n",
+            })
+            roots = es.select_document_roots(tex)
+        self.assertEqual([p.name for p in roots], ["main.tex"])
+
+    def test_separate_bundles_do_not_shadow_each_other(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            for name in ("a", "b"):
+                d = root / name
+                d.mkdir()
+                (d / "paper.tex").write_text(r"\section{Results}" "\nx\n",
+                                             encoding="utf-8")
+            roots = es.select_document_roots(sorted(root.rglob("*.tex")))
+        self.assertEqual(len(roots), 2)
+
+
+class TexDocumentAssemblyTests(unittest.TestCase):
+    r"""Dropping a fragment must not drop the prose it holds.
+
+    `WeakLens.tex` is 72 words of \include calls; the ~40,000-word review it
+    names lives in the eleven chapter files. Selecting the root and reading
+    it with `read_text` is as wrong as counting each chapter as its own
+    paper -- it replaces a twelvefold overcount with a total loss.
+    """
+
+    def _bundle(self, tmp: str, files: dict[str, str]) -> pathlib.Path:
+        d = pathlib.Path(tmp) / "bundle"
+        d.mkdir(parents=True, exist_ok=True)
+        for name, body in files.items():
+            (d / name).write_text(body, encoding="utf-8")
+        return d
+
+    def test_included_chapters_are_spliced_in(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = self._bundle(tmp, {
+                "main.tex": r"\documentclass{article}" "\n"
+                            r"\begin{document}" "\n"
+                            r"\include{chap_1}" "\n"
+                            r"\input{chap_2}" "\n"
+                            r"\end{document}" "\n",
+                "chap_1.tex": "first chapter body\n",
+                "chap_2.tex": "second chapter body\n",
+            })
+            text = es.read_tex_document(d / "main.tex")
+        self.assertIn("first chapter body", text)
+        self.assertIn("second chapter body", text)
+
+    def test_commented_out_includes_are_not_spliced(self):
+        # arXiv sources routinely park an alternative build in comments
+        # (`% \includeonly{WeakLens_7}`); resolving those duplicates a chapter.
+        with tempfile.TemporaryDirectory() as tmp:
+            d = self._bundle(tmp, {
+                "main.tex": r"\documentclass{article}" "\n"
+                            r"% \input{alt}" "\n" "kept\n",
+                "alt.tex": "ALTERNATE\n",
+            })
+            text = es.read_tex_document(d / "main.tex")
+        self.assertIn("kept", text)
+        self.assertNotIn("ALTERNATE", text)
+
+    def test_flattened_subdirectory_targets_resolve_to_siblings(self):
+        # arXiv flattens submissions: `\input{sections/introduction}` names a
+        # file that now sits beside the root. `select_document_roots` matches
+        # includes by stem, so without the same fallback here the chapter is
+        # dropped as a fragment and never spliced back -- 2101.09097v3 kept
+        # 2 of its 9,743 words that way.
+        with tempfile.TemporaryDirectory() as tmp:
+            d = self._bundle(tmp, {
+                "article.tex": r"\documentclass{article}" "\n"
+                               r"\input{sections/introduction}" "\n"
+                               r"\input{sections/forecast.tex}" "\n",
+                "introduction.tex": "intro body\n",
+                "forecast.tex": "forecast body\n",
+            })
+            text = es.read_tex_document(d / "article.tex")
+        self.assertIn("intro body", text)
+        self.assertIn("forecast body", text)
+
+    def test_the_selector_and_the_reader_agree_on_targets(self):
+        # The bug was an asymmetry, not a missing feature: whatever
+        # select_document_roots treats as included must be spliceable.
+        with tempfile.TemporaryDirectory() as tmp:
+            d = self._bundle(tmp, {
+                "article.tex": r"\documentclass{article}" "\n"
+                               r"\input{sections/introduction}" "\n",
+                "introduction.tex": "intro body\n",
+            })
+            roots = es.select_document_roots(sorted(d.glob("*.tex")))
+            self.assertEqual([p.name for p in roots], ["article.tex"])
+            self.assertIn("intro body", es.read_tex_document(roots[0]))
+
+    def test_missing_include_target_leaves_the_call_in_place(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = self._bundle(tmp, {
+                "main.tex": r"\documentclass{article}" "\n"
+                            r"\input{aa.cls}" "\n" "body\n",
+            })
+            text = es.read_tex_document(d / "main.tex")
+        self.assertIn("body", text)
+
+    def test_include_cycles_terminate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = self._bundle(tmp, {
+                "a.tex": r"\documentclass{article}" "\n" r"\input{b}" "\n",
+                "b.tex": r"\input{a}" "\n" "cycle body\n",
+            })
+            text = es.read_tex_document(d / "a.tex")
+        self.assertIn("cycle body", text)
+
+    def test_a_bundle_yields_one_paper_not_the_journal_template(self):
+        # 27 of the 500 wgl arXiv bundles ship the journal's class
+        # documentation next to the manuscript; mnras_template.tex is a
+        # complete sample paper populating all seven buckets, so only the
+        # amount of real prose separates it from the submission.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            d = root / "2501.00001"
+            d.mkdir()
+            (d / "ms.tex").write_text(
+                r"\documentclass{mnras}" "\n" r"\section{Results}" "\n"
+                + "real " * 400, encoding="utf-8")
+            (d / "mnras_template.tex").write_text(
+                r"\documentclass{mnras}" "\n" r"\section{Results}" "\n"
+                + "sample ", encoding="utf-8")
+            roots = es.select_document_roots(sorted(d.glob("*.tex")), root)
+        self.assertEqual([p.name for p in roots], ["ms.tex"])
+
+    def test_loose_files_in_the_source_root_stay_independent(self):
+        # Two papers dropped straight into a tier dir are two papers; only a
+        # SUBDIRECTORY is an arXiv bundle.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            for name in ("a.tex", "b.tex"):
+                (root / name).write_text(
+                    r"\documentclass{article}" "\n" r"\section{Results}" "\nx\n",
+                    encoding="utf-8")
+            roots = es.select_document_roots(sorted(root.glob("*.tex")), root)
+        self.assertEqual([p.name for p in roots], ["a.tex", "b.tex"])
+
+    def test_the_whole_bundle_is_read_exactly_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = self._bundle(tmp, {
+                "main.tex": r"\documentclass{article}" "\n"
+                            r"\include{ch}" "\n",
+                "ch.tex": r"\section{Results}" "\nUNIQUE MARKER\n",
+            })
+            roots = es.select_document_roots(sorted(d.glob("*.tex")))
+            self.assertEqual([p.name for p in roots], ["main.tex"])
+            analysis = es.analyse_paper(roots[0])
+        self.assertEqual(analysis["by_section"]["results"]["plain_text"].count(
+            "UNIQUE MARKER"), 1)
+
+
+class SubsectionInheritanceTests(unittest.TestCase):
+    r"""A \subsection belongs to the \section that encloses it.
+
+    The vocabulary names sections, not subsections. "Covariance matrix",
+    "Likelihood" and "Blinding" are method prose, but classified alone they
+    are `unknown` and discarded -- 54.8% of all section words in the 561-doc
+    wgl corpus reached `unknown` that way. The PDF path was fixed on
+    2026-08-25; the LaTeX path was not.
+    """
+
+    def test_unnamed_subsection_inherits_its_section(self):
+        secs = es.split_into_sections(
+            r"\section{Methods}" "\nalpha\n"
+            r"\subsection{Covariance matrix}" "\nbeta\n")
+        self.assertIn("beta", secs["method"])
+        self.assertNotIn("unknown", secs)
+
+    def test_a_named_subsection_keeps_its_own_bucket(self):
+        secs = es.split_into_sections(
+            r"\section{Methods}" "\nalpha\n"
+            r"\subsection{Results of the fit}" "\nbeta\n")
+        self.assertIn("beta", secs["results"])
+        self.assertIn("alpha", secs["method"])
+
+    def test_subsections_of_a_skipped_section_stay_skipped(self):
+        secs = es.split_into_sections(
+            r"\section{Appendix A}" "\nalpha\n"
+            r"\subsection{Covariance matrix}" "\nbeta\n")
+        self.assertEqual(secs, {})
+
+    def test_an_unnamed_section_does_not_borrow_the_previous_one(self):
+        secs = es.split_into_sections(
+            r"\section{Methods}" "\nalpha\n"
+            r"\section{Cosmological constraints}" "\nbeta\n")
+        self.assertIn("beta", secs["unknown"])
+        self.assertNotIn("beta", secs["method"])
+
+
+class ReferenceCorpusTests(unittest.TestCase):
+    """The breadth corpus is gathered but must stay out of TIER_WEIGHTS.
+
+    The curated tiers are the imitation target and carry the dossier's
+    weighted statistics; `REFERENCE_DIR` exists only so the per-section
+    reference distributions have observations. Conflating the two roles is
+    what left `results` at 26 passages -- under its own 30-passage floor --
+    while 500 field papers sat unread under fulltext-arxiv/.
+    """
+
+    def _field(self, tmp: str) -> pathlib.Path:
+        field = pathlib.Path(tmp)
+        for tier in es.TIER_WEIGHTS:
+            (field / tier).mkdir(parents=True)
+        (field / "tier-1-top" / "curated.tex").write_text(
+            r"\section{Results}" "\ncurated\n", encoding="utf-8")
+        ref = field / es.REFERENCE_DIR / "2501.00001"
+        ref.mkdir(parents=True)
+        (ref / "ms.tex").write_text(r"\section{Results}" "\nbreadth\n",
+                                    encoding="utf-8")
+        return field
+
+    def test_reference_dir_is_gathered_under_its_own_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = es.gather_corpus_files(self._field(tmp))
+        self.assertIn(es.REFERENCE_DIR, out)
+        self.assertEqual([p.name for p in out[es.REFERENCE_DIR]], ["ms.tex"])
+
+    def test_reference_dir_carries_no_tier_weight(self):
+        self.assertNotIn(es.REFERENCE_DIR, es.TIER_WEIGHTS)
+
+    def test_absent_reference_dir_yields_only_tier_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            field = pathlib.Path(tmp)
+            for tier in es.TIER_WEIGHTS:
+                (field / tier).mkdir(parents=True)
+            out = es.gather_corpus_files(field)
+        self.assertEqual(set(out), set(es.TIER_WEIGHTS))
+
+
+class ExemplarRetrievalScopeTests(unittest.TestCase):
+    """Retrieval reads the curated tiers; the breadth corpus is opt-in.
+
+    The bank now carries both roles, so an unscoped retrieval would answer
+    "show me how this field writes a Results paragraph" with an arbitrary
+    arXiv preprint. Tier filtering must also happen after the embedding
+    lookup: the `.npy` cache is positional against the full bank.
+    """
+
+    def _bank(self):
+        return [
+            {"section": "results", "tier": "tier-1-top", "text": "curated one"},
+            {"section": "results", "tier": es.REFERENCE_DIR, "text": "breadth"},
+            {"section": "intro", "tier": "tier-1-top", "text": "intro one"},
+        ]
+
+    def test_curated_default_excludes_the_breadth_corpus(self):
+        import retrieve_exemplars as rx
+        got = rx._retrieve_fallback(self._bank(), "results", "curated", 5,
+                                    rx.CURATED_TIERS)
+        self.assertEqual([r["text"] for _s, r in got], ["curated one"])
+
+    def test_include_reference_widens_to_the_whole_bank(self):
+        import retrieve_exemplars as rx
+        got = rx._retrieve_fallback(self._bank(), "results", "", 5,
+                                    rx.ALL_TIERS)
+        self.assertEqual(len(got), 2)
+
+    def test_data_is_a_retrievable_section(self):
+        # `data` was split out of `method` on 2026-08-25 and reached the bank
+        # (112 rows) before VALID_SECTIONS learned about it, so --section data
+        # was rejected by argparse while the rows sat there.
+        import retrieve_exemplars as rx
+        self.assertIn("data", rx.VALID_SECTIONS)
