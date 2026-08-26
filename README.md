@@ -718,7 +718,7 @@ Open, and it now carries a number: `L0.register`'s operating point must be re-de
 against a held-out target rate. What it replaces — "needs a human-labelled validation
 set" — is closed by measurement: refereed ApJ/ApJL/A&A papers *are* human labels, and
 200 held-out ones scored both axes
-([§17](docs/architecture/evaluation/narrative-salience-register.md)). A labeller still
+([§17](docs/architecture/evaluation/held-out-labels.md)). A labeller still
 judges whether an advisory is good *advice*; `label_findings.py` is that path.
 
 **Closed by refutation, not by shipping.** The length-aware manifold, a larger conformal

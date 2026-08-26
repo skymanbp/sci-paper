@@ -274,6 +274,34 @@ def _broken_page_anchors(path: Path) -> list[str]:
     return broken
 
 
+RE_SECTION_REF = re.compile(r"\[\s*§\s*(\d+)(?:\.\w+)?\s*\]\(([^)\s#]+\.md)")
+
+
+def _broken_section_references(path: Path) -> list[str]:
+    """Cross-file `[§N](other.md)` links whose target has no section N.
+
+    The file link resolves and the anchor check passes -- there is no
+    `#fragment` -- so both existing checks are silent when a numbered section
+    moves to a different page. Splitting §17 out of narrative-salience-register
+    stranded both READMEs' §17 links exactly that way.
+    """
+    text = read_text(path)
+    broken = []
+    for match in RE_SECTION_REF.finditer(text):
+        number, target = match.group(1), match.group(2)
+        resolved = (path.parent / target).resolve()
+        if not resolved.exists():
+            continue            # the file-link check owns a missing target
+        body = read_text(resolved)
+        if (re.search(rf"(?m)^#{{1,6}}\s+{number}[.\s]", body)
+                or re.search(rf"(?m)^\|\s*\*\*{number}\*\*\s*\|", body)):
+            continue
+        line = text[: match.start()].count("\n") + 1
+        broken.append(f"{path.relative_to(REPO).as_posix()}:{line} "
+                      f"§{number} -> {target}")
+    return broken
+
+
 def check_documentation_boundaries() -> str:
     # v0.21.0 made docs/EVALUATION.md the single canonical evaluation record;
     # v0.27.0 categorized docs/ and moved it under architecture/. A copy left
@@ -318,9 +346,16 @@ def check_documentation_boundaries() -> str:
     require(not broken,
             "in-page anchors point at headings that do not exist: "
             + "; ".join(broken))
+    stranded = [item for page in pages
+                for item in _broken_section_references(page)]
+    require(not stranded,
+            "numbered cross-references point at pages that do not carry that "
+            "section: " + "; ".join(stranded))
+    refs = sum(len(RE_SECTION_REF.findall(read_text(page))) for page in pages)
     return (f"documentation boundaries are unambiguous "
             f"({len(shipped)} documents, all indexed; "
-            f"{len(pages)} pages anchor-checked)")
+            f"{len(pages)} pages anchor-checked; "
+            f"{refs} numbered cross-references resolved)")
 
 
 def _discovered_test_count() -> tuple[int, int]:

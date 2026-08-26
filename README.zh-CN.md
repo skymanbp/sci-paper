@@ -674,7 +674,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 只剩一项敞着，而且它现在带着数字：`L0.register` 的操作点必须对着一个留出目标率
 重新推导。它取代的那一项 ——「需要人工标注验证集」—— 已由测量收口：已发表的
 ApJ/ApJL/A&A 论文**本身就是人类标签**，200 篇留出论文测了两条轴
-（[§17](docs/architecture/evaluation/narrative-salience-register.md)）。标注者仍能补上的，
+（[§17](docs/architecture/evaluation/held-out-labels.md)）。标注者仍能补上的，
 是「这条建议是不是好建议」，那条路径依然是 `label_findings.py`。
 
 **以证伪收口，不是以发布收口。** 长度感知流形已经做出来了 —— 从协方差里减掉拟合集
