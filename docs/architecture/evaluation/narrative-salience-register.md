@@ -357,7 +357,7 @@ threshold:
 After the fix: 3 findings, all substantive.
 
 **Recall cost, stated.** `probit` (df 0) and `pooled` (df 0) are used 3 and 4
-times, below the 5-use floor, and are not reported. The floor buys precision at
+times, below the manuscript-use floor, and are not reported. The floor buys precision at
 the price of terms used a handful of times; below it the corpus's own sampling
 gaps dominate the comparison.
 
@@ -390,7 +390,7 @@ The reference-size limitation recorded here from v0.26 through v0.27.1 is theref
 closed. What remains is narrower and should not be read as the same caveat: register
 document frequency still inherits the corpus's composition — 35% abstracts — so a term
 common in body text but absent from abstracts is still slightly over-flagged, and the
-5-use manuscript floor still bounds recall. Neither axis has a human-judgement
+manuscript-use floor still bounds recall. Neither axis has a human-judgement
 validation set. Both are calibrated distance statements against a human reference, in
 the same sense as every other L1/L2 axis here, and neither is an authorship claim.
 

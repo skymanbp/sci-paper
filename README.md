@@ -157,7 +157,7 @@ against a mostly-long human reference, and the flag rates they produced
 them and are [in the dashboard](#document-scale-discrimination-and-its-false-positive-control).
 
 **4 · Register comes from your corpus, not from a word list.**
-`deai_register.py` flags terms the manuscript leans on (≥ 5 uses) whose document
+`deai_register.py` flags terms the manuscript leans on (≥ 15 uses) whose document
 frequency **in your field's own corpus** is below 1e-4. No curated
 cross-discipline blocklist. That is what lets `AUC` (df 1) separate from `epoch`
 (df 402) and `accuracy` (df 774) with no hand-maintained astronomy exception

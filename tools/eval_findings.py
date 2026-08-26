@@ -17,7 +17,7 @@ Three populations, and the contrast between them is the measurement:
 - **published-insample** -- the `fulltext-arxiv/` breadth pull: same genre,
   same journals, but these papers DID feed the banks. The gap between the two
   rates is the in-sample optimism, otherwise invisible. It is not decoration:
-  `deai_register.RARE_DF_RATE` is 1e-4, so on 41,593 passages the foreign-term
+  `deai_register.RARE_DF_RATE` is 1e-4, so on 41,559 passages the foreign-term
   threshold sits at four passages and one paper's own paragraphs suffice to
   suppress its own flags.
 - **machine** -- the `docval/` AI tiers, machine-drafted, where a finding is a

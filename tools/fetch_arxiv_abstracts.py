@@ -293,7 +293,7 @@ def known_calibration_ids(args) -> set[str]:
     (the weighted tiers plus the unweighted `fulltext-arxiv/` breadth pull) and
     `human_abstracts_extra.jsonl`, so an id reachable from any of those three
     places is disqualified. This matters at the observed scale rather than in
-    principle: `deai_register.RARE_DF_RATE` is 1e-4, which on 41,593 passages
+    principle: `deai_register.RARE_DF_RATE` is 1e-4, which on 41,559 passages
     puts the foreign-term threshold at four passages, so one paper's own
     contribution is enough to suppress its own flags.
     """

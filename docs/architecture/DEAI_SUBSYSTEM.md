@@ -108,7 +108,7 @@ The command-line exit contract is deliberately narrow:
 [`../tools/deai_register.py`](../../tools/deai_register.py) adds a second lexical
 axis at this layer that never joins the to-zero set. It asks whether the draft
 speaks its own field's vocabulary, by comparing terms the manuscript leans on
-(≥ 5 uses) against document frequency in the field's own corpus. The evidence is
+(≥ 15 uses) against document frequency in the field's own corpus. The evidence is
 frequency, never a curated list of a neighbouring discipline's words, because a
 list cannot separate `AUC` (1 corpus passage) from `epoch` (402) and `accuracy`
 (774). Three constructions are handled rather than thresholded: hyphenated
