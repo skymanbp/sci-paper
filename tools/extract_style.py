@@ -34,6 +34,7 @@ from pathlib import Path
 from extract_sections import (  # noqa: F401 -- re-export, unused here by design
     CLASSIFIED_BUCKETS, _classified_word_count,
     DEFAULT_SECTION_BUCKET, LIGATURE_TABLE, RE_ABSTRACT_ENV,
+    RE_HEADING_CMD, RE_HEADING_DROP_ARG, RE_HEADING_MATH, RE_HEADING_TEXORPDF,
     RE_PDF_LINE_HEADER, RE_SECTION, RE_TEX_BEGIN_END, RE_TEX_BRACES,
     RE_TEX_CITE, RE_TEX_COMMENT, RE_TEX_DISPLAY_MATH,
     RE_TEX_ENV_FIGURE_TABLE, RE_TEX_INCLUDEGRAPHICS, RE_TEX_INLINE_MATH,
@@ -42,7 +43,7 @@ from extract_sections import (  # noqa: F401 -- re-export, unused here by design
     RE_TEX_TILDE, RE_SENTENCE_TERMINAL, SECTION_PATTERNS,
     PDF_HEADING_MIN_LETTER_FRAC, PDF_HEADING_MIN_LETTERS, PDF_HEADING_MIN_WORDS,
     _classify_pdf_heading, _include_targets, _math_numerals, _resolve_include,
-    _rejoin_pdf_paragraphs, classify_section, corpus_documents,
+    _rejoin_pdf_paragraphs, classify_section, clean_heading, corpus_documents,
     extract_pdf_text, latex_to_numeral_text, latex_to_plain,
     read_tex_document, select_document_roots, split_into_sections,
     split_pdf_into_sections,

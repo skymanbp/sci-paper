@@ -45,20 +45,33 @@ SECTION_PATTERNS: list[tuple["re.Pattern[str]", str]] = [
     # closing `\b`: written as `\b(acknowledg|bibliograph)\b` they could only
     # ever match those exact strings, and the real headings "Acknowledgements"
     # and "Bibliography" fell through to DEFAULT_SECTION_BUCKET as prose.
-    (re.compile(r"(?i)\b(?:acknowledg\w*|bibliograph\w*|appendi(?:x|ces)|references?|literature\s+cited|disclosures?)\b"), "skip"),
+    (re.compile(r"(?i)\b(?:acknowledg\w*|bibliograph\w*|appendi(?:x|ces)|references?|literature\s+cited|disclosures?|affiliations?|author\s+information)\b"), "skip"),
     (re.compile(r"(?i)\babstract\b"), "abstract"),
-    (re.compile(r"(?i)\b(discussions?|caveats?|limitations?|systematics?|implications?|comparisons?)\b"), "discussion"),
+    (re.compile(r"(?i)\b(discussions?|caveats?|limitations?|systematics?|implications?|comparisons?|validations?|robustness|null\s+tests?|consistency\s+(?:tests?|checks?)|numerical\s+convergence)\b"), "discussion"),
     (re.compile(r"(?i)\b(conclusions?|outlooks?|summar(?:y|ies))\b"), "conclusion"),
     (re.compile(r"(?i)\b(introductions?|motivations?)\b"), "intro"),
-    (re.compile(r"(?i)\b(results?|detected|shear-selected|catalogs?\s+of)\b"), "results"),
+    (re.compile(r"(?i)\b(results?|detected|shear-selected|catalogs?\s+of|constraints?|forecasts?)\b"), "results"),
     # Data/observations are their own section in ApJ/MNRAS/PRD and were being
     # counted as method. Ordered after `results` so "catalogs of ..." keeps its
     # documented results reading.
-    (re.compile(r"(?i)\b(data|datasets?|observations?|imaging|photometry|spectroscopy|surveys?|samples?)\b"), "data"),
+    (re.compile(r"(?i)\b(data|datasets?|observations?|imaging|photometry|photometric\s+redshifts?|spectroscopy|surveys?|samples?)\b"), "data"),
     # Explicit method vocabulary, deliberately conservative: a heading this does
-    # not name (e.g. "Cosmological constraints", "Measurements") becomes
-    # `unknown` rather than being guessed into a reference distribution.
-    (re.compile(r"(?i)\b(methods?|methodology|formalism|approach(?:es)?|algorithms?|pipelines?|techniques?|models?|modell?ing|theory|simulations?|analys(?:is|es))\b"), "method"),
+    # not name becomes `unknown` rather than being guessed into a reference
+    # distribution.
+    #
+    # The 2026-08-26 sweep of the 517-document wgl corpus ranked the real
+    # fall-through headings, and the additions below are the unambiguous ones.
+    # Two frequent candidates are deliberately REFUSED and stay `unknown`:
+    #   - "Measurements" (7 occurrences) -- in weak lensing "Shear measurement"
+    #     and "Shape measurement" are method sections while "Mass measurements"
+    #     reports results; the word does not name a role here.
+    #   - "Background" (8) -- "Theoretical background" is intro-like, but
+    #     "Background source selection" and "Background galaxies" are method and
+    #     data, and a bare `\bbackground\b` would capture all three.
+    # Topic nouns ("Weak gravitational lensing", "Matter power spectrum",
+    # "Galaxy clustering") stay `unknown` for the same reason: a topic is not a
+    # section role, and guessing one is how `method` became the residue.
+    (re.compile(r"(?i)\b(methods?|methodology|formalism|approach(?:es)?|algorithms?|pipelines?|techniques?|models?|modell?ing|theor(?:y|etical)|simulations?|analys(?:is|es)|covariances?|likelihoods?|estimators?|reconstructions?|calibrations?|blinding|frameworks?)\b"), "method"),
 ]
 # Never "method". An unrecognised heading is an unknown section, and a reference
 # distribution built from unknowns is not a per-section reference at all.
@@ -67,7 +80,12 @@ DEFAULT_SECTION_BUCKET = "unknown"
 
 def classify_section(name: str) -> str:
     """Map a raw \\section{…} title string to a normalized bucket.
-    Returns 'skip' for sections that should be excluded from analysis."""
+
+    The title is cleaned of LaTeX markup first (`clean_heading`), so a
+    cross-reference key or a spacing command cannot decide the bucket.
+    Returns 'skip' for sections that should be excluded from analysis.
+    """
+    name = clean_heading(name)
     for pattern, bucket in SECTION_PATTERNS:
         if pattern.search(name):
             return bucket
@@ -110,9 +128,39 @@ def _math_numerals(match: "re.Match[str]") -> str:
         body = body.replace(token, " ")
     return " " + body + " "
 
+# The title group allows ONE level of nested braces. Written as `[^}]+` it
+# stopped at the first inner `}`, so `\section{Results\label{sec:res}}` yielded
+# the title `Results\label{sec:res` and `\section{\hspace*{+0.0mm}Foo}` yielded
+# `\hspace*{+0.0mm` -- 14 such fragments were still reaching `unknown` in the
+# 517-document wgl corpus on 2026-08-26. One level is enough for every form
+# seen there (`\label`, `\hspace*`, `\texorpdfstring`); this is not a TeX parser.
 RE_SECTION = re.compile(
-    r"\\(section|subsection|chapter)\*?\{([^}]+)\}", re.IGNORECASE
+    r"\\(section|subsection|chapter)\*?\{((?:[^{}]|\{[^{}]*\})*)\}", re.IGNORECASE
 )
+# Applied to a captured title before it is classified. Without it, markup that
+# survives inside the braces decides the bucket instead of the words do.
+RE_HEADING_TEXORPDF = re.compile(r"\\texorpdfstring\s*\{(.*?)\}\s*\{[^{}]*\}")
+RE_HEADING_DROP_ARG = re.compile(
+    r"\\(?:label|ref|eqref|cref|Cref|hspace|vspace|protect|thanks|footnote)\*?"
+    r"\s*\{[^{}]*\}"
+)
+RE_HEADING_MATH = re.compile(r"\$[^$]*\$")
+RE_HEADING_CMD = re.compile(r"\\[a-zA-Z]+\*?")
+
+
+def clean_heading(name: str) -> str:
+    """Strip LaTeX markup from a section title, keeping the words.
+
+    `\\texorpdfstring{$\\Lambda$CDM}{LCDM}` keeps its first (typeset) argument;
+    `\\label`-family commands lose theirs entirely, since a cross-reference key
+    like `sec:intro` is not part of the title and its words would otherwise be
+    classified as if the author had written them.
+    """
+    name = RE_HEADING_TEXORPDF.sub(r"\1", name)
+    name = RE_HEADING_DROP_ARG.sub(" ", name)
+    name = RE_HEADING_MATH.sub(" ", name)
+    name = RE_HEADING_CMD.sub(" ", name)
+    return " ".join(name.replace("{", " ").replace("}", " ").split())
 
 # Many papers put their abstract in an env, NOT in `\section{Abstract}`. We
 # need to capture it explicitly because the env typically lives in the
@@ -406,17 +454,23 @@ def split_into_sections(raw_tex: str) -> dict[str, str]:
         return {"unknown": raw_tex}
 
     # A subsection inherits the section that encloses it, exactly as on the PDF
-    # side. The vocabulary names sections, not subsections: "Covariance
-    # matrix", "Likelihood" and "Blinding" are method prose, but classified on
-    # their own they are `unknown` and get discarded. Measured over the 561-doc
-    # wgl corpus before this fix, 54.8% of all section words were reaching
-    # `unknown` that way. An inherited `skip` also stays skipped, so a
-    # \subsection inside an appendix no longer escapes into the distributions.
+    # side. The vocabulary names sections, not subsections, so a subsection
+    # titled with a topic rather than a role would otherwise be discarded.
+    # Measured over the 561-doc wgl corpus before this fix, 54.8% of all
+    # section words were reaching `unknown` that way. An inherited `skip` also
+    # stays skipped, so a \subsection inside an appendix no longer escapes into
+    # the distributions.
     parent = DEFAULT_SECTION_BUCKET
     for i, m in enumerate(matches):
         name = m.group(2).strip()
         bucket = classify_section(name)
-        if m.group(1).lower() in ("section", "chapter"):
+        # A title that is empty once markup is stripped -- `\section{}`, or one
+        # holding nothing but a \label -- names nothing, so it must not reset
+        # the enclosing context. 12 such headings in the 517-document wgl
+        # corpus were turning every subsection that followed them `unknown`.
+        if not clean_heading(name):
+            bucket = parent
+        elif m.group(1).lower() in ("section", "chapter"):
             parent = bucket
         elif parent == "skip":
             bucket = "skip"

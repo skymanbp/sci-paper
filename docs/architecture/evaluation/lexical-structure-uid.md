@@ -1,4 +1,4 @@
-# EVALUATION — L0 behaviour, sentence-structure and UID reference evidence · `sci-paper` v0.28.1
+# EVALUATION — L0 behaviour, sentence-structure and UID reference evidence · `sci-paper` v0.29.0
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the
@@ -37,14 +37,15 @@ These tests are in
 ## 5. Sentence-structure reference evidence
 
 `style-profile/wgl/structure_baseline.json`
-contains 25,005 paragraph observations across seven section buckets — `method` 8,144,
-`data` 3,929, `intro` 3,753, `results` 3,118, `discussion` 3,088, `conclusion` 2,533,
+contains 27,951 paragraph observations across seven section buckets — `method` 9,522,
+`results` 3,964, `data` 3,915, `intro` 3,844, `discussion` 3,653, `conclusion` 2,610,
 `abstract` 433. The file records reference fractions for announced enumeration, ordinal
 runs, tricolon-like setup/list patterns, anaphora, balanced closers, and aggregate
 templating.
 
-Counts are post-2026-08-25 and reflect two rounds of corpus-layer fixes plus the
-500-paper breadth corpus (EVALUATION §2). The v0.27.1 file read 593 observations with
+Counts are post-2026-08-26 and reflect three rounds of corpus-layer fixes plus the
+500-paper breadth corpus (EVALUATION §2). The third round is the heading-coverage
+work in limit 5 below, which added 2,946 paragraphs (25,005 -> 27,951). The v0.27.1 file read 593 observations with
 `results` at 26, under its 30-passage floor; the v0.27.0 file read 1,942 with `method`
 at 1,671, but `method` was then `DEFAULT_SECTION_BUCKET` and absorbed every unnamed
 heading, and paragraphs were split from PDF line fragments rather than reconstructed.
@@ -59,43 +60,60 @@ Interpretation limits:
 3. The current baseline does not by itself define a strong-advisory operating point.
 4. Author labels for the difficult hard set are absent, so label-based calibration
    has not been performed.
-5. Section coverage is partial and the gap is now measured. Sweeping every heading in
-   both corpora through `classify_section` with the v0.28.0 parent-inheritance rule,
-   **1,804 of 5,074 headings (35.6%) in `wgl`** and **63 of 176 (35.8%) in
-   `wgl-letter`** resolve to `unknown`, and their prose reaches no baseline. The two
-   fields agreeing to within 0.2 points indicates a vocabulary limit in the bucket
-   rules — review-article headings such as "Basics of cluster weak lensing" or
-   "Magnification bias" name no standard section — rather than a property of either
-   corpus. Dropping them is deliberate: the pre-v0.28.0 classifier routed unmatched
-   headings into `method`, which is why the old `wgl-letter` profile read 82% `method`
-   with a single `results` passage. Widening the rules is an open item that must not
-   reintroduce that absorption.
+5. Section coverage is partial, measured, and partly closed. **Correction:** v0.28.1
+   published this gap as "1,804 of 5,074 headings (35.6%)". Those counts are wrong.
+   They came from an ad-hoc probe that used a re-typed regex including
+   `\subsubsection` — which `RE_SECTION` does not split on — over every `.tex` file
+   including the ones `select_document_roots` rejects, under a `timeout` that may have
+   truncated the sweep. Re-derived through `corpus_documents` and the shipped
+   `RE_SECTION`, the pre-v0.29.0 figures were **3,026 of 9,222 (32.8%)** in `wgl` and
+   **52 of 148 (35.1%)** in `wgl-letter`. The rate was approximately right; the counts
+   were not.
+
+   v0.29.0 then ranked the actual fall-through headings and closed the unambiguous
+   part, taking `wgl` to **2,334 of 9,178 (25.4%)** and `wgl-letter` to **42 of 148
+   (28.4%)**. Three causes were separable. LaTeX markup inside the title: `RE_SECTION`
+   captured `[^}]+` and stopped at the first inner brace, so `\section{Results\label{
+   sec:res}}` classified the string `Results\label{sec:res` and
+   `\section{\hspace*{+0.0mm}Foo}` classified a spacing command. Front matter:
+   "Affiliations" had no `skip` rule. Vocabulary: "Covariance matrix", "Likelihood",
+   "Blinding", "Cosmological constraints", "Validation" and "Forecasts" name section
+   roles the rules did not carry.
+
+   What remains `unknown` is mostly topic headings — "Matter power spectrum", "Galaxy
+   clustering", "Axion stars" — and stays that way deliberately. Two frequent
+   candidates were **refused**: "Measurements" (in weak lensing "Shear measurement" is
+   method while "Mass measurements" is results) and "Background" (spanning intro,
+   method and data). Guessing either is how `method` became the residue this
+   vocabulary exists to prevent, so the remaining ~25% is a floor set by the ambiguity
+   of the headings themselves, not a backlog.
 
 ## 6. UID reference evidence
 
-`style-profile/wgl/uid_baseline.json` records **25,005** paragraphs that met its
+`style-profile/wgl/uid_baseline.json` records **27,951** paragraphs that met its
 25-token requirement. It stores pooled and section-level means, standard deviations,
 and counts for global UID, local UID, and mean surprisal under GPT-2-large. Pooled
-global UID is **3.322 ± 0.446**; local UID 3.436 ± 0.477; mean surprisal 3.595 ± 0.541.
+global UID is **3.321 ± 0.439**; local UID 3.432 ± 0.473; mean surprisal 3.589 ± 0.540.
 
 | bucket | n | global UID |
 |---|---:|---|
-| method | 8,148 | 3.318 ± 0.442 |
-| data | 3,930 | 3.379 ± 0.572 |
-| intro | 3,753 | 3.307 ± 0.417 |
-| results | 3,119 | 3.288 ± 0.257 |
-| discussion | 3,089 | 3.309 ± 0.415 |
-| conclusion | 2,533 | 3.344 ± 0.477 |
-| abstract | 433 | 3.226 ± 0.494 |
+| method | 9,529 | 3.32 ± 0.45 |
+| results | 3,965 | 3.29 ± 0.26 |
+| data | 3,916 | 3.38 ± 0.58 |
+| intro | 3,844 | 3.31 ± 0.41 |
+| discussion | 3,654 | 3.30 ± 0.37 |
+| conclusion | 2,610 | 3.34 ± 0.47 |
+| abstract | 433 | 3.23 ± 0.49 |
 
-Counts are post-2026-08-25 (second rebuild). Neither the 593-paragraph / 3.383 ± 0.680
+Counts are post-2026-08-26 (third rebuild). Neither the 593-paragraph / 3.383 ± 0.680
 nor the 1,942-paragraph / 3.329 ± 0.391 predecessor is comparable: the first was blind
 to the breadth corpus, and the second labelled most of its paragraphs `method` by
 default and split them from PDF line fragments, so both its size and its section keys
 described something other than what they claimed (§14.2, EVALUATION §2).
 
 The section means are strikingly tight — 3.23 to 3.38 across seven buckets, a spread of
-0.15 against within-bucket standard deviations of 0.26–0.57. **Section identity barely
+0.15 against within-bucket standard deviations of 0.26–0.58. The spread is unchanged by
+the third rebuild, which added 2,946 paragraphs. **Section identity barely
 moves paragraph-level UID in this corpus.** That is a null worth recording rather than
 a defect: it means a per-section UID operating point would be calibrating on a
 difference smaller than its own noise, which is consistent with §9.8's finding that the

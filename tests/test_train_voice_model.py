@@ -14,6 +14,92 @@ import deai_voice as voice
 import train_voice_model as training
 
 
+class ModuleSplitContractTests(unittest.TestCase):
+    """`train_voice_model` must re-export everything the split modules define.
+
+    The dataset and audit layers were split out on 2026-08-26 (1,174 lines
+    against a 750-line budget). The re-export list is hand-written, so it can
+    silently fall behind the modules it mirrors -- the drift the equivalent
+    `extract_style` and `deai_docstructure` tests have caught four times
+    between them. Every test above reaches these names as `training.<name>`.
+    """
+
+    def _public_names(self, module, module_name):
+        # Imported module aliases (`vd`, `df`) are not part of the surface a
+        # caller reaches through `training.<name>`; modules carry no
+        # `__module__`, so they would otherwise pass the default below.
+        import types
+
+        return {
+            name for name, value in vars(module).items()
+            if not name.startswith("__")
+            and not isinstance(value, types.ModuleType)
+            and getattr(value, "__module__", module_name) == module_name
+        }
+
+    def test_dataset_names_are_re_exported(self):
+        import voice_dataset
+
+        missing = sorted(n for n in self._public_names(voice_dataset, "voice_dataset")
+                         if not hasattr(training, n))
+        self.assertEqual(missing, [],
+                         f"train_voice_model does not re-export: {missing}")
+
+    def test_audit_names_are_re_exported(self):
+        import voice_audit
+
+        missing = sorted(n for n in self._public_names(voice_audit, "voice_audit")
+                         if not hasattr(training, n))
+        self.assertEqual(missing, [],
+                         f"train_voice_model does not re-export: {missing}")
+
+    def test_the_split_modules_stay_within_the_line_budget(self):
+        # The split exists to get under the budget; a test keeps it there.
+        for name in ("train_voice_model.py", "voice_dataset.py", "voice_audit.py"):
+            lines = len((TOOLS / name).read_text(encoding="utf-8").splitlines())
+            self.assertLessEqual(lines, 750, f"{name} is {lines} lines")
+
+    def test_the_dependency_direction_is_one_way(self):
+        # audit -> dataset -> nothing. A back-edge would make the split circular
+        # and reintroduce the coupling it removed.
+        source = (TOOLS / "voice_dataset.py").read_text(encoding="utf-8")
+        self.assertNotIn("voice_audit", source)
+
+    def test_no_module_level_name_is_unbound(self):
+        """Every name a tool module loads must be defined or imported in it.
+
+        Splitting a module moves function bodies but re-writes the import block
+        by hand, so a moved function can reference a name that stayed behind.
+        That is not a hypothetical: the 2026-08-26 split left `time`,
+        `CHECKPOINT_EVERY`, `df` and the two HARDSET category sets unbound, and
+        the suite went green anyway because no test reached those lines --
+        `build_features` failed only when a real retrain ran. This walks the AST
+        instead of waiting for a call site.
+        """
+        import ast
+        import builtins
+
+        for name in sorted(p.name for p in TOOLS.glob("*.py")):
+            tree = ast.parse((TOOLS / name).read_text(encoding="utf-8"))
+            bound = set(dir(builtins)) | {"__file__", "__name__", "__doc__"}
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                    for alias in node.names:
+                        bound.add((alias.asname or alias.name).split(".")[0])
+                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                       ast.ClassDef)):
+                    bound.add(node.name)
+                elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                    bound.add(node.id)
+                elif isinstance(node, ast.arg):
+                    bound.add(node.arg)
+                elif isinstance(node, ast.ExceptHandler) and node.name:
+                    bound.add(node.name)
+            used = {n.id for n in ast.walk(tree)
+                    if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+            self.assertEqual(sorted(used - bound), [], f"{name} has unbound names")
+
+
 class VoiceAuditHelperTests(unittest.TestCase):
     def records(self) -> list[dict]:
         records = []

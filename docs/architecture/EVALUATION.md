@@ -1,4 +1,4 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.28.1
+# EVALUATION: de-AI subsystem for `sci-paper` v0.29.0
 
 First recorded 2026-07-12; every section-keyed measurement re-derived against the
 rebuilt `wgl` profile on 2026-08-17.
@@ -71,16 +71,16 @@ result.
 > `fulltext-arxiv/` breadth corpus — already on disk for §9 — was invisible to
 > every paragraph-level baseline.
 >
-> | bucket | v0.27.1 (31 files) | v0.28.0 (19 curated + 500 reference) |
-> |---|---:|---:|
-> | abstract | 15 | 433 |
-> | intro | 109 | 3,753 |
-> | data | 112 | 3,929 |
-> | method | 163 | 8,144 |
-> | discussion | 118 | 3,088 |
-> | conclusion | 48 | 2,533 |
-> | results | 26 | **3,118** |
-> | **total** | **593** | **25,005** |
+> | bucket | v0.27.1 (31 files) | v0.28.0 | v0.29.0 (heading coverage) |
+> |---|---:|---:|---:|
+> | abstract | 15 | 433 | 433 |
+> | intro | 109 | 3,753 | 3,844 |
+> | data | 112 | 3,929 | 3,915 |
+> | method | 163 | 8,144 | 9,522 |
+> | discussion | 118 | 3,088 | 3,653 |
+> | conclusion | 48 | 2,533 | 2,610 |
+> | results | 26 | **3,118** | **3,964** |
+> | **total** | **593** | **25,005** | **27,951** |
 >
 > Consequences, stated rather than smoothed over:
 >
@@ -108,8 +108,8 @@ result.
 | L1 distribution | degraded (refuted) | §16: measured on 500 human papers against 173 `docval` AI documents, one observation per document. Burstiness reverses sign — adversarial prose is *more* bursty than the human median (1.036 vs 0.775, AUC 0.181) and long-form sits inside the human band (AUC 0.441) — while flagging 7.2% of humans. Signposting has an AUC of 0.247, below chance, and flags 0 of 173 AI documents at the shipped default. | None. `deai_policy.json` is withdrawn as a roadmap item: the statistics do not support an operating point, so the axis stays advisory by measurement rather than by absence. |
 | L1 UID | degraded | `style-profile/wgl/uid_baseline.json` records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
 | L2 salience hierarchy | measured | §14: per-bucket passage reference from the field's own banks (abstract 13,823; method 5,957; data 3,025; intro 3,189; discussion 2,506; results 2,541; conclusion 1,924 after the 2026-08-25 corpus rebuild); P(X ≤ x) on a 0.01 quantile grid; abstains where the reference cannot resolve above the gate. | A human-judgement validation set. Every bucket now clears the 30-passage floor by two orders of magnitude — `results` went 26 → 2,541 once the 500-paper breadth corpus was read — so no bucket is rank-only. |
-| L0 register | measured | §14: document frequency over 38,647 corpus passages, 54,233 terms; compound-by-rarest-part and macro-subscript handling; native-term controls pass. | Recall below the 5-use floor. The abstract-composition bias is largely resolved: reading the 500-paper breadth corpus took body passages from 597 to 25,005, so abstracts fall from 96% of the reference to 35% (13,642 of 38,647). |
-| L2 sentence structure | measured for deterministic matches; degraded for strength | `style-profile/wgl/structure_baseline.json` provides section-level reference fractions over 25,005 paragraphs — method 8,144; data 3,929; intro 3,753; results 3,118; discussion 3,088; conclusion 2,533; abstract 433. | Author-labelled difficult cases. A calibrated strong-advisory threshold is no longer expected from `deai_policy.json` (§16). |
+| L0 register | measured | §14: document frequency over 41,593 corpus passages, 55,133 terms; compound-by-rarest-part and macro-subscript handling; native-term controls pass. | Recall below the 5-use floor. The abstract-composition bias is largely resolved: reading the 500-paper breadth corpus took body passages from 597 to 27,951, so abstracts fall from 96% of the reference to 33% (13,642 of 41,593). |
+| L2 sentence structure | measured for deterministic matches; degraded for strength | `style-profile/wgl/structure_baseline.json` provides section-level reference fractions over 27,951 paragraphs — method 9,522; results 3,964; data 3,915; intro 3,844; discussion 3,653; conclusion 2,610; abstract 433. | Author-labelled difficult cases. A calibrated strong-advisory threshold is no longer expected from `deai_policy.json` (§16). |
 | L2 document structure | measured | §9: cross-paragraph dispersion calibrated one-observation-per-paper over 493 complete human `wgl` papers; human false-flag at the shipped conformal operating point 0.0325 (manifold) and 0.0426 (role) against nominal α = 0.05. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field. | Continue recalibration when the corpus changes. |
 | L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, hard-set true-provenance AUC 0.937, but 32–41% false-positive rate on field-topic AI text. Document-level now measured (§9.8): surprisal dispersion (0.757) is weaker than the model-free manifold (0.881) and adds nothing to it, so L3 stays degraded for a measured reason. | A field-topic-robust operating point with provenance and uncertainty; the surprisal path is measured not to provide one. |
 | Rewrite scientific fidelity | measured for protected invariants | Unit tests cover preserved invariants, dropped number, dropped citation, reversed comparison, display-math values and exponents (v0.27.0), and the punctuation/adjacent-word tokenizer boundaries (§8). | Real manuscript before/after demonstration, including scope and stance review; the plain-ASCII-space unit boundary in §8 remains open. |
@@ -127,14 +127,14 @@ python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The working tree passes the validator and all 255 unit/CLI tests (15 test files, collected
+The working tree passes the validator and all 268 unit/CLI tests (15 test files, collected
 2026-08-25). These commands must be rerun after every subsequent code or release-metadata
 change; the release record must quote the fresh output rather than a past result.
 
 ## 12. Release evidence boundary
 
-Current release gates (v0.28.1, 2026-08-26): `validate_plugin.py` all 9 checks
-pass and the full unit/CLI suite (255 tests, 15 files) passes on a clean tree;
+Current release gates (v0.29.0, 2026-08-26): `validate_plugin.py` all 9 checks
+pass and the full unit/CLI suite (268 tests, 15 files) passes on a clean tree;
 both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
 release commit must also be green (first green runs: 31133202443 push,
 31133215203 manual dispatch).

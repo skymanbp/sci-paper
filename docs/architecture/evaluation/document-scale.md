@@ -1,4 +1,4 @@
-# EVALUATION — Whole-document cross-paragraph dispersion (the keystone axis) · `sci-paper` v0.28.1
+# EVALUATION — Whole-document cross-paragraph dispersion (the keystone axis) · `sci-paper` v0.29.0
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the
@@ -50,6 +50,14 @@ nothing here can redefine it. All machine-readable findings use the
 > 0.267), so the union moves 0.321 → 0.286 on natural and 0.421 → 0.447 on
 > adversarial. Current tail powers: manifold 0.250 / 0.400 / 0.184 / 0.292;
 > role 0.036 / 0.267 / 0.316 / 0.042; union 0.286 / 0.600 / 0.447 / 0.333.
+>
+> **Read every manifold tail-power figure in this paragraph as a single seed
+> draw (§9.4c, 2026-08-26).** The per-seed spread on those tiers is 0.04–0.18,
+> so `0.214 → 0.250` and `0.158 → 0.184` are both well inside it. The
+> *human-side* improvement and the role axis's exact reproduction are the
+> durable parts of this correction; the manifold deltas are not resolvable
+> against seed noise, and the ordering fix should be justified on the grounds
+> that reading a paper in its own order is correct, not on those two deltas.
 >
 > The 42× *paragraph-bank* growth did not move document-scale discrimination —
 > the expected result, since §9 always calibrated against `fulltext-arxiv`.
@@ -407,6 +415,17 @@ which is the control — the role z needs no fit, so a refit cannot move it, and
 reproduction is what licenses attributing the manifold change to the refit rather than to
 the measurement pipeline.
 
+> **⚠️ Correction (2026-08-26, §9.4c).** The manifold row above is a single-seed draw
+> from a distribution whose standard deviation is **0.11 to 0.18**, and the
+> 0.071 → 0.214 change this passage attributes to the refit is *smaller than that
+> spread*. The role row's exact reproduction licenses attributing the change to the
+> refit rather than the pipeline, but it does not establish that the change is
+> larger than seed noise, and it is not. Averaged over 12 seeds at the shipped
+> split, the manifold rates are **0.170 ± 0.110 / 0.261 ± 0.114 / 0.237 ± 0.184 /
+> 0.274 ± 0.043**. Treat any single-seed tail-power figure in this section — before
+> or after the rebuild — as one draw, not as an estimate. `tools/eval_docscale.py`
+> reproduces the table on demand.
+
 A three-way replication on an independent split of the 507-paper reference (train 253 /
 calibration 152 / test 102 humans, seed distinct from the shipped one) gave human test
 rates manifold 0.029 and role 0.069 — both within binomial noise of α; per-stratum rates
@@ -495,6 +514,66 @@ covariance, so short documents are compared against a correspondingly wider huma
 That is a modelling change with its own falsification burden and is **not** shipped in
 v0.28.0. The roadmap entry stays open, now with its mechanism measured rather than
 hypothesized.
+
+### 9.4c The estimator-noise manifold is implemented and refuted; the tail-power figures are seed draws
+
+§9.4b left the roadmap's length-aware manifold as "a modelling change with its own
+falsification burden", untested. It is now built and measured, together with the two
+other levers that could plausibly move short-document tail power. All three fail, and
+the exercise turned up a fourth result that governs how §9 must be read.
+
+**The dispersion statistic's own noise is the model.** Each manifold coordinate is a
+log-ratio of a sample standard deviation over *n* paragraphs, and for that statistic
+`Var(log s) ≈ 1/(2(n-1))` regardless of the underlying σ. So the roadmap entry has an
+exact form: subtract the fit set's mean `1/(2(n-1))` from the fitted covariance
+diagonal, then add back each scored document's own term, and a 12-paragraph paper meets
+a correspondingly wider band than a 60-paragraph one. Implemented and run against the
+shipped metric on **identical splits and 12 paired seeds**:
+
+| arm | human (out-of-fit) | ai | natural | de-AI'd | adversarial | skeleton | long |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| shipped | 0.030 ± 0.003 | 0.792 | 0.170 | 0.261 | 0.237 | 0.274 | 0.003 |
+| noise-aware | 0.030 ± 0.003 | 0.754 | 0.140 | 0.261 | 0.239 | 0.271 | 0.009 |
+
+**Refuted.** The human rate does not move, four tiers do not move, and the two that do
+move go the wrong way. The mechanism of the null is that the correction is
+*length-symmetric*: the AI documents at issue are short (median 12–15 paragraphs) and so
+are the human papers they are compared against inside stratum 0, so widening the band by
+each document's own noise widens it for both classes and the relative geometry survives.
+A correction that treats the confound as noise cannot separate classes that share the
+confound.
+
+**Enlarging the calibration set is refuted too.** If the binding constraint were the
+conformal p-grid — at n_cal = 78 the smallest achievable p is 1/79 = 0.0127, so α = 0.05
+flags only a document beating all but two calibration points, the ~96.2nd percentile
+rather than the 95th — then moving documents from the training half to the calibration
+half should buy power. Over the same 12 seeds:
+
+| train fraction | pooled n_cal | human (out-of-fit) | natural | de-AI'd | adversarial | skeleton |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0.6 (shipped) | 203 | 0.030 | 0.170 | 0.261 | 0.237 | 0.274 |
+| 0.5 | 254 | 0.034 | 0.167 | 0.256 | 0.232 | 0.278 |
+| 0.4 | 305 | 0.036 | 0.193 | 0.250 | 0.235 | 0.264 |
+| 0.3 | 355 | 0.038 | 0.188 | 0.278 | 0.239 | 0.281 |
+
+Tail power is flat within noise while the human false-flag rate rises monotonically
+0.030 → 0.038. The shipped 0.6 is at the better end of that trade, and the p-grid is not
+the binding constraint.
+
+**The fourth result is the one that matters.** Every tier's per-seed spread is
+0.04–0.18, so the single-seed figures §9 has been quoting are draws, not estimates. The
+shipped seed happens to sit low on `natural` (0.071 against a 12-seed mean of 0.170) and
+the pre-ordering-fix seed sat high (0.214). Differences of that size between two rows of
+this section are not evidence of anything. Point estimates in §9 are now to be read with
+that spread attached, and `tools/eval_docscale.py` exists so any of them can be re-run
+rather than quoted.
+
+**Long-form remains 0.000.** Across both arms, all four split fractions and 12 seeds,
+long-form tail power is 0.003 ± 0.010 at worst and 0.000 in most configurations. That is
+no longer a single-configuration result: it is stable across every variation tried, so
+the axis does not detect long-form generation at α = 0.05 and no tuning of the
+calibration or the covariance changes that. The tier's rank AUC is 0.729, so the signal
+is present and the operating point cannot reach it.
 
 ### 9.6 Claim anchoring: hypothesis refuted for strong-model generations
 

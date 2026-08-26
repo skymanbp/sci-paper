@@ -3,6 +3,104 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.29.0 — 2026-08-26
+
+Three roadmap items were closed by building the thing and measuring it, one
+published number was found wrong and corrected, and the evidence behind
+EVALUATION §9 became a tool instead of a memory.
+
+### The roadmap emptied by refutation
+
+- **The length-aware manifold is built, measured, and refuted.** Each manifold
+  coordinate is a log-ratio of a sample standard deviation over *n* paragraphs,
+  and `Var(log s) ≈ 1/(2(n-1))` for that statistic — so the roadmap entry had an
+  exact form: subtract the fit set's mean noise from the covariance diagonal,
+  add each scored document's own back. Over **12 paired seeds** the human
+  out-of-fit rate is unchanged (0.030 → 0.030) and two AI tiers move the wrong
+  way (`ai` 0.792 → 0.754, natural 0.170 → 0.140). The correction is
+  length-*symmetric*, and the AI documents at issue are short exactly like the
+  human papers they are compared against, so it cannot separate them.
+- **Enlarging the conformal calibration set is refuted.** At n_cal = 78 the
+  smallest achievable p is 1/79 = 0.0127, so α = 0.05 flags only a document
+  beating all but two calibration points. Moving documents from training to
+  calibration (0.6 → 0.3) leaves tail power flat and raises the human
+  false-flag rate monotonically 0.030 → 0.038. The shipped split is at the
+  better end of that trade.
+- **Long-form detection holds at 0.000** across 2 metrics × 4 splits × 12 seeds.
+  Rank AUC is 0.729, so the signal is present and the operating point cannot
+  reach it. No longer a single-configuration result.
+
+Only one roadmap item remains, and it is blocked on an input rather than on
+effort: a human-labelled validation set for salience and register.
+
+### The §9 point estimates are seed draws
+
+Averaged over 12 seeds, manifold tail power is **0.170 ± 0.110** (natural),
+0.261 ± 0.114 (de-AI'd), 0.237 ± 0.184 (adversarial), 0.274 ± 0.043 (skeleton).
+Several differences the record read as improvements — including v0.28.0's
+`0.214 → 0.250` from the bundle-ordering fix — are smaller than that spread.
+The ordering fix stands on the grounds that reading a paper in its own order is
+correct, and on the human-side rate it lowered; not on those deltas. §9 now
+carries the spread, and **`tools/eval_docscale.py`** reproduces the whole table
+from the shipped operating point so no figure has to be quoted from memory.
+
+### Section coverage: a wrong number, then a real fix
+
+**Correction.** v0.28.1 published the coverage gap as "1,804 of 5,074 headings
+(35.6%)". Those counts were wrong — the probe used a re-typed regex including
+`\subsubsection`, which `RE_SECTION` does not split on, swept files
+`select_document_roots` rejects, and ran under a `timeout` that may have cut it
+short. The correct pre-fix figures are **3,026 of 9,222 (32.8%)** in `wgl` and
+52 of 148 (35.1%) in `wgl-letter`. The rate was about right; the counts were not.
+
+Then the unambiguous part was closed, taking `wgl` to **2,334 of 9,178 (25.4%)**:
+
+- `RE_SECTION` captured `[^}]+` and stopped at the first inner brace, so
+  `\section{Results\label{sec:res}}` classified `Results\label{sec:res` and
+  `\section{\hspace*{+0.0mm}Foo}` classified a spacing command. The title group
+  now spans one level of nesting and `clean_heading` strips what survives.
+- A `\section{}` whose title is empty once markup is stripped no longer resets
+  the enclosing bucket — 12 such headings were turning every following
+  subsection `unknown`.
+- "Affiliations" is front matter (`skip`); "Covariance matrix", "Likelihood",
+  "Blinding", "Cosmological constraints", "Validation" and "Forecasts" name
+  section roles the vocabulary did not carry.
+- **"Measurements" and "Background" were refused.** In weak lensing "Shear
+  measurement" is method while "Mass measurements" is results, and "Background"
+  spans intro, method and data. Guessing either is how `method` became the
+  residue. The remaining ~25% is mostly topic headings and is a floor, not a
+  backlog.
+
+Every profile asset was rebuilt on both fields: the exemplar bank goes
+25,005 → **27,951** paragraphs, `results` 3,118 → **3,964**, register 38,647 →
+**41,593** passages, and the UID baseline re-reads at 3.321 ± 0.439 pooled with
+the section-identity null intact (3.23–3.38 across seven buckets).
+
+### Two files split, and the guard that was missing
+
+`train_voice_model.py` (1,174 lines against a 750-line budget) split into
+`voice_dataset.py` (record loading, grouping, the fingerprinted feature cache)
+and `voice_audit.py` (held-out metrics, hard set, confound audits), with a
+one-way dependency a test asserts. `CHANGELOG-ARCHIVE.md` (1,125) split at its
+v0.19.0 seam into `CHANGELOG-ARCHIVE-EARLY.md`; the history is byte-identical
+across the split.
+
+The first split shipped four unbound names — `time`, `CHECKPOINT_EVERY`, `df`,
+and the two HARDSET category sets — and **the suite stayed green**, because no
+test reached `build_features`. A real retrain found it. `test_train_voice_model`
+now walks the AST of every file in `tools/` for names that are neither defined
+nor imported, so the next split cannot fail that way.
+
+### Added
+
+- **`tools/eval_docscale.py`** — reproduces the §9 table (human false-flag rate,
+  per-tier tail power, rank AUC) through `manifold_operating_point`.
+- **`tools/cli_common.py`** — the shared CLI preamble. `resolve_field` and the
+  argparse opener were duplicated in 26 tools; the duplicate-content guard
+  refused a 27th copy. Existing tools are deliberately *not* retrofitted: their
+  parsers diverge in the options that follow, and a 26-CLI sweep carries more
+  regression risk than the duplication removes.
+
 ## v0.28.1 — 2026-08-26
 
 v0.28.0 fixed the corpus layer but only rebuilt the assets on the `wgl` path it
@@ -577,4 +675,5 @@ this release**, which is the reason the round happened at all.
 (was 172 in 14), all green, with every new test written to fail against the
 pre-fix code — including one regression test per confirmed review finding.
 
-Older entries: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md) (v0.26.2 and earlier).
+Older entries: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md) (v0.19.0-v0.26.2)
+and [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.18.0).

@@ -536,11 +536,71 @@ class SubsectionInheritanceTests(unittest.TestCase):
         self.assertEqual(secs, {})
 
     def test_an_unnamed_section_does_not_borrow_the_previous_one(self):
+        # "Matter power spectrum" names a topic, not a section role, and is one
+        # of the headings the 2026-08-26 sweep deliberately left `unknown`.
+        # (It replaced "Cosmological constraints", which that same sweep moved
+        # into `results` -- the rule under test is unchanged, the example is.)
         secs = es.split_into_sections(
             r"\section{Methods}" "\nalpha\n"
-            r"\section{Cosmological constraints}" "\nbeta\n")
+            r"\section{Matter power spectrum}" "\nbeta\n")
         self.assertIn("beta", secs["unknown"])
         self.assertNotIn("beta", secs["method"])
+
+    def test_a_title_that_is_only_markup_keeps_the_enclosing_bucket(self):
+        # `\section{\label{sec:x}}` names nothing; resetting the parent on it
+        # turned every following subsection `unknown` in 12 wgl documents.
+        secs = es.split_into_sections(
+            r"\section{Methods}" "\nalpha\n"
+            r"\section{\label{sec:x}}" "\nbeta\n"
+            r"\subsection{Some topic}" "\ngamma\n")
+        self.assertIn("beta", secs["method"])
+        self.assertIn("gamma", secs["method"])
+        self.assertNotIn("unknown", secs)
+
+
+class HeadingCleaningTests(unittest.TestCase):
+    """Markup inside a title must not decide the bucket.
+
+    `RE_SECTION` captured `[^}]+`, so it stopped at the first inner brace and
+    handed `classify_section` fragments like `Results\\label{sec:res`. The
+    capture now spans one level of nesting and `clean_heading` strips what is
+    left, so the words the author wrote are what get classified.
+    """
+
+    def test_label_inside_the_title_is_dropped(self):
+        self.assertEqual(es.clean_heading(r"Results\label{sec:res}"), "Results")
+        self.assertEqual(es.classify_section(r"Results\label{sec:res}"), "results")
+
+    def test_a_cross_reference_key_cannot_decide_the_bucket(self):
+        # Without stripping, `sec:data` would classify this heading as `data`.
+        self.assertEqual(es.classify_section(r"Formalism\label{sec:data}"), "method")
+
+    def test_texorpdfstring_keeps_its_typeset_argument(self):
+        self.assertEqual(
+            es.clean_heading(r"\texorpdfstring{$\Lambda$CDM}{LCDM} constraints"),
+            "CDM constraints")
+
+    def test_spacing_commands_are_dropped(self):
+        self.assertEqual(es.clean_heading(r"\hspace*{+0.0mm}Discussion"),
+                         "Discussion")
+
+    def test_nested_braces_are_captured_whole(self):
+        secs = es.split_into_sections(
+            r"\section{Conclusions\label{sec:concl}}" "\nalpha\n")
+        self.assertIn("alpha", secs["conclusion"])
+
+    def test_a_markup_only_title_cleans_to_empty(self):
+        self.assertEqual(es.clean_heading(r"\label{sec:intro}"), "")
+
+    def test_ambiguous_headings_are_refused_not_guessed(self):
+        # Both were frequent fall-throughs in the 2026-08-26 sweep and both
+        # were deliberately NOT added: in weak lensing "Shear measurement" is
+        # method while "Mass measurements" is results, and "Background" spans
+        # intro, method and data. Guessing either is how `method` became the
+        # residue this vocabulary exists to prevent.
+        for heading in ("Measurements", "Background", "Weak gravitational lensing",
+                        "Galaxy clustering"):
+            self.assertEqual(es.classify_section(heading), "unknown", heading)
 
 
 class ReferenceCorpusTests(unittest.TestCase):
