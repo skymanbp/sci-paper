@@ -5,13 +5,13 @@
 [![Version](https://img.shields.io/badge/version-0.32.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-328%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-334%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**8 个 skill · 32 个工具 · 328 个测试 · 一份规范 · 零作者身份判决。**
+**8 个 skill · 32 个工具 · 334 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
@@ -161,8 +161,8 @@ em-dash**，而全文级 dispersion 几乎没动 —— 0.47 → 0.49，人类�
 
 ## 实际效果
 
-下面每一条命令和数字都是 **2026-08-25** 在本工作树（v0.28.0）、`wgl` 参照 profile 上
-真跑出来的，没有一处是示意。全新 clone **不带**任何 profile（[为什么](#按-field-组织的证据)），
+demo 1 是 **2026-08-26** 在 v0.32.0、`wgl` 参照 profile 上重跑的；demo 2 是 v0.28.0 的
+带期记录，其草稿未留存。没有一处是示意。全新 clone **不带**任何 profile（[为什么](#按-field-组织的证据)），
 所以 `measured` 的轴需要你先用自己的论文建一份 profile。
 
 ### 1. 同一个段落的三种处理
@@ -180,7 +180,7 @@ em-dash**，而全文级 dispersion 几乎没动 —— 0.47 → 0.49，人类�
 ```
 [l0_target L0 tier-a:underscoring]         Tier A 词汇命中。
 [advisory  L0 corpus-zero:underscoring]    本领域词库中该词出现次数为 0。
-[advisory  L2 structure-auxiliary:results] antithesis-cluster；参照 results 占比 0.2%（n=3964）。
+[advisory  L2 structure-auxiliary:results] antithesis-cluster；参照 results 占比 0.2%（n=3958）。
 [advisory  L2 colon-elaboration]           散文冒号引出同位语式补充。
 [advisory  L2 ing-tail:underscoring]       分词尾巴把解读挂在句尾。
 ```
@@ -208,12 +208,12 @@ em-dash**，而全文级 dispersion 几乎没动 —— 0.47 → 0.49，人类�
 
 ```
 [advisory L2 salience-recital:results] 这个 results 段在念数字：
-  max_recital_run_frac 0.20 (p73), recital_frac 0.40 (p87), numerals_per_sentence 1.20 (p95).
-  连续带数字的句子最长 1/5 句，对照 n=2541 个人类 results 段。
+  max_recital_run_frac 0.20 (p71), recital_frac 0.40 (p87), numerals_per_sentence 1.20 (p95).
+  连续带数字的句子最长 1/5 句，对照 n=3206 个人类 results 段。
 ```
 
 剩下这条是**另一个层次的意见**：机械 tell 已经没了，工具转而给出编辑判断 ——
-一个段落该带多少数字，之后论证才该接手 —— 参照的是 2,541 个人类 Results 段。
+一个段落该带多少数字，之后论证才该接手 —— 参照的是 3,206 个人类 Results 段。
 
 | | A：原始生成 | B：词表去 AI | C：sci-paper |
 |---|---:|---:|---:|
@@ -221,8 +221,8 @@ em-dash**，而全文级 dispersion 几乎没动 —— 0.47 → 0.49，人类�
 | 结构类 finding 解决数 | — | **0 / 3** | **3 / 3** |
 
 放到**整个 20 篇集合**上，同样三种处理、同一个工具：带 L0 target 的文档
-**4 → 0 → 0**；em-dash **2 → 0 → 0**；advisory **346 → 344 → 302**；
-strong advisory **127 → 127 → 102**。词表处理让 strong advisory 变化了**整整 0 条** ——
+**4 → 0 → 0**；em-dash **2 → 0 → 0**；advisory **331 → 329 → 315**；
+strong advisory **131 → 131 → 126**。词表处理让 strong advisory 变化了**整整 0 条** ——
 它删掉的是检测器会 grep 的东西，读者会注意到的一样没动。（表里的 C 用的是仓库中
 独立写成的 de-AI 集，不是 A 的改写，所以这张表读作"同题材的三个总体"；上面那个
 段落才是严格同源对照。）
@@ -413,7 +413,7 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 | `+ --oracle`（GPT-2-large token surprisal） | 23.1 s | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` —— **9/9 通过** | 359 ms | 标准库 |
-| 完整测试套件 —— **328 通过**，17 个文件 | 47.3 s | 标准库 |
+| 完整测试套件 —— **334 通过**，18 个文件 · 2026-08-26 重测 | 40.8 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
 334 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 60–80 倍，并且是显式 opt-in 的
@@ -573,9 +573,9 @@ style-profile/<field>/                  生成的证据（gitignore）
 |---|---|
 | `exemplar_paragraphs.jsonl` | **27,917** 个按 section 分类的段落，来自 19 篇精选 + 500 篇参照论文 |
 | `register_lexicon.json` | 41,559 个 passage · 53,293 个词条 |
-| `uid_baseline.json` | 27,917 段（GPT-2-large）· 合并 global UID 3.321 ± 0.439 |
-| `structure_baseline.json` | method 9,522 · results 3,964 · data 3,915 · intro 3,844 · discussion 3,653 · conclusion 2,610 · abstract 433 |
-| `salience_baseline.json` | abstract 13,823 · method 6,964 · intro 3,267 · results 3,210 · data 3,023 · discussion 2,963 · conclusion 1,995 |
+| `uid_baseline.json` | 27,917 段（GPT-2-large）· 合并 global UID 3.303 ± 0.437 |
+| `structure_baseline.json` | method 9,512 · results 3,958 · data 3,908 · intro 3,840 · discussion 3,647 · conclusion 2,609 · abstract 433 |
+| `salience_baseline.json` | abstract 13,823 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
 | `docstructure_baseline.json` | 507 篇完整文档 · conformal α 0.05 · 长度分层 [46, 75] |
 | `anchoring_baseline.json` | 517 篇文档 · 六个 section 类全部高于 30 篇下限 |
 | `voice_model.joblib` | 44,576 条记录 · 14 个特征 · **无操作点**，`degraded` |

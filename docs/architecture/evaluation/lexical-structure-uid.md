@@ -37,15 +37,18 @@ These tests are in
 ## 5. Sentence-structure reference evidence
 
 `style-profile/wgl/structure_baseline.json`
-contains 27,951 paragraph observations across seven section buckets — `method` 9,522,
-`results` 3,964, `data` 3,915, `intro` 3,844, `discussion` 3,653, `conclusion` 2,610,
+contains 27,907 paragraph observations across seven section buckets — `method` 9,512,
+`results` 3,958, `data` 3,908, `intro` 3,840, `discussion` 3,647, `conclusion` 2,609,
 `abstract` 433. The file records reference fractions for announced enumeration, ordinal
 runs, tricolon-like setup/list patterns, anaphora, balanced closers, and aggregate
 templating.
 
-Counts are post-2026-08-26 and reflect three rounds of corpus-layer fixes plus the
+Counts are post-2026-08-26 and reflect four rounds of corpus-layer fixes plus the
 500-paper breadth corpus (EVALUATION §2). The third round is the heading-coverage
-work in limit 5 below, which added 2,946 paragraphs (25,005 -> 27,951). The v0.27.1 file read 593 observations with
+work in limit 5 below, which added 2,946 paragraphs (25,005 -> 27,951); the fourth is
+v0.32.0's citation projection fix, which removed 44 (27,951 -> 27,907) because a
+paragraph made only of leaked bibliography keys is no longer a paragraph of prose.
+The v0.27.1 file read 593 observations with
 `results` at 26, under its 30-passage floor; the v0.27.0 file read 1,942 with `method`
 at 1,671, but `method` was then `DEFAULT_SECTION_BUCKET` and absorbed every unnamed
 heading, and paragraphs were split from PDF line fragments rather than reconstructed.
@@ -90,30 +93,30 @@ Interpretation limits:
 
 ## 6. UID reference evidence
 
-`style-profile/wgl/uid_baseline.json` records **27,951** paragraphs that met its
+`style-profile/wgl/uid_baseline.json` records **27,917** paragraphs that met its
 25-token requirement. It stores pooled and section-level means, standard deviations,
 and counts for global UID, local UID, and mean surprisal under GPT-2-large. Pooled
-global UID is **3.321 ± 0.439**; local UID 3.432 ± 0.473; mean surprisal 3.589 ± 0.540.
+global UID is **3.303 ± 0.437**; local UID 3.416 ± 0.472; mean surprisal 3.561 ± 0.534.
 
 | bucket | n | global UID |
 |---|---:|---|
-| method | 9,529 | 3.32 ± 0.45 |
-| results | 3,965 | 3.29 ± 0.26 |
-| data | 3,916 | 3.38 ± 0.58 |
-| intro | 3,844 | 3.31 ± 0.41 |
-| discussion | 3,654 | 3.30 ± 0.37 |
-| conclusion | 2,610 | 3.34 ± 0.47 |
+| method | 9,519 | 3.31 ± 0.45 |
+| results | 3,959 | 3.28 ± 0.26 |
+| data | 3,909 | 3.36 ± 0.58 |
+| intro | 3,840 | 3.26 ± 0.41 |
+| discussion | 3,648 | 3.29 ± 0.37 |
+| conclusion | 2,609 | 3.33 ± 0.47 |
 | abstract | 433 | 3.23 ± 0.49 |
 
-Counts are post-2026-08-26 (third rebuild). Neither the 593-paragraph / 3.383 ± 0.680
+Counts are post-2026-08-26 (fourth rebuild). Neither the 593-paragraph / 3.383 ± 0.680
 nor the 1,942-paragraph / 3.329 ± 0.391 predecessor is comparable: the first was blind
 to the breadth corpus, and the second labelled most of its paragraphs `method` by
 default and split them from PDF line fragments, so both its size and its section keys
 described something other than what they claimed (§14.2, EVALUATION §2).
 
-The section means are strikingly tight — 3.23 to 3.38 across seven buckets, a spread of
-0.15 against within-bucket standard deviations of 0.26–0.58. The spread is unchanged by
-the third rebuild, which added 2,946 paragraphs. **Section identity barely
+The section means are strikingly tight — 3.23 to 3.36 across seven buckets, a spread of
+0.13 against within-bucket standard deviations of 0.26–0.58. It was 0.15 before the
+fourth rebuild and 0.13 after, so removing the leaked keys did not disturb the null. **Section identity barely
 moves paragraph-level UID in this corpus.** That is a null worth recording rather than
 a defect: it means a per-section UID operating point would be calibrating on a
 difference smaller than its own noise, which is consistent with §9.8's finding that the

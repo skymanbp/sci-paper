@@ -15,7 +15,9 @@ against 203 held-out refereed papers. This section is what auditing that
 measurement found: two more places where the calibration side and the
 detection side were not reading the same text, an operating point that could
 finally be derived rather than estimated, and one deferred axis that the fixes
-unblocked.
+unblocked. Auditing the release that shipped those fixes then found a fourth
+thing, one layer up: nothing had ever been able to check whether a *published*
+figure still matched the artifact it was read from (§18.8).
 
 ---
 
@@ -241,3 +243,60 @@ stays unbuilt until a second, independently produced AI bank answers it.
   **0** in the other direction, and the baseline was rebuilt from the corrected
   517-document population. The axis is more accurate; its operating point was
   not re-derived here.
+- **README demo 2 stays a dated record.** Its 189-word draft was never retained,
+  so its two reference denominators — `n=5957` (`method` salience) and `n=8144`
+  (`method` structure), both v0.28.0 — and the percentiles computed against them
+  cannot be recomputed. Reconstructing a draft that satisfies the stated
+  constraints would be authoring a new demo, not re-running the old one, so the
+  section stamp now says which demo is current and which is dated instead of
+  claiming both. Demo 1 *was* re-run (§18.8).
+
+### 18.8 Published figures had no check at all
+
+Every figure in the tables above is read from `style-profile/<field>/`, which is
+gitignored. No validator check has ever been able to open those files, so the
+only thing holding a document and its artifact together was the working rule
+"re-read the artifact in the same turn you paste it". Audited, that rule failed
+three times in three releases:
+
+| release | what drifted |
+|---|---|
+| v0.29.0 | The README demo's numbers were re-run against the rebuilt profile; the section's provenance stamp naming the *previous* one was not. |
+| v0.32.0 | The post-release sweep corrected `EVALUATION.md`'s axis table and missed both READMEs' artifact tables — six of seven structure counts and six of seven salience counts, in each language. |
+| after the v0.32.0 tag | The UID baseline finished rebuilding on the corrected corpus (27,951 → 27,917 paragraphs, pooled global UID 3.321 ± 0.439 → **3.303 ± 0.437**) with nothing pointing at the four documents that quote it. |
+
+`tests/test_published_figures.py` closes it by inverting the direction of the
+check: instead of reading a number out of a document and asking whether it looks
+right, it renders the expected substring **from the artifact** and asks whether
+the document still contains it. A document that agrees with a stale artifact and
+a document nobody updated then fail identically, which is the property the
+working rule never had. It pins 39 figures across the two READMEs, this record,
+and the hub's axis and bucket tables, and it was verified by putting each
+corrected figure back to its stale value — 11 mutations, 11 caught.
+
+The field is read from this record's own path literal rather than hard-coded, so
+a second field needs no edit. On a clean clone there is no profile, so the cases
+**skip**: absence is reported as absence, never as agreement.
+
+One published block the check cannot reach is README §"See it work". Its figures
+come from running the linter over 20-document corpora rather than from reading a
+JSON, so pinning them would add roughly 40 s to a 40 s suite. Demo 1 was
+therefore re-run by hand and its stamp now carries the date. Arm B — the
+word-list humanizer — had never been retained, but the whole 20-document set
+carries exactly **four** L0 targets (one em-dash pair, two `underscoring`, one
+Tier B excess), so that arm is four edits over arm A and was re-derived rather
+than quoted. It reproduced the section's central claim independently:
+
+| | A: as generated | B: word-list | C: sci-paper |
+|---|---:|---:|---:|
+| documents with an L0 target | 4 | 0 | 0 |
+| em-dashes | 2 | 0 | 0 |
+| advisories | 331 | 329 | 315 |
+| **strong advisories** | **131** | **131** | 126 |
+
+The word-list pass moves strong advisories by exactly zero, which is what the
+2026-08-25 pass found at 127 → 127 → 102 on the previous profile. The
+single-paragraph blocks reproduce finding-for-finding in all three arms; only
+the reference denominators moved (`n=3964` → 3,958, `n=2541` → 3,206) and one
+percentile with them (p73 → p71). Demo 2's draft was not retained, so it stays
+dated (§18.7).

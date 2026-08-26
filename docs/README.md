@@ -25,7 +25,7 @@ lives in.
 | [architecture/evaluation/document-scale.md](architecture/evaluation/document-scale.md) | 9 | Whole-document dispersion: the keystone axis, its adversarial tiers and conformal operating points |
 | [architecture/evaluation/narrative-salience-register.md](architecture/evaluation/narrative-salience-register.md) | 11, 13–15 | Real rewrite evaluation, blind perceptual panel, salience hierarchy, domain register, narrative salience |
 | [architecture/evaluation/held-out-labels.md](architecture/evaluation/held-out-labels.md) | 17 | Held-out refereed papers as provenance labels: the register false-positive rate, the salience gate-transfer check, and the paired leakage test |
-| [architecture/evaluation/projection-and-operating-point.md](architecture/evaluation/projection-and-operating-point.md) | 18 | Citation projection symmetry, the digits the salience axis was misreading, the held-out collection guard, the register operating point derived against refereed prose, and citation placement measured but not shipped |
+| [architecture/evaluation/projection-and-operating-point.md](architecture/evaluation/projection-and-operating-point.md) | 18 | Citation projection symmetry, the digits the salience axis was misreading, the held-out collection guard, the register operating point derived against refereed prose, citation placement measured but not shipped, and the three drift events behind the check that now pins every published figure to its artifact |
 
 ## The authority order
 
@@ -72,6 +72,14 @@ accumulating:
 - each file under `design-notes/` declares itself a design note in its header;
 - no document reappears at a location it was moved away from;
 - every suite size recorded in `EVALUATION.md` matches actual test discovery.
+
+One convention it cannot enforce lives in the suite instead. The figures these
+documents quote come from `style-profile/<field>/`, which is gitignored, so no
+CI check can open the source of a published number.
+`tests/test_published_figures.py` therefore renders each figure *from* the
+artifact and looks for it in the document, and skips — rather than passes — when
+a clean clone has no profile to read. The drift it exists to stop is recorded in
+[§18.8](architecture/evaluation/projection-and-operating-point.md).
 
 Historical `CHANGELOG.md` entries quote the documentation paths that were current
 at that release; documents moved into `architecture/` and `design-notes/` in

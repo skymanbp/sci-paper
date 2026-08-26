@@ -80,6 +80,10 @@ REQUIRED_TESTS = {
     "test_ai_ism_lint_cli.py",
     "test_deai_docstructure.py",
     "test_deai_feedback.py",
+    # The only check that can see whether a published number still has a
+    # source: the artifacts it reads are gitignored, so deleting this file
+    # would silently restore the drift it was written to stop.
+    "test_published_figures.py",
     "test_rewrite_reward.py",
     "test_train_voice_model.py",
 }

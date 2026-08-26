@@ -5,14 +5,14 @@
 [![Version](https://img.shields.io/badge/version-0.32.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-328%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-334%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**8 skills · 32 tools · 328 tests · one normative contract · zero authorship verdicts.**
+**8 skills · 32 tools · 334 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
@@ -189,10 +189,10 @@ killed each one. **A refuted detector is evidence, and it stays in the record.**
 
 ## See it work
 
-Every command and number below was produced on **2026-08-25** against this
-working tree at v0.28.0, on the `wgl` reference profile. Nothing is illustrative.
-A fresh clone ships **no** profile ([why](#field-aware-evidence)), so `measured`
-axes require you to build one from your own papers first.
+Demo 1 was re-run on **2026-08-26** at v0.32.0 on the `wgl` reference profile;
+demo 2 is a dated v0.28.0 record whose draft was not retained. Nothing is
+illustrative. A fresh clone ships **no** profile ([why](#field-aware-evidence)),
+so `measured` axes require you to build one from your own papers first.
 
 ### 1. Three treatments of the same paragraph
 
@@ -210,7 +210,7 @@ worst-scoring Results paragraph in the repository's 20-document AI set.
 ```
 [l0_target L0 tier-a:underscoring]         Tier A lexical target present.
 [advisory  L0 corpus-zero:underscoring]    The field lexicon records ZERO occurrences.
-[advisory  L2 structure-auxiliary:results] antithesis-cluster; reference results fraction 0.2% (n=3964).
+[advisory  L2 structure-auxiliary:results] antithesis-cluster; reference results fraction 0.2% (n=3958).
 [advisory  L2 colon-elaboration]           A prose colon introduces an appositive elaboration.
 [advisory  L2 ing-tail:underscoring]       A participial tail appends interpretation.
 ```
@@ -241,13 +241,13 @@ every number, unit and citation preserved, length budget respected.
 
 ```
 [advisory L2 salience-recital:results] results passage recites its quantities:
-  max_recital_run_frac 0.20 (p73), recital_frac 0.40 (p87), numerals_per_sentence 1.20 (p95).
-  Longest run of numeral-bearing sentences is 1 of 5, against an n=2541 human results reference.
+  max_recital_run_frac 0.20 (p71), recital_frac 0.40 (p87), numerals_per_sentence 1.20 (p95).
+  Longest run of numeral-bearing sentences is 1 of 5, against an n=3206 human results reference.
 ```
 
 The survivor is a **different kind of note**: the mechanical tells are gone, so
 the tool has moved to editorial judgement — how many numbers a passage carries
-before the argument has to do the work — against 2,541 human Results passages.
+before the argument has to do the work — against 3,206 human Results passages.
 
 | | A: as generated | B: word-list humanizer | C: sci-paper |
 |---|---:|---:|---:|
@@ -256,7 +256,7 @@ before the argument has to do the work — against 2,541 human Results passages.
 
 Across the **whole 20-document set**, same three treatments, same tool: documents
 with an L0 target **4 → 0 → 0**; em-dashes **2 → 0 → 0**; advisories
-**346 → 344 → 302**; strong advisories **127 → 127 → 102**. The word-list pass
+**331 → 329 → 315**; strong advisories **131 → 131 → 126**. The word-list pass
 moves strong advisories by **exactly zero** — it removes what a detector greps
 for and nothing a reader would notice. (Arm C there is the repository's
 independently written de-AI set, not a rewrite of arm A, so read it as three
@@ -465,7 +465,7 @@ document is a real 5,084-word corpus paper, assembled from its LaTeX includes.
 | `+ --oracle` (GPT-2-large token surprisal) | 23.1 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **9/9 checks pass** | 359 ms | stdlib |
-| Full test suite — **328 passing**, 17 files | 47.3 s | stdlib |
+| Full test suite — **334 passing**, 18 files · re-measured 2026-08-26 | 40.8 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs
 ~334 ms of analysis above the interpreter floor**, with no optional dependency
@@ -618,9 +618,9 @@ For scale, the reference profile behind every measured number here carries:
 |---|---|
 | `exemplar_paragraphs.jsonl` | **27,917** section-typed paragraphs from 19 curated + 500 reference papers |
 | `register_lexicon.json` | 41,559 passages · 53,293 terms |
-| `uid_baseline.json` | 27,917 paragraphs under GPT-2-large · pooled global UID 3.321 ± 0.439 |
-| `structure_baseline.json` | method 9,522 · results 3,964 · data 3,915 · intro 3,844 · discussion 3,653 · conclusion 2,610 · abstract 433 |
-| `salience_baseline.json` | abstract 13,823 · method 6,964 · intro 3,267 · results 3,210 · data 3,023 · discussion 2,963 · conclusion 1,995 |
+| `uid_baseline.json` | 27,917 paragraphs under GPT-2-large · pooled global UID 3.303 ± 0.437 |
+| `structure_baseline.json` | method 9,512 · results 3,958 · data 3,908 · intro 3,840 · discussion 3,647 · conclusion 2,609 · abstract 433 |
+| `salience_baseline.json` | abstract 13,823 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
 | `docstructure_baseline.json` | 507 complete documents · conformal α 0.05 · length strata [46, 75] |
 | `anchoring_baseline.json` | 517 documents · all six section classes above the 30-document minimum |
 | `voice_model.joblib` | 44,576 records · 14 features · **no operating point**, `degraded` |
@@ -668,14 +668,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   8 skills          ├── tests/     17 files, 328 tests
+├── skills/<name>/SKILL.md   8 skills          ├── tests/     18 files, 334 tests
 ├── tools/                   31 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 328-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 334-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page
 anchors, recorded suite sizes against real discovery, product registries, syntax,
