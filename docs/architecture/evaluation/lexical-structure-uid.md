@@ -1,4 +1,4 @@
-# EVALUATION — L0 behaviour, sentence-structure and UID reference evidence · `sci-paper` v0.27.1
+# EVALUATION — L0 behaviour, sentence-structure and UID reference evidence · `sci-paper` v0.28.0
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the

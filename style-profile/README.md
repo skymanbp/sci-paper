@@ -40,8 +40,9 @@ style-profile/
         └── deai_hardset_LABEL_ME.csv        # user-authored difficult-case labels
 ```
 
-Two fields are populated locally as of 2026-08-16: `wgl` (the full asset set
-above, built from the 31-paper corpus) and `wgl-letter` (descriptive subset —
+Two fields are populated locally as of 2026-08-25: `wgl` (the full asset set
+above, built from 19 curated papers plus the 500-paper `fulltext-arxiv/` breadth
+corpus) and `wgl-letter` (descriptive subset —
 lexicon, sentence stats, transitions, exemplars, dossier — built from the
 11-paper Letter-register corpus for `--field wgl-letter`).
 
@@ -87,16 +88,20 @@ python tools/deai_register.py --field <name> --calibrate
 python tools/train_voice_model.py --field <name>
 ```
 
-> **Recalibrate after v0.27.0.** `extract_style.classify_section` matched only
-> singular section titles until v0.27.0, so `Results`, `Conclusions` and
-> `Systematics` — the standard ApJ/MNRAS/PRD headings — were bucketed as
-> `method`, and `Acknowledgements`/`Bibliography` were ingested as prose instead
-> of being skipped. Every per-section asset above that was built before v0.27.0
-> carries that mis-bucketing. Measured on the 31-paper `wgl` corpus, rebuilding
-> with the fixed classifier moves `method` 1770 → 1671, `discussion` 43 → 97,
-> `conclusion` 30 → 50, and `results` 0 → 10 (still below the 30-passage floor,
-> so that bucket stays omitted), with the total dropping 1957 → 1942 as back
-> matter is skipped.
+> **Recalibrate after v0.28.0.** Two rounds of corpus-layer defects were fixed
+> on 2026-08-25. Section labelling: `classify_section` matched titles in the
+> singular only, `method` was itself the default bucket and absorbed every
+> unnamed heading, and PDF "paragraphs" were line fragments. Then what counts as
+> a paper: `\include` fragments were counted as separate papers, selecting the
+> root instead lost the body it includes, the root-selector and the reader
+> resolved `\input` targets differently, and a `\subsection` did not inherit
+> its `\section` — which sent 54.8% of all section words to `unknown`. The
+> 500-paper `fulltext-arxiv/` breadth corpus was also invisible to every
+> paragraph-level baseline.
+>
+> Rebuilding against all of it takes the exemplar bank from 593 to **25,005**
+> paragraphs and `results` from 26 to **3,118**, so every bucket clears the
+> 30-passage floor and none is rank-only.
 >
 > **Until you rebuild, treat every section-keyed axis as `degraded`** whatever
 > its recorded status says: rerun `build_profile.py` and then each `--calibrate`
@@ -116,7 +121,11 @@ rules exclude, so it must not drift outside the repository's ignore rules.
 
 `deai_policy.json` is not synthesized by the basic builder. Add it only when the
 sample unit, corpus selection, uncertainty, applicability, operating point, and
-validation behavior are documented in the asset and `EVALUATION.md`.
+validation behavior are documented in the asset and `EVALUATION.md`. For the
+`wgl` field this asset is **not** obtainable: EVALUATION §16 measures both
+statistics it would threshold and finds burstiness reverses sign on adversarial
+prose while signposting runs below chance, so `L1.distribution` and
+`L2.sentence_structure` stay `degraded` by measurement.
 
 ## Regeneration discipline
 

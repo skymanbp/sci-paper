@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Single-plugin marketplace for sci-paper: scientific paper writing, source-traced review, and de-AI rewriting for top-tier journals.",
-    "version": "0.27.1"
+    "version": "0.28.0"
   },
   "plugins": [
     {
       "name": "sci-paper",
       "source": "./",
       "description": "Scientific paper writing, source-traced review, and de-AI rewriting for top-tier journals (ApJ/MNRAS/PRD/JCAP-class) and NSF/NIH proposals. Ships 8 skills and 25 tools under one typed standard: scientific-integrity blockers that cannot be waived as style preferences, a zero-target L0 lexicon, ranked advisories, explicit measurement states so missing calibration never reads as clean, claim-first rewriting gated on hard scientific-fidelity eligibility, a mechanical length budget, corpus-calibrated salience-hierarchy and domain-register axes, A-R review with narrative-spine and adversarial-escalation dimensions, pixel-measured figure review, and isolated multi-reviewer orchestration. Learned scores are field-similarity triage, never an authorship verdict. See CHANGELOG.md for per-version history.",
-      "version": "0.27.1",
+      "version": "0.28.0",
       "author": {
         "name": "skymanbp",
         "email": "skyman.bp@gmail.com"
