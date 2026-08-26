@@ -36,6 +36,9 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 API = "http://export.arxiv.org/api/query"
@@ -385,11 +388,8 @@ def fetch_fulltext(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--field", required=True)
-    p.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
+    cli_common.utf8_stdout()
+    p = cli_common.field_parser(__doc__)
     p.add_argument("--per-query", type=int, default=400)
     p.add_argument("--page", type=int, default=100)
     p.add_argument("--date-lo", default="201001010000")

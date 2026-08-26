@@ -26,6 +26,9 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 
@@ -53,13 +56,9 @@ def run_step(label: str, cmd: list[str]) -> tuple[bool, float]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    cli_common.utf8_stdout()
 
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--field", default=None,
-                   help="Field name; auto-detected when only one exists.")
-    p.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
+    p = cli_common.field_parser(__doc__)
     p.add_argument("--no-train", action="store_true",
                    help="Skip legacy word-ngram classifier training.")
     p.add_argument("--no-warm", action="store_true",

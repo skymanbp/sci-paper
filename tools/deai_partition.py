@@ -33,6 +33,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_docstructure as ds  # noqa: E402  because sibling imports resolve only after the sys.path insert above
 import deai_features as features  # noqa: E402  same sys.path reason
 import deai_metrics as metrics  # noqa: E402  same sys.path reason
@@ -223,13 +224,9 @@ def suggest(text: str, baseline: dict, max_ops: int) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    cli_common.utf8_stdout()
+    parser = cli_common.field_parser(__doc__)
     parser.add_argument("file", type=Path)
-    parser.add_argument("--field", required=True)
-    parser.add_argument("--profile-root", type=Path,
-                        default=ds.DEFAULT_PROFILE_ROOT)
     parser.add_argument("--max-ops", type=int, default=MAX_OPS_DEFAULT)
     parser.add_argument("--json", type=Path, default=None,
                         help="also write the plan as JSON")

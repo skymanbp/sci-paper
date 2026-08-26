@@ -23,6 +23,9 @@ import json
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 HANDCRAFTED_NEGATIVES = REPO_ROOT / "tools" / "ai_ism_negatives_handcrafted.txt"
@@ -33,34 +36,14 @@ HANDCRAFTED_NEGATIVES = REPO_ROOT / "tools" / "ai_ism_negatives_handcrafted.txt"
 
 
 def list_fields(profile_root: Path) -> list[str]:
-    if not profile_root.exists():
-        return []
-    return sorted(
-        p.name for p in profile_root.iterdir()
-        if p.is_dir() and not p.name.startswith(".")
-    )
+    return cli_common.list_fields(profile_root)
 
 
 def resolve_field(arg_field: str | None, profile_root: Path) -> str:
-    fields = list_fields(profile_root)
-    if arg_field:
-        if arg_field not in fields:
-            raise SystemExit(
-                f"[train_ai_ism_classifier] --field={arg_field!r} not found "
-                f"under {profile_root}/. Available: {fields or '(none)'}"
-            )
-        return arg_field
-    if not fields:
-        raise SystemExit(
-            f"[train_ai_ism_classifier] No field profiles under {profile_root}/. "
-            "Run `python tools/extract_style.py` first."
-        )
-    if len(fields) > 1:
-        raise SystemExit(
-            f"[train_ai_ism_classifier] Multiple fields present ({fields}); "
-            f"pass --field=<name>."
-        )
-    return fields[0]
+    return cli_common.resolve_field(
+        arg_field, profile_root, tool="train_ai_ism_classifier")
+
+
 
 
 def load_positives(jsonl_path: Path,
@@ -188,13 +171,9 @@ def train_and_save(
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    cli_common.utf8_stdout()
 
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--field", default=None,
-                   help="Field name; auto-detected when only one exists.")
-    p.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
+    p = cli_common.field_parser(__doc__)
     p.add_argument("--seed", type=int, default=42)
     args = p.parse_args(argv)
 

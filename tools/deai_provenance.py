@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import extract_style as es       # noqa: E402  resolves only after the sys.path insert
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 
@@ -244,9 +245,8 @@ def document_findings(current_text: str, path: str | Path | None,
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    cli_common.utf8_stdout()
+    parser = cli_common.base_parser(__doc__)
     parser.add_argument("file", type=Path)
     parser.add_argument("--ai-ancestor", type=Path,
                         help="an earlier AI-draft file to compare against")

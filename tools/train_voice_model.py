@@ -30,6 +30,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_features as df  # noqa: E402  resolves only after the sys.path insert
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -55,11 +56,8 @@ from voice_audit import (  # noqa: E402,F401 -- re-export, unused here by design
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--field", required=True)
-    p.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
+    cli_common.utf8_stdout()
+    p = cli_common.field_parser(__doc__)
     p.add_argument("--model", default=df.do.DEFAULT_MODEL)
     p.add_argument("--refeature", action="store_true", help="recompute features")
     p.add_argument("--prefer-hgb", action="store_true",

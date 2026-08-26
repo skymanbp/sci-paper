@@ -564,7 +564,7 @@ reproducible evidence. Per-tool detail: [tools/README.md](tools/README.md).
 | `tools/deai_personal.py` | L4 | Personal dispersion baseline against the author's own prior papers — a confound-free same-author reference. `unmeasured` below three papers. |
 | `tools/eval_docscale.py` | eval | Reproduces the §9 document-scale table — human false-flag rate and per-tier tail power — by scoring the corpus and every `docval` tier through the same operating point findings use. |
 | `tools/build_profile.py` | build | Builds the basic field profile: extraction, optional legacy classifier, exemplar-cache warm-up. |
-| `tools/cli_common.py` | build | Shared command-line preamble: UTF-8 stdout and the `--field` / `--profile-root` options every field-aware tool takes. Holds no policy. |
+| `tools/cli_common.py` | build | Shared command-line preamble and field resolution, used by 21 of 30 tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
 | `tools/extract_style.py` | build | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. Re-exports every public name from `extract_sections.py`. |
 | `tools/extract_sections.py` | build | Source-text projection and section splitting: the section vocabulary and its classifier, both named LaTeX projections, and the PDF heading heuristic. Section buckets key every per-section reference, so changing this requires a profile rebuild. |
 | `tools/retrieve_exemplars.py` | build | Retrieves section- and topic-matched exemplar paragraphs, with embedding or explicit fallback retrieval. |

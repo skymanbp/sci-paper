@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_feedback as feedback  # noqa: E402 because sibling tools are importable only after the sys.path insert above
 import deai_metrics as metrics  # noqa: E402 because sibling tools are importable only after the sys.path insert above
 import extract_style as es  # noqa: E402 because sibling tools are importable only after the sys.path insert above
@@ -345,12 +346,9 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    cli_common.utf8_stdout()
+    parser = cli_common.field_parser(__doc__)
     parser.add_argument("file", type=Path, nargs="?")
-    parser.add_argument("--field", default=None)
-    parser.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
     parser.add_argument("--calibrate", action="store_true")
     args = parser.parse_args(argv)
     field_dir = args.profile_root / args.field if args.field else None

@@ -57,6 +57,7 @@ scope, not a standard-reference obligation.
 | `deai_partition.py` | L4 | Suggest fidelity-free merge/split operations toward the human dispersion band; zero-token, suggest-only. |
 | `deai_provenance.py` | L4 | Label author edit depth vs a designated AI-draft ancestor from the author's own history; `unmeasured` without one. |
 | `deai_personal.py` | L4 | Compare a draft to the author's own prior papers (confound-free reference); `unmeasured` below three papers. |
+| `eval_docscale.py` | evidence | Reproduce the EVALUATION §9 table through the same `manifold_operating_point` that findings use — never a private scoring path. Label the human rate **in-sample** wherever it includes the manifold's own train and calibration documents, and never present a single-seed tail-power figure as an estimate. Added 2026-08-26: nothing bound the evidence-producing path before, and §9 accumulated headline figures produced by a 95th-percentile cut rather than by the shipped conformal rule. |
 
 Compatibility tuple APIs may remain temporarily, but new orchestration consumes
 structured finding APIs. Adapters project from structured findings, not the

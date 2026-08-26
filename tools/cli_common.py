@@ -1,17 +1,25 @@
-"""Shared command-line preamble for the tool suite.
+"""Shared command-line preamble and field resolution for the tool suite.
 
-Every tool opens `main()` the same way: reconfigure stdout to UTF-8 so Windows
+Every tool opened `main()` the same way: reconfigure stdout to UTF-8 so Windows
 consoles do not mangle a dossier, build an ArgumentParser whose description is
-the module's own first docstring line, and register `--field` / `--profile-root`.
-Written out per tool that is 26 near-identical copies, and the repository's
-duplicate-content guard refuses a 27th.
+the module's own first docstring line, and register `--field` /
+`--profile-root`. Five tools additionally carried byte-equivalent `list_fields`
+and `resolve_field` copies that differed only in the tool name inside their
+error strings.
 
 This module is deliberately small and holds no policy: it decides no default
-beyond the profile root, reads no profile, and emits no findings. Tools that
-predate it still carry their own copies; they are not retrofitted here because
-their parsers differ in the options that follow, and a sweep of 26 CLIs carries
-regression risk out of proportion to the duplication it removes. New tools use
-this.
+beyond the two roots, reads no profile, and emits no findings. 21 of the 30
+tools were retrofitted onto it on 2026-08-26; the rest are library modules with
+no CLI, plus the two divergences below.
+
+Two divergences are kept on purpose rather than folded in:
+
+- `ai_ism_lint.resolve_field` **warns and returns None** instead of raising,
+  because the linter must still run its L0 pass with no profile present. That is
+  a behavioural difference, not duplication, so it keeps its own copy.
+- `extract_style` resolves against the *corpus* root, where a `tier-*`
+  subdirectory is not a field. That is expressed here as `exclude_prefixes`
+  rather than as a second implementation.
 """
 
 from __future__ import annotations
@@ -31,19 +39,62 @@ def utf8_stdout() -> None:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
+def base_parser(doc: str | None) -> argparse.ArgumentParser:
+    """An ArgumentParser whose description is the caller's first docstring line.
+
+    `validate_plugin`'s entry-point check reads that description, so a tool that
+    loses it fails the contract rather than merely looking bare in `--help`.
+    """
+    return argparse.ArgumentParser(
+        description=(doc or "").splitlines()[0] if doc else None)
+
+
 def field_parser(doc: str | None, *, corpus: bool = False
                  ) -> argparse.ArgumentParser:
-    """An ArgumentParser carrying the options every field-aware tool takes.
-
-    `doc` is the calling module's `__doc__`; its first line becomes the
-    description, which is what `--help` shows and what `validate_plugin`'s
-    entry-point check reads.
-    """
-    parser = argparse.ArgumentParser(
-        description=(doc or "").splitlines()[0] if doc else None)
+    """`base_parser` plus the options every field-aware tool takes."""
+    parser = base_parser(doc)
     parser.add_argument("--field", default=None,
                         help="Field name; auto-detected when only one exists.")
     parser.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
     if corpus:
         parser.add_argument("--corpus-root", type=Path, default=DEFAULT_CORPUS_ROOT)
     return parser
+
+
+def list_fields(root: Path, *, exclude_prefixes: tuple[str, ...] = ()) -> list[str]:
+    """Non-hidden subdirectories of `root`, minus any excluded prefix."""
+    if not root.exists():
+        return []
+    return sorted(
+        path.name for path in root.iterdir()
+        if path.is_dir() and not path.name.startswith(".")
+        and not path.name.startswith(exclude_prefixes or ("\0",))
+    )
+
+
+def resolve_field(arg_field: str | None, root: Path, *, tool: str,
+                  exclude_prefixes: tuple[str, ...] = (),
+                  empty_hint: str = "Run `python tools/extract_style.py "
+                                    "--field <name>` first.") -> str:
+    """Pick the one field to operate on, or exit with a usable message.
+
+    Named `--field` must exist; otherwise a single field auto-resolves and zero
+    or several are an error. Raising here rather than guessing is the point: a
+    tool that silently picked a field would write one profile's evidence into
+    another's directory.
+    """
+    fields = list_fields(root, exclude_prefixes=exclude_prefixes)
+    if arg_field:
+        if arg_field not in fields:
+            raise SystemExit(
+                f"[{tool}] --field={arg_field!r} not found under {root}/. "
+                f"Available: {fields or '(none)'}")
+        return arg_field
+    if not fields:
+        raise SystemExit(f"[{tool}] No field profiles found under {root}/. "
+                         f"{empty_hint}")
+    if len(fields) > 1:
+        raise SystemExit(
+            f"[{tool}] Multiple fields present ({fields}); pass --field=<name> "
+            "to select one.")
+    return fields[0]

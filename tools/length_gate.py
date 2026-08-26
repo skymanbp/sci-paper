@@ -23,6 +23,9 @@ import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 from typing import Any
 
 TOOLS_DIR = Path(__file__).resolve().parent
@@ -188,9 +191,8 @@ def gate_findings(before_text: str, after_text: str, path: Path,
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    cli_common.utf8_stdout()
+    parser = cli_common.base_parser(__doc__)
     parser.add_argument("after", type=Path, help="edited version of the document")
     parser.add_argument("--before", type=Path,
                         help="pre-edit version of the document (file path)")

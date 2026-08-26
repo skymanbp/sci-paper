@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_docstructure as ds    # noqa: E402  resolves only after the sys.path insert
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 
@@ -180,9 +181,8 @@ def _load_papers(directory: Path) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    cli_common.utf8_stdout()
+    parser = cli_common.base_parser(__doc__)
     parser.add_argument("file", type=Path)
     parser.add_argument("--prior-papers-dir", type=Path, required=True,
                         help="directory of the author's own prior papers")

@@ -24,6 +24,9 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
+
 # Section vocabulary, LaTeX projections, PDF heading detection, and corpus
 # document assembly live in extract_sections.py (moved 2026-08-25; this file
 # could no longer be edited at its size). Re-exported here because sibling
@@ -68,41 +71,14 @@ REFERENCE_DIR = "fulltext-arxiv"
 
 
 def list_fields(corpus_root: Path) -> list[str]:
-    """Return sorted list of field subdirs (any non-hidden dir whose name does
-    NOT start with `tier-` is treated as a field)."""
-    if not corpus_root.exists():
-        return []
-    return sorted(
-        p.name for p in corpus_root.iterdir()
-        if p.is_dir() and not p.name.startswith(".") and not p.name.startswith("tier-")
-    )
+    return cli_common.list_fields(corpus_root, exclude_prefixes=("tier-",))
 
 
 def resolve_field(arg_field: str | None, corpus_root: Path) -> str:
-    """Pick the field. If --field passed, validate it exists. Otherwise:
-    - 0 fields → error
-    - 1 field → auto-pick it
-    - >1 fields → error asking for explicit --field"""
-    fields = list_fields(corpus_root)
-    if arg_field:
-        if arg_field not in fields:
-            raise SystemExit(
-                f"[extract_style] --field={arg_field!r} not found under "
-                f"{corpus_root}/. Available: {fields or '(none)'}"
-            )
-        return arg_field
-    if not fields:
-        raise SystemExit(
-            f"[extract_style] No field subdirectories found under {corpus_root}/. "
-            "Create style-corpus/<field>/{tier-1-top,tier-2-mentor,tier-3-reference}/ "
-            "and add papers."
-        )
-    if len(fields) > 1:
-        raise SystemExit(
-            f"[extract_style] Multiple fields present ({fields}); pass "
-            f"--field=<name> to select one."
-        )
-    return fields[0]
+    return cli_common.resolve_field(
+        arg_field, corpus_root, tool="extract_style", exclude_prefixes=("tier-",))
+
+
 
 
 
@@ -574,9 +550,8 @@ def main(argv: list[str] | None = None) -> int:
     # to a pipe or a file under a non-UTF-8 locale -- exactly what
     # build_profile.py does when it captures this tool's output -- the default
     # encoder raises UnicodeEncodeError and the run dies after the work is done.
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    cli_common.utf8_stdout()
+    p = cli_common.base_parser(__doc__)
     p.add_argument("--field", default=None,
                    help="Field name (subdir under style-corpus/). "
                         "Auto-detected when only one field exists.")

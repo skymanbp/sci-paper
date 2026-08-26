@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_features as df   # noqa: E402  resolves only after the sys.path insert
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_metrics as dm    # noqa: E402  same reason
@@ -238,12 +239,9 @@ def paragraph_hits(text: str, field_profile_dir: Path | None,
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    cli_common.utf8_stdout()
+    p = cli_common.field_parser(__doc__)
     p.add_argument("file", type=Path)
-    p.add_argument("--field", required=True)
-    p.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
     p.add_argument("--voice-threshold", type=float, default=None,
                    help="explicit author-chosen review point; default is the "
                         "bundle's measured operating point, or rank-based "

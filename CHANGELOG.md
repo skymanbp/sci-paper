@@ -95,11 +95,23 @@ nor imported, so the next split cannot fail that way.
 
 - **`tools/eval_docscale.py`** — reproduces the §9 table (human false-flag rate,
   per-tier tail power, rank AUC) through `manifold_operating_point`.
-- **`tools/cli_common.py`** — the shared CLI preamble. `resolve_field` and the
-  argparse opener were duplicated in 26 tools; the duplicate-content guard
-  refused a 27th copy. Existing tools are deliberately *not* retrofitted: their
-  parsers diverge in the options that follow, and a 26-CLI sweep carries more
-  regression risk than the duplication removes.
+- **`tools/cli_common.py`** — the shared CLI preamble and field resolution. The
+  argparse opener was duplicated across the suite and `list_fields` /
+  `resolve_field` existed in five byte-equivalent copies; the duplicate-content
+  guard refused a 27th. **21 of 30 tools retrofitted**, with the allowlist and
+  the refusals recorded rather than left implicit: nine are library modules with
+  no CLI or are the module itself, `ai_ism_lint` keeps its own resolver because
+  it warns and returns `None` so the L0 pass still runs with no profile, and
+  `extract_style` resolves against the corpus root — expressed as
+  `exclude_prefixes=("tier-",)` rather than as a second implementation.
+
+  The sweep was attempted twice with a regex and reverted both times. The first
+  pass inserted the replacement before deleting the original, so the deletion
+  consumed the replacement; the second ate four constants and a function out of
+  `extract_style.py`, because a `\n\n[A-Z_]` lookahead skips every intervening
+  `def` to reach the next module constant. The AST knows where a function ends.
+  Both reverts were caught by the suite — the second by the unbound-name guard
+  added in this same release.
 
 ## v0.28.1 — 2026-08-26
 

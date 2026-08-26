@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 from extract_style import REFERENCE_DIR, TIER_WEIGHTS
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -46,34 +47,14 @@ ALL_TIERS = CURATED_TIERS | {REFERENCE_DIR}
 
 
 def list_fields(profile_root: Path) -> list[str]:
-    if not profile_root.exists():
-        return []
-    return sorted(
-        p.name for p in profile_root.iterdir()
-        if p.is_dir() and not p.name.startswith(".")
-    )
+    return cli_common.list_fields(profile_root)
 
 
 def resolve_field(arg_field: str | None, profile_root: Path) -> str:
-    fields = list_fields(profile_root)
-    if arg_field:
-        if arg_field not in fields:
-            raise SystemExit(
-                f"[retrieve_exemplars] --field={arg_field!r} not found under "
-                f"{profile_root}/. Available: {fields or '(none)'}"
-            )
-        return arg_field
-    if not fields:
-        raise SystemExit(
-            f"[retrieve_exemplars] No field profiles found under {profile_root}/. "
-            "Run `python tools/extract_style.py --field <name>` first."
-        )
-    if len(fields) > 1:
-        raise SystemExit(
-            f"[retrieve_exemplars] Multiple fields present ({fields}); "
-            f"pass --field=<name>."
-        )
-    return fields[0]
+    return cli_common.resolve_field(
+        arg_field, profile_root, tool="retrieve_exemplars")
+
+
 
 
 def _emb_cache_path(profile_dir: Path, model_name: str) -> Path:
@@ -209,19 +190,15 @@ def _format_exemplar(idx: int, total: int, score: float, rec: dict, mode: str) -
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    cli_common.utf8_stdout()
 
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = cli_common.field_parser(__doc__)
     p.add_argument("--section", required=True, choices=sorted(VALID_SECTIONS))
     p.add_argument("--topic", default="",
                    help="One-sentence topic summary. Empty → rank by section "
                         "name alone, which still surfaces representative "
                         "paragraphs.")
     p.add_argument("--k", type=int, default=5)
-    p.add_argument("--field", default=None,
-                   help="Field name; auto-detected when only one exists.")
-    p.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
     p.add_argument("--model", default=DEFAULT_MODEL,
                    help=f"sentence-transformers model name "
                         f"(default: {DEFAULT_MODEL}).")

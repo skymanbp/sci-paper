@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_feedback as feedback  # noqa: E402  sibling tool import after path setup
 import extract_style as es  # noqa: E402  canonical tokenizer import after path setup
 
@@ -280,12 +281,9 @@ def distribution_hits(text: str, field_profile_dir: Path | None
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    cli_common.utf8_stdout()
+    parser = cli_common.field_parser(__doc__)
     parser.add_argument("file", type=Path)
-    parser.add_argument("--field", default=None)
-    parser.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
     args = parser.parse_args(argv)
     if not args.file.exists():
         print(f"[deai_metrics] file not found: {args.file}", file=sys.stderr)
