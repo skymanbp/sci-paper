@@ -2,17 +2,17 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.31.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.32.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-315%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-328%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**8 skills · 32 tools · 315 tests · one normative contract · zero authorship verdicts.**
+**8 skills · 32 tools · 328 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
@@ -465,7 +465,7 @@ document is a real 5,084-word corpus paper, assembled from its LaTeX includes.
 | `+ --oracle` (GPT-2-large token surprisal) | 23.1 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **9/9 checks pass** | 359 ms | stdlib |
-| Full test suite — **315 passing**, 17 files | 35.5 s | stdlib |
+| Full test suite — **328 passing**, 17 files | 47.3 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs
 ~334 ms of analysis above the interpreter floor**, with no optional dependency
@@ -616,9 +616,9 @@ For scale, the reference profile behind every measured number here carries:
 
 | Asset | Scale |
 |---|---|
-| `exemplar_paragraphs.jsonl` | **27,951** section-typed paragraphs from 19 curated + 500 reference papers |
-| `register_lexicon.json` | 41,593 passages · 55,133 terms |
-| `uid_baseline.json` | 27,951 paragraphs under GPT-2-large · pooled global UID 3.321 ± 0.439 |
+| `exemplar_paragraphs.jsonl` | **27,917** section-typed paragraphs from 19 curated + 500 reference papers |
+| `register_lexicon.json` | 41,559 passages · 53,293 terms |
+| `uid_baseline.json` | 27,917 paragraphs under GPT-2-large · pooled global UID 3.321 ± 0.439 |
 | `structure_baseline.json` | method 9,522 · results 3,964 · data 3,915 · intro 3,844 · discussion 3,653 · conclusion 2,610 · abstract 433 |
 | `salience_baseline.json` | abstract 13,823 · method 6,964 · intro 3,267 · results 3,210 · data 3,023 · discussion 2,963 · conclusion 1,995 |
 | `docstructure_baseline.json` | 507 complete documents · conformal α 0.05 · length strata [46, 75] |
@@ -668,14 +668,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   8 skills          ├── tests/     17 files, 315 tests
+├── skills/<name>/SKILL.md   8 skills          ├── tests/     17 files, 328 tests
 ├── tools/                   31 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 315-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 328-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page
 anchors, recorded suite sizes against real discovery, product registries, syntax,
@@ -687,7 +687,7 @@ requires independent review, clean-checkout verification, and green hosted CI.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.31.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.32.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.7 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative
@@ -708,24 +708,24 @@ de-AI standard.
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` — and now for a *measured* reason. Burstiness reverses sign on adversarial prose (AUC 0.181) and signposting runs below chance (0.247), so no operating point is available to write. |
 | **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.846 and triage overlap 0.654, but an old triage list will not reproduce exactly. |
 | **A quarter of the corpus is never used** | Headings matching no section bucket are dropped rather than guessed: **2,334 of 9,178 (25.4%)** in `wgl`, 42 of 148 in `wgl-letter`. The remainder is mostly topic headings ("Matter power spectrum"); "Measurements" and "Background" were refused as genuinely ambiguous. |
-| **Register fires on accepted prose** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.384 findings per 1,000 words**, 87.2% of documents, rank AUC **0.148** against machine text — it fires *more* on human papers than on AI drafts. 86.3% of those flags would vanish if the paper sat in its own bank. v0.30.0 published 0.991/93.6%/0.080; **58.7% of that was a projection defect**, not vocabulary — detection read whole files while the corpus df excluded front matter and bibliographies. |
-| **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's gate transfers almost exactly (0.2705 per passage against a 0.2710 expectation); precision and recall for the advice itself need `tools/label_findings.py`. |
+| **Register fires on accepted prose** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0858 findings per 1,000 words**, 44.8% of documents, rank AUC **0.286** against machine text — it still fires *more* on human papers than on AI drafts. 94.4% of the 198 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector; it is an advisory, cut at the first point where a referee-grade paper is not flagged more often than not. |
+| **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's gate transfers almost exactly (0.2775 per passage against a 0.2710 expectation), and 7.00% of the digits it read on LaTeX were citation years until v0.32.0; precision and recall for the advice itself need `tools/label_findings.py`. |
 | **A fresh clone measures nothing** | All profile assets are gitignored. Until you build a profile from your own papers, every corpus-referenced axis is `unmeasured`. |
 
 ### Roadmap
 
-Open, and it now carries a number: `L0.register`'s operating point must be re-derived
-against a held-out target rate. What it replaces — "needs a human-labelled validation
-set" — is closed by measurement: refereed ApJ/ApJL/A&A papers *are* human labels, and
-200 held-out ones scored both axes
-([§17](docs/architecture/evaluation/held-out-labels.md)). A labeller still
-judges whether an advisory is good *advice*; `label_findings.py` is that path.
+One item, and it needs a person rather than a machine: whether an individual advisory is good
+*advice*, and recall. Provenance cannot supply either; `label_findings.py` is that path.
+
+**Citation placement is measured but not shipped.** Machine methods sections cite in 36.7%
+of their sentences against 16.5% for refereed ones — section-matched AUC 0.866, length-matched
+0.835, human-vs-human null 0.553. It survives every control and waits on a second,
+independently produced AI bank, because one bank cannot separate "AI cites more" from "these
+prompts made it cite more" ([§18.6](docs/architecture/evaluation/projection-and-operating-point.md)).
 
 **Closed by refutation, not by shipping.** The length-aware manifold, a larger conformal
-calibration set, long-form tail power, three L3 retrains, and the held-out-vs-in-sample
-leakage contrast were built or tested and refuted; each is a row above. `deai_policy.json`
-stays withdrawn; anchors stay `[WGL]`. Detail: [§9.4c](docs/architecture/evaluation/document-scale.md),
-[§7.0a](docs/architecture/evaluation/learned-model.md), §17.3.
+calibration set, long-form tail power, three L3 retrains, the leakage contrast, and now the
+register operating point itself were built or tested and refuted — one row each above.
 
 ## Acknowledgments and license
 

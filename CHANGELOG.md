@@ -3,6 +3,120 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.32.0 — 2026-08-27
+
+Asked what was still open, the audit found two more places where the calibration
+side and the detection side were not reading the same text — and one of them let
+the **held-out evaluation set be collected as calibration input**.
+
+### A four-name allowlist against 46 citation commands
+
+`RE_TEX_CITE` matched `cite|citep|citet|citealt` and required the brace to
+follow the command name directly. The corpus carries **46 distinct cite-command
+names over 75,566 uses**, and an unmatched one falls through to
+`RE_TEX_SIMPLE_CMD`, whose job is to substitute a command's argument as text.
+So the bibliography key became a word: `\citep[e.g.][]{Smith2020}` → `Smith2020`.
+
+**8,835 leaking occurrences across 565 of 1,490 `.tex` files** — 8,100
+optional-argument forms, plus `\citealp`, `\citeyear`, `\citeauthor`,
+`\citenum`, `\citeyearpar`.
+
+Matched now **by shape, not by name**, in three behaviours, because three exist:
+a citation renders a mark, a declaration (`
+ocite`, `\setcitestyle`) renders
+nothing, and `\citetext` wraps prose the author wrote. A name allowlist is the
+wrong instrument — the tail is per-paper local macros (`\citeg`, `\citejap`,
+`\putcite`, one paper each). Verified exhaustively: 46 names × 5 written forms
+× both projections.
+
+### Seven per cent of the digits the salience axis read were citation years
+
+A bibliography key ends in a year, and `latex_to_numeral_text` keeps numerals so
+`deai_salience` can measure how a passage distributes its quantities. Over the
+203 held-out papers, digits **396,814 → 369,056 (−27,758, −7.00%)**. This is a
+correctness fix to a *shipped, `measured`* axis, larger in relative terms than
+the register effect that led to it. Control re-run, not assumed: **0 of 2,759**
+salience findings on those papers start on a bibliography line.
+
+### The held-out set could be collected as calibration input
+
+`corpus_documents` walks with `rglob` and filtered nothing, and both
+`deai_anchoring --calibrate` and `deai_docstructure --calibrate` take a
+`--corpus-dir` that the documentation points at the field root:
+
+| `--corpus-dir` | before | after |
+|---|---:|---:|
+| `style-corpus/wgl` | **717** | 517 |
+| `style-corpus/wgl/fulltext-arxiv` | 500 | 500 |
+| `style-corpus/wgl/fulltext-heldout` | 200 | 200 |
+
+The shipped baseline was 517 — built before the held-out set existed. Re-running
+the documented command today would have absorbed all 200 evaluation papers, with
+no error and nothing in the output but a count nobody was checking. The existing
+held-out test pinned `extract_style`'s source tuple, which this path never
+consults; the guard now lives in the collector, so every caller inherits it.
+
+### The register operating point, derived rather than estimated
+
+`MIN_MANUSCRIPT_USES = 5` was an estimate. Swept 5 → 50 against the 203 held-out
+papers and 173 machine documents, **rank AUC stays below 0.5 at every setting**:
+the axis fires more on refereed prose than on machine prose everywhere on the
+curve, and tightening silences the machine side faster. No setting makes it a
+detector, so the roadmap item is answered by refuting its premise. Cut at **15**,
+the first point where a referee-grade paper is not flagged more often than not.
+
+| | v0.31.0 | v0.32.0 |
+|---|---:|---:|
+| held-out register findings | 887 | **198** |
+| per 1,000 words | 0.3842 | **0.0858** |
+| documents flagged | 87.19% | **44.83%** |
+| rank AUC vs machine text | 0.1479 | **0.2856** |
+| paired leakage suppressed | 86.25% of 887 | **94.44% of 198** |
+| salience gates | | *unchanged* |
+
+`machine:ALL` register is byte-identical across the citation fix (63 findings,
+0.0917, 0.2428): those documents carry no LaTeX citations, so the fix cannot
+touch them. The sweep and the evaluator are separate programs and agree to four
+decimals on the flag rate at the chosen point.
+
+### A format variant is not a domain
+
+`wgl-letter` reported `degraded` since v0.30.1. Enlarging it is impractical
+(ApJL is 24 papers in 5,364 arXiv records) and wrong: register measures *domain*
+vocabulary and a letter is a *format*. On 36 letter-format documents the
+706-passage letter bank produced **262 findings the field bank did not** — `sne`,
+`bao`, `pantheon`, `posteriors`, and `letter` itself — against **2** the other
+way. A `<field>-<variant>` profile now judges against `<field>` and names the
+borrowed bank in `reference.borrowed_from`. Its corpus grew 706 → 1,574 passages,
+still 6.4× coarser than the gate, so the fallback stays active.
+
+### Citation placement: unblocked, measured, not shipped
+
+The projection fix unblocked de-AI frontier rank 6. Whole-document rank AUC is
+0.906 on cited-sentence fraction, but section-matched it is 0.616–0.866
+(strongest in `method`: human 0.1652 n=155 vs machine 0.3671 n=149),
+length-matched within that section 0.835, and the **human-vs-human null is
+0.553**. It survives every control and is the strongest model-free discriminator
+in the record — and it is not shipped, because all 173 machine documents come
+from one generation process and one bank cannot separate "AI cites more" from
+"these prompts made it cite more".
+
+### Also
+
+- Broadening the citation pattern reclassified **1,028 of 79,904** held-out
+  sentences (1.29%) from unanchored to anchored and **0** the other way; the
+  anchoring baseline was rebuilt from the corrected 517-document population.
+- `corpus_cos` ablation withdrawn rather than deferred: `confound_audit` bins on
+  record metadata the feature cache does not carry, so a cache-only ablation
+  computes a different statistic from the three recorded retrains, and its only
+  consumer is a `degraded` audit-only classifier with no shipped operating point.
+- Three register fixtures hard-coded 5 or 6 repetitions and would have gone
+  silently green-to-red at the new floor; they now derive the count from
+  `MIN_MANUSCRIPT_USES`.
+- `REFERENCE_DIR` and the collector's held-out rule now share one literal.
+
+328 tests across 17 files; validator 9/9.
+
 ## v0.31.0 — 2026-08-27
 
 Asked what was left undone, the answer turned out to be inside the number

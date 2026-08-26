@@ -25,6 +25,7 @@ lives in.
 | [architecture/evaluation/document-scale.md](architecture/evaluation/document-scale.md) | 9 | Whole-document dispersion: the keystone axis, its adversarial tiers and conformal operating points |
 | [architecture/evaluation/narrative-salience-register.md](architecture/evaluation/narrative-salience-register.md) | 11, 13–15 | Real rewrite evaluation, blind perceptual panel, salience hierarchy, domain register, narrative salience |
 | [architecture/evaluation/held-out-labels.md](architecture/evaluation/held-out-labels.md) | 17 | Held-out refereed papers as provenance labels: the register false-positive rate, the salience gate-transfer check, and the paired leakage test |
+| [architecture/evaluation/projection-and-operating-point.md](architecture/evaluation/projection-and-operating-point.md) | 18 | Citation projection symmetry, the digits the salience axis was misreading, the held-out collection guard, the register operating point derived against refereed prose, and citation placement measured but not shipped |
 
 ## The authority order
 

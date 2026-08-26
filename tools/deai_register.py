@@ -76,10 +76,23 @@ RE_BIB_ENV = re.compile(r"\\begin\{thebibliography\}.*?\\end\{thebibliography\}"
 RE_BIBITEM = re.compile(r"^\s*\\bibitem\b", re.MULTILINE)
 
 # A term must carry weight in the manuscript before its rarity means anything.
-# Five uses is the point at which a term is load-bearing vocabulary rather than
-# an incidental word; below it the corpus comparison is dominated by the
-# corpus's own sampling gaps.
-MIN_MANUSCRIPT_USES = 5
+# Five uses was an estimate; 15 is where the curve was cut once 203 held-out
+# refereed papers made the false-positive rate measurable (EVALUATION §18.4).
+# Sweeping this knob against those papers and 173 machine documents:
+#
+#   uses   human docs flagged   rank AUC (machine over human)
+#      5               85.2%    0.154
+#     10               60.1%    0.235
+#     15               44.8%    0.285
+#     50               12.3%    0.438
+#
+# The AUC column is why the operating point is not a detector threshold: it is
+# below 0.5 everywhere, so the axis fires MORE on refereed prose than on
+# machine prose at every setting, and tightening silences the machine side
+# faster than the human one. What the knob buys is advisory volume, and a
+# paper already good enough to referee should not draw an advisory more often
+# than not. 15 is the first setting on the curve below one document in two.
+MIN_MANUSCRIPT_USES = 15
 # Document-frequency rate below which the field corpus is judged not to use a
 # term. On the 15,599-passage reference this is single-digit passages: `AUC`
 # (6.4e-5) qualifies, while `logistic` (3.8e-4), `epoch` (2.7e-2) and
@@ -123,8 +136,42 @@ def load_lexicon(field_profile_dir: Path | None) -> dict[str, Any] | None:
     return data
 
 
+def resolving_lexicon(
+        field_profile_dir: Path | None) -> tuple[dict[str, Any] | None, Path | None]:
+    """The lexicon to judge against, and the profile it came from.
+
+    A register axis measures *domain* vocabulary, and a variant profile like
+    `wgl-letter` is a **format**, not a domain: a letter and a full paper in
+    one field share their words and differ in length and structure, which
+    other axes measure. Its 706-passage bank cannot express the 1e-4 gate, so
+    the rule collapses to "df == 0" and any field term the small bank happens
+    to lack reads as foreign. Measured on 36 letter-format documents, the
+    letter bank produced 262 findings the field bank did not -- `sne`, `bao`,
+    `pantheon`, `quasars`, `posteriors`, and the word `letter` itself -- to
+    2 in the other direction (EVALUATION §18.5).
+
+    So a `<field>-<variant>` profile whose own bank is too coarse falls back
+    to `<field>`, and the borrowed source is named in the axis status and in
+    every finding rather than being applied silently.
+    """
+    own = load_lexicon(field_profile_dir)
+    if own is None or field_profile_dir is None:
+        return own, field_profile_dir
+    if resolves_rare_rate(int(own.get("n_passages", 0))):
+        return own, field_profile_dir
+    base, sep, _ = field_profile_dir.name.partition("-")
+    if not sep or not base:
+        return own, field_profile_dir
+    sibling_dir = field_profile_dir.parent / base
+    sibling = load_lexicon(sibling_dir)
+    if sibling is None or not resolves_rare_rate(int(sibling.get("n_passages", 0))):
+        return own, field_profile_dir
+    return sibling, sibling_dir
+
+
 def register_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
-    lexicon = load_lexicon(field_profile_dir)
+    lexicon, source = resolving_lexicon(field_profile_dir)
+    borrowed = source is not None and source != field_profile_dir
     if lexicon is None:
         return feedback.axis_status(
             "L0.register", "unmeasured",
@@ -149,6 +196,15 @@ def register_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
                     f"{RARE_DF_RATE:.0e} gate. The rule in force is 'df == 0', "
                     f"not 'df rate below the gate'; a bank needs more than "
                     f"{int(1 / RARE_DF_RATE):,} passages to run the documented one"),
+            detector="deai_register",
+        )
+    if borrowed:
+        return feedback.axis_status(
+            "L0.register", "measured",
+            reason=(f"own bank too coarse for the {RARE_DF_RATE:.0e} gate; "
+                    f"judged against the same field's {source.name} bank "
+                    f"({n_passages:,} passages), because a format variant "
+                    f"shares its domain vocabulary"),
             detector="deai_register",
         )
     return feedback.axis_status("L0.register", "measured", detector="deai_register")
@@ -261,7 +317,7 @@ def corpus_document_frequency(term: str, table: dict[str, Any]) -> tuple[int, st
 
 def register_findings(text: str, field_profile_dir: Path | None,
                       path: str | Path | None = None) -> list[dict[str, Any]]:
-    lexicon = load_lexicon(field_profile_dir)
+    lexicon, source = resolving_lexicon(field_profile_dir)
     if lexicon is None:
         return []
     n_passages = int(lexicon.get("n_passages", 0))
@@ -298,8 +354,9 @@ def register_findings(text: str, field_profile_dir: Path | None,
                       "corpus_document_frequency": df,
                       "frequency_basis": basis,
                       "corpus_df_rate": round(rate, 8)},
-            reference={"field_profile": str(field_profile_dir)
-                       if field_profile_dir else None,
+            reference={"field_profile": str(source) if source else None,
+                       "borrowed_from": source.name
+                       if source and source != field_profile_dir else None,
                        "n_passages": n_passages,
                        "rare_df_rate": RARE_DF_RATE,
                        "min_manuscript_uses": MIN_MANUSCRIPT_USES,

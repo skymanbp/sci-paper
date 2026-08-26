@@ -676,3 +676,60 @@ class ExemplarRetrievalScopeTests(unittest.TestCase):
         # was rejected by argparse while the rows sat there.
         import retrieve_exemplars as rx
         self.assertIn("data", rx.VALID_SECTIONS)
+
+
+class CitationProjectionTests(unittest.TestCase):
+    r"""A bibliography key must never reach the prose as a word.
+
+    `RE_TEX_CITE` listed four command names and required the brace to follow
+    the name directly. The corpus carries 46 distinct cite-command names over
+    75,566 uses, and natbib's `\citep[e.g.][]{key}` -- 8,100 uses -- matched
+    none of them, so `RE_TEX_SIMPLE_CMD` substituted the argument as text.
+    Measured on 203 held-out refereed papers, 64 of 887 register findings
+    (7.2%) were leaked surnames: bethermin, rasia, leroy, ivison, tacconi.
+    """
+
+    LEAKY = ["citealp", "citeauthor", "citeyear", "citeyearpar", "citenum",
+             "citetalias", "citepalias", "citename", "citepads", "astroncite",
+             "Citet", "Citep", "Citealp", "citejap", "citeg"]
+
+    def test_the_optional_argument_form_does_not_leak(self):
+        for command in ("cite", "citep", "citet", "citealt"):
+            source = r"as shown by \%s[e.g.][]{Bethermin2012} here" % command
+            plain = es.latex_to_plain(source)
+            self.assertNotIn("Bethermin", plain, command)
+            self.assertIn("[CITE]", plain, command)
+
+    def test_every_surveyed_command_name_reduces_to_a_placeholder(self):
+        for command in self.LEAKY:
+            plain = es.latex_to_plain(r"see \%s{Rasia2014} now" % command)
+            self.assertNotIn("Rasia", plain, command)
+            self.assertIn("[CITE]", plain, command)
+
+    def test_a_local_macro_the_allowlist_never_saw_is_still_caught(self):
+        # \citeiac, \citepf, \putcite -- one paper each. Matching by shape is
+        # the only rule that covers a name nobody has written yet.
+        plain = es.latex_to_plain(r"see \citewhatever{Ivison2011} now")
+        self.assertNotIn("Ivison", plain)
+        self.assertIn("[CITE]", plain)
+
+    def test_declarations_leave_nothing_behind(self):
+        for source in (r"\nocite{Hutsemekers2010}",
+                       r"\defcitealias{Fu2022}{Paper~I}",
+                       r"\citestyle{aa}",
+                       r"\setcitestyle{citesep={,}}"):
+            plain = es.latex_to_plain("before " + source + " after").split()
+            self.assertEqual(plain, ["before", "after"], source)
+
+    def test_citetext_keeps_its_prose_and_reduces_its_nested_citations(self):
+        plain = es.latex_to_plain(
+            r"surveys \citetext{DES Collaboration \citeyear{des2005}} and")
+        self.assertIn("DES Collaboration", plain)
+        self.assertNotIn("des2005", plain)
+
+    def test_both_projections_treat_citations_alike(self):
+        # The two views share one pattern set by design, so a key stripped from
+        # one and left in the other would let them disagree about vocabulary.
+        source = r"we use \citep[e.g.][]{Tacconi2018} and \citealp{Leroy2013}"
+        self.assertNotIn("Tacconi", es.latex_to_numeral_text(source))
+        self.assertNotIn("Leroy", es.latex_to_numeral_text(source))

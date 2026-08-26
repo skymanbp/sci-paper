@@ -35,11 +35,12 @@ import cli_common  # noqa: E402 -- because the sys.path insert above must run fi
 # is hand-written, so `ReExportContractTests` asserts it stays complete --
 # it has caught three additions already.
 from extract_sections import (  # noqa: F401 -- re-export, unused here by design
-    CLASSIFIED_BUCKETS, _classified_word_count,
+    CALIBRATION_FULLTEXT, CLASSIFIED_BUCKETS, _classified_word_count,
     DEFAULT_SECTION_BUCKET, LIGATURE_TABLE, RE_ABSTRACT_ENV,
     RE_HEADING_CMD, RE_HEADING_DROP_ARG, RE_HEADING_MATH, RE_HEADING_TEXORPDF,
     RE_PDF_LINE_HEADER, RE_SECTION, RE_TEX_BEGIN_END, RE_TEX_BRACES,
-    RE_TEX_CITE, RE_TEX_COMMENT, RE_TEX_DISPLAY_MATH,
+    RE_TEX_CITE, RE_TEX_CITE_SILENT, RE_TEX_CITE_TEXT,
+    RE_TEX_COMMENT, RE_TEX_DISPLAY_MATH,
     RE_TEX_ENV_FIGURE_TABLE, RE_TEX_INCLUDEGRAPHICS, RE_TEX_INLINE_MATH,
     RE_TEX_DOC_MARKER, RE_TEX_INCLUDE,
     RE_TEX_LABEL_REF, RE_TEX_MATH_CMD, RE_TEX_SIMPLE_CMD, RE_TEX_THIN_COMMA,
@@ -67,7 +68,9 @@ TIER_WEIGHTS = {"tier-1-top": 0.5, "tier-2-mentor": 0.3, "tier-3-reference": 0.2
 # not restyle the imitation target. Both roles previously shared one file
 # list, which is why `results` sat at 26 observations -- under its own
 # 30-passage floor -- while 500 field papers sat unread on disk.
-REFERENCE_DIR = "fulltext-arxiv"
+# The name is owned by extract_sections, which needs it to tell this directory
+# apart from the held-out `fulltext-*` siblings it must refuse to collect.
+REFERENCE_DIR = CALIBRATION_FULLTEXT
 
 
 def list_fields(corpus_root: Path) -> list[str]:

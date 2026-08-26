@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pathlib
+import tempfile
 import unittest
 
 from _toolpath import TOOLS  # noqa: F401 -- because importing it is what puts tools/ on sys.path
@@ -31,6 +33,36 @@ class HeldOutIsActuallyHeldOutTest(unittest.TestCase):
 
     def test_the_two_populations_are_different_directories(self) -> None:
         self.assertNotEqual(ef.HELDOUT_DIR, ef.INSAMPLE_DIR)
+
+    def test_the_collector_refuses_a_heldout_bundle_under_a_field_root(self):
+        """The source tuple above is not the only way in.
+
+        `corpus_documents` walks whatever directory it is handed, and both
+        `deai_anchoring --calibrate` and `deai_docstructure --calibrate` hand
+        it a `--corpus-dir`. Pointed at a field root after the held-out set
+        landed, it collected 717 documents where the shipped baseline had 517
+        -- the extra 200 being the entire evaluation set, absorbed with no
+        error and no warning.
+        """
+        import extract_sections as es
+        with tempfile.TemporaryDirectory(prefix="heldout-") as raw:
+            root = pathlib.Path(raw)
+            body = "\\section{Methods}\nThe shear catalog is measured.\n"
+            for directory in (ef.INSAMPLE_DIR, ef.HELDOUT_DIR):
+                bundle = root / directory / "2101.00001v1"
+                bundle.mkdir(parents=True)
+                (bundle / "ms.tex").write_text(body, encoding="utf-8")
+            collected = {name for name, _ in es.corpus_documents(root)}
+            self.assertEqual(len(collected), 1)
+            # ...and asking for it by name is still allowed: that is deliberate,
+            # and it is how the evaluator reaches its own population.
+            self.assertEqual(
+                len(es.corpus_documents(root / ef.HELDOUT_DIR)), 1)
+
+    def test_the_calibration_directory_name_has_one_owner(self) -> None:
+        import extract_sections as es
+        self.assertEqual(extract_style.REFERENCE_DIR, es.CALIBRATION_FULLTEXT)
+        self.assertEqual(ef.INSAMPLE_DIR, es.CALIBRATION_FULLTEXT)
 
 
 class ThinPopulationTest(unittest.TestCase):

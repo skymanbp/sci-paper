@@ -28,6 +28,16 @@ NATIVE_PASSAGE = (
 )
 
 
+def foreign_document(term: str = "logit") -> str:
+    """A document carrying one foreign term often enough to clear the floor.
+
+    Derived from `MIN_MANUSCRIPT_USES` rather than written out, so moving the
+    operating point cannot silently turn these fixtures into no-ops.
+    """
+    return ("\\section{Validation}\n"
+            + f"The {term} values. " * register.MIN_MANUSCRIPT_USES + "\n")
+
+
 class TestTermNormalisation(unittest.TestCase):
     def test_possessive_folds_onto_the_bare_term(self):
         self.assertEqual(register.normalize("sub-halo's"), "sub-halo")
@@ -83,13 +93,16 @@ class TestFindings(unittest.TestCase):
             self.assertEqual(register.register_findings("AUC " * 10, profile), [])
 
     def test_foreign_macro_term_is_flagged_and_native_terms_are_not(self):
+        # The repetition count is derived, not written out: three fixtures once
+        # hard-coded 5 or 6 uses and went silently green-to-red the moment the
+        # operating point moved to 15 (EVALUATION section 18.4).
         with tempfile.TemporaryDirectory(prefix="register-") as raw:
             profile = build_profile(Path(raw), [NATIVE_PASSAGE] * 600)
             document = (
                 "\\newcommand{\\AUC}{\\mathrm{AUC}}\n"
                 "\\section{Validation}\n"
                 "The epoch and accuracy of the aperture mass are quoted. "
-                "We report \\AUC, \\AUC, \\AUC, \\AUC, \\AUC and \\AUC here.\n"
+                "We report " + "\\AUC, " * register.MIN_MANUSCRIPT_USES + "here.\n"
             )
             rules = {finding["rule"]
                      for finding in register.register_findings(document, profile)}
@@ -106,8 +119,7 @@ class TestFindings(unittest.TestCase):
     def test_findings_are_advisories_never_l0_targets(self):
         with tempfile.TemporaryDirectory(prefix="register-") as raw:
             profile = build_profile(Path(raw), [NATIVE_PASSAGE] * 600)
-            document = ("\\section{Validation}\n"
-                        "The logit, logit, logit, logit and logit values.\n")
+            document = foreign_document()
             findings = register.register_findings(document, profile)
             self.assertTrue(findings)
             for finding in findings:
@@ -211,9 +223,7 @@ class BankResolutionTest(unittest.TestCase):
         # findings, which is the one thing this repository must never do.
         with tempfile.TemporaryDirectory(prefix="register-") as raw:
             profile = build_profile(Path(raw), [NATIVE_PASSAGE] * 600)
-            document = ("\\section{Validation}\n"
-                        "The logit, logit, logit, logit and logit values.\n")
-            findings = register.register_findings(document, profile)
+            findings = register.register_findings(foreign_document(), profile)
             self.assertTrue(findings)
             for finding in findings:
                 self.assertEqual(finding["measurement_status"], "degraded")
@@ -224,11 +234,75 @@ class BankResolutionTest(unittest.TestCase):
         # rule than the documented one. Both are degraded; only one is silent.
         with tempfile.TemporaryDirectory(prefix="register-") as raw:
             profile = build_profile(Path(raw), [NATIVE_PASSAGE] * 10)
-            document = ("\\section{Validation}\n"
-                        "The logit, logit, logit, logit and logit values.\n")
-            self.assertEqual(register.register_findings(document, profile), [])
+            self.assertEqual(
+                register.register_findings(foreign_document(), profile), [])
             self.assertEqual(
                 register.register_axis_status(profile)["status"], "degraded")
+
+
+class SameFieldFallbackTest(unittest.TestCase):
+    """A format variant borrows its field's bank, and says so.
+
+    `wgl-letter` is a format, not a domain. Its 706-passage bank cannot express
+    the 1e-4 gate, so "rare" collapsed to "df == 0" and core cosmology terms
+    read as foreign: on 36 letter-format documents the letter bank produced 262
+    findings the field bank did not -- `sne`, `bao`, `pantheon`, `posteriors`,
+    and the word `letter` itself -- against 2 the other way.
+    """
+
+    def _pair(self, root: Path) -> Path:
+        build_profile(root / "fld", [NATIVE_PASSAGE] * 12000)
+        return build_profile(root / "fld-letter", [NATIVE_PASSAGE] * 600)
+
+    def test_a_coarse_variant_borrows_the_field_bank(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            root = Path(raw)
+            (root / "fld").mkdir()
+            (root / "fld-letter").mkdir()
+            variant = self._pair(root)
+            _, source = register.resolving_lexicon(variant)
+            self.assertEqual(source.name, "fld")
+
+    def test_the_borrowed_bank_is_named_not_applied_silently(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            root = Path(raw)
+            (root / "fld").mkdir()
+            (root / "fld-letter").mkdir()
+            status = register.register_axis_status(self._pair(root))
+            self.assertEqual(status["status"], "measured")
+            self.assertIn("fld", status["reason"])
+            finding = register.register_findings(foreign_document(),
+                                                 root / "fld-letter")[0]
+            self.assertEqual(finding["reference"]["borrowed_from"], "fld")
+
+    def test_a_field_with_no_variant_suffix_never_borrows(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            root = Path(raw) / "solo"
+            root.mkdir()
+            build_profile(root, [NATIVE_PASSAGE] * 600)
+            _, source = register.resolving_lexicon(root)
+            self.assertEqual(source, root)
+
+    def test_a_variant_whose_field_is_also_coarse_stays_degraded(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            root = Path(raw)
+            (root / "fld").mkdir()
+            (root / "fld-letter").mkdir()
+            build_profile(root / "fld", [NATIVE_PASSAGE] * 600)
+            variant = build_profile(root / "fld-letter", [NATIVE_PASSAGE] * 600)
+            self.assertEqual(register.resolving_lexicon(variant)[1], variant)
+            self.assertEqual(
+                register.register_axis_status(variant)["status"], "degraded")
+
+    def test_a_bank_that_resolves_keeps_its_own(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            root = Path(raw)
+            (root / "fld").mkdir()
+            (root / "fld-letter").mkdir()
+            build_profile(root / "fld", [NATIVE_PASSAGE] * 12000)
+            variant = build_profile(root / "fld-letter",
+                                    [NATIVE_PASSAGE] * 12000)
+            self.assertEqual(register.resolving_lexicon(variant)[1], variant)
 
 
 if __name__ == "__main__":

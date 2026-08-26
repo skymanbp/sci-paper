@@ -2,16 +2,16 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.31.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.32.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-315%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-328%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**8 个 skill · 32 个工具 · 315 个测试 · 一份规范 · 零作者身份判决。**
+**8 个 skill · 32 个工具 · 328 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
@@ -413,7 +413,7 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 | `+ --oracle`（GPT-2-large token surprisal） | 23.1 s | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` —— **9/9 通过** | 359 ms | 标准库 |
-| 完整测试套件 —— **315 通过**，17 个文件 | 35.5 s | 标准库 |
+| 完整测试套件 —— **328 通过**，17 个文件 | 47.3 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
 334 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 60–80 倍，并且是显式 opt-in 的
@@ -571,9 +571,9 @@ style-profile/<field>/                  生成的证据（gitignore）
 
 | 制品 | 规模 |
 |---|---|
-| `exemplar_paragraphs.jsonl` | **27,951** 个按 section 分类的段落，来自 19 篇精选 + 500 篇参照论文 |
-| `register_lexicon.json` | 41,593 个 passage · 55,133 个词条 |
-| `uid_baseline.json` | 27,951 段（GPT-2-large）· 合并 global UID 3.321 ± 0.439 |
+| `exemplar_paragraphs.jsonl` | **27,917** 个按 section 分类的段落，来自 19 篇精选 + 500 篇参照论文 |
+| `register_lexicon.json` | 41,559 个 passage · 53,293 个词条 |
+| `uid_baseline.json` | 27,917 段（GPT-2-large）· 合并 global UID 3.321 ± 0.439 |
 | `structure_baseline.json` | method 9,522 · results 3,964 · data 3,915 · intro 3,844 · discussion 3,653 · conclusion 2,610 · abstract 433 |
 | `salience_baseline.json` | abstract 13,823 · method 6,964 · intro 3,267 · results 3,210 · data 3,023 · discussion 2,963 · conclusion 1,995 |
 | `docstructure_baseline.json` | 507 篇完整文档 · conformal α 0.05 · 长度分层 [46, 75] |
@@ -645,7 +645,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 ## 现状、已知限制与路线图
 
-当前版本：**v0.31.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
+当前版本：**v0.32.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
 
 **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.7 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层、`calibration_unit` 置信度封顶、§5.2 去 AI 化
@@ -665,25 +665,27 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` —— 现在是有*测量依据*的。burstiness 在对抗文本上符号反转（AUC 0.181），signposting 低于随机（0.247），根本写不出一个操作点。 |
 | **重训不保证行为等价** | 重建 profile 会重拟 L3。排序保持 ρ 0.846、分诊重合 0.654，但旧的分诊清单不会一字不差复现。 |
 | **语料有四分之一从未被用上** | 匹配不到任何 section 桶的标题是被丢弃，而不是被猜进某个桶：`wgl` 里 9,178 个标题中有 **2,334 个（25.4%）**，`wgl-letter` 里 148 个中有 42 个。剩下的多是主题标题（"Matter power spectrum"）；"Measurements" 与 "Background" 因真歧义被拒绝加入。 |
-| **register 在已发表文字上照样开火** | 在它从没见过的 203 篇留出 ApJ/ApJL/A&A 已发表论文上实测：**每千词 0.384 条**，87.2% 的文档命中，对机器文本的秩 AUC **0.148** —— 它在人类论文上比在 AI 草稿上更爱开火。其中 86.3% 的 flag 只要论文自己在库里就会消失。v0.30.0 曾发布 0.991／93.6%／0.080，其中 **58.7% 是投影缺陷**而非词汇证据：检测读整份文件，而语料 df 早已剥掉前置信息与参考文献。 |
-| **建议质量仍未被标注** | 出处只能回答「它是否在已发表文字上开火」，回答不了「这条建议对不对」。salience 的门迁移得几乎精确（逐 passage 0.2705，期望 0.2710）；建议本身的精确率与召回率仍需 `tools/label_findings.py`。 |
+| **register 在已发表文字上照样开火** | 在它从没见过的 203 篇留出 ApJ/ApJL/A&A 已发表论文上实测：**每千词 0.0858 条**，44.8% 的文档命中，对机器文本的秩 AUC **0.286** —— 它在人类论文上仍比在 AI 草稿上更爱开火。剩下 198 条 flag 里，94.4% 只要论文自己在库里就会消失。把用词门槛从 5 扫到 50，AUC **处处低于 0.5**：没有任何设置能把它变成检测器，它就是一条建议，切在「一篇够格送审的论文不会过半被点名」的第一个点上。 |
+| **建议质量仍未被标注** | 出处只能回答「它是否在已发表文字上开火」，回答不了「这条建议对不对」。salience 的门迁移得几乎精确（逐 passage 0.2775，期望 0.2710）；而在 v0.32.0 之前，它在 LaTeX 上读到的数字有 7.00% 是引用年份；建议本身的精确率与召回率仍需 `tools/label_findings.py`。 |
 | **全新 clone 什么都测不出来** | 全部 profile 制品都 gitignore。在你用自己的论文建出 profile 之前，每条语料参照的轴都是 `unmeasured`。 |
 
 ### 路线图
 
-只剩一项敞着，而且它现在带着数字：`L0.register` 的操作点必须对着一个留出目标率
-重新推导。它取代的那一项 ——「需要人工标注验证集」—— 已由测量收口：已发表的
-ApJ/ApJL/A&A 论文**本身就是人类标签**，200 篇留出论文测了两条轴
-（[§17](docs/architecture/evaluation/held-out-labels.md)）。标注者仍能补上的，
-是「这条建议是不是好建议」，那条路径依然是 `label_findings.py`。
+只剩一项，而且它需要人而不是机器：**一条建议是不是好建议**，以及召回率。已发表论文
+标注的是「它有没有在已发表文字上开火」，不是「开得对不对」；那条路径是
+`label_findings.py`。工程清单已经清空。
 
-**以证伪收口，不是以发布收口。** 长度感知流形已经做出来了 —— 从协方差里减掉拟合集
-平均的 `1/(2(n-1))` 估计噪声，打分时再按每份文档自己的量加回去 —— 12 组配对 seed 下，
-人类误标率一点没动，两个 AI tier 反而变差。扩大 conformal 标定集是同样的结局：
-尾部功效持平，人类误标率单调恶化。长文在试过的每种配置下都停在 0.000。
-拿留出集对比样本内集来估泄漏同样被否决 —— 两组论文年代不重叠，那个差里混着六年词汇
-漂移，改用同一批论文的配对测量（§17.3）。`deai_policy.json` 维持撤回；细节见
-[§9.4c](docs/architecture/evaluation/document-scale.md)。
+**citation placement 已测出来，但不发布。** 机器写的 method 段有 36.7% 的句子带引用，
+已发表论文是 16.5% —— 体裁匹配后 AUC 0.866，长度匹配 0.835，人类对人类零假设 0.553。
+三重对照全部存活，是本记录里最强的无模型判别量。不发布的理由只有一个：173 篇机器文本
+出自同一套生成流程，一个库分不开「AI 引用更多」和「这批提示词让它引用更多」
+（[§18.6](docs/architecture/evaluation/projection-and-operating-point.md)）。
+
+**以证伪收口，不是以发布收口。** 长度感知流形、扩大 conformal 标定集、长文尾部功效、
+三次 L3 重训、留出对样本内的泄漏估计，以及这次的 register 操作点本身 —— 全部做出来、
+测过、然后被否决，每一条在上表里都有自己的一行。`deai_policy.json` 维持撤回；细节见
+[§9.4c](docs/architecture/evaluation/document-scale.md)、
+[§18.4](docs/architecture/evaluation/projection-and-operating-point.md)。
 
 **v0.28.0 已收口。** `deai_policy.json` 是**撤回**而非推迟：在 500 篇人类论文上测量，
 它要设阈值的那两个统计量都不具判别力

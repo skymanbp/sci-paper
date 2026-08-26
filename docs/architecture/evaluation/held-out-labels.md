@@ -1,4 +1,4 @@
-# EVALUATION — Held-out refereed papers as labels · `sci-paper` v0.31.0
+# EVALUATION — Held-out refereed papers as labels · `sci-paper` v0.32.0
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the
@@ -105,9 +105,21 @@ sentence is beyond improvement — but it is the rate at which a reader of a
 finished paper will meet the advisory, and it is high. The axis stays
 `advisory`, which is the consequence class this behaviour warrants; what it
 does not yet have is an operating point derived against a held-out target
-rate. That is now a concrete open item with a number attached, replacing the
-vague one it closes.
+rate. That open item was closed in [§18.4](projection-and-operating-point.md)
+by refuting its premise: rank AUC stays below 0.5 at every setting, so no
+operating point makes this a detector.
 
+> **⚠️ Superseded (v0.32.0).** Every register figure in §17.2–17.4 was
+> re-measured in [§18.4](projection-and-operating-point.md): **0.0858** per
+> 1,000 words on **44.83%** of documents, AUC **0.2856**, leakage **94.44% of
+> 198**. Two changes, both in that release — the citation projection stopped
+> leaking bibliography keys into prose (§18.1), and `MIN_MANUSCRIPT_USES` moved
+> 5 → 15 once the sweep showed rank AUC below 0.5 at every setting. The salience
+> figures below also moved slightly, because removing 7.00% of the digits the
+> numeral projection carried (§18.2) shifted both the reference and the measured
+> side. Read §18 for current values; this section is kept for its method and its
+> history.
+>
 > **⚠️ Correction (2026-08-27, v0.31.0).** The figures above replace those
 > v0.30.0 published — **0.991** per 1,000 words on **93.6%** of documents, AUC
 > 0.080, leakage 72.7% of 2,287. Those were measured with a projection defect:
@@ -124,7 +136,9 @@ a rate below 1/n, so under 10,000 passages this gate collapses to "df == 0". Tha
 rejected a subfield bank but never became a guard, and the shipped `wgl-letter`
 profile — **706** passages, **14.2× coarser** — reported `measured` with `reason:
 null`. It now reports `degraded`, and its findings carry `measurement_status:
-degraded` rather than being silenced. `wgl` (2.4e-5) is unaffected.
+degraded` rather than being silenced. `wgl` (2.4e-5) is unaffected. Since
+v0.32.0 such a profile also borrows its field's bank rather than only declaring
+itself coarse ([§18.5](projection-and-operating-point.md)).
 
 ### 17.5 Salience: calibration transfers, essentially exactly
 

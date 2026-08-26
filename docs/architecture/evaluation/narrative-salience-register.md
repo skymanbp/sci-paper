@@ -1,4 +1,4 @@
-# EVALUATION — Real rewrite evaluation, perceptual panel, salience, register, narrative · `sci-paper` v0.31.0
+# EVALUATION — Real rewrite evaluation, perceptual panel, salience, register, narrative · `sci-paper` v0.32.0
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the

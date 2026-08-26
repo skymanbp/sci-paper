@@ -76,6 +76,7 @@ SECTION_PATTERNS: list[tuple["re.Pattern[str]", str]] = [
 # Never "method". An unrecognised heading is an unknown section, and a reference
 # distribution built from unknowns is not a per-section reference at all.
 DEFAULT_SECTION_BUCKET = "unknown"
+CALIBRATION_FULLTEXT = "fulltext-arxiv"  # every other fulltext-* is held out
 
 
 def classify_section(name: str) -> str:
@@ -102,7 +103,24 @@ RE_TEX_INLINE_MATH = re.compile(r"\$[^$]+\$|\\\(.+?\\\)", re.DOTALL)
 RE_TEX_ENV_FIGURE_TABLE = re.compile(
     r"\\begin\{(figure|table|figure\*|table\*)\}.*?\\end\{\1\}", re.DOTALL
 )
-RE_TEX_CITE = re.compile(r"\\(?:cite|citep|citet|citealt)\*?\{[^}]*\}")
+# Citations, in three behaviours (EVALUATION section 18). A four-name allowlist
+# missed 42 of the corpus's 46 cite-command names, and all four of the ones it
+# had whenever they carried natbib's optional argument, so the key of
+# \citep[e.g.][]{Smith2020} fell through to RE_TEX_SIMPLE_CMD -- which
+# substitutes a command's argument as text -- and entered the prose as a word.
+# (1) Renders nothing: declarations and \nocite. One brace nesting level, for
+# \setcitestyle{citesep={,}}.
+RE_TEX_CITE_SILENT = re.compile(
+    r"\\(?:nocite[a-z]*|defcitealias|citestyle|setcitestyle|newcites"
+    r"|shortcites|mciteSet[A-Za-z]*)\*?(?:\s*\[[^\]]*\])*"
+    r"(?:\s*\{(?:[^{}]|\{[^{}]*\})*\})+")
+# (2) \citetext{...} wraps prose, so the argument survives and its nested
+# citations are reduced by (3) on the same pass.
+RE_TEX_CITE_TEXT = re.compile(r"\\citetext\*?\s*\{")
+# (3) Every other name carrying "cite": a placeholder, never a key. Matched by
+# shape -- the next paper's local \citefoo is in no allowlist writable today.
+RE_TEX_CITE = re.compile(
+    r"\\[A-Za-z]*[Cc]ite[A-Za-z]*\*?(?:\s*\[[^\]]*\])*\s*\{[^{}]*\}")
 RE_TEX_LABEL_REF = re.compile(r"\\(?:label|ref|eqref|cref|Cref)\{[^}]*\}")
 RE_TEX_INCLUDEGRAPHICS = re.compile(r"\\includegraphics(\[[^\]]*\])?\{[^}]*\}")
 # \begin{X} and \end{X} markers — drop entirely so the env name
@@ -176,6 +194,8 @@ def latex_to_plain(text: str) -> str:
     text = RE_TEX_DISPLAY_MATH.sub(" [MATH] ", text)
     text = RE_TEX_INLINE_MATH.sub(" [math] ", text)
     text = RE_TEX_ENV_FIGURE_TABLE.sub(" [FIGURE-OR-TABLE] ", text)
+    text = RE_TEX_CITE_SILENT.sub(" ", text)
+    text = RE_TEX_CITE_TEXT.sub(" ", text)
     text = RE_TEX_CITE.sub(" [CITE] ", text)
     text = RE_TEX_LABEL_REF.sub("", text)
     text = RE_TEX_INCLUDEGRAPHICS.sub("", text)
@@ -214,6 +234,8 @@ def latex_to_numeral_text(text: str) -> str:
     text = RE_TEX_DISPLAY_MATH.sub(" ", text)
     text = RE_TEX_INLINE_MATH.sub(_math_numerals, text)
     text = RE_TEX_ENV_FIGURE_TABLE.sub(" ", text)
+    text = RE_TEX_CITE_SILENT.sub(" ", text)
+    text = RE_TEX_CITE_TEXT.sub(" ", text)
     text = RE_TEX_CITE.sub(" ", text)
     text = RE_TEX_LABEL_REF.sub("", text)
     text = RE_TEX_INCLUDEGRAPHICS.sub("", text)
@@ -392,7 +414,10 @@ def corpus_documents(corpus_dir: Path) -> list[tuple[str, str]]:
     tex: dict[Path, list[Path]] = defaultdict(list)
     md: dict[Path, list[Path]] = defaultdict(list)
     for path in sorted(corpus_dir.rglob("*")):
-        if not path.is_file():
+        # because rglob cannot know a held-out bundle is not calibration input
+        if not path.is_file() or any(
+                part.startswith("fulltext-") and part != CALIBRATION_FULLTEXT
+                for part in path.relative_to(corpus_dir).parts[:-1]):
             continue
         suffix = path.suffix.lower()
         if suffix == ".tex":
