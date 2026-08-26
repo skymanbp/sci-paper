@@ -39,26 +39,37 @@ def utf8_stdout() -> None:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
-def base_parser(doc: str | None) -> argparse.ArgumentParser:
+def base_parser(doc: str | None, **kwargs) -> argparse.ArgumentParser:
     """An ArgumentParser whose description is the caller's first docstring line.
 
     `validate_plugin`'s entry-point check reads that description, so a tool that
     loses it fails the contract rather than merely looking bare in `--help`.
     """
     return argparse.ArgumentParser(
-        description=(doc or "").splitlines()[0] if doc else None)
+        description=(doc or "").splitlines()[0] if doc else None, **kwargs)
+
+
+def field_options(*, corpus: bool = False) -> argparse.ArgumentParser:
+    """The field options alone, as an `add_help=False` parent parser.
+
+    A tool with subcommands needs these on each subparser, not only on the root:
+    argparse hands everything after the subcommand name to the subparser, so a
+    root-only `--field` forces `tool --field wgl sample` while every other tool
+    in the suite accepts `--field` last. Pass this in `parents=`.
+    """
+    parent = argparse.ArgumentParser(add_help=False)
+    parent.add_argument("--field", default=None,
+                        help="Field name; auto-detected when only one exists.")
+    parent.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
+    if corpus:
+        parent.add_argument("--corpus-root", type=Path, default=DEFAULT_CORPUS_ROOT)
+    return parent
 
 
 def field_parser(doc: str | None, *, corpus: bool = False
                  ) -> argparse.ArgumentParser:
     """`base_parser` plus the options every field-aware tool takes."""
-    parser = base_parser(doc)
-    parser.add_argument("--field", default=None,
-                        help="Field name; auto-detected when only one exists.")
-    parser.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
-    if corpus:
-        parser.add_argument("--corpus-root", type=Path, default=DEFAULT_CORPUS_ROOT)
-    return parser
+    return base_parser(doc, parents=[field_options(corpus=corpus)])
 
 
 def list_fields(root: Path, *, exclude_prefixes: tuple[str, ...] = ()) -> list[str]:

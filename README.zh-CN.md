@@ -5,17 +5,17 @@
 [![Version](https://img.shields.io/badge/version-0.29.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-268%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-273%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**8 个 skill · 30 个工具 · 268 个测试 · 一份规范 · 零作者身份判决。**
+**8 个 skill · 31 个工具 · 273 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
-[Skills](#skills8-个) · [Tools](#tools30-个) ·
+[Skills](#skills8-个) · [Tools](#tools31-个) ·
 [已知限制](#现状已知限制与路线图) ·
 [规范正文](docs/SCIPAPER_STANDARD.md) · [文档索引](docs/README.md)
 
@@ -64,7 +64,7 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 | **七** | **打磨基金申请书** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description、NIH Specific Aims、fellowship。保留论文会删掉的"愿景+可行性"语域，强制 claim 与可行性匹配，最狠地打磨决定评分的前几页。 |
 | **八** | **探索研究方向** | [`brainstorm`](skills/brainstorm/SKILL.md) | 辐射状研究方向探索器：每节点 12 条 framing pass、术语锚定到 glossary、每分支完整推导、递归发散直到收敛。严禁 defer / future-work / 半成品叶节点。 |
 
-八项功能跑在同一层证据之上 —— 30 个工具输出同一套 schema
+八项功能跑在同一层证据之上 —— 31 个工具输出同一套 schema
 `sci-paper.feedback.v1` —— 所以 linter、审查 skill 和编排器给出的 finding
 是同一个对象、同一个 ID。
 
@@ -72,7 +72,7 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 
 | 它不会 | 因为 |
 |---|---|
-| 给出作者身份判决或 "AI 百分比" | 学习型轴只是**领域相似度分诊**，在段落尺度封顶 0.5 置信度。它在领域主题 AI 文本上的假阳率是 28–41%（[为什么](#为什么没有单一分数l3-的混淆)）。 |
+| 给出作者身份判决或 "AI 百分比" | 学习型轴只是**领域相似度分诊**，在段落尺度封顶 0.5 置信度。它在领域主题 AI 文本上的假阳率是 28–39%（[为什么](#为什么没有单一分数l3-的混淆)）。 |
 | 给出论文级 PASS/FAIL | 终止态是 *disposition-complete*，不是"零条 advisory"。 |
 | 把缺失的基线当成零个 finding | 测不了的轴报 `unmeasured` / `degraded`，并写明原因。 |
 | 为了绕过检测器而优化文字 | 改写排序优化的是忠实的科学文字。保真是硬门，不是权重。 |
@@ -372,7 +372,7 @@ AUC 是长度公平的：每份文档只跟**自己那个长度层**的人类论
 ### 为什么没有单一分数：L3 的混淆
 
 学习型段落尺度模型效果不错 —— 而它**依然**以 `degraded` 发布，理由是测出来的。
-2026-08-25 用 41,641 条记录（前一版的 2.6 倍）重训。
+2026-08-26 用 44,576 条记录重训。
 来源：[§7](docs/architecture/evaluation/learned-model.md)。
 
 | 指标 | 值 | 95% 切分区间 | 上一版语料 |
@@ -385,7 +385,7 @@ AUC 是长度公平的：每份文档只跟**自己那个长度层**的人类论
 | 假阳率 —— **领域主题 AI 文本** | **0.285** | 0.209 – 0.344 | 0.318 |
 | 假阳率 —— **领域术语密集 AI 文本** | **0.410** | 0.271 – 0.534 | 0.417 |
 
-0.95 的 AUC 头条数字，和 28–41% 的领域主题假阳率，是同一个模型。学习型分数有一
+0.95 的 AUC 头条数字，和 28–39% 的领域主题假阳率，是同一个模型。学习型分数有一
 部分测的是*领域 register*，所以它恰恰在"去 AI 必须抓住的那个分布"上不可靠。
 **把语料放大 2.6 倍并没有修好它** —— 术语密集档 0.417 → 0.410，落在切分区间内 ——
 两次在规模差异极大的语料上的重训，现在一致指向：这个混淆属于特征集，不属于某一份
@@ -413,7 +413,7 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 | `+ --oracle`（GPT-2-large token surprisal） | 23.1 s | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` —— **9/9 通过** | 359 ms | 标准库 |
-| 完整测试套件 —— **268 通过**，15 个文件 | 57.8 s | 标准库 |
+| 完整测试套件 —— **273 通过**，16 个文件 | 52.4 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
 334 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 60–80 倍，并且是显式 opt-in 的
@@ -489,7 +489,7 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 - **审** —— [`paper-review`](skills/paper-review/SKILL.md) · [`figure-review`](skills/figure-review/SKILL.md) · [`final-review`](skills/final-review/SKILL.md)
 - **探索** —— [`brainstorm`](skills/brainstorm/SKILL.md)
 
-## Tools（30 个）
+## Tools（31 个）
 
 每条 finding 统一走 `sci-paper.feedback.v1` 契约；语料/训练类条目产出的是
 artifact。`layer` 列是该工具服务的轴 —— `core` 契约与闸门，`build` 语料与
@@ -518,6 +518,7 @@ profile 构建，`eval` 可复现的证据。逐工具细节见 [tools/README.md
 | `tools/deai_partition.py` | L4 | 不动一个 token 的合并/拆分建议，把文档推向人类 dispersion band。只建议，由作者手动应用。 |
 | `tools/deai_provenance.py` | L4 | 基于作者**自己**草稿历史的编辑 provenance 账本；按 token 编辑比把每段标为 AI-untouched → author-original。不是检测器；没有 AI 草稿祖先时为 `unmeasured`。 |
 | `tools/deai_personal.py` | L4 | 个人 dispersion 基线，对照作者自己以前的论文 —— 一个无混淆的同作者参照。少于三篇时为 `unmeasured`。 |
+| `tools/label_findings.py` | eval | 把 register 与 salience 的 finding 抽成人工标注表，再盲发一个子集算 intra-rater 一致性，并按「你的草稿 / 已发表论文」分层报 precision/recall。任何不足 20 条标注的分层一律报 `unmeasured`，不给数字。 |
 | `tools/eval_docscale.py` | eval | 复现 §9 的全文尺度表 —— 人类误标率与逐 tier 尾部功效 —— 把语料与每个 `docval` tier 都送进 finding 用的同一个操作点。 |
 | `tools/build_profile.py` | build | 构建基础 field profile：抽取、可选的旧版分类器、范例缓存预热。 |
 | `tools/cli_common.py` | build | 共享的命令行前置：UTF-8 stdout，以及每个 field 感知工具都要的 `--field` / `--profile-root` 选项。不持有任何策略。 |
@@ -576,7 +577,7 @@ style-profile/<field>/                  生成的证据（gitignore）
 | `salience_baseline.json` | abstract 13,823 · method 6,964 · intro 3,267 · results 3,210 · data 3,023 · discussion 2,963 · conclusion 1,995 |
 | `docstructure_baseline.json` | 507 篇完整文档 · conformal α 0.05 · 长度分层 [46, 75] |
 | `anchoring_baseline.json` | 517 篇文档 · 六个 section 类全部高于 30 篇下限 |
-| `voice_model.joblib` | 41,641 条记录 · 14 个特征 · **无操作点**，`degraded` |
+| `voice_model.joblib` | 44,576 条记录 · 14 个特征 · **无操作点**，`degraded` |
 
 每个桶都过了 30 passage 下限，没有一个是"仅排序" —— 这在 2026-08-25 之前并不成立：
 当时 `results` 只有 26，而那被误诊为语料量不足。语料内容是**只读、受版权保护的输入**，
@@ -656,7 +657,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 |---|---|
 | **没有学习型模型的操作点** | L3 以 `degraded` 发布。文档级 surprisal 路径已被*测量证明*给不出操作点（0.757 vs model-free 流形的 0.881）。 |
 | **尾部功效数字是单次抽样** | 流形各 tier 的逐 seed 标准差是 0.04–0.18，比记录里几处曾被读作"提升"的差还大。`tools/eval_docscale.py` 用来重跑，而不是引用。 |
-| **领域主题假阳** | 在领域主题与术语密集 AI 文字上 28–41%，把训练语料放大 2.6 倍也没动。这就是没有单一分数的原因。 |
+| **领域主题假阳** | 在领域主题与术语密集 AI 文字上 28–39%。**已以决定收口**：跨 2.6 倍语料区间的三次重训一致表明混淆在特征集里，因此这套特征拿不到对领域主题稳健的操作点。 |
 | **短文档尾部功效** | 流形对短的自然 AI 文档，12 个 seed 平均 **0.170 ± 0.110**，而长度公平排序是 0.933。三条修法都做了、都失败：距离归一化（已否决）、更细分层、显式估计噪声协方差。 |
 | **长文生成抓不到** | α = 0.05 下流形对长文 AI 的尾部功效是 **0.000** —— 在 2 种度量 × 4 种标定切分 × 12 个 seed 下都稳定。排序 AUC 是 0.729，说明信号在，操作点够不着。 |
 | **协作层工具** | `deai_provenance` 与 `deai_personal` 在作者提供自己的草稿历史或 ≥ 3 篇既往论文之前，诚实地保持 `unmeasured`。 |

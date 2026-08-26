@@ -91,10 +91,41 @@ test reached `build_features`. A real retrain found it. `test_train_voice_model`
 now walks the AST of every file in `tools/` for names that are neither defined
 nor imported, so the next split cannot fail that way.
 
+### The last L3 question, answered by a third replication
+
+The roadmap carried "a field-topic-robust L3 operating point, **or a recorded
+decision that one is not obtainable from this feature set**". Retraining on the
+rebuilt 44,576-record bank is the third independent answer, and the three agree:
+
+| negative control | 44,576 | 41,641 | 17,299 |
+|---|---:|---:|---:|
+| public-generic generated | **0.052** | 0.053 | 0.086 |
+| field-topic generated | **0.280** | 0.285 | 0.318 |
+| field-jargon-dense generated | **0.393** | 0.410 | 0.417 |
+
+Every movement across a 2.6× bank increase sits inside a single retrain's own
+20-split range (field-topic 0.208–0.344), while headline AUC moves the *other*
+way, 0.9320 → 0.9518. More data buys the easy contrast and nothing on the one
+that matters — a feature-set confound, not a sampling limit. **Decision recorded:
+not obtainable from this feature set.** Reopening it needs different features.
+
+That leaves exactly one open item, and it is blocked on labels rather than on
+work: human-labelled validation for salience and register.
+
 ### Added
 
 - **`tools/eval_docscale.py`** — reproduces the §9 table (human false-flag rate,
   per-tier tail power, rank AUC) through `manifold_operating_point`.
+- **`tools/label_findings.py`** — the labelling harness for that last item, built
+  to the scheme chosen on 2026-08-26: finding-level labels, one labeller plus a
+  blind re-label subset for intra-rater agreement, drafts and published papers
+  sampled and reported separately. It calibrates nothing. A stratum under 20
+  labels reports `unmeasured` rather than a rate — the instrument that judges
+  these axes must not be where 2-of-3 becomes "precision 0.667" — and the
+  intra-rater kappa prints as the ceiling no axis can be held above.
+- **`tests/_toolpath.py`** — the test suite's own duplicated preamble, collapsed
+  the same way the CLI one was; 13 of 16 test files retrofitted, the other three
+  refused because they invoke tools as subprocesses and never touch `sys.path`.
 - **`tools/cli_common.py`** — the shared CLI preamble and field resolution. The
   argparse opener was duplicated across the suite and `list_fields` /
   `resolve_field` existed in five byte-equivalent copies; the duplicate-content

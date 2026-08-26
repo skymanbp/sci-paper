@@ -16,25 +16,50 @@ nothing here can redefine it. All machine-readable findings use the
 
 The current
 `style-profile/wgl/voice_model.joblib` bundle
-was **retrained locally on 2026-08-25** (RTX 4060 Ti) after the corpus-layer rebuild
-took the curated-field bank from 15,034 to 39,376 positive records, and re-evaluated
-with the same confound-aware audit. It supersedes the 2026-08-17 retrain, which itself
-superseded the 2026-07-12 cloud run. The full machine-readable audit is
+was **retrained locally on 2026-08-26** (RTX 4060 Ti) after the heading-coverage
+rebuild took the curated-field bank to 42,311 positive records, and re-evaluated with
+the same confound-aware audit. It supersedes the 2026-08-25 retrain, which superseded
+2026-08-17 and the 2026-07-12 cloud run. The full machine-readable audit is
 `style-profile/wgl/voice_model_evaluation.json`
-(schema `sci-paper.voice-model-evaluation.v1`, `generated_utc` `2026-08-26T00:52:11Z`).
+(schema `sci-paper.voice-model-evaluation.v1`, `generated_utc` `2026-08-26T05:52:26Z`).
 
-| Metadata | Value | 2026-08-17 |
-|---|---:|---:|
-| classifier | logistic regression | logistic regression |
-| positive-class records (curated field + dated arXiv + public human) | 39,376 | 15,034 |
-| negative-class records (generated field + generated public) | 2,265 | 2,265 |
-| total records | 41,641 | 17,299 |
-| primary grouped-split held-out AUC | 0.9512 | 0.9323 |
-| primary grouped-split F1 (positive class) | 0.9394 | 0.9172 |
-| primary grouped-split balanced accuracy | 0.8724 | 0.8445 |
-| feature count | 14 | 14 |
-| operating point in bundle | absent | absent |
-| `measurement_status` | degraded | degraded |
+| Metadata | 2026-08-26 | 2026-08-25 | 2026-08-17 |
+|---|---:|---:|---:|
+| classifier | logistic regression | logistic regression | logistic regression |
+| positive-class records | 42,311 | 39,376 | 15,034 |
+| negative-class records | 2,265 | 2,265 | 2,265 |
+| total records | **44,576** | 41,641 | 17,299 |
+| grouped-split AUC (20 splits) | **0.9518** | 0.9502 | 0.9320 |
+| grouped-split F1 (positive class) | 0.9345 | 0.9394 | 0.9172 |
+| grouped-split balanced accuracy | 0.8761 | 0.8724 | 0.8445 |
+| feature count | 14 | 14 | 14 |
+| operating point in bundle | absent | absent | absent |
+| `measurement_status` | degraded | degraded | degraded |
+
+### 7.0a The field-topic confound is a property of the feature set, decided
+
+The roadmap carried "a field-topic-robust L3 operating point, **or a recorded decision
+that one is not obtainable from this feature set**". Three retrains on banks differing
+by 2.6× now answer it, each with its own 20-split grouped audit:
+
+| negative control | 2026-08-26 (44,576) | 2026-08-25 (41,641) | 2026-08-17 (17,299) |
+|---|---:|---:|---:|
+| public-generic generated | **0.052** (0.031–0.066) | 0.053 | 0.086 |
+| field-topic generated | **0.280** (0.208–0.344) | 0.285 | 0.318 |
+| field-jargon-dense generated | **0.393** (0.278–0.485) | 0.410 | 0.417 |
+
+Ranges are 2.5–97.5 percentiles over the 20 splits. **The decision is recorded: not
+obtainable from this feature set.** Every movement across a 2.6× bank increase lies
+inside a single retrain's own split range — field-topic 0.318 → 0.280 against a range
+of 0.208–0.344 — while the *headline* AUC moves in the opposite direction, 0.9320 →
+0.9518. More data buys separation on the easy contrast and buys nothing on the one
+that matters, which is what a feature-set confound looks like rather than a sampling
+limit. The model partly measures field register, and field-topic AI prose is precisely
+the distribution on which field register is uninformative.
+
+The consequence is unchanged and now load-bearing rather than provisional: L3 ships
+`degraded`, capped at 0.5 confidence at paragraph scale, and is never an authorship
+verdict. Reopening this requires a *different feature set*, not a larger bank.
 
 ### 7.0 Retrain equivalence: what the rebuild did to the shipped behaviour
 

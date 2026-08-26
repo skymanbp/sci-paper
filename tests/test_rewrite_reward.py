@@ -4,8 +4,7 @@ import sys
 import unittest
 from pathlib import Path
 
-TOOLS = Path(__file__).resolve().parents[1] / "tools"
-sys.path.insert(0, str(TOOLS))
+from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 
 import rewrite_reward
 
