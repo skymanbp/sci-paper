@@ -1,4 +1,4 @@
-# EVALUATION — Real rewrite evaluation, perceptual panel, salience, register, narrative · `sci-paper` v0.30.0
+# EVALUATION — Real rewrite evaluation, perceptual panel, salience, register, narrative · `sci-paper` v0.30.1
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the
@@ -689,6 +689,13 @@ does not yet have is an operating point derived against a held-out target
 rate. That is now a concrete open item with a number attached, replacing the
 vague one it closes.
 
+**Guarded since v0.30.1.** §15.5 derived that a bank of n passages cannot express
+a rate below 1/n, so under 10,000 passages this gate collapses to "df == 0". That
+rejected a subfield bank but never became a guard, and the shipped `wgl-letter`
+profile — **706** passages, **14.2× coarser** — reported `measured` with `reason:
+null`. It now reports `degraded`, and its findings carry `measurement_status:
+degraded` rather than being silenced. `wgl` (2.4e-5) is unaffected.
+
 ### 17.5 Salience: calibration transfers, essentially exactly
 
 `ADVISORY_PERCENTILE` is 0.90 over three features, and `salience_findings`
@@ -709,13 +716,11 @@ discriminates machine text at AUC **0.770**.
 ### 17.6 Limits
 
 The register figure is an upper bound on advice-quality false positives, not a
-precision figure; whether any individual advisory is *good advice* still needs
-a human, and `label_findings.py` remains the path to it. Recall is unmeasured
-for both axes and is not obtainable from provenance labels at all. The
-held-out set is one field, one journal family, and 2012–2018; the fetch
-stopped at the `--max-papers 200` cap rather than at exhaustion, so 203 is not
-a power calculation. `machine:ai` tiers are short (median 1,266–1,788 words)
-against 9,793 for the held-out papers, so every machine-vs-human AUC inherits
-the length asymmetry documented in §9. The paired leakage test adds only the
-paper's own passages; papers co-submitted with their neighbours would leak
-somewhat more, so 72.7% is a lower bound on total in-sample optimism.
+precision figure; whether an individual advisory is *good advice* still needs a
+human, and `label_findings.py` remains the path to it. Recall is unmeasured for
+both axes and provenance labels cannot supply it. The held-out set is one field,
+one journal family, 2012–2018, and the fetch stopped at the `--max-papers 200`
+cap rather than at exhaustion, so 203 is not a power calculation. `machine:ai`
+tiers are short (median 1,266–1,788 words) against 9,793, so every
+machine-vs-human AUC inherits the length asymmetry of §9. The paired leakage
+test adds only the paper's own passages, so 72.7% is a lower bound.

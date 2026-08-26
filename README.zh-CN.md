@@ -2,16 +2,16 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.30.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.30.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-303%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-308%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**8 个 skill · 32 个工具 · 303 个测试 · 一份规范 · 零作者身份判决。**
+**8 个 skill · 32 个工具 · 308 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
@@ -413,7 +413,7 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 | `+ --oracle`（GPT-2-large token surprisal） | 23.1 s | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` —— **9/9 通过** | 359 ms | 标准库 |
-| 完整测试套件 —— **303 通过**，17 个文件 | 54.6 s | 标准库 |
+| 完整测试套件 —— **308 通过**，17 个文件 | 37.3 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
 334 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 60–80 倍，并且是显式 opt-in 的
@@ -645,7 +645,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 ## 现状、已知限制与路线图
 
-当前版本：**v0.30.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
+当前版本：**v0.30.1**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
 
 **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.7 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层、`calibration_unit` 置信度封顶、§5.2 去 AI 化

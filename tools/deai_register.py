@@ -84,6 +84,25 @@ RARE_DF_RATE = 1e-4
 MIN_CORPUS_PASSAGES = 500
 
 
+def resolves_rare_rate(n_passages: int) -> bool:
+    """Can this bank express a non-zero document frequency below the gate?
+
+    `MIN_CORPUS_PASSAGES` is a *count* and `RARE_DF_RATE` is a *rate*, and the
+    two are unrelated: a bank of n passages cannot express any non-zero rate
+    below 1/n, so wherever 1/n >= RARE_DF_RATE the firing rule collapses from
+    "df rate below the gate" to "df == 0" and a single occurrence anywhere
+    clears the flag.
+
+    EVALUATION §15.5 derived exactly this for a 254-document subfield bank and
+    used it to reject that bank, but the conclusion was never turned into a
+    guard. It applies to every bank: at n = 706 (the shipped `wgl-letter`
+    profile) the resolution is 14.2x coarser than the gate, and the axis
+    reported `measured` with `reason: null` while running a different rule
+    from the documented one.
+    """
+    return n_passages > 0 and (1.0 / n_passages) < RARE_DF_RATE
+
+
 def load_lexicon(field_profile_dir: Path | None) -> dict[str, Any] | None:
     if field_profile_dir is None:
         return None
@@ -107,11 +126,24 @@ def register_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
             reason=f"{LEXICON_FILENAME} is unavailable",
             detector="deai_register",
         )
-    if int(lexicon.get("n_passages", 0)) < MIN_CORPUS_PASSAGES:
+    n_passages = int(lexicon.get("n_passages", 0))
+    if n_passages < MIN_CORPUS_PASSAGES:
         return feedback.axis_status(
             "L0.register", "degraded",
-            reason=(f"corpus has {lexicon.get('n_passages')} passages, below the "
+            reason=(f"corpus has {n_passages} passages, below the "
                     f"{MIN_CORPUS_PASSAGES} floor for calling a term absent"),
+            detector="deai_register",
+        )
+    if not resolves_rare_rate(n_passages):
+        return feedback.axis_status(
+            "L0.register", "degraded",
+            reason=(f"corpus has {n_passages} passages, so the finest non-zero "
+                    f"document-frequency rate it can express is "
+                    f"{1.0 / n_passages:.2e} — "
+                    f"{(1.0 / n_passages) / RARE_DF_RATE:.1f}x coarser than the "
+                    f"{RARE_DF_RATE:.0e} gate. The rule in force is 'df == 0', "
+                    f"not 'df rate below the gate'; a bank needs more than "
+                    f"{int(1 / RARE_DF_RATE):,} passages to run the documented one"),
             detector="deai_register",
         )
     return feedback.axis_status("L0.register", "measured", detector="deai_register")
@@ -189,6 +221,11 @@ def register_findings(text: str, field_profile_dir: Path | None,
         return []
     table = lexicon["document_frequency"]
     section_ranges = metrics.section_line_ranges(text)
+    # A bank too coarse for the gate still carries real evidence -- a term in
+    # zero corpus passages is absent whatever the resolution -- so the findings
+    # stand and it is their status that changes. Silencing them would convert
+    # a degraded measurement into zero findings.
+    resolved = resolves_rare_rate(n_passages)
 
     findings: list[dict[str, Any]] = []
     for term, usage in sorted(manuscript_terms(text).items()):
@@ -206,7 +243,8 @@ def register_findings(text: str, field_profile_dir: Path | None,
             rule=f"register-foreign:{term}", scope="document",
             calibration_unit="document",
             line=usage["line"], section=section, path=path,
-            detector="deai_register", measurement_status="measured",
+            detector="deai_register",
+            measurement_status="measured" if resolved else "degraded",
             strength="strong" if df == 0 else "ordinary",
             observed={"term": usage["surface"], "manuscript_uses": usage["count"],
                       "corpus_document_frequency": df,
@@ -217,6 +255,7 @@ def register_findings(text: str, field_profile_dir: Path | None,
                        "n_passages": n_passages,
                        "rare_df_rate": RARE_DF_RATE,
                        "min_manuscript_uses": MIN_MANUSCRIPT_USES,
+                       "resolves_rare_rate": resolved,
                        "provenance": LEXICON_FILENAME},
             normalized_distance=RARE_DF_RATE - rate,
             confidence={"value": min(1.0, usage["count"] / 10.0),

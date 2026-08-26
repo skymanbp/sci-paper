@@ -3,6 +3,40 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.30.1 — 2026-08-27
+
+An audit for anything left undone found a second field running a different
+rule from the documented one, with no sign that it was.
+
+### A count floor cannot guard a rate gate
+
+`MIN_CORPUS_PASSAGES` is 500 passages; `RARE_DF_RATE` is 1e-4. The two are
+unrelated. A bank of *n* passages cannot express a non-zero document-frequency
+rate below 1/n, so under **10,000** passages the firing rule collapses from
+"df rate below the gate" to "df == 0" — a single occurrence anywhere clears the
+flag.
+
+EVALUATION §15.5 derived exactly this in v0.26.1 and used it to reject a
+254-document subfield bank, but the conclusion was never turned into a guard.
+The shipped `wgl-letter` profile has **706** passages — **14.2× coarser** than
+the gate — and `register_axis_status` returned `measured` with `reason: null`
+while running the collapsed rule in production.
+
+`deai_register.resolves_rare_rate` now decides this. A bank that cannot express
+the gate reports `degraded` naming the coarseness and the rule actually in
+force, and its findings carry `measurement_status: degraded` with
+`reference.resolves_rare_rate: false`. They are **not** silenced: a term in
+zero corpus passages is absent whatever the resolution, and converting a
+degraded measurement into zero findings is the one thing this repository must
+not do. The two guards keep distinct jobs — below 500 passages the axis emits
+nothing; between 500 and 10,000 it emits, degraded. `wgl` is unaffected
+(41,593 passages resolve to 2.4e-5, comfortably under the gate).
+
+Also: `docs/README.md` recorded the narrative/salience/register part as holding
+sections 11 and 13–15, which stopped being true when §17 landed.
+
+308 tests across 17 files; validator 9/9.
+
 ## v0.30.0 — 2026-08-27
 
 The last open roadmap item is closed, and closing it produced a worse result

@@ -2,17 +2,17 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.30.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.30.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-303%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-308%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**8 skills · 32 tools · 303 tests · one normative contract · zero authorship verdicts.**
+**8 skills · 32 tools · 308 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
@@ -465,7 +465,7 @@ document is a real 5,084-word corpus paper, assembled from its LaTeX includes.
 | `+ --oracle` (GPT-2-large token surprisal) | 23.1 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **9/9 checks pass** | 359 ms | stdlib |
-| Full test suite — **303 passing**, 17 files | 54.6 s | stdlib |
+| Full test suite — **308 passing**, 17 files | 37.3 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs
 ~334 ms of analysis above the interpreter floor**, with no optional dependency
@@ -668,14 +668,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   8 skills          ├── tests/     17 files, 303 tests
+├── skills/<name>/SKILL.md   8 skills          ├── tests/     17 files, 308 tests
 ├── tools/                   31 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 303-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 308-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page
 anchors, recorded suite sizes against real discovery, product registries, syntax,
@@ -687,7 +687,7 @@ requires independent review, clean-checkout verification, and green hosted CI.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.30.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.30.1**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.7 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative

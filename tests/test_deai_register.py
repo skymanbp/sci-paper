@@ -115,5 +115,56 @@ class TestFindings(unittest.TestCase):
                 self.assertEqual(finding["layer"], "L0")
 
 
+class BankResolutionTest(unittest.TestCase):
+    """A bank too coarse for the gate must say so, not report `measured`.
+
+    `MIN_CORPUS_PASSAGES` is a count and `RARE_DF_RATE` is a rate. A bank of n
+    passages cannot express a non-zero rate below 1/n, so below ~10,000
+    passages the rule silently becomes "df == 0" while the axis still claimed
+    `measured` with no reason. The shipped `wgl-letter` profile (706 passages,
+    14.2x coarser than the gate) was running that different rule in production.
+    """
+
+    def test_the_threshold_is_the_reciprocal_of_the_gate(self) -> None:
+        boundary = int(1 / register.RARE_DF_RATE)
+        self.assertFalse(register.resolves_rare_rate(boundary))
+        self.assertTrue(register.resolves_rare_rate(boundary + 1))
+
+    def test_an_empty_bank_does_not_divide_by_zero(self) -> None:
+        self.assertFalse(register.resolves_rare_rate(0))
+
+    def test_a_coarse_bank_is_degraded_and_says_why(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            profile = build_profile(Path(raw), [NATIVE_PASSAGE] * 600)
+            status = register.register_axis_status(profile)
+            self.assertEqual(status["status"], "degraded")
+            self.assertIn("coarser", status["reason"])
+            self.assertIn("df == 0", status["reason"])
+
+    def test_a_coarse_bank_still_emits_findings_marked_degraded(self) -> None:
+        # Silencing them would convert a degraded measurement into zero
+        # findings, which is the one thing this repository must never do.
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            profile = build_profile(Path(raw), [NATIVE_PASSAGE] * 600)
+            document = ("\\section{Validation}\n"
+                        "The logit, logit, logit, logit and logit values.\n")
+            findings = register.register_findings(document, profile)
+            self.assertTrue(findings)
+            for finding in findings:
+                self.assertEqual(finding["measurement_status"], "degraded")
+                self.assertFalse(finding["reference"]["resolves_rare_rate"])
+
+    def test_the_two_guards_keep_distinct_jobs(self) -> None:
+        # Too small to speak at all, versus able to speak but running a coarser
+        # rule than the documented one. Both are degraded; only one is silent.
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            profile = build_profile(Path(raw), [NATIVE_PASSAGE] * 10)
+            document = ("\\section{Validation}\n"
+                        "The logit, logit, logit, logit and logit values.\n")
+            self.assertEqual(register.register_findings(document, profile), [])
+            self.assertEqual(
+                register.register_axis_status(profile)["status"], "degraded")
+
+
 if __name__ == "__main__":
     unittest.main()
