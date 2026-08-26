@@ -33,6 +33,7 @@ import unittest
 REPO = pathlib.Path(__file__).resolve().parent.parent
 UID_DOC = "docs/architecture/evaluation/lexical-structure-uid.md"
 EVALUATION_DOC = "docs/architecture/EVALUATION.md"
+DISCOURSE_DOC = "docs/architecture/evaluation/discourse-and-citation.md"
 RE_PROFILE_FIELD = re.compile(r"style-profile/([^/`\s]+)/uid_baseline\.json")
 BUCKETS = ("method", "results", "data", "intro", "discussion", "conclusion",
            "abstract")
@@ -65,6 +66,19 @@ def artifact(name: str) -> dict:
 
 def bucket_n(name: str) -> dict[str, int]:
     return {key: value["n"] for key, value in artifact(name).items()}
+
+
+def by_dot(counts: dict[str, int]) -> str:
+    """The `name n · name n` ordering §19.1 uses: largest bucket first."""
+    return " · ".join(f"{key} {counts[key]:,}"
+                       for key in sorted(counts, key=lambda key: -counts[key]))
+
+
+def gate(name: str, feature: str, bucket: str, places: int) -> str:
+    """The feature value at the advisory gate, as §19 prints it."""
+    reference = artifact(name)[bucket]["percentiles"][feature]
+    at = min(reference, key=lambda stored: abs(float(stored) - 0.10))
+    return f"{float(reference[at]):.{places}f}"
 
 
 def by_n(counts: dict[str, int]) -> str:
@@ -126,6 +140,18 @@ def expectations(document: str) -> list[tuple[str, str]]:
              + ("documents · all six section classes" if english
                 else "篇文档 · 六个 section 类")),
         ]
+    if document == DISCOURSE_DOC:
+        # §19 is the only place two references built at different units are
+        # quoted side by side, and reading one against the other is the exact
+        # error the axis exists to prevent -- so both are pinned to their own
+        # artifact, including the p10 gate each bucket abstains or fires at.
+        return [
+            ("cohesion buckets", f"| paragraph | {by_dot(bucket_n('cohesion_baseline.json'))} |"),
+            ("hedging buckets", f"| section | {by_dot(bucket_n('hedging_baseline.json'))} |"),
+            ("bank size", f"the {bank_size():,}-paragraph `{FIELD}` bank"),
+        ] + [(f"hedging gate: {bucket}",
+              f"| {bucket} | {gate('hedging_baseline.json', 'hedging', bucket, 3)} |")
+             for bucket in BUCKETS if bucket != "abstract"]
     if document == EVALUATION_DOC:
         salience = bucket_n("salience_baseline.json")
         register = artifact("register_lexicon.json")
@@ -194,6 +220,10 @@ class PublishedFiguresMatchTheirArtifactsTest(unittest.TestCase):
     @needs_profile
     def test_the_evaluation_hub_bucket_table(self) -> None:
         self.assert_document_carries_its_figures(EVALUATION_DOC)
+
+    @needs_profile
+    def test_the_discourse_reference_tables(self) -> None:
+        self.assert_document_carries_its_figures(DISCOURSE_DOC)
 
 
 class TheCheckKnowsWhatItIsCheckingTest(unittest.TestCase):

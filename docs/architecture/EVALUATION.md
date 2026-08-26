@@ -1,11 +1,11 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.32.0
+# EVALUATION: de-AI subsystem for `sci-paper` v0.33.0
 
 First recorded 2026-07-12; every section-keyed measurement re-derived against the
 rebuilt `wgl` profile on 2026-08-17.
 
 ## 0. Section map
 
-This record is split across seven files so no single one grows past the
+This record is split across eight files so no single one grows past the
 point of being readable. **This file is the hub**: it carries the
 evaluation contract, the current per-axis status table, repository
 verification, and the release evidence boundary. Everything else lives in
@@ -32,6 +32,8 @@ is cited from.
 | **16** | 16. `L1.distribution`: the operating point is refuted, not merely absent (v0.28.0) | [`lexical-structure-uid.md`](evaluation/lexical-structure-uid.md) |
 | **17** | 17. Held-out refereed papers as labels: register and salience measured (v0.30.0, corrected v0.31.0, superseded by 18) | [`held-out-labels.md`](evaluation/held-out-labels.md) |
 | **18** | 18. Projection symmetry, the register operating point, and citation placement (v0.32.0) | [`projection-and-operating-point.md`](evaluation/projection-and-operating-point.md) |
+| **19** | 19. Discourse texture: cohesion and hedging (v0.33.0) | [`discourse-and-citation.md`](evaluation/discourse-and-citation.md) |
+| **20** | 20. Citation placement refuted by the second bank (v0.33.0) | [`discourse-and-citation.md`](evaluation/discourse-and-citation.md) |
 
 ## 1. Evaluation contract
 
@@ -114,6 +116,9 @@ result.
 | L2 sentence structure | measured for deterministic matches; degraded for strength | `style-profile/wgl/structure_baseline.json` provides section-level reference fractions over 27,907 paragraphs — method 9,512; results 3,958; data 3,908; intro 3,840; discussion 3,647; conclusion 2,609; abstract 433. | Author-labelled difficult cases. A calibrated strong-advisory threshold is no longer expected from `deai_policy.json` (§16). |
 | L2 document structure | measured | §9: cross-paragraph dispersion calibrated one-observation-per-paper over 493 complete human `wgl` papers; human false-flag at the shipped conformal operating point 0.0325 (manifold) and 0.0426 (role) against nominal α = 0.05. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field. | Continue recalibration when the corpus changes. |
 | L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.932, matched-stratum AUC 0.924, hard-set true-provenance AUC 0.937, but 32–41% false-positive rate on field-topic AI text. Document-level now measured (§9.8): surprisal dispersion (0.757) is weaker than the model-free manifold (0.881) and adds nothing to it, so L3 stays degraded for a measured reason. | A field-topic-robust operating point with provenance and uncertainty; the surprisal path is measured not to provide one. |
+| L2 cohesion | measured | §19: given/new linkage per paragraph against the field's own bank (abstract 13,819; method 6,903; intro 3,252; results 3,183; data 2,992; discussion 2,932; conclusion 1,975), flagged on the LOW tail at p10. The gate transfers to 203 held-out refereed papers at 10.87% against a 10% design point, in every bucket (6.58%–14.63%), and separates all six machine regimes in `intro` at worst-of-six 0.676 against a 0.515 human-vs-human null. | Whether an individual advisory is good advice; recall. Whether the `intro` separation holds for a second generation process — §20 is what happens when that question is not asked. |
+| L2 hedging | measured, restricted to `intro` | §19: epistemic markers per 1,000 words per SECTION (abstract 10,290; intro 502; method 438; conclusion 382; discussion 327; results 316; data 299). It has no paragraph-scale lower tail — p10 is 0.000 in all seven buckets — so calibration and detection both run at section unit, and each artifact records its own. Restricted to `intro` by two independent measurements that agree: held-out transfer is 7.89% there against 15.48–26.77% elsewhere, and worst-of-six AUC is 0.613 (null 0.460) there while `conclusion` runs below chance at 0.376. | Whether the restriction generalizes beyond `wgl`. On `wgl-letter` the axis is `degraded`: no bucket clears the 30-unit floor after the restriction. |
+| Citation placement | **refuted, not shipped** | §20: the v0.32.0 candidate (section-matched AUC 0.866 in `method`) does not hold its sign across generation processes. A second bank from a different model scores 0.053 with no citation instruction and 0.734 with one — one prompt line, a 12.5× density swing, and the two machine extremes bracket the human distribution rather than sitting on one side of it. | None. Reopening requires a statistic that holds its sign across independently produced banks. |
 | Rewrite scientific fidelity | measured for protected invariants | Unit tests cover preserved invariants, dropped number, dropped citation, reversed comparison, display-math values and exponents (v0.27.0), and the punctuation/adjacent-word tokenizer boundaries (§8). | Real manuscript before/after demonstration, including scope and stance review; the plain-ASCII-space unit boundary in §8 remains open. |
 
 A missing baseline is not interpreted as zero findings.
@@ -129,7 +134,7 @@ python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The working tree passes the validator and all 334 unit/CLI tests (18 test files, collected
+The working tree passes the validator and all 360 unit/CLI tests (19 test files, collected
 2026-08-27). These commands must be rerun after every subsequent code or release-metadata
 change; the release record must quote the fresh output rather than a past result.
 
@@ -143,8 +148,8 @@ The three drift events it exists to stop are recorded in §18.8.
 
 ## 12. Release evidence boundary
 
-Current release gates (v0.32.0, 2026-08-27): `validate_plugin.py` all 9 checks
-pass and the full unit/CLI suite (334 tests, 18 files) passes on a clean tree;
+Current release gates (v0.33.0, 2026-08-27): `validate_plugin.py` all 9 checks
+pass and the full unit/CLI suite (360 tests, 19 files) passes on a clean tree;
 both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
 release commit must also be green (first green runs: 31133202443 push,
 31133215203 manual dispatch).

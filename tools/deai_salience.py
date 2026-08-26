@@ -26,8 +26,6 @@ finding: the passage has not told the reader which of its numbers matter.
 
 from __future__ import annotations
 
-import argparse
-import json
 import re
 import sys
 from pathlib import Path
@@ -36,11 +34,8 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_feedback as feedback  # noqa: E402 because sibling tools are importable only after the sys.path insert above
-import deai_metrics as metrics  # noqa: E402 because sibling tools are importable only after the sys.path insert above
+import deai_reference as reference  # noqa: E402 because sibling tools are importable only after the sys.path insert above
 import extract_style as es  # noqa: E402 because sibling tools are importable only after the sys.path insert above
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 
 # A numeral is a digit run that is not part of an identifier. Version-like and
 # decimal forms count once; a leading sign is part of the value.
@@ -51,14 +46,9 @@ MIN_WORDS = 30
 MIN_SENTENCES = 3
 # Sample floor for calling a bucket's reference usable. Below it the axis is
 # degraded: the percentile of a 12-passage reference is not an operating point.
-MIN_REFERENCE_N = 30
+MIN_REFERENCE_N = reference.MIN_REFERENCE_N
 BASELINE_FILENAME = "salience_baseline.json"
 FEATURES = ("max_recital_run_frac", "recital_frac", "numerals_per_sentence")
-# Stored on a 0.01 grid. Two of the three features are ratios of small
-# integers, so their reference distributions have wide ties: at a 0.05 grid the
-# whole plateau around 0.5 collapses onto one stored point and a passage
-# landing on it reads as exactly p90 when its true P(X <= x) is 0.91.
-QUANTILE_GRID = tuple(round(0.01 * step, 2) for step in range(101))
 ADVISORY_PERCENTILE = 0.90
 STRONG_PERCENTILE = 0.95
 
@@ -90,16 +80,17 @@ def salience_features(block: str) -> dict[str, Any] | None:
     }
 
 
-def load_baseline(field_profile_dir: Path | None) -> dict[str, Any] | None:
-    if field_profile_dir is None:
-        return None
-    path = field_profile_dir / BASELINE_FILENAME
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
+load_baseline = reference.baseline_loader(BASELINE_FILENAME)
+percentile_of = reference.percentile_of
+grid_value = reference.grid_value
+_units = reference.units
+_quantiles = reference.quantiles
+QUANTILE_GRID = reference.QUANTILE_GRID
+
+
+def resolves_above_gate(ref: dict[str, Any], feature: str) -> bool:
+    """Whether the reference can tell an extreme passage from a typical one."""
+    return reference.resolves_gate(ref, feature, ADVISORY_PERCENTILE, high=True)
 
 
 def salience_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
@@ -121,85 +112,6 @@ def salience_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
         )
     return feedback.axis_status("L2.salience_hierarchy", "measured",
                                 detector="deai_salience")
-
-
-def percentile_of(reference: dict[str, Any], feature: str,
-                  value: float) -> float | None:
-    """Return P(X <= value) against the stored human quantile grid.
-
-    The reference distributions are tie-heavy, so the quantile that matters is
-    the TOP of the plateau a value lands on, not its first occurrence. Reading
-    the plateau's lower edge would report a passage as merely typical whenever
-    its value happens to be a common one.
-    """
-    grid = (reference.get("percentiles") or {}).get(feature)
-    if not grid:
-        return None
-    points = sorted((float(q), float(v)) for q, v in grid.items())
-    below = [(q, v) for q, v in points if v <= value]
-    if not below:
-        return points[0][0]
-    above = [(q, v) for q, v in points if v > value]
-    if not above:
-        return 1.0
-    q_low, v_low = below[-1]
-    q_high, v_high = above[0]
-    if v_high == v_low:
-        return q_high
-    span = (value - v_low) / (v_high - v_low)
-    return q_low + span * (q_high - q_low)
-
-
-def grid_value(reference: dict[str, Any], feature: str,
-               quantile: float) -> float | None:
-    """The stored reference value at (the grid point nearest) `quantile`."""
-    grid = (reference.get("percentiles") or {}).get(feature)
-    if not grid:
-        return None
-    key = min(grid, key=lambda stored: abs(float(stored) - quantile))
-    return float(grid[key])
-
-
-def resolves_above_gate(reference: dict[str, Any], feature: str) -> bool:
-    """Whether the reference can tell an extreme passage from a typical one.
-
-    If every reference passage above the advisory gate shares one value, then
-    P(X <= x) reaches 1.0 at that value and a perfectly ordinary passage reads
-    as the 100th percentile. A reference with no spread in its upper tail
-    cannot support a finding, so the feature abstains rather than inventing
-    one.
-    """
-    gate = grid_value(reference, feature, ADVISORY_PERCENTILE)
-    top = grid_value(reference, feature, 1.0)
-    return gate is not None and top is not None and top > gate
-
-
-def _units(text: str) -> list[tuple[int, int, str, str]]:
-    """Yield (start_line, end_line, bucket, block) for every measurable unit.
-
-    The abstract is pulled out by environment rather than left to the section
-    sweep, because in AASTeX it sits in the preamble ahead of the first
-    \\section and would otherwise be measured together with the title block.
-    """
-    units: list[tuple[int, int, str, str]] = []
-    consumed: set[int] = set()
-    for match in RE_ABSTRACT_ENV.finditer(text):
-        start = text[:match.start()].count("\n") + 1
-        end = start + match.group(0).count("\n")
-        units.append((start, end, "abstract", match.group(1)))
-        consumed.update(range(start, end + 1))
-
-    lines = text.splitlines()
-    for section_start, section_end, raw_label in metrics.section_line_ranges(text):
-        bucket = metrics._bucket_for(raw_label)
-        if bucket in {"skip", "unknown"} and raw_label.startswith("("):
-            continue
-        segment = "\n".join(lines[section_start - 1:section_end])
-        for start, end, block in metrics.paragraph_line_ranges(segment, section_start):
-            if start in consumed:
-                continue
-            units.append((start, end, bucket, block))
-    return units
 
 
 def salience_findings(text: str, field_profile_dir: Path | None,
@@ -257,12 +169,11 @@ def salience_findings(text: str, field_profile_dir: Path | None,
                                       for feature, value in percentiles.items()},
                       "max_recital_run": values["max_recital_run"],
                       "sentence_count": values["n_sentences"]},
-            reference={"field_profile": str(field_profile_dir)
-                       if field_profile_dir else None,
-                       "section_bucket": bucket, "n": reference_n,
-                       "advisory_percentile": ADVISORY_PERCENTILE,
-                       "strong_percentile": STRONG_PERCENTILE,
-                       "provenance": BASELINE_FILENAME},
+            reference=feedback.reference_block(
+                field_profile_dir, bucket=bucket, n=reference_n,
+                advisory_percentile=ADVISORY_PERCENTILE,
+                strong_percentile=STRONG_PERCENTILE,
+                provenance=BASELINE_FILENAME),
             normalized_distance=lead_percentile - ADVISORY_PERCENTILE,
             confidence={"value": min(1.0, values["n_sentences"] / 8.0),
                         "basis": (f"{values['n_sentences']} sentences against an "
@@ -282,26 +193,6 @@ def salience_findings(text: str, field_profile_dir: Path | None,
     return findings
 
 
-def _quantiles(values: list[float]) -> dict[str, float]:
-    ordered = sorted(values)
-    if not ordered:
-        return {}
-    out: dict[str, float] = {}
-    for q in QUANTILE_GRID:
-        index = min(len(ordered) - 1, int(q * len(ordered)))
-        out[str(q)] = round(float(ordered[index]), 6)
-    return out
-
-
-def _calibration_sources(field_profile_dir: Path) -> list[tuple[str, Path, str | None]]:
-    """(label, path, forced_bucket) for every bank that can feed the baseline."""
-    return [
-        ("exemplar_paragraphs", field_profile_dir / "exemplar_paragraphs.jsonl", None),
-        ("human_abstracts_extra", field_profile_dir / "human_abstracts_extra.jsonl",
-         "abstract"),
-    ]
-
-
 def calibrate(field_profile_dir: Path) -> dict[str, Any]:
     """Build the per-bucket human reference from the field's own passage banks.
 
@@ -310,68 +201,30 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
     whole-section measurement would compare a run length against a distribution
     that could not produce it.
     """
-    collected: dict[str, dict[str, list[float]]] = {}
-    sources: dict[str, list[str]] = {}
-    for label, bank, forced_bucket in _calibration_sources(field_profile_dir):
-        if not bank.exists():
-            continue
-        with bank.open(encoding="utf-8") as handle:
-            for line in handle:
-                try:
-                    record = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                values = salience_features(record.get("text", ""))
-                if values is None:
-                    continue
-                bucket = forced_bucket or record.get("section") or "unknown"
-                slot = collected.setdefault(bucket, {feature: [] for feature in FEATURES})
-                for feature in FEATURES:
-                    slot[feature].append(float(values[feature]))
-                if label not in sources.setdefault(bucket, []):
-                    sources[bucket].append(label)
+    return reference.calibrate(
+        field_profile_dir, BASELINE_FILENAME, FEATURES, salience_features,
+        reference.passage_banks(field_profile_dir))
 
-    output: dict[str, Any] = {}
-    for bucket, features in collected.items():
-        n = len(features[FEATURES[0]])
-        output[bucket] = {
-            "n": n,
-            "sources": sources.get(bucket, []),
-            "percentiles": {feature: _quantiles(values)
-                            for feature, values in features.items()},
-        }
-    (field_profile_dir / BASELINE_FILENAME).write_text(
-        json.dumps(output, indent=2, sort_keys=True), encoding="utf-8")
-    return output
+
+def _written(result: dict[str, Any], field_profile_dir: Path) -> str:
+    """What `--calibrate` reports: the artifact and each bucket's sample size.
+
+    The per-bucket n is the line worth printing, because a bucket under the
+    30-passage floor is the difference between a measured axis and a degraded
+    one and there is nowhere else the operator would see it.
+    """
+    counts = ", ".join(f"{bucket}={ref['n']}" for bucket, ref in sorted(result.items()))
+    return f"baseline written: {field_profile_dir / BASELINE_FILENAME} ({counts})"
 
 
 def main(argv: list[str] | None = None) -> int:
-    cli_common.utf8_stdout()
-    parser = cli_common.field_parser(__doc__)
-    parser.add_argument("file", type=Path, nargs="?")
-    parser.add_argument("--calibrate", action="store_true")
-    args = parser.parse_args(argv)
-    field_dir = args.profile_root / args.field if args.field else None
-    if args.calibrate:
-        if field_dir is None:
-            print("[deai_salience] --calibrate needs --field", file=sys.stderr)
-            return 2
-        result = calibrate(field_dir)
-        summary = ", ".join(f"{bucket}={ref['n']}" for bucket, ref in sorted(result.items()))
-        print(f"[deai_salience] baseline written: "
-              f"{field_dir / BASELINE_FILENAME} ({summary})")
-        return 0
-    if not args.file or not args.file.exists():
-        print(f"[deai_salience] file not found: {args.file}", file=sys.stderr)
-        return 2
-    text = args.file.read_text(encoding="utf-8", errors="replace")
-    report = feedback.build_report(
-        path=args.file,
-        findings=salience_findings(text, field_dir, args.file),
-        axes=[salience_axis_status(field_dir)],
-    )
-    print(feedback.render_text(report))
-    return 0
+    return cli_common.axis_main(
+        __doc__, argv, tool="deai_salience", calibrate=calibrate,
+        summary=_written,
+        report=lambda text, field_dir, path: feedback.build_report(
+            path=path, findings=salience_findings(text, field_dir, path),
+            axes=[salience_axis_status(field_dir)]),
+        render=feedback.render_text)
 
 
 if __name__ == "__main__":

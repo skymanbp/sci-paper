@@ -7,7 +7,6 @@ claims. :func:`structure_findings` is the structured API;
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import sys
@@ -223,12 +222,11 @@ def structure_findings(text: str, field_profile_dir: Path | None,
                     observed={"templates": values["templates"],
                               "template_score": values["template_score"],
                               "sentence_count": values["n_sent"]},
-                    reference={"field_profile": str(field_profile_dir) if field_profile_dir else None,
-                               "section_bucket": bucket,
-                               "templated_fraction": human_fraction,
-                               "n": reference_n,
-                               "operating_point": rare_fraction,
-                               "provenance": "structure_baseline.json" if baseline else None},
+                    reference=feedback.reference_block(
+                        field_profile_dir, bucket=bucket, n=reference_n,
+                        templated_fraction=human_fraction,
+                        operating_point=rare_fraction,
+                        provenance="structure_baseline.json" if baseline else None),
                     normalized_distance=(1.0 - float(human_fraction))
                     if human_fraction is not None else None,
                     confidence={"value": min(1.0, values["n_sent"] / 6.0),
@@ -256,11 +254,10 @@ def structure_findings(text: str, field_profile_dir: Path | None,
                               "antithesis_count": values["antithesis_count"],
                               "reversal_beat": values["reversal_beat"],
                               "sentence_count": values["n_sent"]},
-                    reference={"field_profile": str(field_profile_dir) if field_profile_dir else None,
-                               "section_bucket": bucket,
-                               "auxiliary_fraction": aux_fraction,
-                               "n": reference_n,
-                               "provenance": "structure_baseline.json" if baseline else None},
+                    reference=feedback.reference_block(
+                        field_profile_dir, bucket=bucket, n=reference_n,
+                        auxiliary_fraction=aux_fraction,
+                        provenance="structure_baseline.json" if baseline else None),
                     normalized_distance=(1.0 - float(aux_fraction))
                     if aux_fraction is not None else None,
                     confidence={"value": min(1.0, values["n_sent"] / 6.0),
@@ -331,30 +328,14 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    cli_common.utf8_stdout()
-    parser = cli_common.field_parser(__doc__)
-    parser.add_argument("file", type=Path, nargs="?")
-    parser.add_argument("--calibrate", action="store_true")
-    args = parser.parse_args(argv)
-    field_dir = args.profile_root / args.field if args.field else None
-    if args.calibrate:
-        if field_dir is None:
-            print("[deai_structure] --calibrate needs --field", file=sys.stderr)
-            return 2
-        calibrate(field_dir)
-        print(f"[deai_structure] baseline written: {field_dir / 'structure_baseline.json'}")
-        return 0
-    if not args.file or not args.file.exists():
-        print(f"[deai_structure] file not found: {args.file}", file=sys.stderr)
-        return 2
-    text = args.file.read_text(encoding="utf-8", errors="replace")
-    report = feedback.build_report(
-        path=args.file,
-        findings=structure_findings(text, field_dir, args.file),
-        axes=[structure_axis_status(field_dir)],
-    )
-    print(feedback.render_text(report))
-    return 0
+    return cli_common.axis_main(
+        __doc__, argv, tool="deai_structure", calibrate=calibrate,
+        summary=lambda _result, field_dir:
+            f"baseline written: {field_dir / 'structure_baseline.json'}",
+        report=lambda text, field_dir, path: feedback.build_report(
+            path=path, findings=structure_findings(text, field_dir, path),
+            axes=[structure_axis_status(field_dir)]),
+        render=feedback.render_text)
 
 
 if __name__ == "__main__":

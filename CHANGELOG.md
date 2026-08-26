@@ -3,6 +3,108 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.33.0 — 2026-08-27
+
+The roadmap's last engineering item ships and its strongest measurement is
+refuted. Both outcomes came from the same discipline: measure the thing against
+a population it was not built on, and believe the result.
+
+### Two discourse axes, at two different units
+
+`tools/deai_discourse.py` adds `L2.cohesion` (given/new linkage — how much of a
+sentence's content vocabulary the sentence before it already used) and
+`L2.hedging` (epistemic markers per 1,000 words). Both fire **below** the field's
+tenth percentile, the opposite direction from every existing axis, because here
+the defect is absence rather than excess. Roadmap rank 6, `Deferred` since
+v0.26.1.
+
+They measure at different units, and that is forced rather than chosen. Hedging
+has **no paragraph-scale lower tail at all**: on the 27,917-paragraph `wgl` bank
+its tenth percentile is exactly 0.000 in every one of the seven section buckets,
+because a 40-word paragraph that hedges nowhere is entirely ordinary. A gate
+there is one no passage can fall below, and the axis would have reported a
+confident zero findings forever. Regrouped so one section is one unit, six of
+seven buckets separate (p10 from 1.055 in `data` to 3.350 in `discussion`);
+`abstract` stays flat and abstains, since an abstract *is* one passage. So
+cohesion calibrates and detects per paragraph, hedging per section, and each
+artifact records its own `unit` so the two can never be read against each other.
+
+Hedging ships **restricted to `intro`**, and two independent measurements put the
+restriction in the same place. Held-out transfer at the p10 gate on 203 refereed
+papers: 7.89% in `intro` against 15.48%–26.77% everywhere else. Worst-of-six
+generation regimes: 0.613 in `intro` against a 0.460 human-vs-human null, while
+`conclusion` runs *below chance* at 0.376. Cohesion needs no restriction — it
+transfers at 10.87% overall against a 10% design point, in every bucket, and
+separates all six regimes in `intro` at worst-of-six 0.676 (null 0.515).
+
+Both floors were measured, not picked. The cohesion sentence floor is 3 rather
+than 4 because at 4 the 20-document `ai` tier offers 15 measurable introduction
+paragraphs in total and at 3 it offers 62, with the separation unchanged (0.676
+against 0.674). The hedging word floor is 150 because it is the first floor at
+which every non-abstract bucket resolves, and 250 buys nothing while costing the
+`abstract` bucket 86% of its sections.
+
+Evidence: [EVALUATION §19](docs/architecture/evaluation/discourse-and-citation.md).
+
+### Citation placement: refuted on its own pre-registered condition
+
+v0.32.0 recorded citation placement as the strongest model-free discriminator in
+the whole record — section-matched rank AUC **0.866** in `method`, surviving the
+section, length and human-vs-human controls — and declined to ship it for one
+stated reason: all 173 machine documents came from a single generation process,
+so one bank could not separate "AI cites more" from "these prompts made it cite
+more". The condition for shipping was a second, independently produced bank.
+
+Two banks of 20 documents each, same 20 topics, a **different model** (Codex
+`gpt-5.6-terra`), differing in one line of prompt. With no citation instruction
+the same statistic scores **0.053** — not the absence of separation, but
+separation of nearly equal strength *in the opposite direction*. With one it
+scores **0.734**. Density swings 12.5× (1.00 to 12.55 citations per 1,000 words)
+around a human median of 6.20, so the two machine extremes bracket the human
+distribution instead of sitting on one side of it.
+
+The signal is real and it is not about authorship: it is about which model,
+prompted how. Refuted, and the bar it sets for anything after it — hold your sign
+across independently produced banks — is stronger than the three controls
+v0.32.0 applied. [EVALUATION §20](docs/architecture/evaluation/discourse-and-citation.md).
+
+### One `(feature, unit)` reference for every per-bucket axis
+
+`tools/deai_reference.py` (roadmap rank 2, `Deferred (elegance debt)`) now owns
+the quantile grid, the plateau-top percentile reader, the 30-unit sample floor,
+the paragraph and section sweeps, the artifact loader — which had **five copies**
+across the suite — and the calibration loop. It holds no policy.
+
+It stopped being elegance debt the moment a second per-bucket axis existed, and
+earned its keep immediately: its one invariant is that calibration and detection
+share a unit and a grid, and that check is what caught the hedging axis
+calibrating where no lower tail exists. `cli_common.axis_main` absorbs the
+`--calibrate`-or-read-one-file CLI that three tools carried near-byte-equivalent
+copies of, and `deai_feedback.reference_block` the `reference=` payload six
+detectors spelled out separately.
+
+### Also
+
+- `deai_discourse` is wired into `ai_ism_lint` behind `--discourse` (default on),
+  and reports **one axis status per feature**, never a joint one — a field can
+  support cohesion and not hedging, and does.
+- Both README demos are now pinned to the axis set that produced them
+  (`--no-discourse`); demo 1 arm C would otherwise draw a second advisory it was
+  never scored with.
+- `tests/test_published_figures.py` pins the two new references, including each
+  bucket's p10 gate, and was negative-tested 4/4.
+- `tests/_profilefixture.py` gives the axis tests one throwaway-profile builder;
+  the two copies had already drifted on whether a record carries a `source`,
+  which decides whether a section-unit reference can be built at all.
+- 34 tools, 360 tests (19 files). Dead `argparse`/`json`/`deai_metrics` imports
+  removed from four tools after the CLI extraction.
+- The latency table is re-taken **whole**, not row by row: the interpreter floor
+  alone moved 56 → 84 ms since v0.32.0, so no row from that table was comparable.
+  The validator row was the worst of them, published at 359 ms against a measured
+  2.3 s. A complete model-free pass is now 409 ms with the two new axes on
+  (~325 ms above the floor). The first re-run was discarded — it read a 295 ms
+  interpreter floor because it was competing with the session that started it.
+
 ## v0.32.0 — 2026-08-27
 
 Asked what was still open, the audit found two more places where the calibration

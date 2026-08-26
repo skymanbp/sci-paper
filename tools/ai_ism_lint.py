@@ -20,6 +20,7 @@ sys.path.insert(0, str(TOOLS_DIR))
 import deai_docstructure  # noqa: E402  sibling tool import after path setup
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_metrics  # noqa: E402  distribution and canonical ranges
+import deai_discourse  # noqa: E402  cohesion and hedging detector
 import deai_register  # noqa: E402  domain-register detector
 import deai_salience  # noqa: E402  salience-hierarchy detector
 import deai_structure  # noqa: E402  sentence-construction detector
@@ -334,7 +335,8 @@ def collect_feedback(path: Path, field_profile_dir: Path | None, *,
                      distribution: bool = True, structure: bool = True,
                      document_structure: bool = True, oracle: bool = False,
                      voice: bool = False, register: bool = True,
-                     salience: bool = True) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+                     salience: bool = True, discourse: bool = True
+                     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     text = path.read_text(encoding="utf-8", errors="replace")
     findings, axes = lexical_findings(
         text, path, field_profile_dir, ai_classifier, ai_threshold)
@@ -344,6 +346,12 @@ def collect_feedback(path: Path, field_profile_dir: Path | None, *,
     if salience:
         findings.extend(deai_salience.salience_findings(text, field_profile_dir, path))
         axes.append(deai_salience.salience_axis_status(field_profile_dir))
+    if discourse:
+        findings.extend(deai_discourse.discourse_findings(text, field_profile_dir, path))
+        # extend, not append: this detector reports one status PER FEATURE,
+        # because cohesion and hedging calibrate at different units and a
+        # field can support one and not the other.
+        axes.extend(deai_discourse.discourse_axis_status(field_profile_dir))
     if distribution:
         findings.extend(deai_metrics.distribution_findings(text, field_profile_dir, path))
         axes.append(deai_metrics.distribution_axis_status(field_profile_dir))
@@ -380,7 +388,8 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
          oracle: bool = False, voice: bool = False,
          document_structure: bool = True, output_format: str = "text",
          output: Path | None = None, top: int | None = None,
-         register: bool = True, salience: bool = True) -> int:
+         register: bool = True, salience: bool = True,
+         discourse: bool = True) -> int:
     del summary  # retained as a compatibility option; reports always include totals
     if not path.exists():
         print(f"[ai_ism_lint] file not found: {path}", file=sys.stderr)
@@ -390,7 +399,8 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
             path, field_profile_dir, ai_classifier=ai_classifier,
             ai_threshold=ai_threshold, distribution=distribution,
             structure=structure, document_structure=document_structure,
-            oracle=oracle, voice=voice, register=register, salience=salience)
+            oracle=oracle, voice=voice, register=register, salience=salience,
+            discourse=discourse)
         report = feedback.build_report(path=path, findings=findings, axes=axes, top=top)
         rendered = (feedback.dump_report(report)
                     if output_format == "json" else feedback.render_text(report) + "\n")
@@ -432,6 +442,8 @@ def main(argv: list[str] | None = None) -> int:
                         default=True)
     parser.add_argument("--salience", action=argparse.BooleanOptionalAction,
                         default=True)
+    parser.add_argument("--discourse", action=argparse.BooleanOptionalAction,
+                        default=True)
     parser.add_argument("--oracle", action="store_true")
     parser.add_argument("--voice", action="store_true")
     parser.add_argument("--format", choices=("text", "json"), default="text")
@@ -451,6 +463,7 @@ def main(argv: list[str] | None = None) -> int:
         document_structure=args.document_structure, oracle=args.oracle,
         voice=args.voice, output_format=args.format, output=args.output,
         top=args.top, register=args.register, salience=args.salience,
+        discourse=args.discourse,
     )
 
 

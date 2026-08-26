@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_features as features  # noqa: E402  sibling import after path setup
 import deai_feedback as feedback  # noqa: E402  shared finding contract
+import deai_reference as reference  # noqa: E402 because sibling tools are importable only after the sys.path insert above
 import deai_metrics as metrics  # noqa: E402  canonical section/paragraph ranges
 import deai_structure as structure  # noqa: E402  sentence template features
 import extract_style as es  # noqa: E402  canonical LaTeX cleanup/tokenizer
@@ -54,16 +55,7 @@ from deai_docshape import (  # noqa: F401 -- re-export, unused here by design
     manifold_operating_point,
 )
 
-def load_baseline(field_profile_dir: Path | None) -> dict[str, Any] | None:
-    if field_profile_dir is None:
-        return None
-    path = field_profile_dir / BASELINE_NAME
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
+load_baseline = reference.baseline_loader(BASELINE_NAME)
 
 
 def docstructure_axis_status(text: str, field_profile_dir: Path | None

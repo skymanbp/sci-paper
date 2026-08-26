@@ -40,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_docstructure as ds  # noqa: E402  because sibling imports resolve only after the sys.path insert above
 import deai_feedback as feedback  # noqa: E402  same sys.path reason
+import deai_reference as reference  # noqa: E402 because sibling tools are importable only after the sys.path insert above
 import deai_metrics as metrics  # noqa: E402  same sys.path reason
 import extract_style as es  # noqa: E402  same sys.path reason
 
@@ -166,16 +167,7 @@ def calibrate(documents: Iterable[tuple[str, str] | Path],
     return baseline
 
 
-def load_baseline(field_profile_dir: Path | None) -> dict[str, Any] | None:
-    if field_profile_dir is None:
-        return None
-    path = field_profile_dir / BASELINE_NAME
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
+load_baseline = reference.baseline_loader(BASELINE_NAME)
 
 
 def anchoring_axis_status(text: str, field_profile_dir: Path | None

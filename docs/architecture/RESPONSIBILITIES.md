@@ -25,6 +25,7 @@ overrides the standard.
 | `figure-review` | Separate objective scientific/rendering blockers from aesthetic advisories; measure canvas balance at the pixel level. |
 | `brainstorm` | Radial pre-draft ideation: produce candidate directions with evidence, derivation skeletons and reader payoff; never fabricate scientific content or write manuscript prose. |
 | `final-review` | Preserve independent isolated reviews (paper-review, figure-review, de-ai audit, MPR); merge typed findings; resolve blockers and L0 targets; record advisory dispositions and unmeasured axes. |
+| `calibrate` | Walk one field from an empty corpus to calibrated axes and, where a labeller is available, to measured advice quality; report every axis's floor and leave a stratum that cannot support a rate `unmeasured`; never lower a floor, never admit a held-out document into calibration, and never turn a calibrated distribution into a detector or a verdict. |
 | `proposal-polish` | Funding-proposal register (vision plus feasibility): keep backed ambition, enforce claim-feasibility matching, apply the L0 policy and §6 rewrite invariants unchanged; never fabricate support. |
 
 `docs/architecture/DEAI_SUBSYSTEM.md` documents architecture. `EVALUATION.md` records
@@ -47,6 +48,8 @@ scope, not a standard-reference obligation.
 | `deai_structure.py` | L2 sentence | Emit template evidence with calibration metadata; advisory-success exit 0. |
 | `deai_salience.py` | L2 salience | Measure recital structure against a per-section human passage reference at one shared unit; one finding per passage; abstain where the reference cannot resolve above the gate. Sole consumer of `extract_style.latex_to_numeral_text`, the numeral-preserving projection (`latex_to_plain` replaces math with `[math]`, which zeroes every numeral signal on `.tex` input). |
 | `deai_register.py` | L0 register | Compare manuscript vocabulary against field-corpus document frequency; judge compounds by their rarest part; read macro bodies but not subscript decorations; emit advisories only, never `l0_target`s. |
+| `deai_discourse.py` | L2 cohesion + L2 hedging | Measure given/new linkage and epistemic-marker rate against the field's own distribution, each at its declared unit, and flag the LOW tail. Report one status per feature, never a joint one: they calibrate from the same corpus at different granularities, so a field can support one and not the other. Speak only for buckets whose operating point was shown to transfer. |
+| `deai_reference.py` | shared reference | Own the `(feature, unit)` percentile contract for every per-bucket axis -- one quantile grid, one sample floor, one plateau-top reader, one calibration loop -- and hold no policy of its own. |
 | `deai_docstructure.py` | L2 document | Measure document shape (per-stratum dispersion manifold, role coupling, split-conformal) with sample-sufficiency checks; one shared `manifold_operating_point` scoring entry. |
 | `deai_anchoring.py` | L2 | Emit the section-class claim-anchoring band as a writing-quality axis, never an AI-discrimination axis. |
 | `deai_voice.py` | L3 | Emit calibrated similarity evidence, model metadata, and confound status without authorship claims; degraded, offline audit instrument. |

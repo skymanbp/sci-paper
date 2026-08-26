@@ -47,10 +47,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_register  # noqa: E402 -- because of that same sys.path insert
+import eval_findings  # noqa: E402 -- for HELDOUT_DIR, so the name has one owner
 import deai_salience  # noqa: E402 -- because of that same sys.path insert
 import extract_sections as es  # noqa: E402 -- because of that same sys.path insert
 
 SCHEMA = "sci-paper.finding-labels.v1"
+# A flag and a control ask opposite questions, and `cmd_score` reads them
+# that way: a control labelled true is a MISS, not an endorsement. One
+# printed instruction cannot mean both, so each row carries its own.
+FLAG_QUESTION = ('Is this advisory right — would you act on it? true = yes, the advisory is correct; false = no, it is a false positive.')
+CONTROL_QUESTION = ('This passage was NOT flagged. Should it have been? true = yes, the axis missed something here; false = no, correctly silent.')
 AXES = ("L0.register", "L2.salience_hierarchy")
 MIN_PER_CELL = 20   # below this a rate is reported `unmeasured`, never as 0/0
 
@@ -68,9 +74,46 @@ def _passages(text: str) -> list[tuple[str, str]]:
     return out
 
 
-def _findings_for(path: Path, field_dir: Path) -> list[dict]:
+def _documents(root: Path, *, bundles: bool) -> list[tuple[str, str]]:
+    """(name, text) per document, one paper per entry.
+
+    An arXiv source bundle ships a dozen `.tex` fragments and is still one
+    paper, so its roots are selected and their includes spliced back in rather
+    than each fragment counting as a document of its own.
+    """
+    if not bundles:
+        return [(p.name, p.read_text(encoding="utf-8", errors="replace"))
+                for p in sorted(root.rglob("*.tex"))]
+    out: list[tuple[str, str]] = []
+    for bundle in sorted(p for p in root.iterdir() if p.is_dir()):
+        tex = sorted(bundle.rglob("*.tex"))
+        for chosen in es.select_document_roots(tex, bundle) if tex else []:
+            text = es.read_tex_document(chosen)
+            if text.strip():
+                out.append((f"{bundle.name}/{chosen.name}", text))
+    return out
+
+
+def _excerpt(text: str, finding: dict, *, window: int = 2) -> str:
+    """The prose an advisory is about, carried into the sheet.
+
+    A finding stores a location, not the text: in a report the reader already
+    has the file open. A standalone labelling sheet that cited only
+    `main.tex:407` would make the labeller open one file per row, so the lines
+    travel with the row. Line numbers are relative to the assembled document
+    the detector was handed, which is the same string sliced here.
+    """
+    lines = text.splitlines()
+    location = finding.get("location") or {}
+    start = location.get("start_line") or 1
+    end = location.get("end_line") or start
+    return "\n".join(lines[max(0, start - 1 - window):min(len(lines), end + window)]
+                     ).strip()[:2000]
+
+
+def _findings_for(name: str, text: str, field_dir: Path) -> list[dict]:
     """Every register and salience finding one document produces."""
-    text = path.read_text(encoding="utf-8", errors="replace")
+    path = Path(name)
     found = []
     emitters = ((deai_register.register_findings, "L0.register"),
                 (deai_salience.salience_findings, "L2.salience_hierarchy"))
@@ -92,53 +135,80 @@ def cmd_sample(args) -> int:
     field_dir = args.profile_root / field
     rng = random.Random(args.seed)
 
-    populations: dict[str, list[Path]] = {}
+    populations: dict[str, list[tuple[str, str]]] = {}
     if args.drafts:
-        populations["draft"] = sorted(Path(args.drafts).rglob("*.tex"))
-    corpus = args.corpus_root / field
-    if corpus.is_dir():
-        populations["published"] = [p for p, _ in
-                                    [(x, None) for x in sorted(corpus.rglob("*.tex"))]]
+        root = Path(args.drafts)
+        # A paper is a document, not a file (`extract_sections`): a manuscript
+        # directory whose `main.tex` \input's its sections is one draft, not
+        # fifteen fragments, and macros.tex is not a draft at all.
+        nested = not any(root.glob("*.tex")) and any(
+            p.is_dir() and any(p.rglob("*.tex")) for p in root.iterdir())
+        populations["draft"] = _documents(root, bundles=nested)
+    # The published population is the HELD-OUT set, never the corpus root. The
+    # root also holds the 500 calibration papers, and EVALUATION section 17.3
+    # measured that ~94% of register flags on an in-sample paper are suppressed
+    # by that paper's own bank membership -- so what survives there is a biased
+    # residual, and a labeller would spend their effort on it.
+    heldout = args.corpus_root / field / args.heldout_dir
+    if heldout.is_dir():
+        populations["published"] = _documents(heldout, bundles=True)
     if not any(populations.values()):
-        raise SystemExit("[label_findings] no documents found; pass --drafts and/or "
-                         "build a corpus under --corpus-root.")
+        raise SystemExit(
+            f"[label_findings] no documents found; pass --drafts and/or place a "
+            f"held-out set at {args.corpus_root / field / args.heldout_dir}/.")
 
     rows = []
-    for population, paths in populations.items():
-        if not paths:
+    live = [key for key, docs in populations.items() if docs]
+    # Stratify by AXIS as well as by population. Salience fires roughly twenty
+    # times as often as register -- 0.0858 register findings per 1,000 words
+    # (EVALUATION section 18.4) against a per-passage p90 gate -- so a quota the
+    # two share is spent on salience long before register reaches the floor, and
+    # the register cell then reports `unmeasured` however large the sheet is.
+    quota = max(MIN_PER_CELL, args.n // (2 * max(1, len(live)) * len(AXES)))
+    short: list[str] = []
+    for population, documents in populations.items():
+        if not documents:
             print(f"[label_findings] population {population!r} is empty; skipped",
                   file=sys.stderr)
             continue
-        rng.shuffle(paths)
-        per_population = max(1, args.n // len([p for p in populations.values() if p]))
-        for path in paths:
-            if sum(1 for r in rows if r["population"] == population) >= per_population:
+        rng.shuffle(documents)
+        taken = {axis: 0 for axis in AXES}
+        for name, text in documents:
+            if all(count >= quota for count in taken.values()):
                 break
-            for entry in _findings_for(path, field_dir):
-                if "error" in entry:
+            for entry in _findings_for(name, text, field_dir):
+                axis = entry.get("axis")
+                if "error" in entry or taken.get(axis, quota) >= quota:
                     continue
+                taken[axis] += 1
                 rows.append({
                     "id": f"{population}-{len(rows):04d}",
                     "population": population,
-                    "axis": entry["axis"],
-                    "source": path.name,
+                    "axis": axis,
+                    "source": name,
                     "flagged": True,
                     "evidence": entry["finding"],
+                    "excerpt": _excerpt(text, entry["finding"]),
+                    "question": FLAG_QUESTION,
                     "label": None,          # <- you fill this in: true | false
                     "note": "",
                 })
+        # A cell the population cannot fill is stated here rather than
+        # discovered after the labelling is done.
+        short += [f"{population} x {axis}: {count} of {MIN_PER_CELL} needed "
+                  f"({len(documents)} documents hold no more)"
+                  for axis, count in taken.items() if count < MIN_PER_CELL]
     # Unflagged controls make recall computable: a sheet of flags alone can only
     # ever report precision. Target roughly as many controls as flags in each
     # population, so neither side of the ratio is the one that starves.
-    for population, paths in populations.items():
+    for population, documents in populations.items():
         flagged_here = sum(1 for r in rows
                            if r["population"] == population and r["flagged"])
         want = max(MIN_PER_CELL, flagged_here)
         made = 0
-        for path in paths:
+        for name, text in documents:
             if made >= want:
                 break
-            text = path.read_text(encoding="utf-8", errors="replace")
             flagged_text = {r["evidence"].get("text", "")[:200] for r in rows
                             if r["population"] == population and r["flagged"]
                             and isinstance(r.get("evidence"), dict)}
@@ -151,9 +221,10 @@ def cmd_sample(args) -> int:
                     "id": f"{population}-ctl-{len(rows):04d}",
                     "population": population,
                     "axis": "control",
-                    "source": path.name,
+                    "source": name,
                     "flagged": False,
                     "evidence": {"section": bucket, "text": passage[:1200]},
+                    "question": CONTROL_QUESTION,
                     "label": None,
                     "note": "",
                 })
@@ -172,7 +243,11 @@ def cmd_sample(args) -> int:
                       if r["population"] == population and r["flagged"])
         print(f"    {population:10s} {count:4d} rows ({flagged} flagged, "
               f"{count - flagged} controls)")
-    print('    Set "label" to true (the advisory is right) or false (it is not).')
+    print("    Each row carries its own `question`. A flagged row asks whether "
+          "the advisory is right;\n    a control row asks whether it SHOULD "
+          "have been flagged, which is the miss recall counts.")
+    for line in short:
+        print(f"    unmeasurable cell -- {line}", file=sys.stderr)
     return 0
 
 
@@ -263,6 +338,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--drafts", type=Path, default=None,
                    help="directory of your own .tex drafts")
     s.add_argument("--n", type=int, default=60)
+    s.add_argument("--heldout-dir", default=eval_findings.HELDOUT_DIR,
+                   help="directory under style-corpus/<field>/ holding the "
+                        "held-out papers the calibration never saw")
     s.add_argument("--seed", type=int, default=20260826)
     s.add_argument("--out", type=Path, default=Path("labels.jsonl"))
     s.set_defaults(func=cmd_sample)

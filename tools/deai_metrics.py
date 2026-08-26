@@ -8,7 +8,6 @@ returns success when measurement completes even when feedback is present.
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import statistics
@@ -220,11 +219,11 @@ def distribution_findings(text: str, field_profile_dir: Path | None,
                     strong_advisory=measured,
                     observed={"sentence_length_cv": draft_cv,
                               "sentence_count": len(lengths), "ratio": ratio},
-                    reference={"field_profile": str(field_profile_dir),
-                               "section_bucket": bucket,
-                               "sentence_length_cv": ref_cv,
-                               "operating_point_ratio": burstiness_ratio,
-                               "provenance": reference["assets"]},
+                    reference=feedback.reference_block(
+                        field_profile_dir, bucket=bucket,
+                        sentence_length_cv=ref_cv,
+                        operating_point_ratio=burstiness_ratio,
+                        provenance=reference["assets"]),
                     normalized_distance=burstiness_ratio - ratio,
                     confidence={"value": min(1.0, len(lengths) / 20.0),
                                 "basis": f"{len(lengths)} sentences"},
@@ -251,11 +250,11 @@ def distribution_findings(text: str, field_profile_dir: Path | None,
                     strong_advisory=measured,
                     observed={"connective_openers": n_connective,
                               "paragraphs": len(openers), "fraction": fraction},
-                    reference={"field_profile": str(field_profile_dir),
-                               "section_bucket": bucket,
-                               "corpus_fraction": reference["corpus_signpost"],
-                               "operating_point_fraction": signpost_frac,
-                               "provenance": reference["assets"]},
+                    reference=feedback.reference_block(
+                        field_profile_dir, bucket=bucket,
+                        corpus_fraction=reference["corpus_signpost"],
+                        operating_point_fraction=signpost_frac,
+                        provenance=reference["assets"]),
                     normalized_distance=fraction - signpost_frac,
                     confidence={"value": min(1.0, len(openers) / 10.0),
                                 "basis": f"{len(openers)} paragraphs"},

@@ -42,7 +42,6 @@ borrowed method, or may be the very thing the paper introduces.
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import sys
@@ -427,32 +426,15 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    cli_common.utf8_stdout()
-    parser = cli_common.field_parser(__doc__)
-    parser.add_argument("file", type=Path, nargs="?")
-    parser.add_argument("--calibrate", action="store_true")
-    args = parser.parse_args(argv)
-    field_dir = args.profile_root / args.field if args.field else None
-    if args.calibrate:
-        if field_dir is None:
-            print("[deai_register] --calibrate needs --field", file=sys.stderr)
-            return 2
-        result = calibrate(field_dir)
-        print(f"[deai_register] lexicon written: "
-              f"{field_dir / LEXICON_FILENAME} "
-              f"({result['n_passages']} passages, {result['n_terms']} terms)")
-        return 0
-    if not args.file or not args.file.exists():
-        print(f"[deai_register] file not found: {args.file}", file=sys.stderr)
-        return 2
-    text = args.file.read_text(encoding="utf-8", errors="replace")
-    report = feedback.build_report(
-        path=args.file,
-        findings=register_findings(text, field_dir, args.file),
-        axes=[register_axis_status(field_dir)],
-    )
-    print(feedback.render_text(report))
-    return 0
+    return cli_common.axis_main(
+        __doc__, argv, tool="deai_register", calibrate=calibrate,
+        summary=lambda result, field_dir: (
+            f"lexicon written: {field_dir / LEXICON_FILENAME} "
+            f"({result['n_passages']} passages, {result['n_terms']} terms)"),
+        report=lambda text, field_dir, path: feedback.build_report(
+            path=path, findings=register_findings(text, field_dir, path),
+            axes=[register_axis_status(field_dir)]),
+        render=feedback.render_text)
 
 
 if __name__ == "__main__":

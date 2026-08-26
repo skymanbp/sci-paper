@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 
+import _profilefixture as fixture
 import deai_salience as salience
 import extract_style as es
 
@@ -172,13 +172,7 @@ class TestFindingsAndCalibration(unittest.TestCase):
         # Forty identical passages give P(X <= x) = 1.0 for the value they all
         # share, so an unguarded reading would flag a perfectly typical
         # passage as the 100th percentile.
-        with tempfile.TemporaryDirectory(prefix="salience-") as raw:
-            profile = Path(raw)
-            bank = profile / "exemplar_paragraphs.jsonl"
-            with bank.open("w", encoding="utf-8") as handle:
-                for _ in range(40):
-                    handle.write(json.dumps({"section": "abstract",
-                                             "text": RANKED}) + "\n")
+        with fixture.temp_profile(fixture.uniform(RANKED, 40)) as profile:
             salience.calibrate(profile)
             baseline = salience.load_baseline(profile)
             self.assertFalse(salience.resolves_above_gate(
@@ -187,13 +181,7 @@ class TestFindingsAndCalibration(unittest.TestCase):
             self.assertEqual(salience.salience_findings(document, profile), [])
 
     def test_small_reference_is_degraded_not_measured(self):
-        with tempfile.TemporaryDirectory(prefix="salience-") as raw:
-            profile = Path(raw)
-            bank = profile / "exemplar_paragraphs.jsonl"
-            with bank.open("w", encoding="utf-8") as handle:
-                for _ in range(5):
-                    handle.write(json.dumps({"section": "abstract",
-                                             "text": RANKED}) + "\n")
+        with fixture.temp_profile(fixture.uniform(RANKED, 5)) as profile:
             salience.calibrate(profile)
             self.assertEqual(salience.salience_axis_status(profile)["status"],
                              "degraded")

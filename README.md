@@ -12,12 +12,12 @@ manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**8 skills · 32 tools · 334 tests · one normative contract · zero authorship verdicts.**
+**9 skills · 34 tools · 360 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
 [Benchmarks](#benchmark-dashboard) · [Install](#install) ·
-[Skills](#skills-8) · [Tools](#tools-32) ·
+[Skills](#skills-9) · [Tools](#tools-34) ·
 [Limitations](#status-known-limitations-and-roadmap) ·
 [The standard](docs/SCIPAPER_STANDARD.md) · [Docs](docs/README.md)
 
@@ -72,7 +72,7 @@ problem:
 | **7** | **Polish a funding proposal** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description, NIH Specific Aims, fellowships. Keeps the vision-and-feasibility register a paper would trim, enforces claim–feasibility matching, edits the score-forming first pages hardest. |
 | **8** | **Explore research directions** | [`brainstorm`](skills/brainstorm/SKILL.md) | Radial research-direction explorer: twelve framing passes per node, glossary-anchored terminology, complete derivation per branch, recursive divergence to convergence. Deferred or incomplete leaves are hard-banned. |
 
-All eight run over the same evidence layer — 32 tools emitting one schema,
+All eight run over the same evidence layer — 34 tools emitting one schema,
 `sci-paper.feedback.v1` — so a finding from the linter, the review skill, and
 the orchestrator are the same object with the same ID.
 
@@ -189,10 +189,10 @@ killed each one. **A refuted detector is evidence, and it stays in the record.**
 
 ## See it work
 
-Demo 1 was re-run on **2026-08-26** at v0.32.0 on the `wgl` reference profile;
-demo 2 is a dated v0.28.0 record whose draft was not retained. Nothing is
-illustrative. A fresh clone ships **no** profile ([why](#field-aware-evidence)),
-so `measured` axes require you to build one from your own papers first.
+Demo 1 was re-run on **2026-08-26** at v0.32.0 on the `wgl` reference profile; demo 2 is a
+dated v0.28.0 record whose draft was not retained. Both predate the v0.33.0 discourse axes —
+pass `--no-discourse` to reproduce their counts. Nothing is illustrative. A fresh clone ships
+**no** profile ([why](#field-aware-evidence)), so `measured` axes need one built from yours.
 
 ### 1. Three treatments of the same paragraph
 
@@ -269,7 +269,7 @@ and a six-sentence recital of a parameter grid.
 
 ```console
 $ python tools/ai_ism_lint.py before.tex --field wgl \
-    --structure --distribution --register --salience --document-structure
+    --structure --distribution --register --salience --document-structure --no-discourse
 
 findings: blockers=0 L0=8 advisories=10 (strong=1)
 axis L0.lexical: measured   axis L0.register: measured   axis L2.salience_hierarchy: measured
@@ -452,26 +452,26 @@ features and posture — but an old triage list will not reproduce exactly.
 
 ### Latency and repository health
 
-Measured 2026-08-25 on Windows 11, Python 3.13.3, RTX 4060 Ti, median of 7
-subprocess runs (3 for the model-backed rows) including interpreter startup. The
-document is a real 5,084-word corpus paper, assembled from its LaTeX includes.
+Measured 2026-08-27 on Windows 11, Python 3.13.3, RTX 4060 Ti, median of 7 subprocess runs (3 for the
+model-backed rows and the suite) including interpreter startup, on a real 5,084-word corpus paper
+assembled from its includes. Re-taken whole: the floor moved 56 → 84 ms, so no v0.32.0 row compares.
 
 | Pass | Median wall | Dependencies |
 |---|---:|---|
-| Python interpreter floor | 56 ms | — |
-| L0 lexicon + register | **208 ms** | stdlib |
-| **All model-free axes** (L0 + L1 + L2 incl. document structure) | **390 ms** | stdlib |
-| `length_gate.py` | 180 ms | stdlib |
-| `+ --oracle` (GPT-2-large token surprisal) | 23.1 s | `transformers` + `torch` |
-| `+ --voice` (learned L3 triage) | 26.6 s | `scikit-learn` + `sentence-transformers` |
-| `validate_plugin.py` — **9/9 checks pass** | 359 ms | stdlib |
-| Full test suite — **334 passing**, 18 files · re-measured 2026-08-26 | 40.8 s | stdlib |
+| Python interpreter floor | 84 ms | — |
+| L0 lexicon + register | **274 ms** | stdlib |
+| **All model-free axes** (L0 + L1 + L2 incl. document structure and discourse) | **409 ms** | stdlib |
+| `length_gate.py` | 194 ms | stdlib |
+| `+ --oracle` (GPT-2-large token surprisal) | 48.7 s | `transformers` + `torch` |
+| `+ --voice` (learned L3 triage) | 59.1 s | `scikit-learn` + `sentence-transformers` |
+| `validate_plugin.py` — **9/9 checks pass** | 2.3 s | stdlib |
+| Full test suite — **360 passing**, 19 files | 51.0 s | stdlib |
 
-The headline: **a complete model-free pass over a 5,084-word manuscript costs
-~334 ms of analysis above the interpreter floor**, with no optional dependency
-installed. The two model-backed axes cost 60×–80× more and are opt-in flags —
-you should not need a GPU to lint a paper. CI runs the validator and the suite on
-every push and PR, Python 3.11, Ubuntu.
+The headline: **a complete model-free pass over a 5,084-word manuscript costs ~325 ms of analysis
+above the interpreter floor**, with no optional dependency installed. The two model-backed axes cost
+120×–145× more and are opt-in flags — you should not need a GPU to lint a paper. Both moved further
+than the floor did (2.1× against 1.5×) for reasons this table does not establish. CI runs the
+validator and the suite on every push and PR, Python 3.11, Ubuntu.
 
 ---
 
@@ -521,17 +521,17 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 
 ---
 
-## Skills (8)
+## Skills (9)
 
-Four jobs; what each one does is in [the eight functions](#the-eight-functions).
-Drive them from Claude Code as `/sci-paper:<name> draft.tex --field wgl`.
+Five jobs — detail in [the eight functions](#the-eight-functions); drive them as `/sci-paper:<name> draft.tex --field wgl`.
 
 - **Write** — [`paper`](skills/paper/SKILL.md) (load the standard) · [`proposal-polish`](skills/proposal-polish/SKILL.md) (NSF / NIH register)
 - **Revise** — [`de-ai`](skills/de-ai/SKILL.md) (measure → audit → faithful rewrite) · [`condense`](skills/condense/SKILL.md) (remove redundancy, prove the shrink)
 - **Review** — [`paper-review`](skills/paper-review/SKILL.md) (A–R, source-traced) · [`figure-review`](skills/figure-review/SKILL.md) (compiled pages) · [`final-review`](skills/final-review/SKILL.md) (isolated orchestration)
 - **Explore** — [`brainstorm`](skills/brainstorm/SKILL.md) (radial research exploration)
+- **Calibrate** — [`calibrate`](skills/calibrate/SKILL.md) (corpus → profile → axes → your own labels; the setup the measured axes need)
 
-## Tools (32)
+## Tools (34)
 
 One `sci-paper.feedback.v1` contract for every finding; corpus, training, and
 evaluation entries produce artifacts instead. `layer` is the axis the tool serves
@@ -550,6 +550,8 @@ reproducible evidence. Per-tool detail: [tools/README.md](tools/README.md).
 | `tools/deai_oracle.py` | L1 | Optional token-surprisal and Uniform Information Density evidence. Unavailable assets and compatibility thresholds stay explicit. |
 | `tools/deai_structure.py` | L2 | Sentence and paragraph construction: enumeration, repeated frames, parallel runs, symmetry, and related template families. |
 | `tools/deai_salience.py` | L2 | Salience hierarchy: how far a passage's measured quantities run without an interpreting sentence between them, against a per-section human reference. Sole consumer of the numeral-preserving LaTeX projection. |
+| `tools/deai_discourse.py` | L2 | Discourse texture on the LOW tail: given/new linkage per paragraph, and epistemic-marker rate per **section** — hedging has no paragraph-scale lower tail, so the two axes calibrate at different units and each artifact records its own. Hedging speaks only for introductions, where its operating point was shown to transfer. |
+| `tools/deai_reference.py` | L2 | The one `(feature, unit)` percentile reference every per-bucket axis shares: quantile grid, plateau-top percentile reader, sample floor, paragraph and section sweeps, calibration loop. Holds no policy; its invariant is that calibration and detection never drift apart on what a unit is. |
 | `tools/deai_docshape.py` | L2 | Document-shape measurement and complete-document calibration: the per-paragraph feature vector, cross-paragraph dispersion, the joint Mahalanobis manifold, role coupling, split-conformal operating points, and the baseline builder. Split from `deai_docstructure.py` on 2026-08-25; that module re-exports every public name here. |
 | `tools/deai_docstructure.py` | L2 | Whole-document rhetorical shape and complete-document calibration: dispersion band, per-length-stratum joint manifold, role coupling, split-conformal operating points. |
 | `tools/deai_anchoring.py` | L2 | Section-class conditional claim-anchoring band — a writing-quality axis, explicitly **not** an AI-discrimination axis. |
@@ -565,7 +567,7 @@ reproducible evidence. Per-tool detail: [tools/README.md](tools/README.md).
 | `tools/eval_findings.py` | eval | Scores register and salience against **provenance** labels instead of hand labels: their firing rate on held-out refereed ApJ/ApJL/A&A papers, on the in-sample papers, and on the `docval` machine tiers, plus a paired test that isolates calibration leakage from publication era. |
 | `tools/label_findings.py` | eval | Samples register and salience findings into a human-labelling sheet, re-serves a blind subset for intra-rater agreement, and scores precision/recall stratified by drafts vs published papers. Reports `unmeasured` for any stratum under 20 labels. |
 | `tools/build_profile.py` | build | Builds the basic field profile: extraction, optional legacy classifier, exemplar-cache warm-up. |
-| `tools/cli_common.py` | build | Shared command-line preamble and field resolution, used by 22 of 32 tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
+| `tools/cli_common.py` | build | Shared command-line preamble and field resolution, used by 25 of 34 tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
 | `tools/extract_style.py` | build | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. Re-exports every public name from `extract_sections.py`. |
 | `tools/extract_sections.py` | build | Source-text projection and section splitting: the section vocabulary and its classifier, both named LaTeX projections, and the PDF heading heuristic. Section buckets key every per-section reference, so changing this requires a profile rebuild. |
 | `tools/retrieve_exemplars.py` | build | Retrieves section- and topic-matched exemplar paragraphs, with embedding or explicit fallback retrieval. |
@@ -601,7 +603,7 @@ advisories stay visible and need not disappear — which is why
 A *field* is one subdirectory under `style-corpus/` with a matching directory
 under `style-profile/`. With exactly one field present, tools auto-detect it;
 with several, pass `--field <name>` explicitly. **Nothing assumes a particular
-field exists** — including the `wgl` field used throughout this README.
+field exists** — including `wgl`. [`calibrate`](skills/calibrate/SKILL.md) walks the whole chain.
 
 ```
 style-corpus/<field>/tier-1-top/        top-journal exemplars
@@ -668,7 +670,7 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   8 skills          ├── tests/     18 files, 334 tests
+├── skills/<name>/SKILL.md   9 skills          ├── tests/     18 files, 334 tests
 ├── tools/                   31 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
@@ -687,7 +689,7 @@ requires independent review, clean-checkout verification, and green hosted CI.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.32.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.33.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.7 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative
@@ -710,6 +712,7 @@ de-AI standard.
 | **A quarter of the corpus is never used** | Headings matching no section bucket are dropped rather than guessed: **2,334 of 9,178 (25.4%)** in `wgl`, 42 of 148 in `wgl-letter`. The remainder is mostly topic headings ("Matter power spectrum"); "Measurements" and "Background" were refused as genuinely ambiguous. |
 | **Register fires on accepted prose** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0858 findings per 1,000 words**, 44.8% of documents, rank AUC **0.286** against machine text — it still fires *more* on human papers than on AI drafts. 94.4% of the 198 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector; it is an advisory, cut at the first point where a referee-grade paper is not flagged more often than not. |
 | **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's gate transfers almost exactly (0.2775 per passage against a 0.2710 expectation), and 7.00% of the digits it read on LaTeX were citation years until v0.32.0; precision and recall for the advice itself need `tools/label_findings.py`. |
+| **Hedging only speaks about introductions** | The epistemic-marker axis ships restricted to `intro`, where its p10 gate fires at 7.89% on 203 held-out refereed papers. Elsewhere it fires at 15–27% on prose a referee accepted, and at least one generation regime lands below chance. Cohesion needs no such restriction (6.6–14.6% across all seven buckets). |
 | **A fresh clone measures nothing** | All profile assets are gitignored. Until you build a profile from your own papers, every corpus-referenced axis is `unmeasured`. |
 
 ### Roadmap
@@ -717,15 +720,12 @@ de-AI standard.
 One item, and it needs a person rather than a machine: whether an individual advisory is good
 *advice*, and recall. Provenance cannot supply either; `label_findings.py` is that path.
 
-**Citation placement is measured but not shipped.** Machine methods sections cite in 36.7%
-of their sentences against 16.5% for refereed ones — section-matched AUC 0.866, length-matched
-0.835, human-vs-human null 0.553. It survives every control and waits on a second,
-independently produced AI bank, because one bank cannot separate "AI cites more" from "these
-prompts made it cite more" ([§18.6](docs/architecture/evaluation/projection-and-operating-point.md)).
-
-**Closed by refutation, not by shipping.** The length-aware manifold, a larger conformal
-calibration set, long-form tail power, three L3 retrains, the leakage contrast, and now the
-register operating point itself were built or tested and refuted — one row each above.
+**Closed by refutation, not by shipping.** The length-aware manifold, a larger conformal calibration
+set, long-form tail power, three L3 retrains, the leakage contrast, the register operating point, and
+now citation placement were built or tested and refuted. The last was the strongest model-free
+discriminator in the record (AUC 0.866) and did not survive its own pre-registered test: a second bank
+from a different model scores **0.053** on the same statistic with no citation instruction and **0.734**
+with one, so the signal was the prompt ([§20](docs/architecture/evaluation/discourse-and-citation.md)).
 
 ## Acknowledgments and license
 

@@ -28,6 +28,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any, Callable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
@@ -94,6 +95,40 @@ def emit_report(report: dict, args, *, render, tool: str) -> int:
         print(f"[{tool}] -> {args.output}")
     else:
         print(text)
+    return 0
+
+
+def axis_main(doc: str | None, argv: list[str] | None, *, tool: str,
+              calibrate: Callable[[Path], Any],
+              summary: Callable[[Any, Path], str],
+              report: Callable[[str, Path | None, Path], dict],
+              render: Callable[[dict], str]) -> int:
+    """The `--calibrate`-or-read-one-file CLI every calibrated axis shares.
+
+    Three axis tools carried a near-byte-equivalent copy of this body before a
+    fourth needed it. Only three things ever differed: the tool name inside the
+    messages, the one line describing what calibration wrote, and which
+    functions produce the findings and the axis statuses. `render` is injected
+    for the same reason `emit_report` injects it -- so this module goes on
+    holding no report schema and no policy.
+    """
+    utf8_stdout()
+    parser = field_parser(doc)
+    parser.add_argument("file", type=Path, nargs="?")
+    parser.add_argument("--calibrate", action="store_true")
+    args = parser.parse_args(argv)
+    field_dir = args.profile_root / args.field if args.field else None
+    if args.calibrate:
+        if field_dir is None:
+            print(f"[{tool}] --calibrate needs --field", file=sys.stderr)
+            return 2
+        print(f"[{tool}] {summary(calibrate(field_dir), field_dir)}")
+        return 0
+    if not args.file or not args.file.exists():
+        print(f"[{tool}] file not found: {args.file}", file=sys.stderr)
+        return 2
+    text = args.file.read_text(encoding="utf-8", errors="replace")
+    print(render(report(text, field_dir, args.file)))
     return 0
 
 

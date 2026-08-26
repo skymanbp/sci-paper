@@ -122,6 +122,29 @@ def priority_key(finding: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
+def reference_block(field_profile_dir: Path | str | None, *, bucket: str,
+                    provenance: Any, n: int | None = None,
+                    **extra: Any) -> dict[str, Any]:
+    """The `reference=` payload a per-bucket finding carries.
+
+    Six detectors each spelled this out, and the shared head -- which profile,
+    which section bucket, which artifact the numbers came from -- had drifted
+    into six slightly different orderings and two different treatments of a
+    missing profile directory. The per-axis keys stay per-axis: they are policy
+    (`advisory_percentile`, `templated_fraction`, `rare_df_rate`), and passing
+    them through `**extra` keeps this function free of any.
+    """
+    block: dict[str, Any] = {
+        "field_profile": str(field_profile_dir) if field_profile_dir else None,
+        "section_bucket": bucket,
+    }
+    if n is not None:
+        block["n"] = n
+    block.update(extra)
+    block["provenance"] = provenance
+    return block
+
+
 def make_finding(
     *,
     kind: str,

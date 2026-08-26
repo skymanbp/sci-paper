@@ -32,6 +32,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_feedback as feedback  # noqa: E402  shared finding contract
+import deai_reference as reference  # noqa: E402 because sibling tools are importable only after the sys.path insert above
 import deai_metrics as dm  # noqa: E402  resolves only after the sys.path insert above
 import extract_style as es  # noqa: E402  same reason
 
@@ -138,16 +139,7 @@ def calibrate(field_profile_dir: Path, model_name: str = DEFAULT_MODEL) -> dict:
     return baseline
 
 
-def load_baseline(field_profile_dir: Path | None) -> dict | None:
-    if field_profile_dir is None:
-        return None
-    p = field_profile_dir / BASELINE_NAME
-    if not p.exists():
-        return None
-    try:
-        return json.loads(p.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
+load_baseline = reference.baseline_loader(BASELINE_NAME)
 
 
 # ------------------------------------------------------------------- score --

@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.32.0)
+# De-AI subsystem architecture (current as of v0.33.0)
 
 ## 1. Purpose
 
@@ -170,6 +170,39 @@ is right for lexical and shape statistics and zeroes every numeral signal on
 `.tex` input; the numeral-preserving projection shares the same pattern set and
 differs only in what happens inside an inline math span. Displayed equations are
 dropped by both.
+
+### L2: discourse texture (cohesion, hedging)
+
+[`../tools/deai_discourse.py`](../../tools/deai_discourse.py) carries two axes
+that fire on the **low** tail, where the defect is absence rather than excess:
+`L2.cohesion`, the mean fraction of a sentence's content words that already
+appeared in the sentence before it, and `L2.hedging`, epistemic markers per
+1,000 words.
+
+They are the first axes in the subsystem to measure at **different units**, and
+that is forced rather than chosen. Hedging has no paragraph-scale lower tail at
+all: on the `wgl` bank its tenth percentile is exactly 0.000 in every one of the
+seven section buckets, because a 40-word paragraph that hedges nowhere is
+entirely ordinary. Calibrating there produces a gate no passage can fall below.
+Regrouped so one section is one unit, six of seven buckets separate. So cohesion
+calibrates and detects per paragraph, hedging per section, each artifact records
+its own `unit`, and the two are never read against each other.
+
+The shared machinery lives in
+[`../tools/deai_reference.py`](../../tools/deai_reference.py), which owns the one
+`(feature, unit)` percentile contract every per-bucket axis uses — the quantile
+grid, the plateau-top percentile reader, the 30-unit sample floor, both span
+sweeps, and the calibration loop — and holds no policy of its own. Its
+`resolves_gate` guards the flagged tail from one implementation, `high=True` for
+salience and `high=False` here, so an upper-tail and a lower-tail axis cannot
+drift apart on what "the reference cannot resolve this" means. That guard is what
+surfaced the hedging unit problem instead of shipping it.
+
+Hedging additionally speaks only for buckets whose operating point was shown to
+transfer — `intro` on `wgl`. Two independent measurements put the boundary in the
+same place, and both are recorded in EVALUATION §19. Neither axis is an
+authorship claim: a passage below the field's tenth percentile is unusual for the
+field, which is worth telling an author, and is not evidence about who wrote it.
 
 ### L2: whole-document rhetorical shape
 
