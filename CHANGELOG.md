@@ -3,6 +3,68 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.31.0 — 2026-08-27
+
+Asked what was left undone, the answer turned out to be inside the number
+v0.30.0 had just published. **58.7% of the register false positives measured on
+held-out refereed papers were not about vocabulary at all.**
+
+### Calibration and detection were reading different documents
+
+The corpus document frequency is built from `exemplar_paragraphs.jsonl`, which
+`extract_style` produces by section-splitting and dropping the preamble and
+every `skip` bucket. `manuscript_terms` read the **whole raw file**. So the two
+sides of one ratio ran on different projections: `dipartimento`, `cedex`,
+`helsinki` and a long list of author surnames have df 0 on the corpus side
+because front matter and bibliographies were stripped there, and count ≥ 5 on
+the manuscript side because they were not stripped here.
+
+Measured on the 203 held-out papers, by region:
+
+| region | share of findings |
+|---|---:|
+| body prose | 41.3% |
+| preamble (title / author / affiliation) | 27.5% |
+| bibliography (`thebibliography`, `\bibitem`) | 26.3% |
+| TeX control words (from preamble macro bodies) | 4.1% |
+| `skip` sections | 0.9% |
+
+A bibliography is an *environment*, not a section, so the section-level `skip`
+bucket never saw it — it sits inside the span of whatever section precedes it.
+
+`deai_register.body_only` blanks those regions, preserving line numbers so
+section attribution keeps working, and keeps the abstract environment that
+AASTeX puts inside the dropped preamble.
+
+### Corrected figures
+
+| | v0.30.0 | v0.31.0 |
+|---|---:|---:|
+| held-out register, per 1,000 words | 0.991 | **0.384** |
+| held-out register, documents flagged | 93.6% | **87.2%** |
+| rank AUC vs machine text | 0.080 | **0.148** |
+| paired leakage suppressed | 72.7% of 2,287 | **86.3% of 887** |
+| **every salience figure** | — | **byte-identical** |
+
+No threshold changed. Salience reproducing exactly is the control: it needed no
+fix, and was checked rather than assumed — 0 of its 1,077 findings on these
+papers fall in a bibliography, so the class has one member.
+
+What remains is a long tail rather than one cause: LaTeX markup that
+`latex_to_plain` does not strip (`htb` from a float specifier, `hsize`,
+`vskip`), a few surnames in running prose, and genuine cross-subfield
+vocabulary — the held-out sweep pulled sub-mm papers whose instrument names
+(`mambo`, `aztec`, `pdbi`) a weak-lensing corpus really does not contain.
+
+### Also
+
+- `render` printed the whole gate-transfer dict into the sentence naming the
+  0.9 percentile; a local name collision, now pinned by a test.
+- §17 moved to `evaluation/held-out-labels.md`; its host had passed the
+  750-line budget.
+
+315 tests across 17 files; validator 9/9.
+
 ## v0.30.1 — 2026-08-27
 
 An audit for anything left undone found a second field running a different

@@ -155,6 +155,15 @@ class SalienceGateTransferTest(unittest.TestCase):
         self.assertIn("gate transfer", rendered)
         self.assertIn("independent gates", rendered)
 
+    def test_the_percentile_sentence_prints_the_percentile(self) -> None:
+        # A local name collision printed the whole gate-transfer dict into the
+        # sentence that is supposed to name the 0.9 percentile.
+        rows = ThinPopulationTest._rows(ef.MIN_DOCUMENTS, 1.0)
+        rendered = ef.render(ef.build_report("wgl", {"published-heldout": rows}))
+        gate = deai_salience.ADVISORY_PERCENTILE
+        self.assertIn(f"its gate is the {gate} percentile", rendered)
+        self.assertNotIn("'status':", rendered)
+
 
 class LeakageIsMeasuredPairedTest(unittest.TestCase):
     """The cross-population contrast is confounded, so it must not be offered.

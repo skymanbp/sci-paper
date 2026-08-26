@@ -2,16 +2,16 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.30.1-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.31.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-308%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-315%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**8 个 skill · 32 个工具 · 308 个测试 · 一份规范 · 零作者身份判决。**
+**8 个 skill · 32 个工具 · 315 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
@@ -413,7 +413,7 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 | `+ --oracle`（GPT-2-large token surprisal） | 23.1 s | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` —— **9/9 通过** | 359 ms | 标准库 |
-| 完整测试套件 —— **308 通过**，17 个文件 | 37.3 s | 标准库 |
+| 完整测试套件 —— **315 通过**，17 个文件 | 35.5 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
 334 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 60–80 倍，并且是显式 opt-in 的
@@ -645,7 +645,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 ## 现状、已知限制与路线图
 
-当前版本：**v0.30.1**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
+当前版本：**v0.31.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
 
 **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.7 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层、`calibration_unit` 置信度封顶、§5.2 去 AI 化
@@ -665,7 +665,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` —— 现在是有*测量依据*的。burstiness 在对抗文本上符号反转（AUC 0.181），signposting 低于随机（0.247），根本写不出一个操作点。 |
 | **重训不保证行为等价** | 重建 profile 会重拟 L3。排序保持 ρ 0.846、分诊重合 0.654，但旧的分诊清单不会一字不差复现。 |
 | **语料有四分之一从未被用上** | 匹配不到任何 section 桶的标题是被丢弃，而不是被猜进某个桶：`wgl` 里 9,178 个标题中有 **2,334 个（25.4%）**，`wgl-letter` 里 148 个中有 42 个。剩下的多是主题标题（"Matter power spectrum"）；"Measurements" 与 "Background" 因真歧义被拒绝加入。 |
-| **register 在已发表文字上照样开火** | 在它从没见过的 203 篇留出 ApJ/ApJL/A&A 已发表论文上实测：**每千词 0.991 条**，93.6% 的文档命中，对机器文本的秩 AUC **0.080** —— 它在人类论文上比在 AI 草稿上更爱开火。其中 72.7% 的 flag 只要论文自己在库里就会消失，所以样本内的表象好了 3.7 倍。记录下来，不做重调。 |
+| **register 在已发表文字上照样开火** | 在它从没见过的 203 篇留出 ApJ/ApJL/A&A 已发表论文上实测：**每千词 0.384 条**，87.2% 的文档命中，对机器文本的秩 AUC **0.148** —— 它在人类论文上比在 AI 草稿上更爱开火。其中 86.3% 的 flag 只要论文自己在库里就会消失。v0.30.0 曾发布 0.991／93.6%／0.080，其中 **58.7% 是投影缺陷**而非词汇证据：检测读整份文件，而语料 df 早已剥掉前置信息与参考文献。 |
 | **建议质量仍未被标注** | 出处只能回答「它是否在已发表文字上开火」，回答不了「这条建议对不对」。salience 的门迁移得几乎精确（逐 passage 0.2705，期望 0.2710）；建议本身的精确率与召回率仍需 `tools/label_findings.py`。 |
 | **全新 clone 什么都测不出来** | 全部 profile 制品都 gitignore。在你用自己的论文建出 profile 之前，每条语料参照的轴都是 `unmeasured`。 |
 

@@ -69,6 +69,11 @@ RE_NEWCOMMAND = re.compile(
 RE_MACRO_TEXT = re.compile(
     r"(.?)\\(?:mathrm|mathit|text|textrm|mathsf|operatorname)\s*\{([^{}]+)\}")
 RE_POSSESSIVE = re.compile(r"'s$")
+# A bibliography is an environment, not a section, so the section-level `skip`
+# bucket never sees it: it sits inside the span of whatever section precedes it.
+RE_BIB_ENV = re.compile(r"\\begin\{thebibliography\}.*?\\end\{thebibliography\}",
+                        re.DOTALL)
+RE_BIBITEM = re.compile(r"^\s*\\bibitem\b", re.MULTILINE)
 
 # A term must carry weight in the manuscript before its rarity means anything.
 # Five uses is the point at which a term is load-bearing vocabulary rather than
@@ -168,10 +173,53 @@ def macro_terms(text: str) -> dict[str, str]:
     return out
 
 
+def body_only(text: str) -> str:
+    """Blank the regions the corpus side never saw, keeping line numbers.
+
+    The corpus document frequency is built from `exemplar_paragraphs.jsonl`,
+    which `extract_style` produces by section-splitting and dropping the
+    preamble and every `skip` bucket. Detection read the whole raw file, so the
+    two sides of one ratio ran on different projections: `dipartimento`,
+    `cedex` and an author's surname have df 0 on the corpus side because front
+    matter and the bibliography were stripped there, and count >= 5 on the
+    manuscript side because they were not stripped here. The finding was
+    manufactured by the asymmetry, not by anything about the vocabulary.
+
+    Measured on the 203 held-out refereed papers of EVALUATION §17, **58.7%**
+    of register findings came from outside body prose: 27.5% preamble, 26.3%
+    bibliography, 4.1% TeX control words (which live in preamble macro
+    definitions), 0.9% `skip` sections.
+
+    `deai_salience` needs none of this — on the same papers 0 of its 1,077
+    findings fall in a bibliography — so this stays here rather than becoming
+    shared machinery for a single consumer.
+
+    Lines are blanked rather than deleted so `usage["line"]` still indexes the
+    original document and section attribution keeps working.
+    """
+    lines = text.splitlines()
+    drop: set[int] = set()
+    for start, end, label in metrics.section_line_ranges(text):
+        if label == "(preamble)" or es.classify_section(label) == "skip":
+            drop.update(range(start, end + 1))
+    for pattern in (RE_BIB_ENV, RE_BIBITEM):
+        for match in pattern.finditer(text):
+            first = text[:match.start()].count("\n") + 1
+            drop.update(range(first, first + match.group(0).count("\n") + 1))
+    # The abstract is body prose the corpus does carry, and in AASTeX it sits
+    # inside the preamble that was just dropped.
+    for match in es.RE_ABSTRACT_ENV.finditer(text):
+        first = text[:match.start()].count("\n") + 1
+        drop.difference_update(
+            range(first, first + match.group(0).count("\n") + 1))
+    return "\n".join("" if n in drop else line
+                     for n, line in enumerate(lines, start=1))
+
+
 def manuscript_terms(text: str) -> dict[str, dict[str, Any]]:
     """Count each candidate term, from prose and from word-rendering macros."""
     macros = macro_terms(text)
-    body = re.sub(r"^\s*\\(?:new|renew|provide)command.*$", "", text,
+    body = re.sub(r"^\s*\\(?:new|renew|provide)command.*$", "", body_only(text),
                   flags=re.MULTILINE)
     counts: Counter[str] = Counter()
     lines: dict[str, int] = {}

@@ -1,4 +1,4 @@
-# EVALUATION — Whole-document cross-paragraph dispersion (the keystone axis) · `sci-paper` v0.30.1
+# EVALUATION — Whole-document cross-paragraph dispersion (the keystone axis) · `sci-paper` v0.31.0
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the

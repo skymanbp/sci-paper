@@ -23,7 +23,8 @@ lives in.
 | [architecture/evaluation/lexical-structure-uid.md](architecture/evaluation/lexical-structure-uid.md) | 4–6 | L0 behaviour, sentence-structure reference, UID reference |
 | [architecture/evaluation/learned-model.md](architecture/evaluation/learned-model.md) | 7, 8, 10 | Learned field similarity and its confound audit, rewrite eligibility, author hard set |
 | [architecture/evaluation/document-scale.md](architecture/evaluation/document-scale.md) | 9 | Whole-document dispersion: the keystone axis, its adversarial tiers and conformal operating points |
-| [architecture/evaluation/narrative-salience-register.md](architecture/evaluation/narrative-salience-register.md) | 11, 13–15, 17 | Real rewrite evaluation, blind perceptual panel, salience hierarchy, domain register, narrative salience, held-out refereed measurement |
+| [architecture/evaluation/narrative-salience-register.md](architecture/evaluation/narrative-salience-register.md) | 11, 13–15 | Real rewrite evaluation, blind perceptual panel, salience hierarchy, domain register, narrative salience |
+| [architecture/evaluation/held-out-labels.md](architecture/evaluation/held-out-labels.md) | 17 | Held-out refereed papers as provenance labels: the register false-positive rate, the salience gate-transfer check, and the paired leakage test |
 
 ## The authority order
 

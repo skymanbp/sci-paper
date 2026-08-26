@@ -303,14 +303,14 @@ def render(report: dict) -> str:
             auc = entry["auc_machine_over_heldout"]
             shown = f"{auc:.3f}" if auc is not None else "unmeasured"
             lines.append(f"AUC machine over held-out published  {axis:24s} {shown}")
-    gate = report["salience_gate_transfer"]
-    if gate.get("status") == "measured":
+    transfer = report["salience_gate_transfer"]
+    if transfer.get("status") == "measured":
         lines.append(
             f"salience gate transfer (held-out, per passage): "
-            f"{gate['measured_per_passage']:.4f} measured over "
-            f"{gate['n_passages']} passages against "
-            f"{gate['independent_gate_expectation']:.4f} expected from "
-            f"{gate['n_features']} independent gates")
+            f"{transfer['measured_per_passage']:.4f} measured over "
+            f"{transfer['n_passages']} passages against "
+            f"{transfer['independent_gate_expectation']:.4f} expected from "
+            f"{transfer['n_features']} independent gates")
     leak = report["register_leakage_paired"]
     if leak.get("status") == "measured":
         lines.append(

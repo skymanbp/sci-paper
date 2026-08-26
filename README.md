@@ -2,17 +2,17 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.30.1-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.31.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-308%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-315%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**8 skills · 32 tools · 308 tests · one normative contract · zero authorship verdicts.**
+**8 skills · 32 tools · 315 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
@@ -465,7 +465,7 @@ document is a real 5,084-word corpus paper, assembled from its LaTeX includes.
 | `+ --oracle` (GPT-2-large token surprisal) | 23.1 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **9/9 checks pass** | 359 ms | stdlib |
-| Full test suite — **308 passing**, 17 files | 37.3 s | stdlib |
+| Full test suite — **315 passing**, 17 files | 35.5 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs
 ~334 ms of analysis above the interpreter floor**, with no optional dependency
@@ -668,14 +668,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   8 skills          ├── tests/     17 files, 308 tests
+├── skills/<name>/SKILL.md   8 skills          ├── tests/     17 files, 315 tests
 ├── tools/                   31 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 308-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 315-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page
 anchors, recorded suite sizes against real discovery, product registries, syntax,
@@ -687,7 +687,7 @@ requires independent review, clean-checkout verification, and green hosted CI.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.30.1**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.31.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.7 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative
@@ -708,7 +708,7 @@ de-AI standard.
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` — and now for a *measured* reason. Burstiness reverses sign on adversarial prose (AUC 0.181) and signposting runs below chance (0.247), so no operating point is available to write. |
 | **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.846 and triage overlap 0.654, but an old triage list will not reproduce exactly. |
 | **A quarter of the corpus is never used** | Headings matching no section bucket are dropped rather than guessed: **2,334 of 9,178 (25.4%)** in `wgl`, 42 of 148 in `wgl-letter`. The remainder is mostly topic headings ("Matter power spectrum"); "Measurements" and "Background" were refused as genuinely ambiguous. |
-| **Register fires on accepted prose** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.991 findings per 1,000 words**, 93.6% of documents, rank AUC **0.080** against machine text — it fires *more* on human papers than on AI drafts. 72.7% of those flags would vanish if the paper sat in its own bank, so the in-sample view was 3.7× optimistic. Recorded, not retuned. |
+| **Register fires on accepted prose** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.384 findings per 1,000 words**, 87.2% of documents, rank AUC **0.148** against machine text — it fires *more* on human papers than on AI drafts. 86.3% of those flags would vanish if the paper sat in its own bank. v0.30.0 published 0.991/93.6%/0.080; **58.7% of that was a projection defect**, not vocabulary — detection read whole files while the corpus df excluded front matter and bibliographies. |
 | **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's gate transfers almost exactly (0.2705 per passage against a 0.2710 expectation); precision and recall for the advice itself need `tools/label_findings.py`. |
 | **A fresh clone measures nothing** | All profile assets are gitignored. Until you build a profile from your own papers, every corpus-referenced axis is `unmeasured`. |
 

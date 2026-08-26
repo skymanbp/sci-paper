@@ -115,6 +115,71 @@ class TestFindings(unittest.TestCase):
                 self.assertEqual(finding["layer"], "L0")
 
 
+class BodyProjectionTest(unittest.TestCase):
+    """Detection must read the projection the corpus was built from.
+
+    The corpus df comes from `exemplar_paragraphs.jsonl`, which drops the
+    preamble and every `skip` bucket; detection read the whole raw file. An
+    author's affiliation or a `\\bibitem` surname therefore had df 0 on one
+    side and count >= 5 on the other, and the finding was manufactured by the
+    asymmetry. Measured on 203 held-out refereed papers, 58.7% of register
+    findings came from outside body prose.
+    """
+
+    def test_affiliation_front_matter_is_not_manuscript_vocabulary(self) -> None:
+        document = ("\\title{A Study}\n"
+                    "\\affiliation{Dipartimento di Fisica, Roma, Italia}\n"
+                    "\\affiliation{Dipartimento di Fisica, Roma, Italia}\n"
+                    "\\section{Methods}\n"
+                    "The shear catalog is measured on the aperture mass.\n")
+        self.assertNotIn("dipartimento", register.manuscript_terms(document))
+        self.assertIn("shear", register.manuscript_terms(document))
+
+    def test_bibliography_entries_are_not_manuscript_vocabulary(self) -> None:
+        entries = "".join(
+            f"\\bibitem[Blain et al.({y})]{{blain{y}}} Blain, A.~W.\n"
+            for y in range(2001, 2010))
+        document = ("\\section{Methods}\n"
+                    "The shear catalog is measured.\n"
+                    "\\begin{thebibliography}{}\n" + entries +
+                    "\\end{thebibliography}\n")
+        self.assertNotIn("blain", register.manuscript_terms(document))
+
+    def test_a_skip_section_contributes_no_vocabulary(self) -> None:
+        document = ("\\section{Methods}\n"
+                    "The shear catalog is measured.\n"
+                    "\\section{Acknowledgments}\n"
+                    + "We thank Helsinki. " * 6 + "\n")
+        self.assertNotIn("helsinki", register.manuscript_terms(document))
+
+    def test_the_abstract_survives_the_preamble_drop(self) -> None:
+        # AASTeX puts the abstract before the first \section, inside the very
+        # block being dropped, and the corpus does carry abstracts.
+        document = ("\\title{A Study}\n"
+                    "\\begin{abstract}\n"
+                    "We measure the convergence of the shear field.\n"
+                    "\\end{abstract}\n"
+                    "\\section{Methods}\n"
+                    "The catalog is used.\n")
+        terms = register.manuscript_terms(document)
+        self.assertIn("convergence", terms)
+
+    def test_line_numbers_still_index_the_original_document(self) -> None:
+        # Blanking rather than deleting is what keeps section attribution
+        # working; a deleted preamble would shift every body line.
+        document = ("\\affiliation{Roma}\n"
+                    "\\section{Methods}\n"
+                    "The convergence is measured here.\n")
+        self.assertEqual(register.manuscript_terms(document)["convergence"]["line"], 3)
+
+    def test_macros_defined_in_the_preamble_still_resolve(self) -> None:
+        # The definition is dropped with the preamble; its uses are body prose.
+        document = ("\\newcommand{\\AUC}{\\mathrm{AUC}}\n"
+                    "\\section{Validation}\n"
+                    "We report \\AUC, \\AUC, \\AUC, \\AUC and \\AUC here.\n")
+        self.assertIn("auc", register.manuscript_terms(document))
+
+
 class BankResolutionTest(unittest.TestCase):
     """A bank too coarse for the gate must say so, not report `measured`.
 
