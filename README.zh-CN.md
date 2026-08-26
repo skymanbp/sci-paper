@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.28.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.28.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
 [![Tests](https://img.shields.io/badge/tests-255%20passing-success.svg)](tests/)
@@ -15,7 +15,7 @@
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
-[Skills](#skills8-个) · [Tools](#tools25-个) ·
+[Skills](#skills8-个) · [Tools](#tools26-个) ·
 [已知限制](#现状已知限制与路线图) ·
 [规范正文](docs/SCIPAPER_STANDARD.md) · [文档索引](docs/README.md)
 
@@ -45,7 +45,7 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 1. **换完词以后，文字读起来还是像机器写的。** 把 "delve" 换成 "examine"，更深的规律
    一点没动：句长变化被抹平、句式模板化、全文修辞形状过度规整、claim 背后没有证据。
    *本仓库直接测了这一点：一份**零个违禁词**的合成文档，照样在全文尺度被抓住
-   （[demo 3](#3-一份零违禁词的文档照样被抓住)）。*
+   （[demo 4](#4-一份零违禁词的文档照样被抓住)）。*
 2. **一个 AI 检测分数没法告诉编辑要改什么** —— 而且它被领域、来源、章节体裁、长度、
    术语密度、数学密度全面混淆。它回答的是"这是谁写的"，而作者并不需要这个答案。
 3. **审查会悄悄把"没测到"变成"好消息"。** 一个没标定的轴报告零个 finding，
@@ -114,7 +114,7 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 （[`rewrite_reward.py:33`](tools/rewrite_reward.py#L33)）；过宽的单位模式让
 `"in 2020 we found"` 产出单位 `we`
 （[`rewrite_reward.py:41`](tools/rewrite_reward.py#L41)）。
-见 [demo 2](#2-保真门枪毙了风格分最高的候选)。
+见 [demo 3](#3-保真门枪毙了风格分最高的候选)。
 
 **二 · 全文尺度检测，因为段落尺度的去 AI 根本没用。** 本仓库最关键的一次测量：
 把段落级去 AI 改写当作攻击施加到 AI 文档上，**改动了 22% 的文本、删掉了全部 14 个
@@ -135,7 +135,7 @@ em-dash**，而全文级 dispersion 几乎没动 —— 0.47 → 0.49，人类�
 （第 0 层 95 分位 5.23，另两层是 4.16 / 4.36），而所有 AI 验证文档都是短的。
 不分层的阈值等于拿短 AI 文档去比一个以长论文为主的人类参照，先前报告的标记率
 （0.607/0.600/0.447/0.292）**高估了尾部功效**。诚实的数字替换了它们，
-就在[面板里](#全文尺度长度公平的判别力)。
+就在[面板里](#全文尺度的判别力与假阳控制)。
 
 **四 · register 来自你的语料，不是一张词表。** `deai_register.py` 标记稿子反复依赖
 （≥ 5 次）、但在**你自己领域语料**里 document frequency 低于 1e-4 的术语。
@@ -543,7 +543,7 @@ profile 构建。逐工具细节见 [tools/README.md](tools/README.md)。
 
 每条 strong advisory 最终落到一个 **disposition**：`acted`、`accepted`、
 `rejected_as_false_positive`，或带明确理由的 `pending`。普通 advisory 保持可见，
-不要求消失 —— 这正是 [demo 1](#1-一份草稿的-before--after) 停在三条 advisory
+不要求消失 —— 这正是 [demo 2](#2-一份草稿的-before--after) 停在三条 advisory
 而不是零条的原因。
 
 ## 按 field 组织的证据
@@ -639,7 +639,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 ## 现状、已知限制与路线图
 
-当前版本：**v0.28.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)。
+当前版本：**v0.28.1**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)。
 
 **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.7 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层、`calibration_unit` 置信度封顶、§5.2 去 AI 化
@@ -657,13 +657,14 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 | **协作层工具** | `deai_provenance` 与 `deai_personal` 在作者提供自己的草稿历史或 ≥ 3 篇既往论文之前，诚实地保持 `unmeasured`。 |
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` —— 现在是有*测量依据*的。burstiness 在对抗文本上符号反转（AUC 0.181），signposting 低于随机（0.247），根本写不出一个操作点。 |
 | **重训不保证行为等价** | 重建 profile 会重拟 L3。排序保持 ρ 0.846、分诊重合 0.654，但旧的分诊清单不会一字不差复现。 |
+| **语料有三分之一从未被用上** | 匹配不到任何 section 桶的标题是被丢弃，而不是被猜进某个桶：`wgl` 里 5,074 个标题中有 1,804 个（35.6%），`wgl-letter` 里 176 个中有 63 个。每条语料参照的基线都只建立在分类得出的那部分之上。 |
 | **没有人工判断验证集** | salience 与 register 的操作点是语料参照的，不是人工标注的。 |
 | **全新 clone 什么都测不出来** | 全部 profile 制品都 gitignore。在你用自己的论文建出 profile 之前，每条语料参照的轴都是 `unmeasured`。 |
 
 ### 路线图
 
 - **长度感知流形** —— 把"n 个段落上 dispersion 统计量的抽样方差"加进流形协方差，
-  让短文档面对一条相应更宽的人类带。机制已测出（−0.418）；归一化距离已被否决，
+  让短文档面对一条相应更宽的人类带。机制已测出（−0.414）；归一化距离已被否决，
   更细的分层也已被证伪。
 - **长文检测** —— α = 0.05 下 0.000 的尾部功效是敞着的问题。
 - **人工标注验证集**，用于 salience 与 register 的精确率/召回率。

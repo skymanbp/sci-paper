@@ -3,6 +3,63 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.28.1 — 2026-08-26
+
+v0.28.0 fixed the corpus layer but only rebuilt the assets on the `wgl` path it
+was measuring. Two derived assets were left holding the pre-fix view of the
+corpus, and the audit that found them also measured how much corpus the fixed
+layer still discards.
+
+### The rebuild v0.28.0 did not finish
+
+- **`wgl-letter` was still entirely pre-fix.** Every asset in that field dated
+  from 2026-08-16 and was built by the defective code path, so `--field
+  wgl-letter` served baselines nobody had re-derived. Rebuilt through
+  `extract_style` plus the `deai_register` / `deai_salience` / `deai_structure`
+  calibrations. The old profile read 775 `method` passages against a single
+  `results` passage; it now reads `method` 232, `data` 125, `intro` 85,
+  `results` 84, `discussion` 83, `conclusion` 22, `abstract` 10. The bank shrank
+  from 955 passages to 641 because unattributable prose is now dropped instead of
+  absorbed into `method` — the correct direction, and the reason the old numbers
+  should not be compared to the new ones.
+- **`ai_ism_classifier.joblib` was fit on the 593-paragraph bank.**
+  `build_profile.py` runs extraction and classifier training as one chain; the
+  v0.28.0 work invoked `extract_style.py` directly, so step 2 never re-ran and
+  the legacy L3 advisory kept a model that disagreed with its own corpus.
+  Retrained on both fields.
+
+### Section coverage is now measured, not assumed
+
+Sweeping every heading in both corpora through `classify_section`, **35.6% in
+`wgl` (1,804 of 5,074)** and **35.8% in `wgl-letter` (63 of 176)** resolve to
+`unknown` and reach no baseline. Two independent corpora agreeing to within 0.2
+points points at the bucket vocabulary, not at either corpus: review-article
+headings such as "Magnification bias" name no standard section. Recorded as a
+limitation in both READMEs and
+[`lexical-structure-uid.md`](docs/architecture/evaluation/lexical-structure-uid.md)
+§5, with the explicit constraint that widening the rules must not reintroduce
+the pre-v0.28.0 absorption into `method`.
+
+### Fixed
+
+- `train_ai_ism_classifier` printed `5-fold CV accuracy: 1.000 ± 0.000` at a
+  1250:1 class ratio, where always-predict-corpus already scores 0.999. The
+  ratio and that baseline now print beside it, so the headline number cannot be
+  read as skill; minority-class F1 (0.796 on `wgl`, 0.905 on `wgl-letter`) is
+  the signal.
+- The README roadmap quoted **−0.418** for the short-stratum length correlation,
+  the value superseded by the assembly-order fix. Both READMEs now read
+  **−0.414**, matching
+  [`document-scale.md`](docs/architecture/evaluation/document-scale.md) §9.4b.
+- **Five in-page anchors pointed at headings that no longer existed.**
+  `validate_plugin.py` checked relative *file* links but never `#fragments`, so
+  the v0.28.0 README restructure left the Chinese README's navigation pointing
+  at `#tools25-个` after the count became 26, and four demo cross-references
+  pointing one demo off — "demo 3" linked to demo 4. All five fixed, and the
+  validator now resolves every in-page anchor across 14 pages against the
+  headings actually present, CJK included. Verified by negative control: an
+  anchor broken on purpose fails the check.
+
 ## v0.28.0 — 2026-08-25
 
 The corpus layer treated a *file* as a paper and could only see the three

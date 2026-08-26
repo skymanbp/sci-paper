@@ -1,4 +1,4 @@
-# EVALUATION — L0 behaviour, sentence-structure and UID reference evidence · `sci-paper` v0.28.0
+# EVALUATION — L0 behaviour, sentence-structure and UID reference evidence · `sci-paper` v0.28.1
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the
@@ -59,6 +59,17 @@ Interpretation limits:
 3. The current baseline does not by itself define a strong-advisory operating point.
 4. Author labels for the difficult hard set are absent, so label-based calibration
    has not been performed.
+5. Section coverage is partial and the gap is now measured. Sweeping every heading in
+   both corpora through `classify_section` with the v0.28.0 parent-inheritance rule,
+   **1,804 of 5,074 headings (35.6%) in `wgl`** and **63 of 176 (35.8%) in
+   `wgl-letter`** resolve to `unknown`, and their prose reaches no baseline. The two
+   fields agreeing to within 0.2 points indicates a vocabulary limit in the bucket
+   rules — review-article headings such as "Basics of cluster weak lensing" or
+   "Magnification bias" name no standard section — rather than a property of either
+   corpus. Dropping them is deliberate: the pre-v0.28.0 classifier routed unmatched
+   headings into `method`, which is why the old `wgl-letter` profile read 82% `method`
+   with a single `results` passage. Widening the rules is an open item that must not
+   reintroduce that absorption.
 
 ## 6. UID reference evidence
 

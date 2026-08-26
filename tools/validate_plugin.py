@@ -240,6 +240,40 @@ def check_skills() -> str:
     return f"skills and normative standard agree ({len(documents)} skills)"
 
 
+RE_HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*$", re.MULTILINE)
+RE_PAGE_ANCHOR = re.compile(r"\]\(#([^)]+)\)")
+
+
+def _anchor_slug(heading: str) -> str:
+    """GitHub's heading-to-anchor rule, enough of it for these documents.
+
+    Inline markup is stripped, the text lowercased, spaces become hyphens, and
+    everything that is neither a letter, a digit, nor a hyphen is dropped. CJK
+    characters are letters and survive, which is why the Chinese README's
+    anchors are checkable at all.
+    """
+    heading = re.sub(r"`([^`]*)`", r"\1", heading)
+    heading = re.sub(r"\*{1,2}([^*]*)\*{1,2}", r"\1", heading)
+    heading = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", heading)
+    return "".join(
+        "-" if char in " \t" else char
+        for char in heading.lower()
+        if char in " \t-" or char.isalnum()
+    )
+
+
+def _broken_page_anchors(path: Path) -> list[str]:
+    text = read_text(path)
+    anchors = {_anchor_slug(m.group(1)) for m in RE_HEADING.finditer(text)}
+    broken = []
+    for match in RE_PAGE_ANCHOR.finditer(text):
+        if match.group(1) not in anchors:
+            line = text[: match.start()].count("\n") + 1
+            broken.append(f"{path.relative_to(REPO).as_posix()}:{line} "
+                          f"#{match.group(1)}")
+    return broken
+
+
 def check_documentation_boundaries() -> str:
     # v0.21.0 made docs/EVALUATION.md the single canonical evaluation record;
     # v0.27.0 categorized docs/ and moved it under architecture/. A copy left
@@ -275,8 +309,18 @@ def check_documentation_boundaries() -> str:
                 f"{note} lives under design-notes/ but its header does not "
                 "declare it a design note; a frozen note must not read as "
                 "current status")
+    # File links were checked; in-page #fragments were not, so the README
+    # restructure left five cross-references pointing at headings that had been
+    # renamed or renumbered — including "demo 3" linking to demo 4.
+    pages = [REPO / "README.md", REPO / "README.zh-CN.md",
+             *sorted(DOCS.rglob("*.md"))]
+    broken = [item for page in pages for item in _broken_page_anchors(page)]
+    require(not broken,
+            "in-page anchors point at headings that do not exist: "
+            + "; ".join(broken))
     return (f"documentation boundaries are unambiguous "
-            f"({len(shipped)} documents, all indexed)")
+            f"({len(shipped)} documents, all indexed; "
+            f"{len(pages)} pages anchor-checked)")
 
 
 def _discovered_test_count() -> tuple[int, int]:

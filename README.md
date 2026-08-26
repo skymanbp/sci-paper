@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.28.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.28.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
 [![Tests](https://img.shields.io/badge/tests-255%20passing-success.svg)](tests/)
@@ -154,7 +154,7 @@ confound: short human papers score systematically higher manifold distances
 document is short. The unstratified thresholds compared short AI documents
 against a mostly-long human reference, and the flag rates they produced
 (0.607/0.600/0.447/0.292) **overstated tail power**. The honest numbers replaced
-them and are [in the dashboard](#false-positive-control-at-α--005).
+them and are [in the dashboard](#document-scale-discrimination-and-its-false-positive-control).
 
 **4 · Register comes from your corpus, not from a word list.**
 `deai_register.py` flags terms the manuscript leans on (≥ 5 uses) whose document
@@ -688,7 +688,7 @@ hosted CI run on the release commit.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.28.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.28.1**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.7 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative
@@ -708,15 +708,15 @@ de-AI standard.
 | **Cooperative-layer tools** | `deai_provenance` and `deai_personal` are honestly `unmeasured` until the author supplies their own draft history or ≥ 3 prior papers. |
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` — and now for a *measured* reason. Burstiness reverses sign on adversarial prose (AUC 0.181) and signposting runs below chance (0.247), so no operating point is available to write. |
 | **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.846 and triage overlap 0.654, but an old triage list will not reproduce exactly. |
+| **A third of the corpus is never used** | Headings matching no section bucket are dropped rather than guessed: 1,804 of 5,074 (35.6%) in `wgl`, 63 of 176 in `wgl-letter`. Every corpus-referenced baseline rests on the classified remainder. |
 | **No human-judgement validation set** | Salience and register operating points are corpus-referenced, not human-labelled. |
 | **A fresh clone measures nothing** | All profile assets are gitignored. Until you build a profile from your own papers, every corpus-referenced axis is `unmeasured`. |
 
 ### Roadmap
 
-- **Length-aware manifold** — add the sampling variance of a dispersion statistic
-  at *n* paragraphs to the manifold covariance, so short documents meet a
-  correspondingly wider human band. Mechanism measured (−0.418); normalising the
-  distance is rejected and finer stratification is refuted.
+- **Length-aware manifold** — add a dispersion statistic's sampling variance at *n*
+  paragraphs to the manifold covariance, so short documents meet a correspondingly
+  wider human band. Mechanism measured (−0.414); both cheap substitutes refuted.
 - **Long-form detection** — 0.000 tail power at α = 0.05 is the open case.
 - **Human-labelled validation set** for salience and register precision/recall.
 - **Field-topic-robust L3 operating point**, or a recorded decision that one is

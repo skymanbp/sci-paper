@@ -248,6 +248,13 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"\n[train_ai_ism_classifier] OK.")
     print(f"  n_pos = {metrics['n_pos']}, n_neg = {metrics['n_neg']}")
+    # Accuracy alone is unreadable at this class ratio: the corpus bank grew to
+    # 25k paragraphs against ~20 negatives, so always-predict-corpus already
+    # scores ~0.999. Print that baseline next to it so the headline number
+    # cannot be mistaken for skill; F1 on the minority class is the real signal.
+    majority = metrics["n_pos"] / max(1, metrics["n_pos"] + metrics["n_neg"])
+    print(f"  class ratio: {metrics['n_pos'] / max(1, metrics['n_neg']):.0f}:1 "
+          f"(always-predict-corpus accuracy = {majority:.3f})")
     print(f"  5-fold CV accuracy: "
           f"{metrics['cv_accuracy_mean']:.3f} ± {metrics['cv_accuracy_std']:.3f}")
     print(f"  5-fold CV F1 (AI-ish): "

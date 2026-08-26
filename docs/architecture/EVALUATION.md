@@ -1,4 +1,4 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.28.0
+# EVALUATION: de-AI subsystem for `sci-paper` v0.28.1
 
 First recorded 2026-07-12; every section-keyed measurement re-derived against the
 rebuilt `wgl` profile on 2026-08-17.
@@ -133,7 +133,7 @@ change; the release record must quote the fresh output rather than a past result
 
 ## 12. Release evidence boundary
 
-Current release gates (v0.28.0, 2026-08-25): `validate_plugin.py` all 9 checks
+Current release gates (v0.28.1, 2026-08-26): `validate_plugin.py` all 9 checks
 pass and the full unit/CLI suite (255 tests, 15 files) passes on a clean tree;
 both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
 release commit must also be green (first green runs: 31133202443 push,
