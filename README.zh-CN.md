@@ -5,13 +5,13 @@
 [![Version](https://img.shields.io/badge/version-0.28.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-252%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-255%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**8 个 skill · 25 个工具 · 252 个测试 · 一份规范 · 零作者身份判决。**
+**8 个 skill · 26 个工具 · 255 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
@@ -64,7 +64,7 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 | **七** | **打磨基金申请书** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description、NIH Specific Aims、fellowship。保留论文会删掉的"愿景+可行性"语域，强制 claim 与可行性匹配，最狠地打磨决定评分的前几页。 |
 | **八** | **探索研究方向** | [`brainstorm`](skills/brainstorm/SKILL.md) | 辐射状研究方向探索器：每节点 12 条 framing pass、术语锚定到 glossary、每分支完整推导、递归发散直到收敛。严禁 defer / future-work / 半成品叶节点。 |
 
-八项功能跑在同一层证据之上 —— 25 个工具输出同一套 schema
+八项功能跑在同一层证据之上 —— 26 个工具输出同一套 schema
 `sci-paper.feedback.v1` —— 所以 linter、审查 skill 和编排器给出的 finding
 是同一个对象、同一个 ID。
 
@@ -353,19 +353,19 @@ AUC 是长度公平的：每份文档只跟**自己那个长度层**的人类论
 
 | 对比 | 流形 AUC | role AUC | 流形尾功效 | role | 并集 |
 |---|---:|---:|---:|---:|---:|
-| 人类 vs **自然** AI | **0.931** | 0.690 | 0.214 | 0.107 | 0.321 |
-| 人类 vs **去 AI 化后**的 AI（段落级去 AI 当攻击） | **0.942** | 0.742 | 0.400 | 0.333 | **0.667** |
-| 人类 vs **形状对抗**的 AI（刻意制造参差） | 0.923 | **0.810** | 0.158 | 0.316 | 0.421 |
-| 人类 vs **骨架匹配**的结构克隆 | 0.919 | 0.507 | 0.292 | 0.042 | 0.333 |
-| 人类 vs **长文**生成 *（长期证伪靶）* | 0.734 | 0.635 | **0.000** | 0.103 | 0.103 |
-| **人类误标率**，492 篇直接打分，α = 0.05 | — | — | **0.035** | **0.041** | 0.075 |
+| 人类 vs **自然** AI | **0.933** | 0.690 | 0.250 | 0.036 | 0.286 |
+| 人类 vs **去 AI 化后**的 AI（段落级去 AI 当攻击） | **0.943** | 0.742 | 0.400 | 0.267 | **0.600** |
+| 人类 vs **形状对抗**的 AI（刻意制造参差） | 0.927 | **0.810** | 0.184 | 0.316 | 0.447 |
+| 人类 vs **骨架匹配**的结构克隆 | 0.914 | 0.507 | 0.292 | 0.042 | 0.333 |
+| 人类 vs **长文**生成 *（长期证伪靶）* | 0.740 | 0.634 | **0.000** | 0.069 | 0.069 |
+| **人类误标率**，492 篇直接打分，α = 0.05 | — | — | **0.033** | **0.043** | 0.075 |
 
 两条轴天生互补：流形对包括结构克隆在内的每一档都保持稳健判别，而 role 轴的功效
 恰好集中在把流形逼到最窄的那一档上。跨越 42 倍的语料重建，八个已发表 AUC
 **全部复现在 0.012 以内** —— 这是逐值核对，不是总数对上就算数。
 
 尾部功效照实报，包括弱的地方和为零的地方。长文生成在严格操作点上**完全抓不到**。
-短文档仍是流形最弱的一档：在短层内部，人类距离与段落数仍有 **−0.418** 的相关。
+短文档仍是流形最弱的一档：在短层内部，人类距离与段落数仍有 **−0.414** 的相关。
 更细的分层已经测过并被否掉（不涨功效，还倒赔），所以真正的修法是估计量噪声模型，
 本版**没有**发布。
 
@@ -413,7 +413,7 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 | `+ --oracle`（GPT-2-large token surprisal） | 23.1 s | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` —— **9/9 通过** | 359 ms | 标准库 |
-| 完整测试套件 —— **252 通过**，15 个文件 | 43.1 s | 标准库 |
+| 完整测试套件 —— **255 通过**，15 个文件 | 43.1 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
 334 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 60–80 倍，并且是显式 opt-in 的
@@ -489,7 +489,7 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 - **审** —— [`paper-review`](skills/paper-review/SKILL.md) · [`figure-review`](skills/figure-review/SKILL.md) · [`final-review`](skills/final-review/SKILL.md)
 - **探索** —— [`brainstorm`](skills/brainstorm/SKILL.md)
 
-## Tools（25 个）
+## Tools（26 个）
 
 每条 finding 统一走 `sci-paper.feedback.v1` 契约；语料/训练类条目产出的是
 artifact。`layer` 列是该工具服务的轴 —— `core` 契约与闸门，`build` 语料与
@@ -507,6 +507,7 @@ profile 构建。逐工具细节见 [tools/README.md](tools/README.md)。
 | `tools/deai_oracle.py` | L1 | 可选的 token surprisal 与 UID 证据。资产不可用与兼容性阈值保持显式。 |
 | `tools/deai_structure.py` | L2 | 句子与段落构造：announced enumeration、重复框架、并列串、对称结构等模板家族。 |
 | `tools/deai_salience.py` | L2 | Salience hierarchy：一段文字里的数值能连续跑多远而中间没有一句解释性句子，对照按 section 分桶的人类参照。唯一消费"保留数字"那条 LaTeX 投影的工具。 |
+| `tools/deai_docshape.py` | L2 | 全文形状测量与完整文档标定：逐段特征向量、跨段 dispersion、联合 Mahalanobis 流形、role coupling、split-conformal 操作点，以及 baseline 构建器。2026-08-25 从 `deai_docstructure.py` 拆出，后者 re-export 这里每一个公开名字。 |
 | `tools/deai_docstructure.py` | L2 | 全文修辞形状与完整文档标定：dispersion band、按长度分层的联合流形、role coupling、split-conformal 操作点。 |
 | `tools/deai_anchoring.py` | L2 | 按 section 类别条件化的 claim-anchoring 带 —— 一条**写作质量**轴，明确**不是** AI 判别轴。 |
 | `tools/deai_features.py` | L3 | 可复用的分布、UID、标点、embedding 与结构特征。 |
@@ -611,7 +612,7 @@ sci-paper/
 ├── .claude-plugin/          plugin.json · marketplace.json
 ├── .github/workflows/       ci.yml —— 每次 push 与 PR 跑 validator + 测试
 ├── docs/                    ← 索引与权威顺序在 docs/README.md
-│   ├── SCIPAPER_STANDARD.md      唯一规范契约（v3.6）
+│   ├── SCIPAPER_STANDARD.md      唯一规范契约（v3.7）
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md（hub）+ evaluation/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
 ├── skills/<name>/SKILL.md   8 个 skill
@@ -640,7 +641,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 当前版本：**v0.28.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)。
 
-**规范核心：** `docs/SCIPAPER_STANDARD.md` v3.6 —— 完整的去 AI 标准全在这一个文件里
+**规范核心：** `docs/SCIPAPER_STANDARD.md` v3.7 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层、`calibration_unit` 置信度封顶、§5.2 去 AI 化
 步骤、§5.3 改写删减而非堆叠及其机械执行、以及刻意**不带检测器**发布的 §5.4 文章主旨）。
 不存在单独的去 AI 标准文档。
@@ -651,8 +652,8 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 |---|---|
 | **没有学习型模型的操作点** | L3 以 `degraded` 发布。文档级 surprisal 路径已被*测量证明*给不出操作点（0.757 vs model-free 流形的 0.881）。 |
 | **领域主题假阳** | 在领域主题与术语密集 AI 文字上 28–41%，把训练语料放大 2.6 倍也没动。这就是没有单一分数的原因。 |
-| **短文档尾部功效** | 流形在短文档上对自然 AI 的 5% 尾部功效是 0.214，而长度公平排序是 0.931。短层内部人类距离与段落数仍相关 −0.418；更细的分层测过，不涨功效。 |
-| **长文生成抓不到** | 在严格的 α = 0.05 操作点上，流形对长文 AI 的尾部功效是 **0.000**（AUC 0.734）。这是长期证伪靶，不是已解决的情形。 |
+| **短文档尾部功效** | 流形在短文档上对自然 AI 的 5% 尾部功效是 0.250，而长度公平排序是 0.933。短层内部人类距离与段落数仍相关 −0.414；更细的分层测过，不涨功效。 |
+| **长文生成抓不到** | 在严格的 α = 0.05 操作点上，流形对长文 AI 的尾部功效是 **0.000**（AUC 0.740）。这是长期证伪靶，不是已解决的情形。 |
 | **协作层工具** | `deai_provenance` 与 `deai_personal` 在作者提供自己的草稿历史或 ≥ 3 篇既往论文之前，诚实地保持 `unmeasured`。 |
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` —— 现在是有*测量依据*的。burstiness 在对抗文本上符号反转（AUC 0.181），signposting 低于随机（0.247），根本写不出一个操作点。 |
 | **重训不保证行为等价** | 重建 profile 会重拟 L3。排序保持 ρ 0.846、分诊重合 0.654，但旧的分诊清单不会一字不差复现。 |

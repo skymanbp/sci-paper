@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pathlib
 import sys
 import tempfile
 import unittest
@@ -303,3 +304,64 @@ class DocumentStructureTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ModuleSplitContractTests(unittest.TestCase):
+    """`deai_docstructure` must re-export everything `deai_docshape` defines.
+
+    The measurement layer was split out on 2026-08-25 (1,092 lines against a
+    750-line budget). Eight sibling tools and the tests reach these names as
+    `dds.<name>`, and the re-export list is hand-written, so it can silently
+    fall behind the module it mirrors -- exactly the drift the equivalent
+    `extract_style` test has caught three times.
+    """
+
+    def test_every_public_name_is_re_exported(self):
+        import deai_docshape as shape
+        expected = {
+            n for n, v in vars(shape).items()
+            if not n.startswith("__")
+            and getattr(v, "__module__", "deai_docshape") in ("deai_docshape",
+                                                              "re", None)
+            and n not in {"annotations", "Path", "Any", "Iterable"}
+        }
+        missing = sorted(n for n in expected if not hasattr(docstructure, n))
+        self.assertEqual(missing, [],
+                         f"deai_docstructure does not re-export: {missing}")
+
+
+class CorpusDocumentOrderTests(unittest.TestCase):
+    r"""A bundle is assembled in document order, not sorted filename order.
+
+    This axis measures section arc, so concatenating `Conclusion.tex` before
+    `Introduction.tex` corrupts the observation itself. 122 of 500 `wgl`
+    bundles hold more than one `.tex`; 12 were provably out of order.
+    """
+
+    def test_paper_documents_follows_include_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            d = root / "2501.00001"
+            d.mkdir()
+            (d / "ms.tex").write_text(
+                r"\documentclass{mnras}" "\n" r"\begin{document}" "\n"
+                r"\input{Introduction}" "\n" r"\input{Conclusion}" "\n"
+                r"\end{document}" "\n", encoding="utf-8")
+            (d / "Introduction.tex").write_text("FIRST body\n", encoding="utf-8")
+            (d / "Conclusion.tex").write_text("LAST body\n", encoding="utf-8")
+            docs = docstructure._paper_documents(root)
+        self.assertEqual(len(docs), 1)
+        text = docs[0][1]
+        self.assertLess(text.index("FIRST body"), text.index("LAST body"))
+
+    def test_a_bundle_is_one_document(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            d = root / "2501.00002"
+            d.mkdir()
+            (d / "main.tex").write_text(
+                r"\documentclass{article}" "\n" r"\input{chap}" "\n",
+                encoding="utf-8")
+            (d / "chap.tex").write_text("body\n", encoding="utf-8")
+            docs = docstructure._paper_documents(root)
+        self.assertEqual([n for n, _t in docs], ["2501.00002"])

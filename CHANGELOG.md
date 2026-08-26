@@ -80,7 +80,9 @@ availability.
   measured reason rather than a missing asset.
 - **The length-aware manifold has its mechanism measured** (§9.4b) and both
   cheap routes refuted. Inside the short stratum, human manifold distance still
-  correlates **−0.418** with paragraph count. Normalizing the distance stays
+  correlates **−0.414** with paragraph count, unchanged by the assembly-order
+  fix above — an estimator-noise effect, not a corpus defect. Normalizing the
+  distance stays
   rejected (guardrail 9). Finer Mondrian stratification, tested at 3/4/5/6
   strata, reduces the residual to about −0.27 and buys **no power at all** — the
   conformal test simply becomes more conservative, and skeleton power drops
@@ -100,13 +102,26 @@ seven numbers is the only rejection.
 
 ### Re-measured, not carried forward
 
-- **§9 document scale reproduces.** Every tier re-scored through the shipped
-  path with the length-fair protocol restored: all eight published AUCs within
-  **0.012** (manifold 0.931 / 0.942 / 0.923 / 0.919; role 0.690 / 0.742 / 0.810
-  / 0.507), tail powers unchanged to three decimals, human false-flag 0.035
-  (manifold) and 0.041 (role) over 492 papers against α = 0.05. The 42× corpus
-  growth did not move document-scale discrimination. A fifth tier is recorded:
-  long-form AI, manifold AUC 0.734 with **0.000** tail power.
+- **§9 document scale reproduces, then improves.** Every tier re-scored through
+  the shipped path with the length-fair protocol restored: all eight published
+  AUCs within **0.012** (manifold 0.933 / 0.943 / 0.927 / 0.914; role 0.690 /
+  0.742 / 0.810 / 0.507). The 42× *paragraph-bank* growth did not move
+  document-scale discrimination, which is expected — §9 always calibrated
+  against `fulltext-arxiv`. What did move it is below. A fifth tier is
+  recorded: long-form AI, manifold AUC 0.740 with **0.000** tail power.
+- **The keystone axis was reading its own corpus out of order.**
+  `_paper_documents` assembled each bundle by sorted FILENAME, so
+  `Conclusion.tex` preceded `Introduction.tex` — and this axis measures section
+  arc and paragraph sequence. 122 of the 500 bundles hold more than one `.tex`,
+  12 provably out of order, and all 122 also folded appendices,
+  acknowledgements, author lists and the journal's own class documentation in
+  as body prose. Rebuilt in include order, manifold tail power rises on natural
+  AI **0.214 → 0.250** and on adversarial **0.158 → 0.184** while the human
+  false-flag rate *falls* 0.0346 → 0.0325. The role axis trades the other way
+  (natural 0.107 → 0.036), so the union is 0.286 / 0.600 / 0.447 / 0.333.
+  Fixing this required splitting `deai_docstructure.py` (1,092 lines against a
+  750-line budget) into a measurement layer, `deai_docshape.py`, which it
+  re-exports in full under a contract test.
 - **L3 retrained** on 41,641 records (2.6× the previous bank): grouped-split AUC
   0.9320 → **0.9502**, balanced accuracy 0.8509 → **0.8736**, matched-stratum
   0.9236 → **0.9303**. The confound did not move — field-jargon-dense false
@@ -126,6 +141,30 @@ seven numbers is the only rejection.
 - **Latency** re-measured on a real 5,084-word corpus paper: all model-free axes
   390 ms, `--oracle` 23.1 s, `--voice` 26.6 s, validator 359 ms, suite 43.1 s.
 
+### Three files split, because they could no longer be edited
+
+The repository enforces a 750-line budget per file. Three files had passed it,
+and the hook refuses *any* write to an over-budget file — including a one-line
+factual correction. Each split follows an existing seam rather than inventing
+one, and each is verified by a re-export or incorporation contract.
+
+- **`deai_docstructure.py`** (1,092 → 443) splits at measurement versus
+  feedback. `deai_docshape.py` (708) holds the per-paragraph feature vector,
+  cross-paragraph dispersion, the joint manifold, role coupling, the conformal
+  operating points and the baseline builder; `deai_docstructure` turns them
+  into findings and a CLI, and re-exports every public name under a contract
+  test modelled on the one `extract_style` already has.
+- **`SCIPAPER_STANDARD.md`** (823 → 736) at contract versus register. §§7-8
+  become [`architecture/RESPONSIBILITIES.md`](docs/architecture/RESPONSIBILITIES.md),
+  **incorporated by reference and still normative** with no independent
+  authority; §11 becomes
+  [`architecture/DISPOSITIONS.md`](docs/architecture/DISPOSITIONS.md), a record
+  of decisions rather than policy; and a 49-line embedded version history moves
+  to this changelog, where it belonged. §§0-10 of the contract are unchanged.
+  The standard is now v3.7.
+- **`CHANGELOG.md`** (1,463 → 484) at v0.26.2, with the remainder verbatim in
+  [`CHANGELOG-ARCHIVE.md`](CHANGELOG-ARCHIVE.md).
+
 ### Documentation
 
 Both READMEs restructured around a **three-way comparison** — as-generated
@@ -134,11 +173,11 @@ the demo that shows the difference: the humanizer clears the L0 target and the
 corpus-zero advisory while the `ing-tail` advisory simply follows the
 substitution, and across 20 documents it moves strong advisories by exactly
 zero. A full-review section documents the A–R dimensions and the merge rule.
-EVALUATION gains §16 and §9.4b. Entries for v0.26.2 and earlier moved to
-[CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
+EVALUATION gains §16 and §9.4b, and both tool tables collapse from eight
+subsections into one table with a `layer` column.
 
-30 new tests (222 → 252). No consequence class, exit code, schema, or normative
-policy changed.
+33 new tests (222 → 255); 25 → 26 tools. No consequence class, exit code,
+schema, ranking rule, or normative policy changed.
 
 ## v0.27.1 — 2026-08-17
 

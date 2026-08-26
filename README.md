@@ -5,19 +5,19 @@
 [![Version](https://img.shields.io/badge/version-0.28.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-252%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-255%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**8 skills · 25 tools · 252 tests · one normative contract · zero authorship verdicts.**
+**8 skills · 26 tools · 255 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
 [Benchmarks](#benchmark-dashboard) · [Install](#install) ·
-[Skills](#skills-8) · [Tools](#tools-25) ·
+[Skills](#skills-8) · [Tools](#tools-26) ·
 [Limitations](#status-known-limitations-and-roadmap) ·
 [The standard](docs/SCIPAPER_STANDARD.md) · [Docs](docs/README.md)
 
@@ -72,7 +72,7 @@ problem:
 | **7** | **Polish a funding proposal** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description, NIH Specific Aims, fellowships. Keeps the vision-and-feasibility register a paper would trim, enforces claim–feasibility matching, edits the score-forming first pages hardest. |
 | **8** | **Explore research directions** | [`brainstorm`](skills/brainstorm/SKILL.md) | Radial research-direction explorer: twelve framing passes per node, glossary-anchored terminology, complete derivation per branch, recursive divergence to convergence. Deferred or incomplete leaves are hard-banned. |
 
-All eight run over the same evidence layer — 25 tools emitting one schema,
+All eight run over the same evidence layer — 26 tools emitting one schema,
 `sci-paper.feedback.v1` — so a finding from the linter, the review skill, and
 the orchestrator are the same object with the same ID.
 
@@ -397,12 +397,12 @@ distribution-free `P(false flag) ≤ α`** for exchangeable human papers. Source
 
 | Contrast | Manifold AUC | Role AUC | Manifold tail power | Role | union |
 |---|---:|---:|---:|---:|---:|
-| human vs **natural** AI | **0.931** | 0.690 | 0.214 | 0.107 | 0.321 |
-| human vs **de-AI'd** AI (paragraph de-AI as an attack) | **0.942** | 0.742 | 0.400 | 0.333 | **0.667** |
-| human vs **shape-adversarial** AI (deliberate raggedness) | 0.923 | **0.810** | 0.158 | 0.316 | 0.421 |
-| human vs **skeleton-matched** structural clone | 0.919 | 0.507 | 0.292 | 0.042 | 0.333 |
-| human vs **long-form** AI *(standing falsification target)* | 0.734 | 0.635 | **0.000** | 0.103 | 0.103 |
-| **human false-flag**, scored over 492 papers, α = 0.05 | — | — | **0.035** | **0.041** | 0.075 |
+| human vs **natural** AI | **0.933** | 0.690 | 0.250 | 0.036 | 0.286 |
+| human vs **de-AI'd** AI (paragraph de-AI as an attack) | **0.943** | 0.742 | 0.400 | 0.267 | **0.600** |
+| human vs **shape-adversarial** AI (deliberate raggedness) | 0.927 | **0.810** | 0.184 | 0.316 | 0.447 |
+| human vs **skeleton-matched** structural clone | 0.914 | 0.507 | 0.292 | 0.042 | 0.333 |
+| human vs **long-form** AI *(standing falsification target)* | 0.740 | 0.634 | **0.000** | 0.069 | 0.069 |
+| **human false-flag**, scored over 492 papers, α = 0.05 | — | — | **0.033** | **0.043** | 0.075 |
 
 The axes are complementary by construction: the manifold carries robust
 discrimination against every tier including structure clones, while the role
@@ -413,7 +413,7 @@ per-value check on all eight, not a matching total.
 Tail power is reported plainly, including where it is weak and where it is zero.
 Long-form generation is not caught at the strict operating point at all. Short
 documents remain weakest on the manifold: inside the short stratum, human
-distance still correlates **−0.418** with paragraph count. Finer stratification
+distance still correlates **−0.414** with paragraph count. Finer stratification
 was tested and refuted (it buys no power, and costs some), so the fix is a real
 estimator-noise model and is **not** shipped.
 
@@ -465,7 +465,7 @@ document is a real 5,084-word corpus paper, assembled from its LaTeX includes.
 | `+ --oracle` (GPT-2-large token surprisal) | 23.1 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **9/9 checks pass** | 359 ms | stdlib |
-| Full test suite — **252 passing**, 15 files | 43.1 s | stdlib |
+| Full test suite — **255 passing**, 15 files | 43.1 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs
 ~334 ms of analysis above the interpreter floor**, with no optional dependency
@@ -531,7 +531,7 @@ Drive them from Claude Code as `/sci-paper:<name> draft.tex --field wgl`.
 - **Review** — [`paper-review`](skills/paper-review/SKILL.md) (A–R, source-traced) · [`figure-review`](skills/figure-review/SKILL.md) (compiled pages) · [`final-review`](skills/final-review/SKILL.md) (isolated orchestration)
 - **Explore** — [`brainstorm`](skills/brainstorm/SKILL.md) (radial research exploration)
 
-## Tools (25)
+## Tools (26)
 
 One `sci-paper.feedback.v1` contract for every finding; corpus and training
 entries produce artifacts instead. `layer` is the axis the tool serves —
@@ -550,6 +550,7 @@ Per-tool detail: [tools/README.md](tools/README.md).
 | `tools/deai_oracle.py` | L1 | Optional token-surprisal and Uniform Information Density evidence. Unavailable assets and compatibility thresholds stay explicit. |
 | `tools/deai_structure.py` | L2 | Sentence and paragraph construction: enumeration, repeated frames, parallel runs, symmetry, and related template families. |
 | `tools/deai_salience.py` | L2 | Salience hierarchy: how far a passage's measured quantities run without an interpreting sentence between them, against a per-section human reference. Sole consumer of the numeral-preserving LaTeX projection. |
+| `tools/deai_docshape.py` | L2 | Document-shape measurement and complete-document calibration: the per-paragraph feature vector, cross-paragraph dispersion, the joint Mahalanobis manifold, role coupling, split-conformal operating points, and the baseline builder. Split from `deai_docstructure.py` on 2026-08-25; that module re-exports every public name here. |
 | `tools/deai_docstructure.py` | L2 | Whole-document rhetorical shape and complete-document calibration: dispersion band, per-length-stratum joint manifold, role coupling, split-conformal operating points. |
 | `tools/deai_anchoring.py` | L2 | Section-class conditional claim-anchoring band — a writing-quality axis, explicitly **not** an AI-discrimination axis. |
 | `tools/deai_features.py` | L3 | Reusable distributional, UID, punctuation, embedding, and structural features. |
@@ -663,17 +664,17 @@ sci-paper/
 ├── .claude-plugin/          plugin.json · marketplace.json
 ├── .github/workflows/       ci.yml — validator + test suite on push and PR
 ├── docs/                    ← index + authority order at docs/README.md
-│   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.6)
+│   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   8 skills          ├── tests/     15 files, 252 tests
-├── tools/                   25 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
+├── skills/<name>/SKILL.md   8 skills          ├── tests/     15 files, 255 tests
+├── tools/                   26 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 252-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 255-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation authority boundaries and index completeness,
 recorded suite sizes against real discovery, stale contract markers, product
@@ -689,7 +690,7 @@ hosted CI run on the release commit.
 
 Current: **v0.28.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
-**Normative core:** `docs/SCIPAPER_STANDARD.md` v3.6 — the complete de-AI
+**Normative core:** `docs/SCIPAPER_STANDARD.md` v3.7 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative
 layer, the `calibration_unit` confidence cap, the §5.2 de-AI-ization procedure,
 the §5.3 condense-not-accumulate rule with mechanical enforcement, and the §5.4
@@ -702,8 +703,8 @@ de-AI standard.
 |---|---|
 | **No learned-model operating point** | L3 ships `degraded`. The document-level surprisal path was *measured* not to provide one (0.757 vs the model-free manifold's 0.881). |
 | **Field-topic false positives** | 28–41% on field-topic and jargon-dense AI prose, unmoved by a 2.6× larger training bank. This is why there is no score. |
-| **Short-document tail power** | Manifold 5%-tail power on short documents is 0.214 for natural AI, against a 0.931 length-fair ranking. Inside the short stratum, human distance still correlates −0.418 with paragraph count; finer stratification was tested and buys no power. |
-| **Long-form generation is not caught** | At the strict α = 0.05 operating point, manifold tail power on long-form AI is **0.000** (AUC 0.734). A standing falsification target, not a solved case. |
+| **Short-document tail power** | Manifold 5%-tail power on short documents is 0.250 for natural AI, against a 0.933 length-fair ranking. Inside the short stratum, human distance still correlates −0.414 with paragraph count; finer stratification was tested and buys no power. |
+| **Long-form generation is not caught** | At the strict α = 0.05 operating point, manifold tail power on long-form AI is **0.000** (AUC 0.740). A standing falsification target, not a solved case. |
 | **Cooperative-layer tools** | `deai_provenance` and `deai_personal` are honestly `unmeasured` until the author supplies their own draft history or ≥ 3 prior papers. |
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` — and now for a *measured* reason. Burstiness reverses sign on adversarial prose (AUC 0.181) and signposting runs below chance (0.247), so no operating point is available to write. |
 | **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.846 and triage overlap 0.654, but an old triage list will not reproduce exactly. |
@@ -723,8 +724,8 @@ de-AI standard.
 
 **Closed in v0.28.0.** `deai_policy.json` is withdrawn, not deferred: against 500
 human papers, neither statistic it would threshold discriminates
-([§16](docs/architecture/evaluation/lexical-structure-uid.md)); corpus growth for
-thin buckets is done. **Field guidance:** weak-lensing anchors stay `[WGL]`.
+([§16](docs/architecture/evaluation/lexical-structure-uid.md)); corpus growth
+for thin buckets is done. Weak-lensing anchors stay `[WGL]`.
 
 ## Acknowledgments and license
 
@@ -745,6 +746,5 @@ scientific writing · academic writing · paper review · peer review · manuscr
 preparation · AI text detection · AI-generated text detector · humanizer · de-AI ·
 AI detector for research papers · LaTeX · arXiv · astrophysics · weak gravitational
 lensing · cosmology · ApJ · MNRAS · PRD · JCAP · NSF proposal · NIH Specific Aims ·
-research writing assistant · corpus-driven style · conformal prediction ·
-split conformal · uniform information density · reproducibility ·
-scientific integrity · LLM tooling · research automation.</sub>
+research writing assistant · corpus-driven style · conformal prediction · split
+conformal · uniform information density · reproducibility · scientific integrity · LLM tooling · research automation.</sub>

@@ -6,6 +6,8 @@ only the first is normative.
 | | Document | Kind | Read it when |
 |---|---|---|---|
 | **Normative** | [SCIPAPER_STANDARD.md](SCIPAPER_STANDARD.md) | The single writing/review contract. If a skill, tool, profile, or workflow disagrees with it, **it wins**. | Always first. Everything else implements or measures this. |
+| **Normative annex** | [architecture/RESPONSIBILITIES.md](architecture/RESPONSIBILITIES.md) | §§7-8 of the standard, incorporated by reference: what each skill and each tool is required to do. No independent authority — the standard wins. | You are writing or changing a skill or tool and need its binding role. |
+| **Decision register** | [architecture/DISPOSITIONS.md](architecture/DISPOSITIONS.md) | §11 of the standard: every open de-AI engineering item and its decided disposition, with the measurement behind it. A record of decisions, not policy. | You want to know whether an idea was shipped, deferred, rejected, or refuted — and on what evidence. |
 | **Architecture** | [architecture/DEAI_SUBSYSTEM.md](architecture/DEAI_SUBSYSTEM.md) | How the de-AI subsystem is built: layers, detectors, isolation, calibration artifacts. | You are changing a tool or tracing why a finding was emitted. |
 | **Evidence** | [architecture/EVALUATION.md](architecture/EVALUATION.md) — the hub | Evaluation contract, current per-axis status, repository verification, release evidence boundary, and the map of every section. | You want to know whether an axis can be trusted, and on what sample. **Start here**, then follow the map. |
 | **Frozen design notes** | [design-notes/DEAI_ARCHITECTURE_ROADMAP.md](design-notes/DEAI_ARCHITECTURE_ROADMAP.md)<br>[design-notes/DEAI_FRONTIER.md](design-notes/DEAI_FRONTIER.md) | Dated reasoning records, **not status documents**. Their present tense is the present tense of the day they were written. | You want to know *why* a design decision was taken. |
@@ -28,11 +30,19 @@ lives in.
 ```
 docs/SCIPAPER_STANDARD.md          normative policy — the only file that decides
         │
+        ├── docs/architecture/RESPONSIBILITIES.md  §§7-8, incorporated by reference
+        ├── docs/architecture/DISPOSITIONS.md      §11, the decision register
+        │
         ├── docs/architecture/DEAI_SUBSYSTEM.md    how it is implemented
         │        └── docs/architecture/EVALUATION.md   what that implementation measures
         │
         └── docs/design-notes/                     why it was designed that way (frozen)
 ```
+
+The standard was 823 lines against a 750-line budget on 2026-08-25 and could no
+longer be edited at all. The two registers above and its embedded version
+history (now in [../CHANGELOG.md](../CHANGELOG.md)) were moved out; §§0-10 of
+the contract itself are unchanged.
 
 Corpus profiles, learned models, thresholds, and evaluation results are **evidence**.
 They cannot redefine the standard, create an authorship verdict, or produce a
@@ -46,7 +56,7 @@ universal paper PASS/FAIL.
 | Per-tool registry, calibration, and failure behavior | [../tools/README.md](../tools/README.md) |
 | Supplying a field corpus | [../style-corpus/README.md](../style-corpus/README.md) |
 | Generated profile assets and build boundaries | [../style-profile/README.md](../style-profile/README.md) |
-| Per-version history | [../CHANGELOG.md](../CHANGELOG.md) |
+| Per-version history | [../CHANGELOG.md](../CHANGELOG.md) · [../CHANGELOG-ARCHIVE.md](../CHANGELOG-ARCHIVE.md) (v0.26.2 and earlier) |
 | Working rules for this repository | [../CLAUDE.md](../CLAUDE.md) |
 | Adapted-material attribution and adoption boundaries | [../ACKNOWLEDGMENTS.md](../ACKNOWLEDGMENTS.md) |
 

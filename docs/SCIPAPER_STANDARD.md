@@ -6,55 +6,14 @@
 > implement this document. If a skill,
 > tool, style profile, or workflow conflicts with this file, this file wins.
 >
-> Status: **v3.6 (2026-08-16)**. v3.6 adds §5.4, the thesis spine: a paper has
-> one central result, and the document, each paragraph, and each clause are
-> ranked against it. It is the answer to a draft that inventories everything
-> its authors did, which §5.3 cannot reach because condense removes what is
-> repeated and an inventory repeats nothing. §5.4 ships as a **writing rule
-> with no detector**: three surface formalisations of the signal have been
-> measured and refuted (EVALUATION §9.6, §14.5, §15.1), and the section
-> forbids building a threshold on it without new evidence. §6 eligibility
-> outranks it, and the qualifier class is named inside it as the thing it
-> most endangers. The consequence classes, exit contract, and ranking of
-> §§0-6 are otherwise unchanged.
-> v3.5 adds two corpus-referenced axes that
-> close a coverage gap rather than change any policy: `L2.salience_hierarchy`
-> (does a passage rank what it reports, or recite it) and `L0.register` (does
-> the draft speak the field's vocabulary or a neighbouring discipline's).
-> Both are advisory-only and calibrated on the field's own passage banks, so
-> the consequence classes, exit contract, and ranking of §§0-6 are unchanged.
-> v3.5 also records that the shared LaTeX reduction had made numeral-bearing
-> signals unmeasurable on `.tex` input, and adds the second named projection
-> that fixes it (§8, `latex_to_numeral_text`).
-> v3.4 records the skill consolidation
-> (11 → 8 orthogonal skills): the former paper-style, rewrite-in-voice and
-> academic-humanizer fold into the single `de-ai` skill; mainline and
-> paper-attack-tree fold into paper-review dimensions E and M; the new
-> `condense` skill becomes the §5.3 action surface. §7 responsibilities are
-> rebuilt accordingly; no policy in §§0-6 or §§8-11 changes.
-> v3.3 makes §5.3 mechanically enforced: a
-> length-budget hard gate in `rewrite_reward.py` (candidate time) and the new
-> `length_gate.py` delta gate (loop close), with recorded justifications as the
-> only path for growth.
-> v3.2 (2026-07-16) adds §5.3 (condense, do not accumulate:
-> the default direction of every edit is shorter; explanatory patches are the
-> canonical violation), the corpus-verified lexicon extensions with the
-> claim–evidence and preserve-list guidance in `skills/paper/SKILL.md`, and the
-> `proposal-polish` skill row (§7).
-> v3.1 (2026-07-14) adds the auxiliary L2 template families
-> (antithesis clusters, short reversal beats — panel-derived, corpus-calibrated,
-> excluded from `template_score` so the document manifold is unchanged) and
-> recognizes the blind perceptual panel as an L2 validation instrument whose
-> diagnostic reading is tell-inventory turnover, not the mean score. v3
-> (2026-07-13) folds the complete de-AI subsystem into this
-> single authority (there is no separate de-AI standard): it specifies the
-> document-scale detection core (per-stratum dispersion manifold, role coupling,
-> split-conformal), the cooperative L4 layer (partition, anchoring, provenance,
-> personal baseline), the `calibration_unit` confidence cap, the ordered
-> de-AI-ization procedure (§5.2, 去AI化步骤), and a disposition for every open
-> item (§11). v2 made the feedback contract operational, separated scientific
-> integrity from author-disposable prose feedback, and preserved the established
-> lexical de-AI standard as L0.
+> Status: **v3.7 (2026-08-25)**. v3.7 moves §11's disposition register to
+> [`architecture/DISPOSITIONS.md`](architecture/DISPOSITIONS.md) and this
+> version history to [`../CHANGELOG.md`](../CHANGELOG.md), so the contract is
+> the contract. No consequence class, exit code, ranking rule, or measurement
+> state changed. The substantive change is recorded in that register:
+> `L1.distribution`'s operating point is now **refuted by measurement** rather
+> than merely absent, so `deai_policy.json` is withdrawn as an adoption
+> candidate. §§0-10 are otherwise unchanged from v3.6.
 
 ---
 
@@ -694,49 +653,19 @@ for scientific changes, source verification.
 
 ---
 
-## 7. Skill responsibilities
+## 7-8. Skill and tool responsibilities
 
-| Skill | Required role |
-|---|---|
-| `paper` | Load this standard; provide canonical L0 lists and detailed writing/QD guidance; operationalise the §5.4 thesis spine, including the thesis line and the inventory test, before drafting or revising a section. |
-| `de-ai` | The single de-AI surface: Pass 1 subsystem measurement (L0–L4), Pass 2 vendored humanizer structural-tell audit, Pass 3 claim-first faithful rewrite under §6 eligibility and the §5.3 length budget; fill the §5.4 binding ledger for every rewritten paragraph, an unmeasured pass no detector emits; provide the descriptive field-calibration assets; never redefine consequence classes. |
-| `condense` | The redundancy/length action surface: execute §5.3 (delete > condense-in-place > same-length; growth only with recorded justification) with one-canonical-home-per-fact deduplication, proven by the length gate; never delete a fact's sole support. |
-| `paper-review` | Produce typed findings across dimensions A–R, including the narrative-spine protocol (dimension E) and adversarial escalation (dimension M); verify integrity evidence; allow multiple explicitly related contributions; treat an escalation `CONFIRMED` as a critique that survived verification, then classify its consequence separately; avoid a universal paper verdict. |
-| `figure-review` | Separate objective scientific/rendering blockers from aesthetic advisories; measure canvas balance at the pixel level. |
-| `brainstorm` | Radial pre-draft ideation: produce candidate directions with evidence, derivation skeletons and reader payoff; never fabricate scientific content or write manuscript prose. |
-| `final-review` | Preserve independent isolated reviews (paper-review, figure-review, de-ai audit, MPR); merge typed findings; resolve blockers and L0 targets; record advisory dispositions and unmeasured axes. |
-| `proposal-polish` | Funding-proposal register (vision plus feasibility): keep backed ambition, enforce claim-feasibility matching, apply the L0 policy and §6 rewrite invariants unchanged; never fabricate support. |
+Every skill's required role and every tool's required behaviour are tabulated in
+[`architecture/RESPONSIBILITIES.md`](architecture/RESPONSIBILITIES.md),
+**incorporated by reference and normative**. It was moved out of this file on
+2026-08-25 when the file passed the repository's line budget, and it has no
+independent authority: where it and this document could be read to differ, this
+document wins.
 
-`docs/architecture/DEAI_SUBSYSTEM.md` documents architecture. `EVALUATION.md` records
-empirical evidence. Neither overrides this standard.
-
-All of the above except `brainstorm` are normative implementers and must
-reference this standard (enforced by `validate_plugin.py` `NORMATIVE_SKILLS`).
-`brainstorm` operates before manuscript prose exists; its role row binds its
-scope, not a standard-reference obligation.
-
----
-
-## 8. Tool responsibilities
-
-| Tool | Layer | Required behavior |
-|---|---|---|
-| `ai_ism_lint.py` | L0 hub plus optional L1-L3 aggregation | Emit text or structured JSON from the same findings; use L0-only exit semantics. |
-| `deai_metrics.py` | L1 | Emit calibrated distribution findings and explicit missing-baseline status. |
-| `deai_oracle.py` | L1 | Emit surprisal/UID findings with observed and reference values; advisory-success exit 0. |
-| `deai_structure.py` | L2 sentence | Emit template evidence with calibration metadata; advisory-success exit 0. |
-| `deai_salience.py` | L2 salience | Measure recital structure against a per-section human passage reference at one shared unit; one finding per passage; abstain where the reference cannot resolve above the gate. Sole consumer of `extract_style.latex_to_numeral_text`, the numeral-preserving projection (`latex_to_plain` replaces math with `[math]`, which zeroes every numeral signal on `.tex` input). |
-| `deai_register.py` | L0 register | Compare manuscript vocabulary against field-corpus document frequency; judge compounds by their rarest part; read macro bodies but not subscript decorations; emit advisories only, never `l0_target`s. |
-| `deai_docstructure.py` | L2 document | Measure document shape (per-stratum dispersion manifold, role coupling, split-conformal) with sample-sufficiency checks; one shared `manifold_operating_point` scoring entry. |
-| `deai_anchoring.py` | L2 | Emit the section-class claim-anchoring band as a writing-quality axis, never an AI-discrimination axis. |
-| `deai_voice.py` | L3 | Emit calibrated similarity evidence, model metadata, and confound status without authorship claims; degraded, offline audit instrument. |
-| `deai_feedback.py` | shared | Validate schema (incl. `calibration_unit` cap), attach actions, rank findings, summarize statuses, and serialize output. |
-| `rewrite_reward.py` | L3-L4 | Exclude unfaithful candidates before ranking eligible rewrites; rank by L0 advisory reduction and fidelity. |
-| `retrieve_exemplars.py` | L4 | Supply author-voice evidence without copying unsupported scientific content. |
-| `length_gate.py` | QD (§5.3) | Compare per-section rendered-prose word counts between two document versions; strong advisory and exit 1 on unjustified growth; record `--allow` justifications in the report. |
-| `deai_partition.py` | L4 | Suggest fidelity-free merge/split operations toward the human dispersion band; zero-token, suggest-only. |
-| `deai_provenance.py` | L4 | Label author edit depth vs a designated AI-draft ancestor from the author's own history; `unmeasured` without one. |
-| `deai_personal.py` | L4 | Compare a draft to the author's own prior papers (confound-free reference); `unmeasured` below three papers. |
+Every normative implementer must reference this standard (enforced by
+`validate_plugin.py` `NORMATIVE_SKILLS`). `brainstorm` is the one exception: it
+operates before manuscript prose exists, so its annex row binds its scope rather
+than imposing a standard-reference obligation.
 
 Compatibility tuple APIs may remain temporarily, but new orchestration consumes
 structured finding APIs. Adapters project from structured findings, not the
@@ -793,31 +722,15 @@ leave it explicitly unresolved.
 
 ## 11. De-AI subsystem status and open-item dispositions
 
-The ranked de-AI frontier is complete ([`DEAI_FRONTIER.md`](design-notes/DEAI_FRONTIER.md)).
-Every remaining engineering item has a decided disposition, so the standard rests
-on no undecided obstacle. Adoption of any item requires passing the §9 confound
-audit and keeping the suite and validator green, and updates this table and
-`EVALUATION.md` together.
+The ranked de-AI frontier is complete
+([`DEAI_FRONTIER.md`](design-notes/DEAI_FRONTIER.md)). Every remaining
+engineering item has a decided disposition, so the standard rests on no
+undecided obstacle.
 
-| Item | Disposition | Reason |
-|---|---|---|
-| Document-scale detection core (dispersion manifold, role coupling, split-conformal, per-stratum) | **Shipped, `measured`** | Calibrated on the complete human corpus; falsification and length-fair AUCs in EVALUATION §9.2–9.5. |
-| Salience hierarchy (`L2.salience_hierarchy`) | **Shipped, `measured`** | Per-bucket passage reference from the field's own banks; abstains where the reference cannot resolve above the gate (EVALUATION §14). |
-| Domain register (`L0.register`) | **Shipped, `measured`** | Corpus document frequency with compound-by-rarest-part and macro-subscript handling; precision verified against native-term controls (EVALUATION §14). |
-| Hypotaxis ratio as the formalisation of "flat prose" | **Rejected** | Refuted on the human abstract reference: the flagged manuscript sits above the human median in subordination, so flatness is not a subordination deficit (EVALUATION §14). |
-| Thesis spine (§5.4) as a measured axis | **Shipped as a writing rule, deliberately unmeasured** | Three surface formalisations refuted (EVALUATION §9.6, §14.5, §15.1), and the replacement statistic then refuted on its own pre-registered condition: an adversarial refutation pass overturned 45% of the unbound verdicts and took the domain-matched AUC from 0.756 to exactly 0.500 (§15.2b). No threshold, exit code, or advisory count may be built on it without new evidence. |
-| Spine fraction as a discriminator | **Rejected** | Pre-registered failure at an overturn rate above 30%; the measured rate was 0.450, after which no domain-matched generated passage contained an unbound clause and the whole residual separation was the cross-domain genre confound (EVALUATION §15.2b). |
-| Inert-clause runs and inference-connective rate | **Rejected** | Inert runs do not separate once genre is matched, and the connective rate reverses sign between two AI banks, so a connective is not evidence of an inference (EVALUATION §15.1). |
-| Subfield reference for the salience axis | **Rejected as unnecessary** | A 254-abstract weak-lensing top-tier bank reproduces the broad bank's p90 gates and the same manuscript percentile; genre separates at the discipline level, not between astro-ph subfields (EVALUATION §15.4). |
-| Subfield reference for the register axis | **Rejected as harmful** | 254 documents cannot express a rate below 1/254, 39.4× coarser than the 1e-4 threshold, so core field terms flip to foreign on zero counts (EVALUATION §15.5). |
-| Cooperative layer (`deai_partition`, `deai_anchoring`, `deai_provenance`, `deai_personal`) | **Shipped** | Partition/anchoring `measured`; provenance/personal `unmeasured` by design until the author supplies own history/papers. |
-| `L3.voice` operating point | **Decided degraded** | Offline audit instrument; per-paragraph unit near-unjudgeable and document-level surprisal refuted (§2 L3, EVALUATION §7, §9.8). |
-| `L1.distribution` operating point | **Decided degraded** | No `deai_policy.json` field-calibrated operating point; burstiness/signposting summaries exist but carry no policy threshold (EVALUATION §2). |
-| `L1.uid` operating point | **Decided degraded** | No field-policy-calibrated compatibility operating point; the surprisal path is measured not to add document-level power. |
-| Enriched surprisal features (roadmap rank 5) | **Done, not shipped** | Better than the three scalars but inert for the model-free detector, so recorded not shipped (EVALUATION §9.8). |
-| Length normalization of manifold distance | **Rejected** | A length-confound exploit, not a noise correction (guardrail 9, EVALUATION §9.8). |
-| Baseline unification into one `(feature, unit)` object (rank 2) | **Deferred (elegance debt)** | Explicitly a staged consolidation, never a rewrite; the current architecture is correct and green. |
-| Jargon-conditional per-paragraph operating point (rank 3) | **Won't pursue as scoped** | The jargon confound is handled at document scale by per-stratum + conformal; a per-paragraph operating point is inconsistent with the L3-degraded decision. |
-| `corpus_cos` ablation (rank 4) | **Deferred (audit-only)** | Documented as a field-register confound feature in the degraded, audit-only classifier; marginal value while L3 has no shipped operating point. |
-| Topic-orthogonal axes: cohesion, hedging, citation placement (rank 6) | **Deferred, blocked** | Citation placement is blocked on the `extract_style` `\cite`-flattening root-cause fix; each is a future calibrated axis, not a gap in this spec. |
-| Long-form generation (`ai_long`) | **Standing falsification target** | A recorded measured limit (EVALUATION §9.7); future detector work is benchmarked against it. |
+The register itself — every item, its disposition, and the measurement behind it
+— is [`architecture/DISPOSITIONS.md`](architecture/DISPOSITIONS.md), moved there
+on 2026-08-25 when this file passed the repository's line budget. It is a record
+of decisions, not independent policy: this document stays the single normative
+contract. Adoption of any item requires passing the §9 confound audit and
+keeping the suite and validator green, and updates that register and
+`EVALUATION.md` together.

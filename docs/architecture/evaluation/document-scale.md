@@ -25,24 +25,37 @@ nothing here can redefine it. All machine-readable findings use the
 >
 > | length-fair AUC | recorded | re-measured | Δ |
 > |---|---:|---:|---:|
-> | manifold, natural | 0.928 | 0.931 | +0.003 |
-> | manifold, de-AI'd | 0.939 | 0.942 | +0.003 |
-> | manifold, adversarial | 0.919 | 0.923 | +0.004 |
-> | manifold, skeleton | 0.916 | 0.919 | +0.003 |
+> | manifold, natural | 0.928 | 0.933 | +0.005 |
+> | manifold, de-AI'd | 0.939 | 0.943 | +0.004 |
+> | manifold, adversarial | 0.919 | 0.927 | +0.008 |
+> | manifold, skeleton | 0.916 | 0.914 | -0.002 |
 > | role, natural | 0.702 | 0.690 | −0.012 |
 > | role, de-AI'd | 0.751 | 0.742 | −0.009 |
 > | role, adversarial | 0.818 | 0.810 | −0.008 |
 > | role, skeleton | 0.507 | 0.507 | 0.000 |
 >
 > All eight within 0.012. Human false-flag at the shipped operating point,
-> scored directly over 492 papers: **manifold 0.0346, role 0.0407**, union
-> 0.0752, against nominal α = 0.05. Tail powers are unchanged to three decimals
-> (manifold 0.214 / 0.400 / 0.158 / 0.292; role 0.107 / 0.333 / 0.316 / 0.042;
-> union 0.321 / 0.667 / 0.421 / 0.333). **The 42× corpus growth did not move
-> document-scale discrimination**, which is the expected result — §9 always
-> calibrated against `fulltext-arxiv`, and what changed was the paragraph-level
-> banks. A new tier is added below: `ai_long` scores manifold AUC 0.734 with
-> **0.000** tail power, the standing falsification target.
+> scored directly over 492 papers: **manifold 0.0325, role 0.0427**, union
+> 0.0752, against nominal α = 0.05.
+>
+> **A second correction landed in the same release, and it moved the axis.**
+> `_paper_documents` assembled each bundle by sorted FILENAME, so
+> `Conclusion.tex` preceded `Introduction.tex` — and this axis measures section
+> arc. 122 of the 500 bundles hold more than one `.tex`, 12 provably out of
+> order, and all 122 also folded appendices, acknowledgements and the journal's
+> own class documentation in as body prose. Rebuilding in include order raises
+> manifold tail power on natural AI **0.214 → 0.250** and on adversarial
+> **0.158 → 0.184** while *lowering* the human false-flag rate 0.0346 → 0.0325.
+> The role axis trades the other way (natural 0.107 → 0.036, de-AI'd 0.333 →
+> 0.267), so the union moves 0.321 → 0.286 on natural and 0.421 → 0.447 on
+> adversarial. Current tail powers: manifold 0.250 / 0.400 / 0.184 / 0.292;
+> role 0.036 / 0.267 / 0.316 / 0.042; union 0.286 / 0.600 / 0.447 / 0.333.
+>
+> The 42× *paragraph-bank* growth did not move document-scale discrimination —
+> the expected result, since §9 always calibrated against `fulltext-arxiv`.
+> What moved it was reading those same papers in the right order. A fifth tier
+> is added below: `ai_long` scores manifold AUC 0.740 with **0.000** tail
+> power, the standing falsification target.
 >
 > **First pass.** The 2026-08-17 rebuild regenerated `docstructure_baseline.json`,
 > but §9 was **not** on the v0.27.1 re-measurement list (that release re-measured
@@ -415,10 +428,10 @@ The discrimination signal itself survives length matching. Length-fair AUC again
 
 | length-fair AUC | natural | de-AI'd | adversarial | skeleton | long |
 |---|---|---|---|---|---|
-| manifold, v0.28.0 (170 humans) | **0.931** | **0.942** | **0.923** | **0.919** | 0.734 |
+| manifold, v0.28.0 (170 humans) | **0.933** | **0.943** | **0.927** | **0.914** | 0.740 |
 | manifold, v0.27.1 (169 humans) | 0.928 | 0.939 | 0.919 | 0.916 | — |
 | manifold, pre-rebuild (171 humans) | 0.873 | 0.901 | 0.836 | 0.822 | — |
-| role-decoupling, v0.28.0 | **0.690** | **0.742** | **0.810** | **0.507** | 0.635 |
+| role-decoupling, v0.28.0 | **0.690** | **0.742** | **0.810** | **0.507** | 0.634 |
 | role-decoupling, v0.27.1 | 0.702 | 0.751 | 0.818 | 0.515 | — |
 | role, pre-rebuild | 0.703 | 0.752 | 0.819 | 0.516 | — |
 
@@ -446,9 +459,11 @@ Re-measured 2026-08-25 against the rebuilt baseline, one observation per documen
 
 **The mechanism is real and is now quantified.** Inside stratum 0 — the short papers,
 where tail power is weakest — human manifold distance still correlates with paragraph
-count at **r = −0.418** (n = 170). Stratum 1 is clean (+0.032) and stratum 2 is mild
-(−0.195). Tercile stratification removed the pooled confound (§9.4: 0.353 → −0.080) but
-left a strong one inside the shortest bin, exactly as the refinement predicted.
+count at **r = −0.414** (n = 170). Stratum 1 is clean (+0.060) and stratum 2 is mild
+(−0.187). Tercile stratification removed the pooled confound (§9.4: 0.353 → −0.113) but
+left a strong one inside the shortest bin, exactly as the refinement predicted. Fixing
+the bundle-assembly order did not touch it (−0.418 → −0.414), which is what an
+estimator-noise effect should do: it is not a corpus defect.
 
 **Route 1, normalizing the distance, stays rejected.** Guardrail 9 already records it as
 a length-confound exploit rather than a noise correction, and the reason is visible in
