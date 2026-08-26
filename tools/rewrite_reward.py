@@ -33,7 +33,19 @@ DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 # comma was reported as simultaneously MISSING "2400," and INVENTING "2400"
 # -- a faithful rewrite hard-rejected (combined = -inf) on punctuation. The
 # thousands separator inside a number ("1,234") is still captured.
-_NUMBER_TOKEN = r"[-+]?\d(?:[\d,]*\d)?(?:\.\d+)?"
+_NUMBER_BODY = r"\d(?:[\d,]*\d)?(?:\.\d+)?"
+# ...and it must not swallow the separator in FRONT of it either, which is the
+# same root cause a third time. `[-+]?` accepted a sign directly after a digit,
+# so the range "0.5-1.2 arcsec" tokenized as {"0.5", "-1.2"}. A rewrite saying
+# "from 0.5 to 1.2" was then reported as MISSING "-1.2" and INVENTING "1.2" and
+# hard-rejected -- and every hyphenated range in a reference did the same, which
+# is most of them ("5-40", "24.0-26.0", "0.01-0.06"). A sign is a sign only
+# where one can occur: not straight after a digit or a decimal point, where `-`
+# separates a range and `+` states a tolerance. Exponents (`10^-3`) and genuine
+# negatives after a space or brace are unaffected. Shared with the unit regexes
+# below, which tokenize the same numerals and had the same defect.
+_NUMBER_SIGN = r"(?:(?<![\d.])[-+])?"
+_NUMBER_TOKEN = rf"{_NUMBER_SIGN}{_NUMBER_BODY}"
 _NUM_RE = re.compile(rf"(?<![A-Za-z]){_NUMBER_TOKEN}(?:\s*[×x]\s*10\^?[-+]?\d+)?")
 _CITE_RE = re.compile(r"\\cite\w*\{([^}]+)\}")
 _MATH_RE = re.compile(r"\$([^$]+)\$")

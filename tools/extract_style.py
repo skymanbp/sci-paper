@@ -24,11 +24,13 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-# Section vocabulary, LaTeX projections and PDF heading detection moved to
-# extract_sections.py on 2026-08-25 (this file could no longer be edited at
-# its size). Re-exported here because sibling tools and tests reach them as
-# es.<name>; the names below are unused in this module by design, which is
-# what the F401 waiver records.
+# Section vocabulary, LaTeX projections, PDF heading detection, and corpus
+# document assembly live in extract_sections.py (moved 2026-08-25; this file
+# could no longer be edited at its size). Re-exported here because sibling
+# tools and tests reach them as es.<name>; the names below are unused in this
+# module by design, which is what the F401 waiver records. The re-export list
+# is hand-written, so `ReExportContractTests` asserts it stays complete --
+# it has caught three additions already.
 from extract_sections import (  # noqa: F401 -- re-export, unused here by design
     CLASSIFIED_BUCKETS, _classified_word_count,
     DEFAULT_SECTION_BUCKET, LIGATURE_TABLE, RE_ABSTRACT_ENV,
@@ -40,9 +42,10 @@ from extract_sections import (  # noqa: F401 -- re-export, unused here by design
     RE_TEX_TILDE, RE_SENTENCE_TERMINAL, SECTION_PATTERNS,
     PDF_HEADING_MIN_LETTER_FRAC, PDF_HEADING_MIN_LETTERS, PDF_HEADING_MIN_WORDS,
     _classify_pdf_heading, _include_targets, _math_numerals, _resolve_include,
-    _rejoin_pdf_paragraphs, classify_section, extract_pdf_text,
-    latex_to_numeral_text, latex_to_plain, read_tex_document,
-    select_document_roots, split_into_sections, split_pdf_into_sections,
+    _rejoin_pdf_paragraphs, classify_section, corpus_documents,
+    extract_pdf_text, latex_to_numeral_text, latex_to_plain,
+    read_tex_document, select_document_roots, split_into_sections,
+    split_pdf_into_sections,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

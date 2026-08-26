@@ -403,5 +403,57 @@ class AdvisoryReductionTests(unittest.TestCase):
             self.assertLessEqual(value, 1.0)
 
 
+class HyphenatedRangeTests(unittest.TestCase):
+    """A hyphen between two numerals separates a range; it is not a minus sign.
+
+    `[-+]?` accepted a sign straight after a digit, so "0.5-1.2 arcsec" gave
+    {"0.5", "-1.2"} and a faithful rewrite saying "from 0.5 to 1.2" was
+    reported as MISSING "-1.2" while INVENTING "1.2", then hard-rejected at
+    combined = -inf. Every hyphenated range in a reference did this, which is
+    most of them. Third occurrence of one root cause -- a separator absorbed
+    into the token -- after the Oxford comma and the spaced unit.
+    """
+
+    def numbers(self, text):
+        return set(rewrite_reward._NUM_RE.findall(text))
+
+    def test_hyphenated_ranges_yield_two_positive_numbers(self):
+        for text, want in [
+            ("seeing 0.5-1.2 arcsec", {"0.5", "1.2"}),
+            ("5-40 per square arcminute", {"5", "40"}),
+            ("magnitudes 24.0-26.0", {"24.0", "26.0"}),
+            ("amplitudes 0.01-0.06", {"0.01", "0.06"}),
+        ]:
+            with self.subTest(text=text):
+                self.assertEqual(self.numbers(text), want)
+
+    def test_genuine_negatives_are_still_signed(self):
+        self.assertEqual(self.numbers("a bias of -0.06 dex"), {"-0.06"})
+        self.assertEqual(self.numbers("from -3 to +5"), {"-3", "+5"})
+
+    def test_exponents_keep_their_sign(self):
+        self.assertEqual(self.numbers("10^-3"), {"10", "-3"})
+
+    def test_earlier_separator_fixes_still_hold(self):
+        # The Oxford comma and thousands-separator cases this regex was
+        # previously corrected for must not regress.
+        self.assertEqual(self.numbers("1200, 2400, and 4800"),
+                         {"1200", "2400", "4800"})
+        self.assertEqual(self.numbers("1,234 sources"), {"1,234"})
+
+    def test_a_range_rewritten_as_prose_is_eligible(self):
+        reference = "The grid spans 12 seeing values from 0.5-1.2 arcsec."
+        candidate = "The grid samples 12 seeing values between 0.5 and 1.2 arcsec."
+        result = rewrite_reward.fidelity_eligibility(candidate, reference)
+        self.assertTrue(result["eligible"], result["missing"])
+
+    def test_a_range_endpoint_actually_dropped_is_still_caught(self):
+        reference = "The grid spans 12 seeing values from 0.5-1.2 arcsec."
+        candidate = "The grid spans 12 seeing values starting at 0.5 arcsec."
+        result = rewrite_reward.fidelity_eligibility(candidate, reference)
+        self.assertFalse(result["eligible"])
+        self.assertIn("1.2", result["missing"]["numbers"])
+
+
 if __name__ == "__main__":
     unittest.main()

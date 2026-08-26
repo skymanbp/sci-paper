@@ -323,6 +323,57 @@ def _resolve_include(root: Path, name: str) -> Path | None:
     return sibling if sibling.is_file() else None
 
 
+def corpus_documents(corpus_dir: Path) -> list[tuple[str, str]]:
+    """Assemble a corpus directory into one `(name, text)` per paper.
+
+    A paper split across several `.tex` files is one observation, not many.
+    Grouping by directory got that right; concatenating in sorted filename
+    order got the ORDER wrong, which matters to any consumer measuring section
+    arc or paragraph sequence. It puts `Conclusion.tex` before
+    `Introduction.tex`: 122 of the 500 `wgl` bundles hold more than one `.tex`,
+    12 of them provably out of order, and all 122 also folded appendices,
+    acknowledgements, author lists and the journal's own class documentation in
+    as body prose.
+
+    `select_document_roots` picks the paper out of the bundle and
+    `read_tex_document` splices its `\\include`s in document order. A bundle
+    whose root assembles nothing (one in 500) falls back to concatenation
+    rather than losing the prose. A flat file under the corpus root is its own
+    document.
+    """
+    tex: dict[Path, list[Path]] = defaultdict(list)
+    md: dict[Path, list[Path]] = defaultdict(list)
+    for path in sorted(corpus_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        suffix = path.suffix.lower()
+        if suffix == ".tex":
+            tex[path.parent].append(path)
+        elif suffix == ".md":
+            md[path.parent].append(path)
+
+    def joined(paths: list[Path]) -> str:
+        return "\n\n".join(p.read_text(encoding="utf-8", errors="replace")
+                           for p in sorted(paths))
+
+    def named(parent: Path, first: Path) -> str:
+        return parent.name if parent != corpus_dir else first.name
+
+    documents: list[tuple[str, str]] = []
+    for root in select_document_roots(
+            [p for paths in tex.values() for p in paths], corpus_dir):
+        text = read_tex_document(root)
+        siblings = tex.get(root.parent, [])
+        if root.parent != corpus_dir and len(siblings) > 1:
+            fallback = joined(siblings)
+            if len(text.split()) < 0.5 * len(fallback.split()):
+                text = fallback
+        documents.append((named(root.parent, root), text))
+    for parent, paths in sorted(md.items()):
+        documents.append((named(parent, paths[0]), joined(paths)))
+    return documents
+
+
 def split_into_sections(raw_tex: str) -> dict[str, str]:
     """Best-effort split by \\section / \\subsection / \\chapter headers.
 
