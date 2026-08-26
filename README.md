@@ -2,22 +2,22 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.29.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.30.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-273%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-303%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**8 skills · 31 tools · 273 tests · one normative contract · zero authorship verdicts.**
+**8 skills · 32 tools · 303 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
 [Benchmarks](#benchmark-dashboard) · [Install](#install) ·
-[Skills](#skills-8) · [Tools](#tools-31) ·
+[Skills](#skills-8) · [Tools](#tools-32) ·
 [Limitations](#status-known-limitations-and-roadmap) ·
 [The standard](docs/SCIPAPER_STANDARD.md) · [Docs](docs/README.md)
 
@@ -72,7 +72,7 @@ problem:
 | **7** | **Polish a funding proposal** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description, NIH Specific Aims, fellowships. Keeps the vision-and-feasibility register a paper would trim, enforces claim–feasibility matching, edits the score-forming first pages hardest. |
 | **8** | **Explore research directions** | [`brainstorm`](skills/brainstorm/SKILL.md) | Radial research-direction explorer: twelve framing passes per node, glossary-anchored terminology, complete derivation per branch, recursive divergence to convergence. Deferred or incomplete leaves are hard-banned. |
 
-All eight run over the same evidence layer — 31 tools emitting one schema,
+All eight run over the same evidence layer — 32 tools emitting one schema,
 `sci-paper.feedback.v1` — so a finding from the linter, the review skill, and
 the orchestrator are the same object with the same ID.
 
@@ -465,7 +465,7 @@ document is a real 5,084-word corpus paper, assembled from its LaTeX includes.
 | `+ --oracle` (GPT-2-large token surprisal) | 23.1 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **9/9 checks pass** | 359 ms | stdlib |
-| Full test suite — **273 passing**, 16 files | 52.4 s | stdlib |
+| Full test suite — **303 passing**, 17 files | 54.6 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs
 ~334 ms of analysis above the interpreter floor**, with no optional dependency
@@ -531,7 +531,7 @@ Drive them from Claude Code as `/sci-paper:<name> draft.tex --field wgl`.
 - **Review** — [`paper-review`](skills/paper-review/SKILL.md) (A–R, source-traced) · [`figure-review`](skills/figure-review/SKILL.md) (compiled pages) · [`final-review`](skills/final-review/SKILL.md) (isolated orchestration)
 - **Explore** — [`brainstorm`](skills/brainstorm/SKILL.md) (radial research exploration)
 
-## Tools (31)
+## Tools (32)
 
 One `sci-paper.feedback.v1` contract for every finding; corpus, training, and
 evaluation entries produce artifacts instead. `layer` is the axis the tool serves
@@ -562,9 +562,10 @@ reproducible evidence. Per-tool detail: [tools/README.md](tools/README.md).
 | `tools/deai_provenance.py` | L4 | Editing-provenance ledger over the author's **own** draft history; labels each span AI-untouched → author-original by token edit ratio. Not a detector; `unmeasured` without an AI-draft ancestor. |
 | `tools/deai_personal.py` | L4 | Personal dispersion baseline against the author's own prior papers — a confound-free same-author reference. `unmeasured` below three papers. |
 | `tools/eval_docscale.py` | eval | Reproduces the §9 document-scale table — human false-flag rate and per-tier tail power — by scoring the corpus and every `docval` tier through the same operating point findings use. |
+| `tools/eval_findings.py` | eval | Scores register and salience against **provenance** labels instead of hand labels: their firing rate on held-out refereed ApJ/ApJL/A&A papers, on the in-sample papers, and on the `docval` machine tiers, plus a paired test that isolates calibration leakage from publication era. |
 | `tools/label_findings.py` | eval | Samples register and salience findings into a human-labelling sheet, re-serves a blind subset for intra-rater agreement, and scores precision/recall stratified by drafts vs published papers. Reports `unmeasured` for any stratum under 20 labels. |
 | `tools/build_profile.py` | build | Builds the basic field profile: extraction, optional legacy classifier, exemplar-cache warm-up. |
-| `tools/cli_common.py` | build | Shared command-line preamble and field resolution, used by 21 of 31 tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
+| `tools/cli_common.py` | build | Shared command-line preamble and field resolution, used by 22 of 32 tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
 | `tools/extract_style.py` | build | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. Re-exports every public name from `extract_sections.py`. |
 | `tools/extract_sections.py` | build | Source-text projection and section splitting: the section vocabulary and its classifier, both named LaTeX projections, and the PDF heading heuristic. Section buckets key every per-section reference, so changing this requires a profile rebuild. |
 | `tools/retrieve_exemplars.py` | build | Retrieves section- and topic-matched exemplar paragraphs, with embedding or explicit fallback retrieval. |
@@ -667,14 +668,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   8 skills          ├── tests/     16 files, 273 tests
+├── skills/<name>/SKILL.md   8 skills          ├── tests/     17 files, 303 tests
 ├── tools/                   31 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 273-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 303-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page
 anchors, recorded suite sizes against real discovery, product registries, syntax,
@@ -686,7 +687,7 @@ requires independent review, clean-checkout verification, and green hosted CI.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.29.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.30.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.7 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative
@@ -700,32 +701,31 @@ de-AI standard.
 | Limitation | Current state |
 |---|---|
 | **No learned-model operating point** | L3 ships `degraded`. The document-level surprisal path was *measured* not to provide one (0.757 vs the model-free manifold's 0.881). |
-| **Tail-power figures are seed draws** | Per-seed spread on the manifold tiers is 0.04–0.18, wider than several differences the record previously read as improvements. `tools/eval_docscale.py` re-runs the table instead of quoting it. |
 | **Field-topic false positives** | 28–39% on field-topic and jargon-dense AI prose. **Closed by decision:** three retrains across a 2.6× bank range agree the confound is in the feature set, so no field-topic-robust operating point is obtainable from it. |
-| **Short-document tail power** | Manifold 5%-tail power on short natural-AI documents averages **0.170 ± 0.110** over 12 seeds, against a 0.933 length-fair ranking. Three fixes were built and all three fail: distance normalisation (rejected), finer stratification, and an explicit estimator-noise covariance. |
+| **Short-document tail power, and it is a seed draw** | Manifold 5%-tail power on short natural-AI documents averages **0.170 ± 0.110** over 12 seeds against a 0.933 length-fair ranking; per-tier spread reaches 0.18, wider than several differences the record once read as improvements. Three fixes were built and all three fail: distance normalisation (rejected), finer stratification, and an explicit estimator-noise covariance. `tools/eval_docscale.py` re-runs the table instead of quoting it. |
 | **Long-form generation is not caught** | At α = 0.05, manifold tail power on long-form AI is **0.000** — stable across 2 metrics × 4 calibration splits × 12 seeds. Rank AUC is 0.729, so the signal exists and the operating point cannot reach it. |
 | **Cooperative-layer tools** | `deai_provenance` and `deai_personal` are honestly `unmeasured` until the author supplies their own draft history or ≥ 3 prior papers. |
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` — and now for a *measured* reason. Burstiness reverses sign on adversarial prose (AUC 0.181) and signposting runs below chance (0.247), so no operating point is available to write. |
 | **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.846 and triage overlap 0.654, but an old triage list will not reproduce exactly. |
 | **A quarter of the corpus is never used** | Headings matching no section bucket are dropped rather than guessed: **2,334 of 9,178 (25.4%)** in `wgl`, 42 of 148 in `wgl-letter`. The remainder is mostly topic headings ("Matter power spectrum"); "Measurements" and "Background" were refused as genuinely ambiguous. |
-| **No human-judgement validation set** | Salience and register operating points are corpus-referenced, not human-labelled. |
+| **Register fires on accepted prose** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.991 findings per 1,000 words**, 93.6% of documents, rank AUC **0.080** against machine text — it fires *more* on human papers than on AI drafts. 72.7% of those flags would vanish if the paper sat in its own bank, so the in-sample view was 3.7× optimistic. Recorded, not retuned. |
+| **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's gate transfers almost exactly (0.2705 per passage against a 0.2710 expectation); precision and recall for the advice itself need `tools/label_findings.py`. |
 | **A fresh clone measures nothing** | All profile assets are gitignored. Until you build a profile from your own papers, every corpus-referenced axis is `unmeasured`. |
 
 ### Roadmap
 
-One item is open, and it needs what this repository cannot generate: a
-**human-labelled validation set** for salience and register. The harness is
-built and waiting on labels — `tools/label_findings.py sample` writes the sheet,
-`relabel` re-serves a blind subset for intra-rater agreement, `score` reports
-precision and recall stratified by drafts vs published papers.
+Open, and it now carries a number: `L0.register`'s operating point must be re-derived
+against a held-out target rate. What it replaces — "needs a human-labelled validation
+set" — is closed by measurement: refereed ApJ/ApJL/A&A papers *are* human labels, and
+200 held-out ones scored both axes
+([§17](docs/architecture/evaluation/narrative-salience-register.md)). A labeller still
+judges whether an advisory is good *advice*; `label_findings.py` is that path.
 
-**Closed by refutation, not by shipping.** The length-aware manifold was built and
-over 12 paired seeds moves the human rate not at all and two AI tiers the wrong
-way; enlarging the conformal calibration set gives flat tail power and worse human
-false-flags; long-form holds at 0.000 everywhere; and three L3 retrains agree the
-field-topic confound is in the features. `deai_policy.json` stays withdrawn; anchors
-stay `[WGL]`. Detail: [§9.4c](docs/architecture/evaluation/document-scale.md) and
-[§7.0a](docs/architecture/evaluation/learned-model.md).
+**Closed by refutation, not by shipping.** The length-aware manifold, a larger conformal
+calibration set, long-form tail power, three L3 retrains, and the held-out-vs-in-sample
+leakage contrast were built or tested and refuted; each is a row above. `deai_policy.json`
+stays withdrawn; anchors stay `[WGL]`. Detail: [§9.4c](docs/architecture/evaluation/document-scale.md),
+[§7.0a](docs/architecture/evaluation/learned-model.md), §17.3.
 
 ## Acknowledgments and license
 

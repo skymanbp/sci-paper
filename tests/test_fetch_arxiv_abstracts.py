@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+import types
 import io
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -407,6 +408,88 @@ class ResumeTest(unittest.TestCase):
                 fetch.fetch_page = real
             lines = out.read_text(encoding="utf-8").strip().splitlines()
             self.assertEqual(len(lines), 3, "carried source must not be re-added")
+
+
+class HeldOutSetTest(unittest.TestCase):
+    """A held-out evaluation set is only held out if two things hold.
+
+    First, nothing it contains may already feed a calibration bank -- otherwise
+    the papers suppress their own findings and the measured false-positive rate
+    is optimistic for a reason no reader can see. Second, it must not be written
+    where the calibration builder reads, or the next profile rebuild absorbs it.
+    """
+
+    def _args(self, tmp: Path):
+        return types.SimpleNamespace(profile_root=tmp / "profile", field="wgl")
+
+    def test_version_suffixes_and_slashes_normalise(self) -> None:
+        self.assertEqual(fetch._bare("2011.02377v2"), "2011.02377")
+        self.assertEqual(fetch._bare("astro-ph/9912508"), "astro-ph_9912508")
+        self.assertEqual(fetch._bare("2011.02377"), "2011.02377")
+
+    def test_abstract_bank_sources_count_as_known(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            tmp = Path(name)
+            field = tmp / "profile" / "wgl"
+            field.mkdir(parents=True)
+            (field / "human_abstracts_extra.jsonl").write_text(
+                json.dumps({"source": "arxiv:2011.02377v2"}) + "\n",
+                encoding="utf-8")
+            known = fetch.known_calibration_ids(self._args(tmp))
+            self.assertIn("2011.02377", known)
+
+    def test_a_tier_filename_arxiv_id_counts_as_known(self) -> None:
+        # A curated PDF's filename is the only machine-readable link between it
+        # and the arXiv record a query would return, so it is where leakage
+        # would otherwise slip through unnoticed.
+        real_root = fetch.REPO_ROOT
+        with tempfile.TemporaryDirectory() as name:
+            tmp = Path(name)
+            tier = tmp / "style-corpus" / "wgl" / "tier-1-top"
+            tier.mkdir(parents=True)
+            (tier / "bartelmann-2001__astro-ph_9912508").mkdir()
+            fetch.REPO_ROOT = tmp
+            try:
+                known = fetch.known_calibration_ids(self._args(tmp))
+            finally:
+                fetch.REPO_ROOT = real_root
+            self.assertIn("astro-ph_9912508", known)
+
+    def test_writing_a_heldout_set_into_the_calibration_dir_is_refused(self) -> None:
+        with redirect_stderr(io.StringIO()) as captured:
+            with self.assertRaises(SystemExit):
+                fetch.main(["--field", "wgl", "--fulltext", "--exclude-known",
+                            "--fulltext-dir", fetch.REFERENCE_DIR])
+        self.assertIn("held-out", captured.getvalue())
+
+    def test_a_non_calibration_fulltext_dir_is_allowed(self) -> None:
+        # The interlock must key on the calibration directory specifically, not
+        # refuse --exclude-known outright.
+        parser_error = []
+        real = fetch.fetch_fulltext
+        fetch.fetch_fulltext = lambda args: parser_error.append(args.fulltext_dir) or 0
+        try:
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                fetch.main(["--field", "wgl", "--fulltext", "--exclude-known",
+                            "--fulltext-dir", "fulltext-heldout"])
+        finally:
+            fetch.fetch_fulltext = real
+        self.assertEqual(parser_error, ["fulltext-heldout"])
+
+    def test_a_path_separator_in_the_dir_name_is_refused(self) -> None:
+        with redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                fetch.main(["--field", "wgl", "--fulltext",
+                            "--fulltext-dir", "../escape"])
+
+    def test_a_bad_journal_key_fails_in_fulltext_mode_too(self) -> None:
+        # Before this, full-text mode returned before the key check ran, so
+        # `--fulltext --journals apjjl` silently kept nothing.
+        with redirect_stderr(io.StringIO()) as captured:
+            with self.assertRaises(SystemExit):
+                fetch.main(["--field", "wgl", "--fulltext", "--journals",
+                            "apjjl", "--fulltext-dir", "fulltext-heldout"])
+        self.assertIn("unknown journal key", captured.getvalue())
 
 
 if __name__ == "__main__":

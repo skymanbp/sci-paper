@@ -1,4 +1,4 @@
-# Changelog archive — v0.19.0 through v0.26.2
+# Changelog archive — v0.22.0 through v0.27.0
 
 Entries moved out of [CHANGELOG.md](CHANGELOG.md) on 2026-08-25 so the live
 changelog stays readable, and split in two on 2026-08-26 when this file passed
@@ -6,7 +6,286 @@ the repository's 750-line budget. Nothing here is edited; the history is
 verbatim.
 
 - Current release and the one before it: [CHANGELOG.md](CHANGELOG.md)
-- **v0.18.0 and earlier**: [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)
+- **v0.21.0 and earlier**: [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)
+
+---
+
+## v0.27.0 — 2026-08-16
+
+A repository audit, the defects it confirmed, and the structure that stops them
+recurring. An adversarially verified multi-agent sweep (7 dimensions, every
+finding re-derived by an independent refuter) produced 59 candidates; 12 were
+refuted and the rest are fixed here. No consequence class, exit code, or
+normative policy in `SCIPAPER_STANDARD` §§0-6 changed.
+
+### The section-bucket defect, and what it invalidates
+
+`extract_style.classify_section` matched section titles **in the singular
+only**. `\bresult\b` does not match "Results", `\bconclusion\b` does not match
+"Conclusions", and `\bsystematic\b` does not match "Systematics" — the standard
+ApJ/MNRAS/PRD headings. All of them fell through to `DEFAULT_SECTION_BUCKET` and
+were measured against the **methods** reference. The symptom was visible in the
+shipped bank all along and had not been read as one: 31 weak-lensing papers
+produced 1770 `method` paragraphs and **zero** `results`.
+
+The same defect had a second form. `\b(acknowledg|bibliograph)\b` was written as
+if those were stems, but the closing `\b` means each can only ever match that
+exact string, so "Acknowledgements" and "Bibliography" were never skipped and
+were ingested as prose.
+
+- Every noun in `SECTION_PATTERNS` now carries its plural, and the two stems
+  carry `\w*` in place of a closing word boundary.
+- **Every per-section asset built before this release carries the
+  mis-bucketing, and the impact is measured rather than estimated.** Rebuilding
+  the same 31-paper `wgl` corpus with the fixed classifier, into a scratch
+  profile root so the shipped assets were untouched:
+
+  | bucket | pre-fix | post-fix | change |
+  |---|---:|---:|---:|
+  | abstract | 15 | 15 | 0 |
+  | intro | 99 | 99 | 0 |
+  | method | 1770 | 1671 | −99 |
+  | discussion | 43 | 97 | **+126%** |
+  | conclusion | 30 | 50 | **+67%** |
+  | results | 0 | 10 | **0 → 10** |
+  | **total** | **1957** | **1942** | −15 (back matter now skipped) |
+
+  `discussion` and `conclusion` change materially; `results` exists for the
+  first time but at n = 10, below the documented 30-passage floor, so that
+  bucket stays honestly omitted until the corpus grows. `EVALUATION.md` §2
+  carries this table as a standing notice, and `style-profile/README.md` says
+  to treat every section-keyed axis as `degraded` until the profile is rebuilt
+  and each `--calibrate` re-run. The repository ships no baseline, so a fresh
+  clone is `unmeasured` and unaffected.
+- `tests/test_extract_style.py` is new. `extract_style` is imported by eight
+  sibling tools and owns both LaTeX projections, yet had no test file — which is
+  how a singular-only vocabulary survived. The back-matter form above was found
+  *by that new test*, not by the audit.
+
+### Fidelity gate: two regexes that rejected faithful rewrites
+
+`rewrite_reward` reported honest rewrites as unfaithful — in the over-strict
+direction (`combined = -inf`) — for reasons with nothing to do with science.
+
+- **Numbers absorbed the following comma.** `\d[\d,]*` tokenized "1200, 2400,
+  and 4800" as `{"1200,", "2400,", "4800"}`, so dropping an Oxford comma was
+  reported as simultaneously *missing* `2400,` and *inventing* `2400`. A numeral
+  token must now end in a digit; thousands separators still parse.
+- **Units absorbed the following word.** The `\s*` separator let any word after
+  a numeral become a "unit": "in 2020 we found" yielded unit `we`. A unit must
+  now bind to its number the way the corpus writes it — adjacent, or separated
+  only by LaTeX spacing (`\,` `\;` `\!` `\ ` `~`). This deliberately narrows the
+  category: a plain-ASCII-space "5 km" no longer registers a unit, though its
+  number stays protected.
+- Changed numbers and changed units remain ineligible, now under test.
+
+### Display math was invisible to the fidelity gate
+
+Both named LaTeX projections drop `\begin{equation}`/`align`/`gather` bodies by
+design, and every protected category was computed from them — so a value
+silently changed *inside* a displayed equation passed as fully faithful. That is
+the one defect in this release that let an unfaithful candidate through rather
+than rejecting a faithful one.
+
+- `rewrite_reward` now reads displayed bodies from the raw text, adding their
+  numerals to the number category and the whole body to the math category.
+  Whitespace normalizes before comparison, so re-indenting an equation is not a
+  change while altering a coefficient or an exponent is.
+- **Exit 1, not 2, when no candidate is eligible.** Every candidate failing
+  eligibility is a measured outcome the caller acts on (preserve the original,
+  regenerate tighter), so reporting it as an execution failure made a correct
+  run indistinguishable from a crash. `SCIPAPER_STANDARD` §0.1 now registers
+  `rewrite_reward` alongside `length_gate` as carrying a narrow actionable
+  contract in which `1` means a measured outcome.
+
+### Reference rates are computed over the set they are compared against
+
+The signposting finding printed a "reference corpus rate" derived from
+`blacklist_present_in_corpus`, which `extract_style` keys to its own 12-entry
+`PARAGRAPH_INITIAL_LLM_OPENERS` — several of them multi-word phrases that can
+never match a single paragraph-initial word. The draft, meanwhile, is measured
+against `deai_metrics.CONNECTIVE_OPENERS`, 22 single words. The two numbers were
+printed side by side and were never comparable; the reference read roughly seven
+times too low.
+
+- `extract_style` now stores the complete `paragraph_initial_counts` counter as
+  evidence, and `deai_metrics` computes its reference rate over its own opener
+  set. The extractor supplies observations; the detector owns its policy.
+- A profile predating that key cannot yield a comparable rate, so the finding
+  omits the reference clause and says why, instead of quoting a wrong number.
+
+### Grouped cross-validation, and a cache that notices its own dependency
+
+- `train_ai_ism_classifier` splits with `StratifiedGroupKFold` grouped by source
+  paper. Paragraphs from one paper are not independent, and the ungrouped split
+  reported F1 0.876 where the grouped split gives 0.823. `cv_grouped` travels
+  with the metrics and the CLI prints which split ran, so the two can never be
+  read for each other.
+- `train_voice_model`'s feature-cache fingerprint includes embedder
+  availability. Rows computed without `sentence-transformers` carry
+  `corpus_cos = 0.0`; a fingerprint blind to that kept serving them unchanged
+  after the dependency was installed, so a degraded value persisted while
+  looking measured.
+
+### Other confirmed findings closed
+
+- `deai_oracle` declares `calibration_unit="paragraph"`. It was the one
+  paragraph-scope detector that never did, so its findings shipped at confidence
+  1.0 and outranked their capped siblings.
+- `fetch_arxiv_abstracts` no longer lets a transient page error masquerade as an
+  exhausted query. A failed page and an empty page both arrived as `page = []`,
+  which silently ended that query's pagination while the run still exited 0.
+  Affected queries are now named in an `INCOMPLETE` report and the run exits 2.
+- `extract_style` expands typographic ligatures on the PDF path. A PDF text
+  layer emits `ﬁ`/`ﬂ`/`ﬀ` as single codepoints, so the tokenizer split
+  "significant" into fragments that entered the lexicon and the exemplar bank as
+  words.
+- `extract_style` and `validate_plugin` gained the stdout re-encoding guard the
+  other CLIs already had; both print non-ASCII and both die on a redirected
+  stdout under a non-UTF-8 locale. `deai_feedback` was checked and needs none —
+  it has no `main()` and no non-ASCII.
+- `aggregate_sentence_stats` and `train_and_save` docstrings now describe what
+  the code does: tier weights are carried but not applied, the analyzer is
+  word-level rather than character-level, and the returned keys are the ones
+  actually returned.
+- `gather_corpus_files`'s docstring describes the implemented **depth** rule
+  rather than a co-location rule it never had.
+- `TestShippedReference` is renamed `TestLocalReference`. The plugin ships no
+  baseline — every `style-profile/**` artifact is gitignored on purpose — so its
+  claim to test "the reference the plugin actually ships" read as CI coverage
+  that does not exist.
+- The `fetch` tests capture the CLI's progress log, which was the suite's only
+  stdout noise and printed an absolute temp path.
+
+### Linter contract
+
+- **Exit 1 no longer reports a crash.** `lint()` caught only
+  `(OSError, ValueError, JSONDecodeError)`, so any other exception — a
+  `lexicon.json` holding a JSON list raises `AttributeError` — escaped and the
+  interpreter exited 1, the status the contract reserves for "an L0 target is
+  present". Every execution failure now returns 2.
+- **A paragraph-initial connector counts once.** `Crucially` sits in both
+  `TIER_A_PATTERN` and the connector list and produced two L0 targets for one
+  word, while `Notably`/`Importantly`/`Interestingly` produced one. The Tier A
+  scan now applies the same span guard the Tier B scan already used.
+
+### Optional dependencies degrade instead of crashing
+
+- `deai_oracle` probes `transformers`/`torch` before use. Their absence now
+  reports `L1.uid` as `unmeasured` with the reason instead of raising
+  `ModuleNotFoundError` mid-run; an explicit `--calibrate` that cannot run exits
+  2 rather than dying part-way through the corpus.
+- `deai_voice` imports `joblib` inside its existing guard, so a present bundle
+  with the optional dependency uninstalled degrades the L3 axis instead of
+  raising through the caller.
+- `deai_provenance` passes `encoding="utf-8"` to its git subprocesses. With
+  `text=True` alone they decoded with the locale codepage, so on a non-UTF-8
+  Windows locale a tracked file containing an em-dash made the ancestor read as
+  "unreadable or untracked" — an axis unmeasured for a decoding reason.
+- `retrieve_exemplars` rejects `--k < 1` (exit 2). `--k 0` returned an empty
+  list that surfaced as "No paragraphs in section=…", a false claim about the
+  bank; a small negative `k` silently returned all-but-the-last exemplar.
+
+### Documentation is categorized, indexed, and mechanically checked
+
+`docs/` now separates what decides from what describes from what is frozen:
+
+```
+docs/README.md                          index + authority order
+docs/SCIPAPER_STANDARD.md               normative
+docs/architecture/DEAI_SUBSYSTEM.md     implementation
+docs/architecture/EVALUATION.md         evidence
+docs/design-notes/                      frozen, dated reasoning records
+```
+
+`validate_plugin.py` gained a ninth check and three new invariants, so this
+class of drift fails CI instead of accumulating:
+
+- **recorded suite sizes are validated against real test discovery.**
+  `EVALUATION.md` had quoted two different sizes for the same release — 147/13
+  in §3 and 172/14 in §12 — because nothing compared either with the repository;
+- every document under `docs/` must be linked from the index (no orphans);
+- each `design-notes/` file must declare itself a design note in its header;
+- no document may reappear at a location it was moved away from.
+
+Corrected in the same pass: the `EVALUATION` §5 baseline total (1,952 → 1,957,
+the value the same file already used in §6 and §14.4); the roadmap's disposition
+parenthetical, which listed ranks 3 and 6 in the opposite order from
+`SCIPAPER_STANDARD` §11, the file it names as the single status home; the
+frontier note's "ranks 2-8", which contradicted its own header; the README's
+stale tool count; the hard-set filename case in `style-profile/README.md`; and
+seven `EVALUATION` links that pointed at deliberately gitignored artifacts and
+so resolved on no clone. `style-profile/README.md` now documents
+`salience_baseline.json` and `register_lexicon.json` with the `--calibrate`
+commands that build them.
+
+### README and discoverability
+
+- `README.md` is rebuilt around what the plugin does, how the loop works, and
+  what it refuses to do, with skills grouped by job (write / revise / review /
+  explore) and tools grouped by measurement layer. `README.zh-CN.md` is the
+  full Chinese counterpart.
+- Manifest keywords expanded from 8 to 23 and marketplace tags from 4 to 8;
+  five skill descriptions are English-first with their Chinese trigger phrases
+  retained, so trigger behaviour is unchanged while the plugin is findable in
+  English.
+
+### Skills
+
+- `condense`'s `rewrite_reward.py` example was missing the tool's required
+  `--field`, so the documented command exited 2 without doing any work.
+- `brainstorm` resolved three internal contradictions: a `--min-frameworks`
+  floor of 5 that contradicted the flag table, the §3 completion criterion and
+  the anti-pattern list (all 12); two headings both numbered `## 0.`; and a
+  §0.6 stopping list that omitted the glossary grill's own hard stop.
+
+### The independent review of this release, and what it caught
+
+Before tagging, the diff itself went through an adversarially verified review
+(5 dimensions, every finding re-derived by an independent refuter): 29
+candidates, 18 refuted, 11 confirmed — **most of them regressions introduced by
+this release**, which is the reason the round happened at all.
+
+- **`rewrite_reward` exit 1 had no execution-failure guard.** Promoting 1 to a
+  measured outcome without one meant an uncaught exception also exited 1, so a
+  crash was indistinguishable from "no candidate was eligible" — the very bug
+  this release fixed in `ai_ism_lint`, reintroduced one file over. `main()` now
+  wraps its body and returns 2, matching `length_gate` and `ai_ism_lint`.
+- **Reading raw text without the projections' reductions.** Scanning displayed
+  equations from the raw source skipped the comment stripping both projections
+  do first, so a commented-out dead equation became a hard invariant and
+  deleting it scored `-inf`. The fix is one shared `_uncommented()` applied to
+  **all five** raw-text categories — citations, inline math, display math,
+  macros, units — not to the one site the review happened to name. Display
+  bodies additionally drop the `\begin{}`/`\end{}` wrapper and `\label{}`, so
+  renaming `eq:mass` or starring an environment is no longer a violation and a
+  label's digits (`eq:m200`) no longer enter the number set as `00`.
+- **The unit narrowing went too far.** Requiring adjacency or LaTeX spacing
+  removed the false positives but also stopped catching `1.5 Mpc` → `1.5 kpc`,
+  a factor-1000 physics error, in the gate whose whole job is to catch it. A
+  space-separated token is protected again when it is in a closed unit
+  vocabulary — keeping `in 2020 we found` unprotected and `1.5 Mpc` protected.
+- **The math category is now case-sensitive.** `_normalized` lowercases, so a
+  `\Delta\Sigma` → `\delta\Sigma` substitution — a different physical
+  quantity — passed as fully faithful.
+- **The headline evidence table did not reproduce.** The bucket counts were
+  measured before the ligature fix landed in this same release, so three of
+  seven numbers were stale. Re-measured against the tagged code: `method` 1770 →
+  1671, `discussion` 43 → 97, `conclusion` 30 → 50, `results` 0 → 10, total
+  1957 → 1942.
+- Documentation overstatements corrected: §12's release gate was half-updated
+  (v0.27.0's suite size beside v0.26.2's check count), and the rewritten README
+  generalised a true statement about *findings* into a false one about *tools*
+  (10 of the 24 entries emit none).
+
+### Verification
+
+`validate_plugin.py` 9/9 checks pass; the suite is **208 tests in 15 files**
+(was 172 in 14), all green, with every new test written to fail against the
+pre-fix code — including one regression test per confirmed review finding.
+
+Older entries: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md) (v0.22.0-v0.27.0)
+and [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0).
 
 ---
 
@@ -405,153 +684,3 @@ port in v0.21.0.
   conflict with the plugin's corpus evidence (`landscape` is a measured
   legitimate astro term). Attribution added to the SKILL provenance header
   and README Acknowledgments.
-
-## v0.21.0 — 2026-07-17
-
-The academic-humanizer becomes a standalone skill, paper-review gains a
-per-round structural audit step, and the documentation tree is consolidated.
-
-- **New skill `academic-humanizer` (11th skill).** Whole-repo port of
-  AIScientists-Dev/academic-humanizer v0.3.3 (MIT; attribution retained):
-  Layers 1--5 as a standalone audit-then-rewrite pass. Adaptations over
-  upstream: corpus overrides are normative (landscape never flagged;
-  demonstrate/significantly evidence-conditional only), rewrites must pass
-  the fidelity and length gates, Layer 6 routes to the existing
-  `proposal-polish` skill instead of being duplicated, and lexical tells
-  defer to `ai_ism_lint.py` Tier A/B rather than re-deriving a word list.
-  Field-validated before porting: a standalone audit run on a live
-  manuscript found seven true positives (two colon-elaborations that the
-  per-line linter regex misses at line breaks, three comma-splice
-  run-ons, one Layer-1 lexical hit, one dense results sentence).
-- **paper-review §D structural-tell audit step.** Every review round now
-  runs the humanizer Layers 1--2 checklist (clause-stacking, negative
-  parallelism, elegant variation, rule-of-three, formulaic openers,
-  connective runs) in audit-only mode; structural hits are advisories,
-  Layer-4 claim-evidence hits join §C as `integrity_blocker`.
-- **Docs consolidated.** The canonical `EVALUATION.md` moved from the
-  repository root into `docs/` (replacing the redirect stub that pointed
-  the other way); all path references updated (README, standard,
-  subsystem, roadmap links). `docs/` is now the single home for all five
-  documentation files.
-
-## v0.20.1 — 2026-07-16
-
-Post-release independent audit of the v0.20.0 length gate (7 findings, all
-dispositioned; the two High items were real defects in orchestration use).
-
-- **JSON report is now self-describing.** `length_gate.py --format json`
-  embeds a `length_budget` block (totals, justified growth,
-  `net_unjustified_growth`, `tolerance_words`, `gate_exit`), so a downstream
-  orchestrator derives the gate result from the report alone instead of
-  parsing stdout or trusting the process exit.
-- **Allowance accounting matches the documented net formula.** Every allowed
-  positive section delta is credited to `justified_growth`, including growth
-  below the per-section flagging tolerance; previously an allowed
-  sub-tolerance growth was not credited and could flip a compliant edit to
-  exit 1.
-- **Ambiguous `--allow` keys are a configuration error (exit 2)** instead of
-  silently authorizing every matching section.
-- **Heading stripper covers `\\section[short]{long}` and one level of nested
-  braces**, keeping renames of those forms budget-neutral.
-- Registry/skill wording aligned with shipped behavior (net-exit semantics in
-  the top-level README; rewrite-in-voice ranking terms name L0 advisory
-  reduction, fidelity, voice, condensation, with specificity
-  transparency-only).
-- New tests: allowance-tolerance interaction, ambiguous key, optional-argument
-  heading rename, self-describing JSON, empty-original budget, and three
-  mocked `rank()` integration cases (-inf over budget, `allow_growth` lift,
-  fidelity-floored condensation bonus). Suite: 115 tests green.
-
-## v0.20.0 — 2026-07-16
-
-§5.3 (condense, do not accumulate) gets mechanical enforcement. Standard bumped
-to **v3.3**. Design: prevent at candidate time, detect at loop close, and make
-recorded justification the only path for growth — three layers, all auditable.
-
-- **New tool `length_gate.py` (tools: 21 → 22), the loop-close delta gate.**
-  Compares per-section rendered-prose word counts (comments and math excluded
-  via `latex_to_plain`) between the pre-edit baseline (`--before <snapshot>` or
-  `--git-ref <ref>`) and the edited file. Each unjustified growing section
-  emits a strong advisory `length-growth:<section>` (strong advisories already
-  require an explicit disposition before a loop may close); `--allow
-  "<section>=<reason>"` (case-insensitive, substring-tolerant) /
-  `--allow-total <reason>` convert it to an ordinary
-  `length-growth-justified` advisory that carries the recorded reason into the
-  report. The exit code gates the NET budget: 0 when total growth minus
-  justified growth is within `--tolerance-words`, 1 beyond it, 2 for invalid
-  input (negative tolerance, empty reason, missing baseline) or execution
-  failure; a pure section rename nets to zero. Registered in standard §0.1.
-- **`rewrite_reward.py` length-budget hard gate (candidate time).** New
-  `--original <paragraph>` input: a candidate longer than the original scores
-  `-inf` regardless of style evidence (`length_eligible` joins fidelity in the
-  eligibility conjunction); `--allow-growth <reason>` lifts the gate for one
-  run and prints the reason; within budget a `CONDENSATION_WEIGHT` bonus
-  prefers the shorter of otherwise-equal candidates. CLI prints a
-  `words(o/c)` column and the over-budget diagnosis.
-- **Contract wiring.** Standard §5.3 enforcement paragraph + §0.1 exit
-  exception + §8 tool row; `paper-review` §1 snapshot step (6b), §4 step 8
-  (gate must exit 0 before the loop closes), §6 report length-budget row, §7
-  stopping condition; `rewrite-in-voice` §2.1 saves `original.txt`, §2.4
-  passes `--original`; `paper` mirror notes the two mechanical gates.
-- Section headings are stripped before counting, so a section rename cannot
-  register as prose growth; independent review (2 accepted defects, net-exit
-  redesign, substring `--allow`, UTF-8-lossy git baseline, input validation)
-  is folded in.
-- New tests: `tests/test_length_gate.py` (10 CLI cases: shrink, unjustified
-  growth, justified growth, comment/math exclusion, shared JSON schema,
-  missing-baseline / negative-tolerance / empty-reason failures, rename
-  netting, substring allowance) and 3 `length_budget` unit cases. Suite: 107
-  tests green.
-
-## v0.19.0 — 2026-07-16
-
-Academic-humanizer integration (github.com/AIScientists-Dev/academic-humanizer,
-MIT; acknowledged in README) plus the condense-not-accumulate rule. Standard
-bumped to **v3.2**.
-
-- **New normative rule §5.3 — condense, do not accumulate（改写、删减、精简，
-  而不是堆叠）.** The default direction of every edit is shorter: delete >
-  condense in place > same-length rewrite > growth; growth is legitimate only
-  for author-requested content or source-verified scientific necessity. The
-  explanatory patch (appending a clarification to flagged text instead of
-  rewriting it) is the canonical violation. Fix loops report a per-passage
-  length delta; clearing a detector signal by inflating prose is a defect.
-  Mirrored in `paper` (writing), `paper-review` §4 (fix loop), and
-  `rewrite-in-voice` §2.3/§2.5 (candidate constraint + re-measure check).
-- **Proposal routing note in `paper-review`:** funding proposals are reviewed
-  under the `proposal-polish` register; the L0 policy and §6 invariants carry
-  over, paper-mode significance trimming does not.
-
-- **Lexicon extensions, corpus-verified.** `LLM_TYPICAL_WORDS` gains
-  `underscore*`, `intricate`, `tapestry`, `testament`, `pivotal`, `foster*`,
-  `realm*`; profiles regenerated for both fields. Zero-in-both-corpora words
-  (`underscore*`, `tapestry`, `testament`, `pivotal`, `realm*`) enter Tier A
-  (linter `TIER_A_PATTERN` + `skills/paper/SKILL.md` canonical table);
-  `intricate` (1 hit per corpus) and `foster*` (1 hit in wgl) enter Tier B.
-  `landscape` deliberately NOT adopted (legitimate domain term, 192 hits in the
-  combined corpus); blanket `demonstrate`/`significantly` bans NOT adopted
-  (0.147/1k and 0.274/1k in astro corpora — evidence-conditional rules instead).
-- **New linter rules** (all advisory): `ing-tail` (curated participial-tail verb
-  set, L2), `colon-elaboration` (appositive-elaboration prose colon, L2; user
-  style rule 2026-07-16 — caption tags and list specifications stay legitimate),
-  and `serves as` added to the `style-substitution` set (L0 advisory).
-- **Claim–Evidence Discipline** section in `skills/paper/SKILL.md` (QD;
-  operationalizes the existing claim-evidence `integrity_blocker` class):
-  unbacked claim → evidence pointer or soften; verb strength ≤ evidence
-  strength; vague magnitude → attributed number or range; compare against the
-  strongest baseline; `significantly` requires an accompanying test or number.
-  Mirrored as a review-side item in `paper-review` §2.C.
-- **Preserve List** (anti-over-correction guard) in `skills/paper/SKILL.md`:
-  evidence-tied hedging, actor-irrelevant passives, first-person plural,
-  definitions/symbols/citations stay; strengthening a hedged verb is itself a
-  claim-evidence defect. Mirrored in `paper-review` §2.D.
-- **New skill `proposal-polish` (skills: 9 → 10).** Funding-proposal editing
-  mode adapted from academic-humanizer Layer 6: NSF/NIH structural anatomy,
-  first-pages primacy, proposal-specific weak moves (vague importance,
-  method-as-aim, dominoed aims, ambition-without-feasibility, boilerplate
-  broader impacts, hedged central hypothesis), preserve-and-deploy craft list,
-  claim ↔ feasibility discipline, and hard anti-fabrication rules.
-- New tests: 5 CLI cases (`tier-a:pivotal`, `ing-tail`, `colon-elaboration`
-  with `\ref{fig:...}` exemption, `style-substitution:serves as`, Tier B
-  `intricate` cap). Suite: 93 tests green.
-

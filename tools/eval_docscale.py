@@ -154,21 +154,14 @@ def build_report(field: str, profile_root: Path, corpus_root: Path) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     cli_common.utf8_stdout()
-    parser = cli_common.field_parser(__doc__, corpus=True)
-    parser.add_argument("--format", choices=("text", "json"), default="text")
-    parser.add_argument("--output", type=Path, default=None)
+    parser = cli_common.report_options(
+        cli_common.field_parser(__doc__, corpus=True))
     args = parser.parse_args(argv)
 
     report = build_report(resolve_field(args.field, args.profile_root),
                           args.profile_root, args.corpus_root)
-    text = (json.dumps(report, indent=2) if args.format == "json"
-            else render(report))
-    if args.output:
-        args.output.write_text(text + "\n", encoding="utf-8")
-        print(f"[eval_docscale] -> {args.output}")
-    else:
-        print(text)
-    return 0
+    return cli_common.emit_report(report, args, render=render,
+                                  tool="eval_docscale")
 
 
 if __name__ == "__main__":

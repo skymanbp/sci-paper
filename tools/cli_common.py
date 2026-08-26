@@ -25,6 +25,7 @@ Two divergences are kept on purpose rather than folded in:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -70,6 +71,30 @@ def field_parser(doc: str | None, *, corpus: bool = False
                  ) -> argparse.ArgumentParser:
     """`base_parser` plus the options every field-aware tool takes."""
     return base_parser(doc, parents=[field_options(corpus=corpus)])
+
+
+def report_options(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    """Add the `--format` / `--output` pair the evidence tools share."""
+    parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument("--output", type=Path, default=None)
+    return parser
+
+
+def emit_report(report: dict, args, *, render, tool: str) -> int:
+    """Serialize a report to `--format`, then to `--output` or stdout.
+
+    The evidence tools (`eval_docscale`, `eval_findings`) each ended `main()`
+    with a byte-equivalent copy of this. Sharing it keeps one answer to what
+    `--format json` means, so a reader who scripts against one tool's JSON is
+    not surprised by the other's.
+    """
+    text = json.dumps(report, indent=2) if args.format == "json" else render(report)
+    if args.output:
+        args.output.write_text(text + "\n", encoding="utf-8")
+        print(f"[{tool}] -> {args.output}")
+    else:
+        print(text)
+    return 0
 
 
 def list_fields(root: Path, *, exclude_prefixes: tuple[str, ...] = ()) -> list[str]:

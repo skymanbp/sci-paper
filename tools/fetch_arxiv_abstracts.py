@@ -38,6 +38,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
+# One source of truth for which directory extract_style.py reads as calibration
+# breadth, so the held-out interlock below cannot drift away from the reader.
+from extract_style import REFERENCE_DIR  # noqa: E402 -- same sys.path reason
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
@@ -273,16 +276,72 @@ _FIELD_RELEVANCE_RE = re.compile(
     r"(?i)\b(lensing|shear|convergence|aperture mass|mass map|cluster)\b")
 
 
-def _candidate_ids(args) -> list[str]:
+RE_ARXIV_ID = re.compile(r"(?:\d{4}\.\d{4,5}|[a-z-]+(?:\.[A-Z]{2})?_?\d{7})")
+
+
+def _bare(arxiv_id: str) -> str:
+    """An arXiv id without its version suffix, for identity comparisons."""
+    return re.sub(r"v\d+$", "", arxiv_id.strip()).replace("/", "_")
+
+
+def known_calibration_ids(args) -> set[str]:
+    """Every arXiv id whose text already feeds a calibration bank.
+
+    A held-out measurement is only held out if the paper contributed nothing to
+    what the axes were calibrated on. `register_lexicon.json` and
+    `salience_baseline.json` are both built from `exemplar_paragraphs.jsonl`
+    (the weighted tiers plus the unweighted `fulltext-arxiv/` breadth pull) and
+    `human_abstracts_extra.jsonl`, so an id reachable from any of those three
+    places is disqualified. This matters at the observed scale rather than in
+    principle: `deai_register.RARE_DF_RATE` is 1e-4, which on 41,593 passages
+    puts the foreign-term threshold at four passages, so one paper's own
+    contribution is enough to suppress its own flags.
+    """
+    known: set[str] = set()
+    bank = args.profile_root / args.field / "human_abstracts_extra.jsonl"
+    if bank.exists():
+        with bank.open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                source = str(json.loads(line).get("source", ""))
+                if source.startswith("arxiv:"):
+                    known.add(_bare(source.removeprefix("arxiv:")))
+    corpus = REPO_ROOT / "style-corpus" / args.field
+    if corpus.is_dir():
+        for entry in corpus.glob("fulltext-*/*"):
+            if entry.is_dir():
+                known.add(_bare(entry.name))
+        # Tier filenames carry the arXiv id of the paper they hold
+        # ("...__astro-ph_9912508"), which is the only machine-readable link
+        # between a curated PDF and the arXiv record a query would return.
+        for tier in corpus.glob("tier-*/*"):
+            for match in RE_ARXIV_ID.findall(tier.name):
+                known.add(_bare(match))
+    return known
+
+
+def _candidate_ids(args, exclude: set[str] | None = None,
+                   journals: set[str] | None = None) -> list[str]:
     """Candidate arXiv IDs for full-text download.
 
     Prefer the already-fetched local abstract corpus (no query-API traffic,
     which is rate-limited after a bulk abstract run): filter its records by
     field-relevant abstract keywords. Fall back to live queries only when the
     local corpus is absent.
+
+    `exclude` disqualifies ids by bare form. When it is supplied the local
+    shortcut is skipped outright rather than filtered: that shortcut reads
+    `human_abstracts_extra.jsonl`, which is one of the banks `exclude` is built
+    from, so every id it can offer is already disqualified. `journals` keeps
+    only records whose `journal_ref` classifies into one of the given keys,
+    which is what makes the resulting set *refereed* rather than merely
+    on-arXiv -- the live path carries `journal_ref`, so this is only available
+    there.
     """
+    exclude = exclude or set()
     jsonl = args.profile_root / args.field / "human_abstracts_extra.jsonl"
-    if jsonl.exists():
+    if jsonl.exists() and not exclude:
         candidates: list[str] = []
         seen: set[str] = set()
         with jsonl.open(encoding="utf-8") as handle:
@@ -302,8 +361,10 @@ def _candidate_ids(args) -> list[str]:
         return candidates
     candidates = []
     seen = set()
+    dropped_known = dropped_journal = 0
     for query in FULLTEXT_QUERIES:
-        for start in range(0, args.per_query, args.page):
+        for start in range(args.start_at, args.start_at + args.per_query,
+                           args.page):
             try:
                 page = fetch_page(query, start,
                                   min(args.page, args.per_query - start),
@@ -319,21 +380,35 @@ def _candidate_ids(args) -> list[str]:
                 page = []
             for record in page:
                 arxiv_id = record["source"].removeprefix("arxiv:")
-                if arxiv_id and arxiv_id not in seen:
-                    seen.add(arxiv_id)
-                    candidates.append(arxiv_id)
+                if not arxiv_id or arxiv_id in seen:
+                    continue
+                seen.add(arxiv_id)
+                if _bare(arxiv_id) in exclude:
+                    dropped_known += 1
+                    continue
+                if journals and record.get("journal") not in journals:
+                    dropped_journal += 1
+                    continue
+                candidates.append(arxiv_id)
             if not page:
                 break
             time.sleep(args.sleep)
     print(f"[fulltext] {len(candidates)} candidate papers from "
-          f"{len(FULLTEXT_QUERIES)} live queries", file=sys.stderr)
+          f"{len(FULLTEXT_QUERIES)} live queries "
+          f"(dropped {dropped_known} already-calibrated, "
+          f"{dropped_journal} off-journal)", file=sys.stderr)
     return candidates
 
 
 def fetch_fulltext(args) -> int:
-    out_root = (REPO_ROOT / "style-corpus" / args.field / "fulltext-arxiv")
+    out_root = (REPO_ROOT / "style-corpus" / args.field / args.fulltext_dir)
     out_root.mkdir(parents=True, exist_ok=True)
-    candidates = _candidate_ids(args)
+    exclude = known_calibration_ids(args) if args.exclude_known else set()
+    journals = {k.strip().lower() for k in args.journals.split(",") if k.strip()}
+    if exclude:
+        print(f"[fulltext] holding out: {len(exclude)} arXiv ids already feed a "
+              f"calibration bank", file=sys.stderr)
+    candidates = _candidate_ids(args, exclude, journals)
 
     kept = skipped = failed = 0
     for arxiv_id in candidates:
@@ -400,6 +475,25 @@ def main(argv: list[str] | None = None) -> int:
                         "per paper) instead of abstracts")
     p.add_argument("--max-papers", type=int, default=300,
                    help="full-text mode: stop after this many kept papers")
+    p.add_argument("--fulltext-dir", default=REFERENCE_DIR,
+                   help="full-text mode: directory name under "
+                        f"style-corpus/<field>/ (default {REFERENCE_DIR!r}, "
+                        "which extract_style.py reads as breadth calibration). "
+                        "Any other fulltext-* name is held out of calibration "
+                        "by construction and is what an evaluation set needs.")
+    p.add_argument("--start-at", type=int, default=0,
+                   help="full-text mode: first result offset per query. "
+                        "Results come back newest-first, so an existing corpus "
+                        "occupies a contiguous shallow band: measured on "
+                        "'cat:astro-ph.CO AND abs:cluster', offsets 0-2000 were "
+                        "100%% already-calibrated and 2000+ were ~85%% new. "
+                        "Skipping that band is what makes a held-out sweep "
+                        "affordable at 3 s per request.")
+    p.add_argument("--exclude-known", action="store_true",
+                   help="full-text mode: drop every candidate whose text "
+                        "already feeds a calibration bank (the abstract corpus, "
+                        "fulltext-*/ pulls, or a tier filename's arXiv id), so "
+                        "the result is a genuine held-out set")
     p.add_argument("--query-set", choices=sorted(QUERY_SETS), default="broad",
                    help="'broad' = astro-ph breadth + authoritative authors "
                         "(default); 'wl' = weak-lensing subfield only")
@@ -424,13 +518,23 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     if args.sleep < 3.0:
         p.error("--sleep must be >= 3 seconds (arXiv rate guidance)")
-    if args.fulltext:
-        return fetch_fulltext(args)
-
+    # Validated for BOTH modes: full-text mode used to skip this block entirely,
+    # so `--fulltext --journals apjjl` silently kept nothing rather than failing.
     wanted = {k.strip().lower() for k in args.journals.split(",") if k.strip()}
     known = {key for key, _, _ in JOURNAL_FILTERS}
     if wanted - known:
         p.error(f"unknown journal key(s): {sorted(wanted - known)}; known: {sorted(known)}")
+    if args.fulltext:
+        if "/" in args.fulltext_dir or "\\" in args.fulltext_dir:
+            p.error("--fulltext-dir must be a bare directory name")
+        if args.exclude_known and args.fulltext_dir == REFERENCE_DIR:
+            p.error(f"--exclude-known writes a held-out set, but "
+                    f"--fulltext-dir {REFERENCE_DIR!r} is the directory "
+                    f"extract_style.py reads as calibration breadth; the next "
+                    f"rebuild would absorb the held-out papers and the set "
+                    f"would stop being held out. Choose another fulltext-* name.")
+        return fetch_fulltext(args)
+
     if (wanted or args.query_set != "broad") and \
             args.out_name == "human_abstracts_extra.jsonl":
         p.error("a journal-restricted or subfield run needs --out-name; "

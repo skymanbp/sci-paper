@@ -2,20 +2,20 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.29.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.30.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-273%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-303%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**8 个 skill · 31 个工具 · 273 个测试 · 一份规范 · 零作者身份判决。**
+**8 个 skill · 32 个工具 · 303 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
-[Skills](#skills8-个) · [Tools](#tools31-个) ·
+[Skills](#skills8-个) · [Tools](#tools32-个) ·
 [已知限制](#现状已知限制与路线图) ·
 [规范正文](docs/SCIPAPER_STANDARD.md) · [文档索引](docs/README.md)
 
@@ -64,7 +64,7 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 | **七** | **打磨基金申请书** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description、NIH Specific Aims、fellowship。保留论文会删掉的"愿景+可行性"语域，强制 claim 与可行性匹配，最狠地打磨决定评分的前几页。 |
 | **八** | **探索研究方向** | [`brainstorm`](skills/brainstorm/SKILL.md) | 辐射状研究方向探索器：每节点 12 条 framing pass、术语锚定到 glossary、每分支完整推导、递归发散直到收敛。严禁 defer / future-work / 半成品叶节点。 |
 
-八项功能跑在同一层证据之上 —— 31 个工具输出同一套 schema
+八项功能跑在同一层证据之上 —— 32 个工具输出同一套 schema
 `sci-paper.feedback.v1` —— 所以 linter、审查 skill 和编排器给出的 finding
 是同一个对象、同一个 ID。
 
@@ -413,7 +413,7 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 | `+ --oracle`（GPT-2-large token surprisal） | 23.1 s | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 26.6 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` —— **9/9 通过** | 359 ms | 标准库 |
-| 完整测试套件 —— **273 通过**，16 个文件 | 52.4 s | 标准库 |
+| 完整测试套件 —— **303 通过**，17 个文件 | 54.6 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
 334 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 60–80 倍，并且是显式 opt-in 的
@@ -489,7 +489,7 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 - **审** —— [`paper-review`](skills/paper-review/SKILL.md) · [`figure-review`](skills/figure-review/SKILL.md) · [`final-review`](skills/final-review/SKILL.md)
 - **探索** —— [`brainstorm`](skills/brainstorm/SKILL.md)
 
-## Tools（31 个）
+## Tools（32 个）
 
 每条 finding 统一走 `sci-paper.feedback.v1` 契约；语料/训练类条目产出的是
 artifact。`layer` 列是该工具服务的轴 —— `core` 契约与闸门，`build` 语料与
@@ -519,6 +519,7 @@ profile 构建，`eval` 可复现的证据。逐工具细节见 [tools/README.md
 | `tools/deai_provenance.py` | L4 | 基于作者**自己**草稿历史的编辑 provenance 账本；按 token 编辑比把每段标为 AI-untouched → author-original。不是检测器；没有 AI 草稿祖先时为 `unmeasured`。 |
 | `tools/deai_personal.py` | L4 | 个人 dispersion 基线，对照作者自己以前的论文 —— 一个无混淆的同作者参照。少于三篇时为 `unmeasured`。 |
 | `tools/label_findings.py` | eval | 把 register 与 salience 的 finding 抽成人工标注表，再盲发一个子集算 intra-rater 一致性，并按「你的草稿 / 已发表论文」分层报 precision/recall。任何不足 20 条标注的分层一律报 `unmeasured`，不给数字。 |
+| `tools/eval_findings.py` | eval | 用**出处**当标签来测 register 与 salience，而不是靠人工标注：在**留出**的 ApJ/ApJL/A&A 已发表论文、同体裁但参与过标定的论文（泄漏对照）、以及 `docval` 机器 tier 上各自的命中率，外加机器对留出人类的秩 AUC。register 那行是误报率；salience 那行不是——它的门是百分位，非零命中率是设计值，测的是标定迁移。 |
 | `tools/eval_docscale.py` | eval | 复现 §9 的全文尺度表 —— 人类误标率与逐 tier 尾部功效 —— 把语料与每个 `docval` tier 都送进 finding 用的同一个操作点。 |
 | `tools/build_profile.py` | build | 构建基础 field profile：抽取、可选的旧版分类器、范例缓存预热。 |
 | `tools/cli_common.py` | build | 共享的命令行前置：UTF-8 stdout，以及每个 field 感知工具都要的 `--field` / `--profile-root` 选项。不持有任何策略。 |
@@ -644,7 +645,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 ## 现状、已知限制与路线图
 
-当前版本：**v0.29.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.19.0–v0.26.2）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.18.0）。
+当前版本：**v0.30.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
 
 **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.7 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层、`calibration_unit` 置信度封顶、§5.2 去 AI 化
@@ -664,20 +665,24 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` —— 现在是有*测量依据*的。burstiness 在对抗文本上符号反转（AUC 0.181），signposting 低于随机（0.247），根本写不出一个操作点。 |
 | **重训不保证行为等价** | 重建 profile 会重拟 L3。排序保持 ρ 0.846、分诊重合 0.654，但旧的分诊清单不会一字不差复现。 |
 | **语料有四分之一从未被用上** | 匹配不到任何 section 桶的标题是被丢弃，而不是被猜进某个桶：`wgl` 里 9,178 个标题中有 **2,334 个（25.4%）**，`wgl-letter` 里 148 个中有 42 个。剩下的多是主题标题（"Matter power spectrum"）；"Measurements" 与 "Background" 因真歧义被拒绝加入。 |
-| **没有人工判断验证集** | salience 与 register 的操作点是语料参照的，不是人工标注的。 |
+| **register 在已发表文字上照样开火** | 在它从没见过的 203 篇留出 ApJ/ApJL/A&A 已发表论文上实测：**每千词 0.991 条**，93.6% 的文档命中，对机器文本的秩 AUC **0.080** —— 它在人类论文上比在 AI 草稿上更爱开火。其中 72.7% 的 flag 只要论文自己在库里就会消失，所以样本内的表象好了 3.7 倍。记录下来，不做重调。 |
+| **建议质量仍未被标注** | 出处只能回答「它是否在已发表文字上开火」，回答不了「这条建议对不对」。salience 的门迁移得几乎精确（逐 passage 0.2705，期望 0.2710）；建议本身的精确率与召回率仍需 `tools/label_findings.py`。 |
 | **全新 clone 什么都测不出来** | 全部 profile 制品都 gitignore。在你用自己的论文建出 profile 之前，每条语料参照的轴都是 `unmeasured`。 |
 
 ### 路线图
 
-只剩一项敞着，而且它需要本仓库生不出来的东西：**人工标注验证集**，
-用于 salience 与 register 的精确率/召回率。其余每条轴都是语料参照的，
-这正好界定了那两条轴能声称到什么程度。卡在标注，不是卡在工作量。
+只剩一项敞着，而且它现在带着数字：`L0.register` 的操作点必须对着一个留出目标率
+重新推导。它取代的那一项 ——「需要人工标注验证集」—— 已由测量收口：已发表的
+ApJ/ApJL/A&A 论文**本身就是人类标签**，200 篇留出论文测了两条轴
+（[§17](docs/architecture/evaluation/narrative-salience-register.md)）。标注者仍能补上的，
+是「这条建议是不是好建议」，那条路径依然是 `label_findings.py`。
 
 **以证伪收口，不是以发布收口。** 长度感知流形已经做出来了 —— 从协方差里减掉拟合集
 平均的 `1/(2(n-1))` 估计噪声，打分时再按每份文档自己的量加回去 —— 12 组配对 seed 下，
 人类误标率一点没动，两个 AI tier 反而变差。扩大 conformal 标定集是同样的结局：
 尾部功效持平，人类误标率单调恶化。长文在试过的每种配置下都停在 0.000。
-`deai_policy.json` 维持撤回；细节见
+拿留出集对比样本内集来估泄漏同样被否决 —— 两组论文年代不重叠，那个差里混着六年词汇
+漂移，改用同一批论文的配对测量（§17.3）。`deai_policy.json` 维持撤回；细节见
 [§9.4c](docs/architecture/evaluation/document-scale.md)。
 
 **v0.28.0 已收口。** `deai_policy.json` 是**撤回**而非推迟：在 500 篇人类论文上测量，

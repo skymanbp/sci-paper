@@ -2,10 +2,16 @@
 
 Salience and register are corpus-referenced: they compare a draft against the
 field's own banks. Nothing in the repository says whether a human agrees that a
-given advisory is *right*, so their precision and recall are unmeasured — the
-one roadmap item that no amount of computation closes, because it needs labels.
+given advisory is *right*, so precision against human judgement, and recall,
+are unmeasured.
 
-This is the harness for producing them, to the scheme chosen on 2026-08-26:
+Half of that gap turned out not to need a labeller. A refereed ApJ/ApJL/A&A
+paper is text a human wrote and a referee accepted, so its provenance is a
+label already: `tools/eval_findings.py` scores both axes against a held-out set
+of them and reports the rate at which each fires on accepted prose. What it
+cannot report is whether any individual advisory is good advice — publication
+does not mean every sentence is beyond improvement — and that is what this
+harness is for, to the scheme chosen on 2026-08-26:
 
 - **finding-level** labels. You judge one emitted advisory at a time, which is
   what you actually see in a report, and a matched sample of unflagged passages

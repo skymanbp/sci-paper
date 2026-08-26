@@ -1,12 +1,163 @@
-# Changelog archive — v0.1.0 through v0.18.0
+# Changelog archive — v0.1.0 through v0.21.0
 
-The earliest history of the plugin, from the first release through v0.18.0
-(2026-07-14). Split out of [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md) on
+The earliest history of the plugin, from the first release through v0.21.0
+(2026-07-17). Split out of [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md) on
 2026-08-26 when that file passed the repository's 750-line budget. Nothing here
 is edited; the history is verbatim.
 
 - Current release and the one before it: [CHANGELOG.md](CHANGELOG.md)
-- **v0.19.0 through v0.26.2**: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)
+- **v0.22.0 through v0.27.0**: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)
+
+---
+
+## v0.21.0 — 2026-07-17
+
+The academic-humanizer becomes a standalone skill, paper-review gains a
+per-round structural audit step, and the documentation tree is consolidated.
+
+- **New skill `academic-humanizer` (11th skill).** Whole-repo port of
+  AIScientists-Dev/academic-humanizer v0.3.3 (MIT; attribution retained):
+  Layers 1--5 as a standalone audit-then-rewrite pass. Adaptations over
+  upstream: corpus overrides are normative (landscape never flagged;
+  demonstrate/significantly evidence-conditional only), rewrites must pass
+  the fidelity and length gates, Layer 6 routes to the existing
+  `proposal-polish` skill instead of being duplicated, and lexical tells
+  defer to `ai_ism_lint.py` Tier A/B rather than re-deriving a word list.
+  Field-validated before porting: a standalone audit run on a live
+  manuscript found seven true positives (two colon-elaborations that the
+  per-line linter regex misses at line breaks, three comma-splice
+  run-ons, one Layer-1 lexical hit, one dense results sentence).
+- **paper-review §D structural-tell audit step.** Every review round now
+  runs the humanizer Layers 1--2 checklist (clause-stacking, negative
+  parallelism, elegant variation, rule-of-three, formulaic openers,
+  connective runs) in audit-only mode; structural hits are advisories,
+  Layer-4 claim-evidence hits join §C as `integrity_blocker`.
+- **Docs consolidated.** The canonical `EVALUATION.md` moved from the
+  repository root into `docs/` (replacing the redirect stub that pointed
+  the other way); all path references updated (README, standard,
+  subsystem, roadmap links). `docs/` is now the single home for all five
+  documentation files.
+
+## v0.20.1 — 2026-07-16
+
+Post-release independent audit of the v0.20.0 length gate (7 findings, all
+dispositioned; the two High items were real defects in orchestration use).
+
+- **JSON report is now self-describing.** `length_gate.py --format json`
+  embeds a `length_budget` block (totals, justified growth,
+  `net_unjustified_growth`, `tolerance_words`, `gate_exit`), so a downstream
+  orchestrator derives the gate result from the report alone instead of
+  parsing stdout or trusting the process exit.
+- **Allowance accounting matches the documented net formula.** Every allowed
+  positive section delta is credited to `justified_growth`, including growth
+  below the per-section flagging tolerance; previously an allowed
+  sub-tolerance growth was not credited and could flip a compliant edit to
+  exit 1.
+- **Ambiguous `--allow` keys are a configuration error (exit 2)** instead of
+  silently authorizing every matching section.
+- **Heading stripper covers `\\section[short]{long}` and one level of nested
+  braces**, keeping renames of those forms budget-neutral.
+- Registry/skill wording aligned with shipped behavior (net-exit semantics in
+  the top-level README; rewrite-in-voice ranking terms name L0 advisory
+  reduction, fidelity, voice, condensation, with specificity
+  transparency-only).
+- New tests: allowance-tolerance interaction, ambiguous key, optional-argument
+  heading rename, self-describing JSON, empty-original budget, and three
+  mocked `rank()` integration cases (-inf over budget, `allow_growth` lift,
+  fidelity-floored condensation bonus). Suite: 115 tests green.
+
+## v0.20.0 — 2026-07-16
+
+§5.3 (condense, do not accumulate) gets mechanical enforcement. Standard bumped
+to **v3.3**. Design: prevent at candidate time, detect at loop close, and make
+recorded justification the only path for growth — three layers, all auditable.
+
+- **New tool `length_gate.py` (tools: 21 → 22), the loop-close delta gate.**
+  Compares per-section rendered-prose word counts (comments and math excluded
+  via `latex_to_plain`) between the pre-edit baseline (`--before <snapshot>` or
+  `--git-ref <ref>`) and the edited file. Each unjustified growing section
+  emits a strong advisory `length-growth:<section>` (strong advisories already
+  require an explicit disposition before a loop may close); `--allow
+  "<section>=<reason>"` (case-insensitive, substring-tolerant) /
+  `--allow-total <reason>` convert it to an ordinary
+  `length-growth-justified` advisory that carries the recorded reason into the
+  report. The exit code gates the NET budget: 0 when total growth minus
+  justified growth is within `--tolerance-words`, 1 beyond it, 2 for invalid
+  input (negative tolerance, empty reason, missing baseline) or execution
+  failure; a pure section rename nets to zero. Registered in standard §0.1.
+- **`rewrite_reward.py` length-budget hard gate (candidate time).** New
+  `--original <paragraph>` input: a candidate longer than the original scores
+  `-inf` regardless of style evidence (`length_eligible` joins fidelity in the
+  eligibility conjunction); `--allow-growth <reason>` lifts the gate for one
+  run and prints the reason; within budget a `CONDENSATION_WEIGHT` bonus
+  prefers the shorter of otherwise-equal candidates. CLI prints a
+  `words(o/c)` column and the over-budget diagnosis.
+- **Contract wiring.** Standard §5.3 enforcement paragraph + §0.1 exit
+  exception + §8 tool row; `paper-review` §1 snapshot step (6b), §4 step 8
+  (gate must exit 0 before the loop closes), §6 report length-budget row, §7
+  stopping condition; `rewrite-in-voice` §2.1 saves `original.txt`, §2.4
+  passes `--original`; `paper` mirror notes the two mechanical gates.
+- Section headings are stripped before counting, so a section rename cannot
+  register as prose growth; independent review (2 accepted defects, net-exit
+  redesign, substring `--allow`, UTF-8-lossy git baseline, input validation)
+  is folded in.
+- New tests: `tests/test_length_gate.py` (10 CLI cases: shrink, unjustified
+  growth, justified growth, comment/math exclusion, shared JSON schema,
+  missing-baseline / negative-tolerance / empty-reason failures, rename
+  netting, substring allowance) and 3 `length_budget` unit cases. Suite: 107
+  tests green.
+
+## v0.19.0 — 2026-07-16
+
+Academic-humanizer integration (github.com/AIScientists-Dev/academic-humanizer,
+MIT; acknowledged in README) plus the condense-not-accumulate rule. Standard
+bumped to **v3.2**.
+
+- **New normative rule §5.3 — condense, do not accumulate（改写、删减、精简，
+  而不是堆叠）.** The default direction of every edit is shorter: delete >
+  condense in place > same-length rewrite > growth; growth is legitimate only
+  for author-requested content or source-verified scientific necessity. The
+  explanatory patch (appending a clarification to flagged text instead of
+  rewriting it) is the canonical violation. Fix loops report a per-passage
+  length delta; clearing a detector signal by inflating prose is a defect.
+  Mirrored in `paper` (writing), `paper-review` §4 (fix loop), and
+  `rewrite-in-voice` §2.3/§2.5 (candidate constraint + re-measure check).
+- **Proposal routing note in `paper-review`:** funding proposals are reviewed
+  under the `proposal-polish` register; the L0 policy and §6 invariants carry
+  over, paper-mode significance trimming does not.
+
+- **Lexicon extensions, corpus-verified.** `LLM_TYPICAL_WORDS` gains
+  `underscore*`, `intricate`, `tapestry`, `testament`, `pivotal`, `foster*`,
+  `realm*`; profiles regenerated for both fields. Zero-in-both-corpora words
+  (`underscore*`, `tapestry`, `testament`, `pivotal`, `realm*`) enter Tier A
+  (linter `TIER_A_PATTERN` + `skills/paper/SKILL.md` canonical table);
+  `intricate` (1 hit per corpus) and `foster*` (1 hit in wgl) enter Tier B.
+  `landscape` deliberately NOT adopted (legitimate domain term, 192 hits in the
+  combined corpus); blanket `demonstrate`/`significantly` bans NOT adopted
+  (0.147/1k and 0.274/1k in astro corpora — evidence-conditional rules instead).
+- **New linter rules** (all advisory): `ing-tail` (curated participial-tail verb
+  set, L2), `colon-elaboration` (appositive-elaboration prose colon, L2; user
+  style rule 2026-07-16 — caption tags and list specifications stay legitimate),
+  and `serves as` added to the `style-substitution` set (L0 advisory).
+- **Claim–Evidence Discipline** section in `skills/paper/SKILL.md` (QD;
+  operationalizes the existing claim-evidence `integrity_blocker` class):
+  unbacked claim → evidence pointer or soften; verb strength ≤ evidence
+  strength; vague magnitude → attributed number or range; compare against the
+  strongest baseline; `significantly` requires an accompanying test or number.
+  Mirrored as a review-side item in `paper-review` §2.C.
+- **Preserve List** (anti-over-correction guard) in `skills/paper/SKILL.md`:
+  evidence-tied hedging, actor-irrelevant passives, first-person plural,
+  definitions/symbols/citations stay; strengthening a hedged verb is itself a
+  claim-evidence defect. Mirrored in `paper-review` §2.D.
+- **New skill `proposal-polish` (skills: 9 → 10).** Funding-proposal editing
+  mode adapted from academic-humanizer Layer 6: NSF/NIH structural anatomy,
+  first-pages primacy, proposal-specific weak moves (vague importance,
+  method-as-aim, dominoed aims, ambition-without-feasibility, boilerplate
+  broader impacts, hedged central hypothesis), preserve-and-deploy craft list,
+  claim ↔ feasibility discipline, and hard anti-fabrication rules.
+- New tests: 5 CLI cases (`tier-a:pivotal`, `ing-tail`, `colon-elaboration`
+  with `\ref{fig:...}` exemption, `style-substitution:serves as`, Tier B
+  `intricate` cap). Suite: 93 tests green.
 
 ---
 
