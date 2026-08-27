@@ -16,7 +16,14 @@ sections it holds are unchanged; only their home is.
 
 ---
 
-## 17. Held-out refereed papers as labels: register and salience measured (v0.30.0, corrected v0.31.0)
+## 17. Held-out refereed papers as labels: register and salience measured (v0.30.0, corrected v0.31.0, superseded by §18)
+
+> **Read §18 for the current register numbers.** Every register figure below was
+> measured at `MIN_MANUSCRIPT_USES = 5`; v0.32.0 raised it to 15, which cut the
+> held-out findings from 887 to 198 and the rate from 0.3842 to 0.0858 per 1,000
+> words. §18's table carries the pairs. The section is kept because the reasoning
+> — why provenance is a label, why held-out had to be enforced, what the paired
+> leakage measurement controls for — is unchanged by the threshold.
 
 Both axes had stood at "precision `unmeasured`, pending hand labels" since
 v0.26.0. Half of that gap never needed a labeller. A refereed ApJ/ApJL/A&A

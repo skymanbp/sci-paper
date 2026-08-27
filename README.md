@@ -2,22 +2,22 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.32.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.33.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-334%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-381%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**9 skills · 34 tools · 360 tests · one normative contract · zero authorship verdicts.**
+**12 skills · 34 tools · 381 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
 [Benchmarks](#benchmark-dashboard) · [Install](#install) ·
-[Skills](#skills-9) · [Tools](#tools-34) ·
+[Skills](#skills-12) · [Tools](#tools-34) ·
 [Limitations](#status-known-limitations-and-roadmap) ·
 [The standard](docs/SCIPAPER_STANDARD.md) · [Docs](docs/README.md)
 
@@ -59,22 +59,27 @@ problem:
 3. **Review silently converts missing evidence into good news.** An
    uncalibrated axis reports zero findings, and zero findings read as clean.
 
-### The eight functions
+### The twelve skills, by layer
 
-| # | Function | Skill | What you get |
-|---|---|---|---|
-| **1** | **Write to standard** | [`paper`](skills/paper/SKILL.md) | The writing framework in context: accuracy rules, formula and citation conventions, forward narrative, the L0 lexical policy with canonical examples, positive-voice guidance, measurement states, stopping semantics. |
-| **2** | **De-AI a draft** | [`de-ai`](skills/de-ai/SKILL.md) | Three chained passes — subsystem measurement (L0–L4), a structural-tell audit, then **claim-first rewriting** that rebuilds prose from the protected claim graph instead of polishing in place. `--audit-only` stops after measurement. |
-| **3** | **Condense without losing science** | [`condense`](skills/condense/SKILL.md) | Whole-document redundancy elimination under one-canonical-home-per-fact, loop-until-dry convergence, and a **mechanical length gate** as the closing proof that the document actually shrank. |
-| **4** | **Review the manuscript** | [`paper-review`](skills/paper-review/SKILL.md) | Source-traced **A–R review**: mathematics, physics, logic and statistics, language, structure and narrative spine, citations, data and figures, interfaces, redundancy, reproducibility, modern-physics checks, consistency, adversarial verification (three passes + twelve-framing escalation), staleness, process artifacts, citation precision, glossary alignment. |
-| **5** | **Review the figures** | [`figure-review`](skills/figure-review/SKILL.md) | Reviews **compiled pages at 150 DPI**, not source. Traces figure/caption/data provenance, measures canvas balance at the pixel level, separates scientific and build contradictions from readability advisories. |
-| **6** | **Run the full review board** | [`final-review`](skills/final-review/SKILL.md) | Parent orchestrator: runs paper-review, figure-review, de-ai `--audit-only`, and modern-physics-review as **isolated worktree agents**, merges their typed findings, and verifies a stable disposition-complete state across consecutive rounds. |
-| **7** | **Polish a funding proposal** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description, NIH Specific Aims, fellowships. Keeps the vision-and-feasibility register a paper would trim, enforces claim–feasibility matching, edits the score-forming first pages hardest. |
-| **8** | **Explore research directions** | [`brainstorm`](skills/brainstorm/SKILL.md) | Radial research-direction explorer: twelve framing passes per node, glossary-anchored terminology, complete derivation per branch, recursive divergence to convergence. Deferred or incomplete leaves are hard-banned. |
+| Layer | Skill | What you get |
+|---|---|---|
+| **setup** | [`calibrate`](skills/calibrate/SKILL.md) | Walks one field from an empty corpus to calibrated axes — extract, profile, per-section references, then your own held-out labels. Run once per field: every `measured` axis below depends on it, and a stratum too thin to support a rate stays `unmeasured` instead of quietly passing. |
+| **standard** | [`paper`](skills/paper/SKILL.md) | The writing framework in context: accuracy rules, formula and citation conventions, forward narrative, the L0 lexical policy with canonical examples, positive-voice guidance, measurement states, stopping semantics. |
+| **measure** | [`physics`](skills/physics/SKILL.md) | Measurement primitive, findings only. First principles P1-P8: dimensional consistency, asymptotic limits, symmetry and parity, conservation, the preconditions of the information-theoretic bounds, algebraic re-derivation, numerical provenance, foundational citations, build integrity. The single source for `paper-review` dimension K; register and L0 delegate to the shared axes, not a private word list. |
+| **measure** | [`logic`](skills/logic/SKILL.md) | Measurement primitive, findings only. Claim graph (circular arguments, broken chains, switched conditions, undeclared assumptions), empirical statistics (splits, leakage, multiple comparisons, priors), and the review side of claim–evidence discipline: verb strength may not exceed evidence strength. The single source for `paper-review` dimension C. |
+| **measure** | [`mainline`](skills/mainline/SKILL.md) | Measurement primitive, findings only. Builds a paper-level purpose record and contribution graph, then answers a cold reader's seven questions — where must a reader backtrack, supply hidden context, or choose between competing readings? No three-act template assumed. The single source for `paper-review` dimension E. |
+| **measure** | [`figure-review`](skills/figure-review/SKILL.md) | Reviews **compiled pages at 150 DPI**, not source. Traces figure/caption/data provenance, measures canvas balance at the pixel level, separates scientific and build contradictions from readability advisories. |
+| **act** | [`de-ai`](skills/de-ai/SKILL.md) | Three chained passes — subsystem measurement (L0–L4), a structural-tell audit, then **claim-first rewriting** that rebuilds prose from the protected claim graph instead of polishing in place. `--audit-only` stops after measurement. |
+| **act** | [`condense`](skills/condense/SKILL.md) | Whole-document redundancy elimination under one-canonical-home-per-fact, loop-until-dry convergence, and a **mechanical length gate** as the closing proof that the document actually shrank. |
+| **compose** | [`paper-review`](skills/paper-review/SKILL.md) | Source-traced **A–R review**: mathematics, physics, logic and statistics, language, structure and narrative spine, citations, data and figures, interfaces, redundancy, reproducibility, modern-physics checks, consistency, adversarial verification (three passes + twelve-framing escalation), staleness, process artifacts, citation precision, glossary alignment. |
+| **compose** | [`final-review`](skills/final-review/SKILL.md) | Parent orchestrator: runs paper-review, figure-review, de-ai `--audit-only`, and the physics / mainline / logic primitives as **isolated worktree agents**, merges their typed findings, and verifies a stable disposition-complete state across consecutive rounds. |
+| **genre** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description, NIH Specific Aims, fellowships. Keeps the vision-and-feasibility register a paper would trim, enforces claim–feasibility matching, edits the score-forming first pages hardest. |
+| **explore** | [`brainstorm`](skills/brainstorm/SKILL.md) | Radial research-direction explorer: twelve framing passes per node, glossary-anchored terminology, complete derivation per branch, recursive divergence to convergence. Deferred or incomplete leaves are hard-banned. |
 
-All eight run over the same evidence layer — 34 tools emitting one schema,
-`sci-paper.feedback.v1` — so a finding from the linter, the review skill, and
-the orchestrator are the same object with the same ID.
+Every skill that emits a finding runs over the same evidence layer — 34 tools emitting
+one schema, `sci-paper.feedback.v1` — so a finding from the linter, a measurement
+primitive and the orchestrator are the same object with the same ID. A composite calls
+primitives; it never restates their checks. `calibrate` builds the layer they measure on.
 
 ### Scope boundary — what it deliberately will not do
 
@@ -454,24 +459,24 @@ features and posture — but an old triage list will not reproduce exactly.
 
 Measured 2026-08-27 on Windows 11, Python 3.13.3, RTX 4060 Ti, median of 7 subprocess runs (3 for the
 model-backed rows and the suite) including interpreter startup, on a real 5,084-word corpus paper
-assembled from its includes. Re-taken whole: the floor moved 56 → 84 ms, so no v0.32.0 row compares.
+assembled from its includes. Re-taken whole: the floor moved 84 → 98 ms, so no v0.33.0 row compares.
 
 | Pass | Median wall | Dependencies |
 |---|---:|---|
-| Python interpreter floor | 84 ms | — |
-| L0 lexicon + register | **274 ms** | stdlib |
-| **All model-free axes** (L0 + L1 + L2 incl. document structure and discourse) | **409 ms** | stdlib |
-| `length_gate.py` | 194 ms | stdlib |
-| `+ --oracle` (GPT-2-large token surprisal) | 48.7 s | `transformers` + `torch` |
-| `+ --voice` (learned L3 triage) | 59.1 s | `scikit-learn` + `sentence-transformers` |
-| `validate_plugin.py` — **9/9 checks pass** | 2.3 s | stdlib |
-| Full test suite — **360 passing**, 19 files | 51.0 s | stdlib |
+| Python interpreter floor | 98 ms | — |
+| L0 lexicon + register | **317 ms** | stdlib |
+| **All model-free axes** (L0 + L1 + L2 incl. document structure and discourse) | **458 ms** | stdlib |
+| `length_gate.py` | 258 ms | stdlib |
+| `+ --oracle` (GPT-2-large token surprisal) | 33.8 s | `transformers` + `torch` |
+| `+ --voice` (learned L3 triage) | 37.2 s | `scikit-learn` + `sentence-transformers` |
+| `validate_plugin.py` — **9/9 checks pass** | 2.9 s | stdlib |
+| Full test suite — **381 passing**, 19 files | 60.1 s | stdlib |
 
-The headline: **a complete model-free pass over a 5,084-word manuscript costs ~325 ms of analysis
+The headline: **a complete model-free pass over a 5,084-word manuscript costs ~360 ms of analysis
 above the interpreter floor**, with no optional dependency installed. The two model-backed axes cost
-120×–145× more and are opt-in flags — you should not need a GPU to lint a paper. Both moved further
-than the floor did (2.1× against 1.5×) for reasons this table does not establish. CI runs the
-validator and the suite on every push and PR, Python 3.11, Ubuntu.
+74×–81× more and are opt-in flags — you should not need a GPU to lint a paper. This time they moved
+*down* (48.7 → 33.8 s, 59.1 → 37.2 s) while every stdlib row rose with the floor; read those two as
+this machine today, not a trend. CI runs validator and suite on every push and PR, Python 3.11, Ubuntu.
 
 ---
 
@@ -521,15 +526,10 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 
 ---
 
-## Skills (9)
+## Skills (12)
 
-Five jobs — detail in [the eight functions](#the-eight-functions); drive them as `/sci-paper:<name> draft.tex --field wgl`.
-
-- **Write** — [`paper`](skills/paper/SKILL.md) (load the standard) · [`proposal-polish`](skills/proposal-polish/SKILL.md) (NSF / NIH register)
-- **Revise** — [`de-ai`](skills/de-ai/SKILL.md) (measure → audit → faithful rewrite) · [`condense`](skills/condense/SKILL.md) (remove redundancy, prove the shrink)
-- **Review** — [`paper-review`](skills/paper-review/SKILL.md) (A–R, source-traced) · [`figure-review`](skills/figure-review/SKILL.md) (compiled pages) · [`final-review`](skills/final-review/SKILL.md) (isolated orchestration)
-- **Explore** — [`brainstorm`](skills/brainstorm/SKILL.md) (radial research exploration)
-- **Calibrate** — [`calibrate`](skills/calibrate/SKILL.md) (corpus → profile → axes → your own labels; the setup the measured axes need)
+What each one gives you: [the twelve skills, by layer](#the-twelve-skills-by-layer).
+Drive them as `/sci-paper:<name> draft.tex --field wgl`; `calibrate` comes first, once per field.
 
 ## Tools (34)
 
@@ -565,13 +565,13 @@ reproducible evidence. Per-tool detail: [tools/README.md](tools/README.md).
 | `tools/deai_personal.py` | L4 | Personal dispersion baseline against the author's own prior papers — a confound-free same-author reference. `unmeasured` below three papers. |
 | `tools/eval_docscale.py` | eval | Reproduces the §9 document-scale table — human false-flag rate and per-tier tail power — by scoring the corpus and every `docval` tier through the same operating point findings use. |
 | `tools/eval_findings.py` | eval | Scores register and salience against **provenance** labels instead of hand labels: their firing rate on held-out refereed ApJ/ApJL/A&A papers, on the in-sample papers, and on the `docval` machine tiers, plus a paired test that isolates calibration leakage from publication era. |
-| `tools/label_findings.py` | eval | Samples register and salience findings into a human-labelling sheet, re-serves a blind subset for intra-rater agreement, and scores precision/recall stratified by drafts vs published papers. Reports `unmeasured` for any stratum under 20 labels. |
+| `tools/label_findings.py` | eval | Samples findings from all four finding-emitting axes (register, salience, cohesion, hedging) into a human-labelling sheet, re-serves a blind subset for intra-rater agreement, and reports per-axis precision plus **pooled** recall, stratified by named `--population NAME=DIR` sets. Reports `unmeasured` for any stratum under 20 labels. |
 | `tools/build_profile.py` | build | Builds the basic field profile: extraction, optional legacy classifier, exemplar-cache warm-up. |
 | `tools/cli_common.py` | build | Shared command-line preamble and field resolution, used by 25 of 34 tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
 | `tools/extract_style.py` | build | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. Re-exports every public name from `extract_sections.py`. |
 | `tools/extract_sections.py` | build | Source-text projection and section splitting: the section vocabulary and its classifier, both named LaTeX projections, and the PDF heading heuristic. Section buckets key every per-section reference, so changing this requires a profile rebuild. |
 | `tools/retrieve_exemplars.py` | build | Retrieves section- and topic-matched exemplar paragraphs, with embedding or explicit fallback retrieval. |
-| `tools/fetch_arxiv_abstracts.py` | build | Fetches dated abstract corpora for controlled evaluation and training, optionally restricted to a subfield query set and named refereed journals. Rate limiting **stops the sweep and exits 2** rather than writing a truncated corpus as if it were complete. |
+| `tools/fetch_arxiv_abstracts.py` | build | Fetches dated abstract corpora for controlled evaluation and training, optionally restricted to a subfield query set and named refereed journals, or complete LaTeX sources for one author (`--author` + `--author-is` + `--max-authors`). Rate limiting **stops the sweep and exits 2** rather than writing a truncated corpus as if it were complete. |
 | `tools/train_ai_ism_classifier.py` | legacy | Trains the legacy word-ngram classifier, used only as degraded advisory evidence. |
 | `tools/extract_md_negatives.py` | legacy | Harvests candidate generated paragraphs for controlled evaluation and training. |
 
@@ -619,10 +619,10 @@ For scale, the reference profile behind every measured number here carries:
 | Asset | Scale |
 |---|---|
 | `exemplar_paragraphs.jsonl` | **27,917** section-typed paragraphs from 19 curated + 500 reference papers |
-| `register_lexicon.json` | 41,559 passages · 53,293 terms |
+| `register_lexicon.json` | 41,721 passages · 53,417 terms |
 | `uid_baseline.json` | 27,917 paragraphs under GPT-2-large · pooled global UID 3.303 ± 0.437 |
 | `structure_baseline.json` | method 9,512 · results 3,958 · data 3,908 · intro 3,840 · discussion 3,647 · conclusion 2,609 · abstract 433 |
-| `salience_baseline.json` | abstract 13,823 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
+| `salience_baseline.json` | abstract 13,981 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
 | `docstructure_baseline.json` | 507 complete documents · conformal α 0.05 · length strata [46, 75] |
 | `anchoring_baseline.json` | 517 documents · all six section classes above the 30-document minimum |
 | `voice_model.joblib` | 44,576 records · 14 features · **no operating point**, `degraded` |
@@ -670,14 +670,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   9 skills          ├── tests/     18 files, 334 tests
-├── tools/                   31 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
+├── skills/<name>/SKILL.md   12 skills         ├── tests/     19 files, 381 tests
+├── tools/                   34 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 334-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 381-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page
 anchors, recorded suite sizes against real discovery, product registries, syntax,
@@ -689,7 +689,7 @@ requires independent review, clean-checkout verification, and green hosted CI.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.33.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.34.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.7 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative

@@ -22,7 +22,6 @@ Run: ``python tools/fetch_arxiv_abstracts.py --field wgl --per-query 400``
 
 from __future__ import annotations
 
-import argparse
 import gzip
 import io
 import json
@@ -100,17 +99,26 @@ QUERIES = [
 # Target-author references: the advisor (Ian Dell'Antonio) plus widely cited
 # weak-lensing / cluster-lensing authors. These records broaden the positive
 # curated-field class; they do not turn the training task into authorship proof.
+#
+# The QUERY FORM was wrong until 2026-08-26: `Surname_Initial` is the arXiv
+# LISTING url's format (/a/hoekstra_h_1), not the search API's `au:` syntax, so
+# all ten returned 0 records and the `broad` set was silently ten queries short.
+# `au:` then matches a SURNAME, which is not a person, so every entry below was
+# checked against the names it returns. Nine resolve to one person; `Schneider,
+# P` did not -- Donald P. Schneider (SDSS quasars) on 58 papers against Peter
+# Schneider's 33 -- so that entry spells the given name out. `cat:astro-ph*` is
+# the other half: unscoped, "Dell'Antonio" adds 20 math-ph records.
 AUTHOR_QUERIES = [
-    "au:Dell_Antonio_I",       # advisor
-    "au:Hoekstra_H",
-    "au:Mandelbaum_R",
-    "au:Schneider_P AND cat:astro-ph.CO",
-    "au:Bartelmann_M",
-    "au:von_der_Linden_A",
-    "au:Kaiser_N AND abs:lensing",
-    "au:Applegate_D",
-    "au:Umetsu_K",
-    "au:Fu_L AND abs:lensing",
+    'au:"Dell\'Antonio" AND cat:astro-ph*',    # advisor
+    'au:"Hoekstra, H" AND cat:astro-ph*',
+    'au:"Mandelbaum, R" AND cat:astro-ph*',
+    'au:"Schneider, Peter" AND cat:astro-ph*',
+    'au:"Bartelmann, M" AND cat:astro-ph*',
+    'au:"von der Linden, A" AND cat:astro-ph*',
+    'au:"Kaiser, N" AND abs:lensing',
+    'au:"Applegate, D" AND cat:astro-ph*',
+    'au:"Umetsu, K" AND cat:astro-ph*',
+    'au:"Fu, L" AND abs:lensing',
 ]
 
 # Weak-lensing-only sweep, for a reference matched to THIS suite's subfield
@@ -192,7 +200,9 @@ def fetch_page(query: str, start: int, n: int, date_lo: str, date_hi: str) -> li
         aid = e.findtext(f"{ATOM}id") or ""
         text = " ".join(summ.split()).strip()
         year = int(pub[:4]) if pub[:4].isdigit() else 0
-        arid = aid.rsplit("/", 1)[-1] if aid else ""
+        # An old-style id is `archive/YYMMNNN` and the archive is PART of it:
+        # the e-print endpoint 404s without it (7 of 19 in a measured sweep).
+        arid = aid.split("/abs/", 1)[-1] if "/abs/" in aid else aid.rsplit("/", 1)[-1]
         # `published` dates v1; `summary` is the LATEST version's abstract, so
         # submittedDate alone does not date the text. Measured on a live
         # 2010-2021 weak-lensing page, 11 of 12 entries had updated > published
@@ -205,12 +215,19 @@ def fetch_page(query: str, start: int, n: int, date_lo: str, date_hi: str) -> li
         journal_ref = e.findtext(f"{ARXIV}journal_ref")
         if journal_ref:
             journal_ref = " ".join(journal_ref.split())
+        # Team size, for the full-text author sweep's --max-authors. Only the
+        # API carries a clean list: counting `\author` in the LaTeX picks up
+        # template placeholder lines, and a live AASTeX source in this corpus
+        # has one ("\author[xxxx-xxxx-xxxx-xxxx]{Author Name}").
+        authors = [(person.findtext(f"{ATOM}name") or "").strip()
+                   for person in e.findall(f"{ATOM}author")]
         if text and len(text.split()) >= 40:
             out.append({"section": "abstract", "text": text,
                         "source": f"arxiv:{arid}", "year": year,
                         "published": pub[:10], "updated": updated[:10],
                         "journal_ref": journal_ref,
                         "journal": classify_journal(journal_ref),
+                        "authors": [name for name in authors if name],
                         "doi": e.findtext(f"{ARXIV}doi")})
     return out
 
@@ -338,10 +355,23 @@ def _candidate_ids(args, exclude: set[str] | None = None,
     which is what makes the resulting set *refereed* rather than merely
     on-arXiv -- the live path carries `journal_ref`, so this is only available
     there.
+
+    `--author` replaces the topic queries with one author query and, like
+    `exclude`, forces the live path. `--max-authors` then bounds team size from
+    the API's author list, before any 3 s e-print download is spent.
     """
     exclude = exclude or set()
+    # A bare name is quoted; a value already carrying a query operator passes
+    # through, because `au:` alone is not field-scoped and often must be: 32 of
+    # 100 `au:"Kaiser, N"` papers are nuclear theory, under the same spelling.
+    author = args.author if ":" in args.author else f'au:"{args.author}"'
+    queries = [author] if args.author else FULLTEXT_QUERIES
+    max_authors = getattr(args, "max_authors", 0) or 0
     jsonl = args.profile_root / args.field / "human_abstracts_extra.jsonl"
-    if jsonl.exists() and not exclude:
+    # `--author` names WHO; the local shortcut answers WHAT-about. It filters the
+    # abstract bank on field keywords and never looks at an author, so taking it
+    # for an author sweep would quietly return the wrong people's papers.
+    if jsonl.exists() and not exclude and not args.author:
         candidates: list[str] = []
         seen: set[str] = set()
         with jsonl.open(encoding="utf-8") as handle:
@@ -361,8 +391,11 @@ def _candidate_ids(args, exclude: set[str] | None = None,
         return candidates
     candidates = []
     seen = set()
-    dropped_known = dropped_journal = 0
-    for query in FULLTEXT_QUERIES:
+    identity = (re.compile(getattr(args, "author_is", "") or "", re.IGNORECASE)
+                if getattr(args, "author_is", "") else None)
+    dropped_known = dropped_journal = dropped_team = 0
+    dropped_unknown_team = dropped_identity = 0
+    for query in queries:
         for start in range(args.start_at, args.start_at + args.per_query,
                            args.page):
             try:
@@ -389,14 +422,34 @@ def _candidate_ids(args, exclude: set[str] | None = None,
                 if journals and record.get("journal") not in journals:
                     dropped_journal += 1
                     continue
+                team = record.get("authors") or []
+                # `au:` matches a SURNAME, and a surname is not a person, so the
+                # identity test is separate from the search term rather than
+                # folded into it.
+                if identity and not any(identity.search(name) for name in team):
+                    dropped_identity += 1
+                    continue
+                if max_authors:
+                    # An unlisted team cannot be SHOWN to be within the limit,
+                    # so it is dropped and counted rather than assumed small --
+                    # the same reading the --updated-before filter applies to a
+                    # record with no `updated` date.
+                    if not team:
+                        dropped_unknown_team += 1
+                        continue
+                    if len(team) > max_authors:
+                        dropped_team += 1
+                        continue
                 candidates.append(arxiv_id)
             if not page:
                 break
             time.sleep(args.sleep)
     print(f"[fulltext] {len(candidates)} candidate papers from "
-          f"{len(FULLTEXT_QUERIES)} live queries "
+          f"{len(queries)} live queries "
           f"(dropped {dropped_known} already-calibrated, "
-          f"{dropped_journal} off-journal)", file=sys.stderr)
+          f"{dropped_journal} off-journal, {dropped_identity} not the named "
+          f"author, {dropped_team} over {max_authors or '-'} authors, "
+          f"{dropped_unknown_team} with no author list)", file=sys.stderr)
     return candidates
 
 
@@ -489,6 +542,17 @@ def main(argv: list[str] | None = None) -> int:
                         "100%% already-calibrated and 2000+ were ~85%% new. "
                         "Skipping that band is what makes a held-out sweep "
                         "affordable at 3 s per request.")
+    p.add_argument("--author", default="",
+                   help="full-text mode: fetch one author's papers instead of "
+                        "the topic sweep -- a bare name (\"Dell'Antonio\") or a "
+                        "whole query ('au:\"Kaiser, N\" AND cat:astro-ph*').")
+    p.add_argument("--author-is", default="",
+                   help="full-text mode: keep only papers with an author name "
+                        "matching this regex; `au:` matches a surname, not a person.")
+    p.add_argument("--max-authors", type=int, default=0,
+                   help="full-text mode: keep only papers with at most this "
+                        "many authors (0 = no limit). A paper the API lists no "
+                        "authors for is dropped, not assumed small.")
     p.add_argument("--exclude-known", action="store_true",
                    help="full-text mode: drop every candidate whose text "
                         "already feeds a calibration bank (the abstract corpus, "
@@ -524,9 +588,22 @@ def main(argv: list[str] | None = None) -> int:
     known = {key for key, _, _ in JOURNAL_FILTERS}
     if wanted - known:
         p.error(f"unknown journal key(s): {sorted(wanted - known)}; known: {sorted(known)}")
+    if (args.author or args.max_authors or args.author_is) and not args.fulltext:
+        p.error("--author/--author-is/--max-authors select whole papers, which "
+                "only --fulltext downloads; the abstract sweep has --query-set")
     if args.fulltext:
         if "/" in args.fulltext_dir or "\\" in args.fulltext_dir:
             p.error("--fulltext-dir must be a bare directory name")
+        if args.author and args.fulltext_dir == REFERENCE_DIR:
+            p.error(f"--author writes a population you intend to MEASURE, but "
+                    f"--fulltext-dir {REFERENCE_DIR!r} is the directory "
+                    f"extract_style.py reads as calibration breadth. Papers in "
+                    f"a calibration bank have their own vocabulary in the "
+                    f"denominator: ~94% of register findings on an in-sample "
+                    f"paper are suppressed by that membership (EVALUATION "
+                    f"section 17.3), so the axis would go quiet on exactly the "
+                    f"prose you fetched it to judge. Choose another "
+                    f"fulltext-* name.")
         if args.exclude_known and args.fulltext_dir == REFERENCE_DIR:
             p.error(f"--exclude-known writes a held-out set, but "
                     f"--fulltext-dir {REFERENCE_DIR!r} is the directory "
@@ -560,7 +637,9 @@ def main(argv: list[str] | None = None) -> int:
                     line = line.strip()
                     if not line:
                         continue
-                    record = json.loads(line)
+                    record = json.loads(line)  # a pre-2026 bank stored year as str
+                    year = str(record.get("year") or "")
+                    record["year"] = int(year) if year.isdigit() else 0
                     if record.get("source") not in seen:
                         seen.add(record["source"])
                         recs.append(record)
@@ -614,6 +693,11 @@ def main(argv: list[str] | None = None) -> int:
                     if r["journal"] not in wanted:
                         dropped_other += 1
                         continue
+                # The abstract bank is a PROSE corpus -- `voice_dataset`, the
+                # register lexicon and the reference banks all read it as text.
+                # Author names are not prose, so the list stays in the full-text
+                # path that needs it rather than entering every record here.
+                r.pop("authors", None)
                 recs.append(r); new += 1; got += 1
             print(f"[fetch] {query!r} start={start}: +{new} (total {len(recs)})",
                   file=sys.stderr)

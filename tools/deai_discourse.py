@@ -216,6 +216,18 @@ def live_buckets(feature: str, field_profile_dir: Path | None) -> list[str]:
             if allowed is None or bucket in allowed]
 
 
+def axis_name(feature: str) -> str:
+    """The axis id one feature reports under.
+
+    `discourse_findings` returns BOTH features' findings in one list, so any
+    caller that has to split them by axis -- the status block below, the
+    labelling sampler -- needs this spelling. One owner, because a second copy
+    is how the sampler would come to file cohesion findings under an axis name
+    the report never uses.
+    """
+    return f"L2.{feature}"
+
+
 def discourse_axis_status(field_profile_dir: Path | None) -> list[dict[str, Any]]:
     """One status per feature: the two travel together but fail separately.
 
@@ -226,7 +238,7 @@ def discourse_axis_status(field_profile_dir: Path | None) -> list[dict[str, Any]
     """
     statuses = []
     for feature, axis in AXES.items():
-        name = f"L2.{feature}"
+        name = axis_name(feature)
         if LOADERS[feature](field_profile_dir) is None:
             statuses.append(feedback.axis_status(
                 name, "unmeasured",

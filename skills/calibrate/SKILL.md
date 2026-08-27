@@ -174,7 +174,8 @@ calibration input.
 
 ```bash
 python tools/label_findings.py sample --field <field> \
-    --drafts path/to/your/drafts --n 240 --out labels.jsonl
+    --population mentor=style-corpus/<field>/fulltext-mentor \
+    --n 240 --out labels.jsonl
 # fill in "label": true | false, guided by each row's own "question"
 python tools/label_findings.py relabel --sheet labels.jsonl --frac 0.2 \
     --out recheck.jsonl
@@ -183,12 +184,15 @@ python tools/label_findings.py score --sheet labels.jsonl --recheck recheck.json
 
 Four things about the sheet decide whether the effort is worth anything:
 
-- **Two populations, reported separately.** "Does it misfire on my drafts" and
-  "does it misfire on published work" are different questions with different
-  answers. The published population is drawn from the **held-out** set, never
-  the corpus root: on an in-sample paper ~94% of register flags are suppressed
-  by that paper's own bank membership (§17.3), so sampling there hands you a
-  biased residual to label.
+- **Named populations, reported separately.** "Does it misfire on the prose I am
+  modelling myself on" and "does it misfire on published work" are different
+  questions with different answers, so each `--population NAME=DIR` is sampled
+  and scored on its own. Whichever population you name, it must sit **outside**
+  the calibration banks: on an in-sample paper ~94% of register flags are
+  suppressed by that paper's own bank membership (§17.3). Measured here — the
+  same axis yields 1 finding across three in-calibration papers and 8 across
+  fifteen held out. `published` is added for you from the held-out set unless
+  you name your own.
 - **Stratified by axis, not only by population.** Salience fires roughly twenty
   times as often as register. A shared quota is spent on salience before
   register reaches the floor, and the register cell then reads `unmeasured`
@@ -208,14 +212,24 @@ writes methods sections that recite parameter grids, label those salience
 advisories false, and the measured precision will say so. That is the intended
 use: the numbers describe your judgement, not a universal one.
 
-`--drafts` accepts a directory of `.tex` files or a directory of manuscript
-subdirectories; a manuscript whose `main.tex` `\input`s its sections is one
-draft, not fifteen fragments.
+`--population NAME=DIR` accepts a directory of `.tex` files or a directory of
+per-paper subdirectories — the shape every `style-corpus/<field>/fulltext-*`
+pull has; a manuscript whose `main.tex` `\input`s its sections is one paper, not
+fifteen fragments. `--drafts DIR` is shorthand for `--population draft=DIR`.
+
+To build a population from one author's papers, `tools/fetch_arxiv_abstracts.py
+--fulltext --author "Surname" --author-is <regex> --max-authors N
+--fulltext-dir fulltext-<name>` fetches into a directory calibration never
+reads. `--author-is` is not optional in practice: `au:` matches a **surname**,
+and a surname is not a person.
 
 **Sample size.** Any cell under 20 labels reports `unmeasured`. The sampler
-prints, before you start, every cell its populations cannot fill — a draft set
-of three manuscripts simply may not contain 20 register findings, and no sheet
-size changes that.
+prints, before you start, every cell its populations cannot fill — and some
+cannot be filled by any sheet size, only by more papers. Measured on the `wgl`
+corpus: fifteen held-out single-author-group papers yield 8 register findings
+and 2 hedging findings, and the entire 203-paper held-out set yields 15 hedging
+findings, because hedging speaks only about introductions and fires below a
+tenth percentile. Salience and cohesion fill from a handful of papers.
 
 ## 8. Verify, then record what stayed unmeasured
 

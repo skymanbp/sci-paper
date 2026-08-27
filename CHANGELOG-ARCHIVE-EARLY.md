@@ -5,7 +5,8 @@ The earliest history of the plugin, from the first release through v0.21.0
 2026-08-26 when that file passed the repository's 750-line budget. Nothing here
 is edited; the history is verbatim.
 
-- Current release and the one before it: [CHANGELOG.md](CHANGELOG.md)
+- Current releases: [CHANGELOG.md](CHANGELOG.md)
+- **v0.27.1 through v0.29.0**: [CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)
 - **v0.22.0 through v0.27.0**: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)
 
 ---

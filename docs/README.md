@@ -59,7 +59,7 @@ universal paper PASS/FAIL.
 | Per-tool registry, calibration, and failure behavior | [../tools/README.md](../tools/README.md) |
 | Supplying a field corpus | [../style-corpus/README.md](../style-corpus/README.md) |
 | Generated profile assets and build boundaries | [../style-profile/README.md](../style-profile/README.md) |
-| Per-version history | [../CHANGELOG.md](../CHANGELOG.md) · [../CHANGELOG-ARCHIVE.md](../CHANGELOG-ARCHIVE.md) (v0.22.0-v0.27.0) · [../CHANGELOG-ARCHIVE-EARLY.md](../CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0) |
+| Per-version history | [../CHANGELOG.md](../CHANGELOG.md) · [../CHANGELOG-ARCHIVE-RECENT.md](../CHANGELOG-ARCHIVE-RECENT.md) (v0.27.1-v0.29.0) · [../CHANGELOG-ARCHIVE.md](../CHANGELOG-ARCHIVE.md) (v0.22.0-v0.27.0) · [../CHANGELOG-ARCHIVE-EARLY.md](../CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0) |
 | Working rules for this repository | [../CLAUDE.md](../CLAUDE.md) |
 | Adapted-material attribution and adoption boundaries | [../ACKNOWLEDGMENTS.md](../ACKNOWLEDGMENTS.md) |
 

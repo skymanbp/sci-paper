@@ -1,9 +1,9 @@
 """Sample findings for human labelling, then score the axes against the labels.
 
-Salience and register are corpus-referenced: they compare a draft against the
-field's own banks. Nothing in the repository says whether a human agrees that a
-given advisory is *right*, so precision against human judgement, and recall,
-are unmeasured.
+All four finding-emitting axes -- register, salience, cohesion and hedging --
+are corpus-referenced: they compare a manuscript against the field's own banks.
+Nothing in the repository says whether a human agrees that a given advisory is
+*right*, so precision against human judgement, and recall, are unmeasured.
 
 Half of that gap turned out not to need a labeller. A refereed ApJ/ApJL/A&A
 paper is text a human wrote and a referee accepted, so its provenance is a
@@ -21,15 +21,26 @@ harness is for, to the scheme chosen on 2026-08-26:
   with the prior answers stripped. The resulting intra-rater agreement is the
   noise ceiling: an axis cannot be held to a precision the task itself does not
   support.
-- **stratified over both populations.** Drafts and published papers are sampled
-  and reported separately, because "does it misfire on my drafts" and "does it
-  misfire on published work" are different questions with different answers.
+- **stratified over named populations.** Each `--population NAME=DIR` is sampled
+  and reported separately, because "does it misfire on the prose I am modelling
+  myself on" and "does it misfire on published work" are different questions
+  with different answers. Which populations are worth labelling is the user's
+  call, not this file's: `--drafts` is the special case that names one `draft`,
+  and the held-out published set is added automatically when it exists.
+
+Recall is reported POOLED over the axes, not per axis, and that is a property of
+the data rather than a shortcut. A control row asks "should this passage have
+been flagged"; a labeller who says yes has not said *which* axis should have
+caught it, so attributing every miss to each axis in turn -- what this file did
+while it carried two axes -- understates all of them, and understates them four
+times over now that it carries four.
 
 Nothing here calibrates anything. It writes a labelling sheet and, once you
 fill it in, reads it back and reports precision, recall and agreement with
 explicit `unmeasured` states wherever a stratum is too thin to support a rate.
 
-Run:  python tools/label_findings.py sample --field wgl --drafts path/to/drafts \\
+Run:  python tools/label_findings.py sample --field wgl \\
+          --population mentor=style-corpus/wgl/fulltext-mentor \\
           --n 60 --out labels.jsonl
       python tools/label_findings.py relabel --sheet labels.jsonl --frac 0.2 \\
           --out recheck.jsonl
@@ -46,6 +57,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
+import deai_discourse  # noqa: E402 -- because of that same sys.path insert
 import deai_register  # noqa: E402 -- because of that same sys.path insert
 import eval_findings  # noqa: E402 -- for HELDOUT_DIR, so the name has one owner
 import deai_salience  # noqa: E402 -- because of that same sys.path insert
@@ -57,7 +69,21 @@ SCHEMA = "sci-paper.finding-labels.v1"
 # printed instruction cannot mean both, so each row carries its own.
 FLAG_QUESTION = ('Is this advisory right — would you act on it? true = yes, the advisory is correct; false = no, it is a false positive.')
 CONTROL_QUESTION = ('This passage was NOT flagged. Should it have been? true = yes, the axis missed something here; false = no, correctly silent.')
-AXES = ("L0.register", "L2.salience_hierarchy")
+# Every axis that emits findings, paired with the call that produces them.
+# `deai_discourse` is the entry that forces the shape: it returns BOTH of its
+# axes from one call, because its features are measured over different spans of
+# the document. So an emitter declares the axes it owns, plus how to tell which
+# one an individual finding belongs to -- None where the emitter owns exactly one
+# and the question does not arise.
+EMITTERS = (
+    (deai_register.register_findings, ("L0.register",), None),
+    (deai_salience.salience_findings, ("L2.salience_hierarchy",), None),
+    (deai_discourse.discourse_findings,
+     tuple(deai_discourse.axis_name(feature) for feature in deai_discourse.AXES),
+     lambda finding: deai_discourse.axis_name(
+         str((finding.get("observed") or {}).get("feature", "")))),
+)
+AXES = tuple(axis for _, axes, _ in EMITTERS for axis in axes)
 MIN_PER_CELL = 20   # below this a rate is reported `unmeasured`, never as 0/0
 
 
@@ -94,6 +120,23 @@ def _documents(root: Path, *, bundles: bool) -> list[tuple[str, str]]:
     return out
 
 
+def _load_population(root: Path) -> list[tuple[str, str]]:
+    """Documents under one population directory, its layout auto-detected.
+
+    A paper is a document, not a file (`extract_sections`): a manuscript
+    directory whose `main.tex` \\input's its sections is one paper, not fifteen
+    fragments, and macros.tex is not a paper at all. So a directory of loose
+    `.tex` files counts one paper per file, and a directory of per-paper
+    subdirectories -- which is the shape every `style-corpus/<field>/fulltext-*`
+    pull has -- counts one paper per subdirectory.
+    """
+    if not root.is_dir():
+        raise SystemExit(f"[label_findings] no such population directory: {root}")
+    nested = not any(root.glob("*.tex")) and any(
+        p.is_dir() and any(p.rglob("*.tex")) for p in root.iterdir())
+    return _documents(root, bundles=nested)
+
+
 def _excerpt(text: str, finding: dict, *, window: int = 2) -> str:
     """The prose an advisory is about, carried into the sheet.
 
@@ -112,20 +155,19 @@ def _excerpt(text: str, finding: dict, *, window: int = 2) -> str:
 
 
 def _findings_for(name: str, text: str, field_dir: Path) -> list[dict]:
-    """Every register and salience finding one document produces."""
+    """Every finding one document produces, tagged with the axis that emitted it."""
     path = Path(name)
     found = []
-    emitters = ((deai_register.register_findings, "L0.register"),
-                (deai_salience.salience_findings, "L2.salience_hierarchy"))
-    for emit, axis in emitters:
+    for emit, axes, axis_of in EMITTERS:
         try:
             result = emit(text, field_dir, path)
         except Exception as error:  # noqa: BLE001 -- because one unreadable document must not abort a sampling run
-            found.append({"axis": axis, "error": str(error)})
+            found.extend({"axis": axis, "error": str(error)} for axis in axes)
             continue
         for item in (result or []):
             if isinstance(item, dict):
-                found.append({"axis": axis, "finding": item})
+                found.append({"axis": axis_of(item) if axis_of else axes[0],
+                              "finding": item})
     return found
 
 
@@ -136,26 +178,32 @@ def cmd_sample(args) -> int:
     rng = random.Random(args.seed)
 
     populations: dict[str, list[tuple[str, str]]] = {}
-    if args.drafts:
-        root = Path(args.drafts)
-        # A paper is a document, not a file (`extract_sections`): a manuscript
-        # directory whose `main.tex` \input's its sections is one draft, not
-        # fifteen fragments, and macros.tex is not a draft at all.
-        nested = not any(root.glob("*.tex")) and any(
-            p.is_dir() and any(p.rglob("*.tex")) for p in root.iterdir())
-        populations["draft"] = _documents(root, bundles=nested)
+    # Which populations are worth labelling is a research decision -- whose prose
+    # do you want the axes measured against -- so the directories are named on
+    # the command line rather than fixed here. `--drafts` stays as the special
+    # case that names one of them `draft`.
+    named = [f"draft={args.drafts}"] if args.drafts else []
+    named += list(args.population or [])
+    for item in named:
+        name, separator, where = item.partition("=")
+        if not (separator and name.strip() and where.strip()):
+            raise SystemExit(f"[label_findings] --population takes NAME=DIR; "
+                             f"got {item!r}")
+        populations[name.strip()] = _load_population(Path(where.strip()))
     # The published population is the HELD-OUT set, never the corpus root. The
     # root also holds the 500 calibration papers, and EVALUATION section 17.3
     # measured that ~94% of register flags on an in-sample paper are suppressed
     # by that paper's own bank membership -- so what survives there is a biased
-    # residual, and a labeller would spend their effort on it.
+    # residual, and a labeller would spend their effort on it. An explicit
+    # `--population published=...` wins, so the default is overridable.
     heldout = args.corpus_root / field / args.heldout_dir
-    if heldout.is_dir():
+    if "published" not in populations and heldout.is_dir():
         populations["published"] = _documents(heldout, bundles=True)
     if not any(populations.values()):
         raise SystemExit(
-            f"[label_findings] no documents found; pass --drafts and/or place a "
-            f"held-out set at {args.corpus_root / field / args.heldout_dir}/.")
+            f"[label_findings] no documents found; pass --population NAME=DIR "
+            f"and/or place a held-out set at "
+            f"{args.corpus_root / field / args.heldout_dir}/.")
 
     rows = []
     live = [key for key, docs in populations.items() if docs]
@@ -286,17 +334,22 @@ def cmd_score(args) -> int:
 
     populations = sorted({r["population"] for r in labelled})
     for population in populations:
+        here = [r for r in labelled if r["population"] == population]
         print(f"population: {population}")
+        caught = 0
         for axis in AXES:
-            flagged = [r for r in labelled
-                       if r["population"] == population and r["axis"] == axis]
-            controls = [r for r in labelled
-                        if r["population"] == population and not r["flagged"]]
+            flagged = [r for r in here if r["axis"] == axis]
             true_positive = sum(1 for r in flagged if r["label"] is True)
-            missed = sum(1 for r in controls if r["label"] is True)
+            caught += true_positive
             print(f"  {axis:24s} precision {_rate(true_positive, len(flagged))}")
-            denominator = true_positive + missed
-            print(f"  {'':24s} recall    {_rate(true_positive, denominator)}")
+        # Recall is POOLED over the axes, and can only be. A control row asks
+        # whether the passage should have been flagged; a labeller who says yes
+        # has not said by WHICH axis, so no per-axis miss count exists to divide
+        # by. Printing one anyway -- as this did while it carried two axes --
+        # charges every axis with every other axis's misses.
+        missed = sum(1 for r in here if not r["flagged"] and r["label"] is True)
+        print(f"  {'(all axes pooled)':24s} recall    "
+              f"{_rate(caught, caught + missed)}")
         print()
 
     if args.recheck and args.recheck.exists():
@@ -335,8 +388,13 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     s = sub.add_parser("sample", parents=shared, help="write a labelling sheet")
+    s.add_argument("--population", action="append", metavar="NAME=DIR",
+                   help="a directory of papers to sample and report as its own "
+                        "stratum; repeatable. NAME is yours to choose and is "
+                        "what the score table prints. `published` overrides the "
+                        "automatic held-out population.")
     s.add_argument("--drafts", type=Path, default=None,
-                   help="directory of your own .tex drafts")
+                   help="shorthand for --population draft=DIR")
     s.add_argument("--n", type=int, default=60)
     s.add_argument("--heldout-dir", default=eval_findings.HELDOUT_DIR,
                    help="directory under style-corpus/<field>/ holding the "

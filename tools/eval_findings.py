@@ -60,6 +60,12 @@ SCHEMA = "sci-paper.findings-eval.v1"
 HELDOUT_DIR = "fulltext-heldout"
 INSAMPLE_DIR = "fulltext-arxiv"
 MIN_DOCUMENTS = 20   # below this a rate is reported `unmeasured`, never as 0/0
+# Deliberately TWO, where `label_findings.AXES` carries four. This file is not a
+# generic axis loop: each axis needs a reading of its own -- register is an
+# absolute rarity test whose held-out rate IS a false-positive rate, salience is
+# a percentile gate whose non-zero rate is its design point -- and the discourse
+# axes have neither a summarizer nor a stated reading here yet. Adding their
+# names without that would print two more rates nobody can interpret.
 AXES = ("L0.register", "L2.salience_hierarchy")
 
 

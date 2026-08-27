@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.33.0)
+# De-AI subsystem architecture (current as of v0.34.0)
 
 ## 1. Purpose
 
@@ -303,7 +303,7 @@ acceptance.
 `final-review` owns isolated child execution. Nested agents are unsupported, so the
 parent passes explicit interface flags:
 
-- `paper-review --no-isolated-mpr` (its dimension-M escalation is in-process by
+- `paper-review --orchestrated` (its dimension-M escalation is in-process by
   design and never spawns);
 - `de-ai --audit-only` (measurement + audit, no rewrite, no spawning).
 

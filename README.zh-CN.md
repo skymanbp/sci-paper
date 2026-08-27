@@ -2,20 +2,20 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.32.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.33.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-334%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-381%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**9 个 skill · 34 个工具 · 360 个测试 · 一份规范 · 零作者身份判决。**
+**12 个 skill · 34 个工具 · 381 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
-[Skills](#skills9-个) · [Tools](#tools34-个) ·
+[Skills](#skills12-个) · [Tools](#tools34-个) ·
 [已知限制](#现状已知限制与路线图) ·
 [规范正文](docs/SCIPAPER_STANDARD.md) · [文档索引](docs/README.md)
 
@@ -51,22 +51,27 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 3. **审查会悄悄把"没测到"变成"好消息"。** 一个没标定的轴报告零个 finding，
    而零个 finding 读起来就是干净。
 
-### 八项功能
+### 十二个 skill 按层
 
-| # | 功能 | Skill | 你得到什么 |
-|---|---|---|---|
-| **一** | **按规范写** | [`paper`](skills/paper/SKILL.md) | 把写作框架载入上下文：准确性规则、公式与引用规范、正向叙述、带 canonical 例子的 L0 词汇政策、正向 voice 指引、measurement state、停止语义。 |
-| **二** | **去 AI 化** | [`de-ai`](skills/de-ai/SKILL.md) | 三过串联 —— 子系统测量（L0–L4）、结构 tell 审计，然后 **claim-first 改写**：从受保护的 claim graph 重建文字，而不是原地润色。`--audit-only` 只跑到测量为止。 |
-| **三** | **精简而不丢科学** | [`condense`](skills/condense/SKILL.md) | 全文去冗余，遵循"每个事实只有一个 canonical 位置"、loop-until-dry 收敛，并以**机械长度门**作为"确实变短了"的收尾证明。 |
-| **四** | **审稿子** | [`paper-review`](skills/paper-review/SKILL.md) | 溯源式 **A–R 审查**：数学、物理、逻辑与统计、语言、结构与叙事主线、引用、数据与图表、接口、冗余、可复现性、现代物理核查、跨章节一致性、对抗式验证（三 pass + 12-framing 升级）、staleness、过程残影、引用精确度、术语对齐。 |
-| **五** | **审图** | [`figure-review`](skills/figure-review/SKILL.md) | 审的是 **150 DPI 的编译页**，不是源码。追溯 figure/caption/数据的 provenance，在像素级测量画布平衡，并把科学与构建矛盾同可读性建议分开。 |
-| **六** | **跑完整审查团** | [`final-review`](skills/final-review/SKILL.md) | 父级编排器：在**独立 worktree agent** 里跑 paper-review、figure-review、de-ai `--audit-only` 与 modern-physics-review，合并 typed finding，并验证 disposition-complete 状态在连续多轮里稳定。 |
-| **七** | **打磨基金申请书** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description、NIH Specific Aims、fellowship。保留论文会删掉的"愿景+可行性"语域，强制 claim 与可行性匹配，最狠地打磨决定评分的前几页。 |
-| **八** | **探索研究方向** | [`brainstorm`](skills/brainstorm/SKILL.md) | 辐射状研究方向探索器：每节点 12 条 framing pass、术语锚定到 glossary、每分支完整推导、递归发散直到收敛。严禁 defer / future-work / 半成品叶节点。 |
+| 层 | Skill | 你得到什么 |
+|---|---|---|
+| **准备** | [`calibrate`](skills/calibrate/SKILL.md) | 把一个 field 从空语料走到可测量的轴 —— 抽取、建 profile、按 section 建参考分布，再到你自己的 held-out 标注。每个 field 跑一次：下面任何轴要报 `measured` 都依赖它，样本不足的分层保持 `unmeasured`，不会悄悄算通过。 |
+| **规范** | [`paper`](skills/paper/SKILL.md) | 把写作框架载入上下文：准确性规则、公式与引用规范、正向叙述、带 canonical 例子的 L0 词汇政策、正向 voice 指引、measurement state、停止语义。 |
+| **测量** | [`physics`](skills/physics/SKILL.md) | 测量原件，只产 finding。第一原则 P1–P8：量纲一致性、渐近极限、对称性与宇称、守恒律、信息论与统计不等式的前提、代数再推导、数值溯源、基础引用、编译完整性。是 `paper-review` 维度 K 的唯一来源；语域与 L0 委派给共享轴，不自带词表。 |
+| **测量** | [`logic`](skills/logic/SKILL.md) | 测量原件，只产 finding。claim graph（循环论证、断链、偷换条件、未声明假设）、经验统计方法学（split、泄漏、多重比较、prior），以及声明-证据纪律的审查端：动词强度不得超过证据强度。是 `paper-review` 维度 C 的唯一来源。 |
+| **测量** | [`mainline`](skills/mainline/SKILL.md) | 测量原件，只产 finding。建 paper-level purpose record 与 contribution graph，再按冷读者回答七问——读者在哪里需要回溯、补隐藏上下文，或在竞争解读间抉择？不预设三幕模板。是 `paper-review` 维度 E 的唯一来源。 |
+| **测量** | [`figure-review`](skills/figure-review/SKILL.md) | 审的是 **150 DPI 的编译页**，不是源码。追溯 figure/caption/数据的 provenance，在像素级测量画布平衡，并把科学与构建矛盾同可读性建议分开。 |
+| **动作** | [`de-ai`](skills/de-ai/SKILL.md) | 三过串联 —— 子系统测量（L0–L4）、结构 tell 审计，然后 **claim-first 改写**：从受保护的 claim graph 重建文字，而不是原地润色。`--audit-only` 只跑到测量为止。 |
+| **动作** | [`condense`](skills/condense/SKILL.md) | 全文去冗余，遵循"每个事实只有一个 canonical 位置"、loop-until-dry 收敛，并以**机械长度门**作为"确实变短了"的收尾证明。 |
+| **组合** | [`paper-review`](skills/paper-review/SKILL.md) | 溯源式 **A–R 审查**：数学、物理、逻辑与统计、语言、结构与叙事主线、引用、数据与图表、接口、冗余、可复现性、现代物理核查、跨章节一致性、对抗式验证（三 pass + 12-framing 升级）、staleness、过程残影、引用精确度、术语对齐。 |
+| **组合** | [`final-review`](skills/final-review/SKILL.md) | 父级编排器：在**独立 worktree agent** 里跑 paper-review、figure-review、de-ai `--audit-only` 与 physics / mainline / logic 三个原件，合并 typed finding，并验证 disposition-complete 状态在连续多轮里稳定。 |
+| **体裁** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description、NIH Specific Aims、fellowship。保留论文会删掉的"愿景+可行性"语域，强制 claim 与可行性匹配，最狠地打磨决定评分的前几页。 |
+| **探索** | [`brainstorm`](skills/brainstorm/SKILL.md) | 辐射状研究方向探索器：每节点 12 条 framing pass、术语锚定到 glossary、每分支完整推导、递归发散直到收敛。严禁 defer / future-work / 半成品叶节点。 |
 
-八项功能跑在同一层证据之上 —— 34 个工具输出同一套 schema
-`sci-paper.feedback.v1` —— 所以 linter、审查 skill 和编排器给出的 finding
-是同一个对象、同一个 ID。
+凡是产出 finding 的 skill 都跑在同一层证据之上 —— 34 个工具输出同一套 schema
+`sci-paper.feedback.v1` —— 所以 linter、测量原件和编排器给出的 finding 是同一个
+对象、同一个 ID。**组合只调用原件，绝不复述它们的检查项。**`calibrate` 构建的
+就是它们赖以测量的这层证据。
 
 ### 工作边界 —— 它刻意不做什么
 
@@ -403,24 +408,24 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 2026-08-27 实测，Windows 11、Python 3.13.3、RTX 4060 Ti，每行 7 次子进程运行取
 中位数（模型驱动的行与套件取 3 次），含解释器启动。测试文档是一篇真实的 5,084 词
 语料论文，按其 LaTeX include 组装而成。**整张表是一起重测的**：光是解释器地板就从
-56 ms 走到了 84 ms，所以 v0.32.0 那张表里没有一行还能拿来直接比。
+84 ms 走到了 98 ms，所以 v0.33.0 那张表里没有一行还能拿来直接比。
 
 | 通道 | 中位墙钟 | 依赖 |
 |---|---:|---|
-| Python 解释器地板 | 84 ms | — |
-| L0 词汇 + register | **274 ms** | 标准库 |
-| **全部 model-free 轴**（L0 + L1 + L2，含全文结构与语篇） | **409 ms** | 标准库 |
-| `length_gate.py` | 194 ms | 标准库 |
-| `+ --oracle`（GPT-2-large token surprisal） | 48.7 s | `transformers` + `torch` |
-| `+ --voice`（学习型 L3 分诊） | 59.1 s | `scikit-learn` + `sentence-transformers` |
-| `validate_plugin.py` —— **9/9 通过** | 2.3 s | 标准库 |
-| 完整测试套件 —— **360 通过**，19 个文件 | 51.0 s | 标准库 |
+| Python 解释器地板 | 98 ms | — |
+| L0 词汇 + register | **317 ms** | 标准库 |
+| **全部 model-free 轴**（L0 + L1 + L2，含全文结构与语篇） | **458 ms** | 标准库 |
+| `length_gate.py` | 258 ms | 标准库 |
+| `+ --oracle`（GPT-2-large token surprisal） | 33.8 s | `transformers` + `torch` |
+| `+ --voice`（学习型 L3 分诊） | 37.2 s | `scikit-learn` + `sentence-transformers` |
+| `validate_plugin.py` —— **9/9 通过** | 2.9 s | 标准库 |
+| 完整测试套件 —— **381 通过**，19 个文件 | 60.1 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
-325 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 120–145 倍，并且是显式 opt-in 的
-flag —— lint 一篇论文不该需要一块 GPU。它们这次涨得比地板更多（2.1 倍对 1.5 倍），
-这张表说不清原因，请把它们读成「这台机器今天」而不是趋势。CI 每次 push 与 PR 都跑
-validator + 套件，Python 3.11，Ubuntu。
+360 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 74–81 倍，并且是显式 opt-in 的
+flag —— lint 一篇论文不该需要一块 GPU。这次它们反而变快了（48.7 → 33.8 s、59.1 →
+37.2 s），而每一条标准库行都随地板上移；这张表说不清原因，请把它们读成「这台机器
+今天」而不是趋势。CI 每次 push 与 PR 都跑 validator + 套件，Python 3.11，Ubuntu。
 
 ---
 
@@ -482,15 +487,10 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 
 ---
 
-## Skills（9 个）
+## Skills（12 个）
 
-四件事；每个 skill 具体做什么见[八项功能](#八项功能)。
-
-- **写** —— [`paper`](skills/paper/SKILL.md) · [`proposal-polish`](skills/proposal-polish/SKILL.md)
-- **改** —— [`de-ai`](skills/de-ai/SKILL.md) · [`condense`](skills/condense/SKILL.md)
-- **审** —— [`paper-review`](skills/paper-review/SKILL.md) · [`figure-review`](skills/figure-review/SKILL.md) · [`final-review`](skills/final-review/SKILL.md)
-- **探索** —— [`brainstorm`](skills/brainstorm/SKILL.md)
-- **校准** —— [`calibrate`](skills/calibrate/SKILL.md)（语料 → profile → 各轴 → 你自己的标注；`measured` 轴所需的前置设置）
+每个 skill 具体做什么见[十二个 skill 按层](#十二个-skill-按层)。
+调用方式 `/sci-paper:<name> draft.tex --field wgl`；`calibrate` 最先跑，每个 field 一次。
 
 ## Tools（34 个）
 
@@ -523,7 +523,7 @@ profile 构建，`eval` 可复现的证据。逐工具细节见 [tools/README.md
 | `tools/deai_partition.py` | L4 | 不动一个 token 的合并/拆分建议，把文档推向人类 dispersion band。只建议，由作者手动应用。 |
 | `tools/deai_provenance.py` | L4 | 基于作者**自己**草稿历史的编辑 provenance 账本；按 token 编辑比把每段标为 AI-untouched → author-original。不是检测器；没有 AI 草稿祖先时为 `unmeasured`。 |
 | `tools/deai_personal.py` | L4 | 个人 dispersion 基线，对照作者自己以前的论文 —— 一个无混淆的同作者参照。少于三篇时为 `unmeasured`。 |
-| `tools/label_findings.py` | eval | 把 register 与 salience 的 finding 抽成人工标注表，再盲发一个子集算 intra-rater 一致性，并按「你的草稿 / 已发表论文」分层报 precision/recall。任何不足 20 条标注的分层一律报 `unmeasured`，不给数字。 |
+| `tools/label_findings.py` | eval | 把四条会产出 finding 的轴（register、salience、cohesion、hedging）抽成人工标注表，再盲发一个子集算 intra-rater 一致性，按 `--population NAME=DIR` 命名的总体分层，逐轴报 precision、**合并**报 recall。任何不足 20 条标注的分层一律报 `unmeasured`，不给数字。 |
 | `tools/eval_findings.py` | eval | 用**出处**当标签来测 register 与 salience，而不是靠人工标注：在**留出**的 ApJ/ApJL/A&A 已发表论文、同体裁但参与过标定的论文（泄漏对照）、以及 `docval` 机器 tier 上各自的命中率，外加机器对留出人类的秩 AUC。register 那行是误报率；salience 那行不是——它的门是百分位，非零命中率是设计值，测的是标定迁移。 |
 | `tools/eval_docscale.py` | eval | 复现 §9 的全文尺度表 —— 人类误标率与逐 tier 尾部功效 —— 把语料与每个 `docval` tier 都送进 finding 用的同一个操作点。 |
 | `tools/build_profile.py` | build | 构建基础 field profile：抽取、可选的旧版分类器、范例缓存预热。 |
@@ -531,7 +531,7 @@ profile 构建，`eval` 可复现的证据。逐工具细节见 [tools/README.md
 | `tools/extract_style.py` | build | 抽取词表、句子统计、转折词、描述性 dossier 和按 section 分类的范例库。 |
 | `tools/extract_sections.py` | build | 源文本投影与分节层：section 词表与分类器、两条命名 LaTeX 投影、PDF 标题启发式。section 桶是 profile 里每一条按 section 参照分布的键，所以改这里就要重建 profile。 |
 | `tools/retrieve_exemplars.py` | build | 按 section 与主题检索范例段落，走 embedding 或显式 fallback。 |
-| `tools/fetch_arxiv_abstracts.py` | build | 抓取带日期的摘要语料用于受控评估与训练，可限定子领域 query set 与指定的 refereed 期刊。触发限流时**停止抓取并 exit 2**，而不是把被截断的语料当作完整的写下去。 |
+| `tools/fetch_arxiv_abstracts.py` | build | 抓取带日期的摘要语料用于受控评估与训练，可限定子领域 query set 与指定的 refereed 期刊；也可抓单个作者的完整 LaTeX 源（`--author` + `--author-is` + `--max-authors`）。触发限流时**停止抓取并 exit 2**，而不是把被截断的语料当作完整的写下去。 |
 | `tools/train_ai_ism_classifier.py` | legacy | 训练旧版 word-ngram 分类器，仅作为 degraded 的 advisory 证据使用。 |
 | `tools/extract_md_negatives.py` | legacy | 为受控评估与训练收集候选生成段落。 |
 
@@ -577,10 +577,10 @@ style-profile/<field>/                  生成的证据（gitignore）
 | 制品 | 规模 |
 |---|---|
 | `exemplar_paragraphs.jsonl` | **27,917** 个按 section 分类的段落，来自 19 篇精选 + 500 篇参照论文 |
-| `register_lexicon.json` | 41,559 个 passage · 53,293 个词条 |
+| `register_lexicon.json` | 41,721 个 passage · 53,417 个词条 |
 | `uid_baseline.json` | 27,917 段（GPT-2-large）· 合并 global UID 3.303 ± 0.437 |
 | `structure_baseline.json` | method 9,512 · results 3,958 · data 3,908 · intro 3,840 · discussion 3,647 · conclusion 2,609 · abstract 433 |
-| `salience_baseline.json` | abstract 13,823 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
+| `salience_baseline.json` | abstract 13,981 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
 | `docstructure_baseline.json` | 507 篇完整文档 · conformal α 0.05 · 长度分层 [46, 75] |
 | `anchoring_baseline.json` | 517 篇文档 · 六个 section 类全部高于 30 篇下限 |
 | `voice_model.joblib` | 44,576 条记录 · 14 个特征 · **无操作点**，`degraded` |
@@ -626,9 +626,9 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      唯一规范契约（v3.7）
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md（hub）+ evaluation/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
-├── skills/<name>/SKILL.md   9 个 skill
-├── tools/                   25 个产品工具 + 仓库 validator
-├── tests/                   15 个测试文件、252 个测试
+├── skills/<name>/SKILL.md   12 个 skill
+├── tools/                   34 个产品工具 + 仓库 validator
+├── tests/                   19 个测试文件、381 个测试
 ├── style-corpus/<field>/    用户提供的只读语料（gitignore）
 ├── style-profile/<field>/   生成与标定的证据（gitignore）
 ├── ACKNOWLEDGMENTS.md       改编来源的致谢与采纳边界
@@ -639,7 +639,7 @@ sci-paper/
 ## 开发与发布
 
 `python tools/validate_plugin.py` 跑 9 项契约检查，
-`python -m unittest discover -s tests -v` 跑 252 个测试；发布前两者都必须通过。
+`python -m unittest discover -s tests -v` 跑 381 个测试；发布前两者都必须通过。
 Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权威边界与索引完整性、
 记录的测试规模与真实发现的一致性、过期契约标记、产品注册表、Python 语法、
 运行时 import、CLI 入口、schema 字段、linter 退出语义、Tier B 行为、测试与 CI 接线 ——
@@ -650,7 +650,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 ## 现状、已知限制与路线图
 
-当前版本：**v0.33.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
+当前版本：**v0.34.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
 
 **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.7 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层、`calibration_unit` 置信度封顶、§5.2 去 AI 化

@@ -2,7 +2,7 @@
 name: paper-review
 description: Strict, source-traced scientific paper review. Runs all A-R dimensions under the SCIPAPER_STANDARD feedback contract: mathematics, physics, logic and statistics, language and de-AI, document structure and narrative spine (contribution graph plus a seven-question cold read), citation existence and relevance, data and figures, interfaces, redundancy, reproducibility, modern-physics checks, cross-section consistency, adversarial derivation verification (three passes plus twelve-framing escalation to CONFIRMED / REFUTED / MARGINAL), staleness and drift, process artifacts, internal draft language, citation precision, and glossary alignment. Scientific-integrity blockers must be resolved, L0 targets must reach zero, and every strong advisory needs an explicit disposition; ordinary editorial advisories are never disguised as a universal paper PASS/FAIL. Use for: pre-submission audit, full manuscript review, source tracing, mathematics and physics re-derivation, 投稿前 audit, 完整论文审查, 严格迭代修订.
 disable-model-invocation: false
-argument-hint: "<file_path> [--max-iter N] [--no-fix] [--skip-final-mpr] [--no-isolated-mpr] [--field <name>]"
+argument-hint: "<file_path> [--max-iter N] [--no-fix] [--skip-final-physics] [--orchestrated] [--field <name>]"
 ---
 
 # paper-review — typed, source-traced scientific review
@@ -101,31 +101,39 @@ python tools/deai_personal.py <file> --prior-papers-dir <author-own-papers>
 trace、measurement status、priority、recommended action、disposition。确认某条 critique
 存在，不自动决定它是 blocker；后果类别单独判断。
 
+**组合规则：一个维度要么调用测量原件，要么自己拥有内容——绝不复述原件已有的
+检查项。** 测量原件为 `/sci-paper:physics`、`/sci-paper:logic`、`/sci-paper:mainline`、
+`/sci-paper:figure-review`、`/sci-paper:de-ai --audit-only`；它们只产 finding。修复
+**动作**路由到动作原件 `/sci-paper:condense` 与 `/sci-paper:de-ai` Pass 3。本 skill
+自身负责合并、排序与 disposition。
+
 ### A. Mathematics
 
-- 逐式检查量纲、代数、定义、符号一致性、近似条件、边界和极限。
-- 手算或用独立脚本复现关键化简与数值例；脚本结果必须保留 provenance。
-- 所有 `\eqref{}`、labels 和符号定义闭合。
+**量纲与代数再推导调用 `/sci-paper:physics`**（P1、P5），不在此复述。本维度自己
+拥有的是数学**记账**：
+
+- 所有 `\eqref{}`、labels 和符号定义闭合；同一符号不承担两个含义。
+- 定义在首次使用前出现；近似条件、边界和适用域被写出来而不是默认。
 - 数学错误、未声明的必要假设或结论无法推出均为 `integrity_blocker`。
 
 ### B. Physics
 
+**第一原则核查（守恒、对称、宇称、渐近、量纲）调用 `/sci-paper:physics`**，不在此
+复述。本维度自己拥有的是论文与实现之间的物理一致性：
+
 - 核心物理量、算子、滤波器、信号/噪声模式和 sign convention 与代码一致。
-- 守恒律、对称性、宇称、渐近行为和适用域成立。
 - 区分相关与因果；因果声明要有机制或设计支持。
-- 物理错误、适用域矛盾或 claim/evidence 冲突为 `integrity_blocker`。
+- 实现与论文的物理矛盾、适用域矛盾或 claim/evidence 冲突为 `integrity_blocker`。
 
 ### C. Logic and statistics
 
-- claim graph 无循环论证、断链、偷换条件、充分/必要条件错误或未声明假设。
-- 样本、split、CV/grouping、泄漏防护、metric、uncertainty、多重比较和 prior 可复现。
-- 无效统计、泄漏、错误外推或 unsupported conclusion 为 `integrity_blocker`。
-- **Claim–evidence discipline**（`/sci-paper:paper` "声明-证据纪律" 的审查端）：
-  每个经验声明有正文内数字/图/表/引用支撑；动词强度不超过证据强度；模糊量级
-  写成有归属的数字或区间；`significantly` 无伴随检验或数字时是 claim 缺陷。
-  无支撑或超强度的声明按 claim-evidence defect 处理（`integrity_blocker`）；
-  措辞层面的弱化建议为 advisory。
-- 合法但表达不清的逻辑连接通常是 advisory。
+**本维度委派 `/sci-paper:logic`**——claim graph（循环论证、断链、偷换条件、充分/
+必要条件、未声明假设）、统计方法学（样本、split、CV/grouping、泄漏防护、metric、
+uncertainty、多重比较、prior）与**声明-证据纪律**（动词强度不超过证据强度）都由
+该 skill 拥有，本维度不复述其检查项。
+
+单独运行 paper-review 时在本维度内联执行该 protocol；`--orchestrated` 时标
+`SKIPPED_FOR_ORCHESTRATOR`，由父级独立启动 logic。其 finding 并入本轮排序与 disposition。
 
 ### D. Language and de-AI
 
@@ -151,24 +159,14 @@ trace、measurement status、priority、recommended action、disposition。确�
 
 ### E. Document structure and narrative spine
 
-- 检查 contribution graph、依赖顺序、section function、abstract coverage、intro promise、
-  results/discussion/conclusion closure 和图表首次引用位置。
-- **叙事主线协议（cold-read）**：先建 paper-level purpose record——root question、
-  contributions[]、每个贡献的 method_or_argument、key_evidence[]、take-home + scope，
-  全部带 file:line；再建 contribution graph（nodes = claims/definitions/methods/
-  evidence/conclusions；有向边 = prerequisite/supports/qualifies/contrasts/
-  derives-from）。
-  然后按 cold reader 回答七问：root question 是什么？贡献有哪些？贡献之间关系？
-  各自的方法/论证？各自的关键证据？take-home 与 scope？读者在哪里需要回溯、
-  补隐藏上下文或在竞争解读间抉择？每个困惑按后果分类：矛盾或缺必要支撑 =
-  `integrity_blocker`；高曝光可复现困惑 + 具体修复 = strong advisory；局部措辞 =
-  ordinary advisory。
-- motivation → method → validation 是常见默认，不是所有论文必须套用的三幕模板。
-- 多贡献论文可以有多个明确相关分支；问题是关系是否解释清楚，而非图是否恰好只有
-  一个 component。disconnected node 是待查证据，不是自动 fatal；用连接词桥接
-  逻辑断链（Furthermore/Moreover 替代缺失前提）是禁手。
-- 缺失支撑关键 claim 的必要论证可升为 `integrity_blocker`；其余 narrative findings
-  按证据强度分为 strong 或 ordinary advisory。
+**叙事主线协议委派 `/sci-paper:mainline`**——purpose record、contribution graph、
+cold reader 七问与它们的后果分级都由该 skill 拥有，本维度不复述。
+
+本维度自己拥有的是**章节层面的编排**：依赖顺序、section function、abstract
+coverage、intro promise、results/discussion/conclusion closure、图表首次引用位置。
+
+单独运行 paper-review 时在本维度内联执行 mainline protocol；`--orchestrated` 时标
+`SKIPPED_FOR_ORCHESTRATOR`，由父级独立启动 mainline。
 
 ### F. Citation existence and relevance
 
@@ -181,7 +179,10 @@ trace、measurement status、priority、recommended action、disposition。确�
 
 - 每个数字定位到 source；当轮重算能重算的结果。
 - abstract、正文、table、caption、figure、conclusion 同名数字与单位一致。
-- table 逐 cell 对位；figure 检查曲线、点、误差、轴、单位、legend 和 caption。
+- table 逐 cell 与上游数据对位。
+- **figure 制品本身的检查调用 `/sci-paper:figure-review`**（150 DPI 编译页上的曲线、
+  点、误差棒、轴、单位、legend、caption 与画布平衡），不在此复述。本维度只负责
+  数字与 caption 声明的**溯源与一致性**。
 - baseline 比较使用相同 protocol；uncertainty 的定义与样本量明确。
 - mismatch、stale result、missing required artifact 或不可复现 claim 为
   `integrity_blocker`。
@@ -208,19 +209,13 @@ trace、measurement status、priority、recommended action、disposition。确�
 
 ### K. Modern-physics checks
 
-对适用内容执行：
+**本维度委派 `/sci-paper:physics`**（P1–P8：量纲、渐近、对称/宇称/守恒、统计与
+信息论前提、代数再推导、数值溯源、基础引用、编译完整性）。清单只有那一份，
+本维度不复述。
 
-1. dimensional analysis；
-2. asymptotic limits；
-3. symmetry/parity/conservation；
-4. statistical and probability assumptions；
-5. algebraic derivation；
-6. numerical traceability；
-7. foundational citation verification；
-8. build and cross-reference integrity；
-9. de-AI review 不得覆盖物理判断。
-
-不适用项标 `not_applicable`，不能虚构检查结果。
+- de-AI review 不得覆盖物理判断。
+- 不适用项由 physics 标 `not_applicable`，不能虚构检查结果。
+- 隔离冷读模式见 §5。
 
 ### L. Systemic consistency
 
@@ -360,15 +355,17 @@ if budget exhausted:
 不得自动增加 `--max-iter`。预算耗尽不是 paper failure verdict，而是 review workflow
 尚未完成；把 pending blockers、L0 和 strong advisories交给用户决定下一步。
 
-## 5. Isolated modern-physics verification
+## 5. Isolated physics verification（隔离冷读模式）
 
 单独运行 paper-review 时，达到进程内 disposition-complete 状态后，默认由主代理启动
-isolated worktree agent，重新读取 host-level modern-physics-review skill 并 cold-read
-目标论文。它不能继承当前审查的“已经验证”结论。
+isolated worktree agent，重新读取 `/sci-paper:physics` skill 并 cold-read 目标论文。
+它不能继承当前审查的“已经验证”结论——**这个隔离本身就是该模式的全部价值**，
+检查清单在 physics 里只有一份。
 
-- `--skip-final-mpr`: 仅用户显式选择时跳过，报告 `unmeasured`/`SKIPPED_BY_USER`。
-- `--no-isolated-mpr`: 仅供 final-review 等父 orchestrator 避免 nested agent；报告
-  `SKIPPED_FOR_ORCHESTRATOR`，由父级独立执行。
+- `--skip-final-physics`: 仅用户显式选择时跳过，报告 `unmeasured`/`SKIPPED_BY_USER`。
+- `--orchestrated`: 仅供 final-review 等父 orchestrator 避免 nested agent。physics、
+  mainline、logic 三个测量原件改由父级在同级独立启动；本 skill 对应维度报告
+  `SKIPPED_FOR_ORCHESTRATOR`。
 - isolated review 产生的 critique 先判断 evidentiary verdict，再单独赋 consequence class。
   CONFIRMED editorial critique 不自动成为 blocker。
 - 新 blocker/L0/strong advisory 回注主循环；agent failure 必须显式报告，不能伪装通过。
@@ -391,7 +388,7 @@ Workflow state: DISPOSITION_COMPLETE | REVIEW_ONLY | BREAK_WITH_USER_DECISION | 
 - M derivations: VERIFIED / UNDER_SCRUTINY
 - build: measured status and result
 - length budget (§5.3): gate exit / total words before -> after / justified sections with reasons
-- isolated MPR: measured / unmeasured / orchestrator-owned / failed
+- isolated physics: measured / unmeasured / orchestrator-owned / failed
 
 ## Ranked findings
 | id | kind | layer | rule | location | evidence | source trace | action | disposition |
@@ -446,4 +443,5 @@ or free of subjective editorial alternatives.
 - Calling advisory-only exit 0 a scientific or submission PASS.
 - Skipping M pass-2/pass-3 because pass-1 looked correct.
 - Hiding unresolved items after iteration budget exhaustion.
-- Starting a nested sub-agent when `--no-isolated-mpr` delegates MPR to the parent orchestrator.
+- Starting a nested sub-agent when `--orchestrated` delegates a primitive to the parent.
+- Restating a measurement primitive's checklist inside a dimension instead of calling it.

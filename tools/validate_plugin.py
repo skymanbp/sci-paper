@@ -57,11 +57,15 @@ FORBIDDEN_DOC_COPIES = (
 
 NORMATIVE_SKILLS = {
     "paper",
+    "physics",
+    "mainline",
+    "logic",
     "de-ai",
     "condense",
     "paper-review",
     "figure-review",
     "final-review",
+    "calibrate",
     "proposal-polish",
 }
 CORE_IMPORTS = {
@@ -379,6 +383,11 @@ def _discovered_test_count() -> tuple[int, int]:
 
 TEST_COUNT_RE = re.compile(r"(\d[\d,]*) unit/CLI tests? \((\d+) test files?")
 SUITE_COUNT_RE = re.compile(r"\((\d[\d,]*) tests?, (\d+) files?\)")
+# The latency table spells the same measurement a third way, in both languages.
+# It sat at 360/19 against a 381-test suite because this check only ever read
+# the evidence record -- a recorded count outside docs/ was nobody's job.
+LATENCY_COUNT_RE = re.compile(
+    r"\*\*(\d[\d,]*) (?:passing|通过)\*\*[,，] ?(\d+) (?:files?|个文件)")
 
 
 def check_recorded_test_counts() -> str:
@@ -396,13 +405,17 @@ def check_recorded_test_counts() -> str:
     # failure mode this function exists to prevent.
     documents = [REPO / EVALUATION_DOC]
     documents.extend(sorted((REPO / EVALUATION_PARTS_DIR).glob("*.md")))
+    # Both READMEs publish the suite size in their latency table. That is a
+    # recorded measurement wherever it is written, so it is checked wherever it
+    # is written -- scanning only docs/ is what let 360/19 survive to 381/19.
+    documents.extend(REPO / name for name in ("README.md", "README.zh-CN.md"))
     claims: list[tuple[tuple[int, int], str]] = []
     for path in documents:
         if not path.is_file():
             continue
         name = path.relative_to(REPO).as_posix()
         text = read_text(path)
-        for pattern in (TEST_COUNT_RE, SUITE_COUNT_RE):
+        for pattern in (TEST_COUNT_RE, SUITE_COUNT_RE, LATENCY_COUNT_RE):
             for claimed_tests, claimed_files in pattern.findall(text):
                 claims.append(((int(claimed_tests.replace(",", "")),
                                 int(claimed_files)), name))
@@ -412,7 +425,7 @@ def check_recorded_test_counts() -> str:
     wrong = sorted({(claim, name) for claim, name in claims
                     if claim != (tests, files)})
     require(not wrong,
-            "evaluation record states suite size(s) "
+            "recorded suite size(s) "
             + ", ".join(f"{claim} in {name}" for claim, name in wrong)
             + f" but discovery finds ({tests}, {files})")
     return (f"recorded suite size matches discovery ({tests} tests, {files} files; "
@@ -431,6 +444,28 @@ def parse_declared_count(text: str, heading: str) -> int:
     match = re.search(rf"^#{{2,4}} {re.escape(heading)} \((\d+)\)\s*$", text, re.MULTILINE)
     require(match is not None, f"README missing '{heading} (N)' heading")
     return int(match.group(1))
+
+
+HEADLINE_EN_RE = re.compile(r"\*\*(\d+) skills · (\d+) tools · (\d+) tests")
+HEADLINE_ZH_RE = re.compile(r"\*\*(\d+) 个 skill · (\d+) 个工具 · (\d+) 个测试")
+
+# Every way the two READMEs spell a repository-shape number, paired with the
+# quantity it claims. One regex per spelling was tried and failed four times --
+# the headline, the ASCII tree and the release paragraph each drifted on their
+# own, and the translation drifted furthest because nothing read it at all. The
+# rule is now the table: a shape number is checked wherever it is written.
+SHAPE_CLAIMS = (
+    (re.compile(r"(\d+) skills\b"), ("skills",)),
+    (re.compile(r"(\d+) product tools\b"), ("tools",)),
+    (re.compile(r"(\d+) files, (\d+) tests\b"), ("files", "tests")),
+    (re.compile(r"(\d+) contract checks\b"), ("checks",)),
+    (re.compile(r"the (\d+)-test suite"), ("tests",)),
+    (re.compile(r"(\d+) 个 skill\b"), ("skills",)),
+    (re.compile(r"(\d+) 个产品工具"), ("tools",)),
+    (re.compile(r"(\d+) 个测试文件、(\d+) 个测试"), ("files", "tests")),
+    (re.compile(r"(\d+) 项契约检查"), ("checks",)),
+    (re.compile(r"跑 (\d+) 个测试"), ("tests",)),
+)
 
 
 def check_registry_counts() -> str:
@@ -453,7 +488,38 @@ def check_registry_counts() -> str:
     expected = rf"Ships {len(documents)} skills\b.*\b{len(products)} tools"
     require(re.search(expected, plugin["description"]) is not None,
             "plugin description skill/tool counts do not match repository")
-    return f"README and manifest registries agree ({len(documents)} skills, {len(products)} tools)"
+
+    # Both READMEs open with the same three counts. Only README.md's section
+    # headings were ever checked, so the translated headline drifted to 9 skills
+    # against a 12-skill repository and nothing said so.
+    tests, files = _discovered_test_count()
+    truth = (len(documents), len(products), tests)
+    for name, pattern in (
+        ("README.md", HEADLINE_EN_RE),
+        ("README.zh-CN.md", HEADLINE_ZH_RE),
+    ):
+        found = pattern.search(read_text(REPO / name))
+        require(found is not None, f"{name} has no headline skills/tools/tests line")
+        claimed = tuple(int(value) for value in found.groups())
+        require(claimed == truth,
+                f"{name} headline states {claimed} (skills, tools, tests) "
+                f"but repository has {truth}")
+
+    facts = {"skills": len(documents), "tools": len(products),
+             "tests": tests, "files": files, "checks": len(CHECKS)}
+    wrong, seen = [], 0
+    for name in ("README.md", "README.zh-CN.md"):
+        text = read_text(REPO / name)
+        for pattern, keys in SHAPE_CLAIMS:
+            for groups in pattern.findall(text):
+                values = (groups,) if isinstance(groups, str) else groups
+                seen += 1
+                for value, key in zip(values, keys):
+                    if int(value) != facts[key]:
+                        wrong.append(f"{name} says {value} {key} (repository has {facts[key]})")
+    require(not wrong, "; ".join(sorted(set(wrong))))
+    return (f"README and manifest registries agree ({len(documents)} skills, "
+            f"{len(products)} tools; {seen} shape claim(s) verified in both READMEs)")
 
 
 def check_tools_syntax() -> str:
@@ -582,25 +648,29 @@ def check_tests_and_ci() -> str:
     return f"required tests and CI wiring present ({len(present)} test files)"
 
 
+# Module level so the count is readable: the READMEs publish "9 contract checks"
+# and check_registry_counts verifies that claim against this tuple.
+CHECKS = (
+    check_manifests,
+    check_skills,
+    check_documentation_boundaries,
+    check_recorded_test_counts,
+    check_registry_counts,
+    check_tools_syntax,
+    check_runtime_contract,
+    check_linter_exit_semantics,
+    check_tests_and_ci,
+)
+
+
 def main() -> int:
     # Failure messages quote document text containing en/em dashes; a redirected
     # stdout under a non-UTF-8 locale would turn a readable contract violation
     # into a UnicodeEncodeError traceback.
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    checks = (
-        check_manifests,
-        check_skills,
-        check_documentation_boundaries,
-        check_recorded_test_counts,
-        check_registry_counts,
-        check_tools_syntax,
-        check_runtime_contract,
-        check_linter_exit_semantics,
-        check_tests_and_ci,
-    )
     try:
-        for check in checks:
+        for check in CHECKS:
             print(f"  [ok] {check()}")
     except ValidationError as error:
         print(f"FAIL: {error}", file=sys.stderr)

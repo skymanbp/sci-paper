@@ -494,3 +494,162 @@ class HeldOutSetTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+OLD_ID_FEED = f"""<feed xmlns="{ATOM_NS}" xmlns:arxiv="{ARXIV_NS}">
+  <entry>
+    <id>http://arxiv.org/abs/astro-ph/9403003v1</id>
+    <published>1994-03-01T00:00:00Z</published>
+    <updated>1994-03-01T00:00:00Z</updated>
+    <summary>{' word' * 60}</summary>
+    <author><name>Ian P. Dell'Antonio</name></author>
+    <author><name>J. Anthony Tyson</name></author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2001.00009v1</id>
+    <published>2020-01-01T00:00:00Z</published>
+    <updated>2020-01-01T00:00:00Z</updated>
+    <summary>{' word' * 60}</summary>
+  </entry>
+</feed>"""
+
+
+def _parse(feed: str) -> list[dict]:
+    real = fetch.urlopen_backoff
+    fetch.urlopen_backoff = lambda *a, **k: feed.encode("utf-8")
+    try:
+        return fetch.fetch_page("q", 0, 10, "199001010000", "202512312359")
+    finally:
+        fetch.urlopen_backoff = real
+
+
+class OldStyleIdTest(unittest.TestCase):
+    """An `archive/YYMMNNN` id must keep its archive.
+
+    The e-print endpoint 404s without it, and the failure is silent in the worst
+    way: the sweep reports `failed=N` and carries on, so the corpus is short by
+    however many old papers the query returned. Measured on a live 1990-2021
+    author sweep before the fix, 7 of 19 candidates were lost this way.
+    """
+
+    def test_the_archive_prefix_survives(self) -> None:
+        self.assertEqual(_parse(OLD_ID_FEED)[0]["source"],
+                         "arxiv:astro-ph/9403003v1")
+
+    def test_a_new_style_id_is_unaffected(self) -> None:
+        self.assertEqual(_parse(OLD_ID_FEED)[1]["source"], "arxiv:2001.00009v1")
+
+    def test_the_slashed_id_still_normalises_for_identity(self) -> None:
+        # Everything downstream was already built for the slash; only the parser
+        # never produced one. This is the join that keeps held-out bookkeeping
+        # working now that it does.
+        self.assertEqual(fetch._bare("astro-ph/9403003v1"), "astro-ph_9403003")
+
+
+class AuthorListTest(unittest.TestCase):
+    """Team size comes from the API, never from counting `\author` in LaTeX."""
+
+    def test_authors_are_extracted_in_order(self) -> None:
+        self.assertEqual(_parse(OLD_ID_FEED)[0]["authors"],
+                         ["Ian P. Dell'Antonio", "J. Anthony Tyson"])
+
+    def test_an_entry_with_no_authors_yields_an_empty_list(self) -> None:
+        self.assertEqual(_parse(OLD_ID_FEED)[1]["authors"], [])
+
+    def test_the_abstract_writer_drops_the_list(self) -> None:
+        # The abstract bank is a prose corpus that other tools read as text.
+        with tempfile.TemporaryDirectory() as name:
+            tmp = Path(name)
+            real = fetch.fetch_page
+            calls = {"n": 0}
+
+            def one_page(*a, **k):
+                calls["n"] += 1
+                return [{"section": "abstract", "text": "word " * 60,
+                         "source": "arxiv:2001.00001", "year": 2020,
+                         "published": "2020-01-01", "updated": "2020-01-01",
+                         "journal_ref": None, "journal": None,
+                         "authors": ["A. Author"], "doi": None}
+                        ] if calls["n"] == 1 else []
+
+            fetch.fetch_page = one_page
+            try:
+                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                    fetch.main(["--field", "wgl", "--profile-root", str(tmp),
+                                "--query-set", "wl", "--out-name", "a.jsonl",
+                                "--per-query", "100"])
+            finally:
+                fetch.fetch_page = real
+            record = json.loads(
+                (tmp / "wgl" / "a.jsonl").read_text(encoding="utf-8").splitlines()[0])
+            self.assertNotIn("authors", record)
+
+
+class AuthorQueryFormTest(unittest.TestCase):
+    """`Surname_Initial` is the listing URL's format, not the search API's.
+
+    Every one of the ten author queries carried that shape until 2026-08-26 and
+    returned exactly 0 records, so the `broad` set was silently ten queries
+    short while its comment claimed they broadened the corpus. A dead query
+    leaves no trace in the output, which is why this is a test and not a note.
+    """
+
+    def test_no_author_query_uses_the_dead_underscore_initial_form(self) -> None:
+        import re as _re
+        dead = _re.compile(r"au:[A-Za-z]+_[A-Za-z](?:\b|$)")
+        for query in fetch.AUTHOR_QUERIES:
+            self.assertIsNone(dead.search(query), f"dead listing-URL form: {query}")
+
+    def test_every_author_query_quotes_its_name(self) -> None:
+        for query in fetch.AUTHOR_QUERIES:
+            self.assertIn('au:"', query, f"unquoted author term: {query}")
+
+    def test_surname_only_queries_are_scoped_to_the_field(self) -> None:
+        # `au:` matches a SURNAME, and a surname is not a person: unscoped,
+        # "Dell'Antonio" also returns a mathematical physicist's math-ph work.
+        for query in fetch.AUTHOR_QUERIES:
+            self.assertTrue("cat:" in query or "abs:" in query,
+                            f"unscoped author query: {query}")
+
+
+class AuthorQueryConstructionTest(unittest.TestCase):
+    """`--author` takes a name OR a whole query, and the difference matters.
+
+    `au:` matches a surname in every archive, not just the field's, and the
+    identity filter cannot fix that: 32 of 100 `au:"Kaiser, N"` papers are
+    nuclear theory under the SAME spelling of the name an `--author-is` regex
+    would match. Scoping has to live in the query, so a value that already
+    carries a query operator is passed through untouched.
+    """
+
+    def queries_for(self, author: str) -> list[str]:
+        seen: list[str] = []
+        real = fetch.fetch_page
+
+        def capture(query, *a, **k):
+            seen.append(query)
+            return []
+
+        fetch.fetch_page = capture
+        try:
+            with tempfile.TemporaryDirectory() as name:
+                args = types.SimpleNamespace(
+                    author=author, author_is="", max_authors=0,
+                    profile_root=Path(name), field="wgl", per_query=1, page=1,
+                    start_at=0, date_lo="201001010000", date_hi="202112312359",
+                    sleep=0)
+                with redirect_stderr(io.StringIO()):
+                    fetch._candidate_ids(args, {"x"}, None)
+        finally:
+            fetch.fetch_page = real
+        return seen
+
+    def test_a_bare_name_is_quoted(self) -> None:
+        self.assertEqual(self.queries_for("Dell'Antonio"), ['au:"Dell\'Antonio"'])
+
+    def test_a_whole_query_passes_through_untouched(self) -> None:
+        whole = 'au:"Kaiser, N" AND cat:astro-ph*'
+        self.assertEqual(self.queries_for(whole), [whole])
+
+    def test_no_author_falls_back_to_the_topic_sweep(self) -> None:
+        self.assertEqual(self.queries_for(""), list(fetch.FULLTEXT_QUERIES))

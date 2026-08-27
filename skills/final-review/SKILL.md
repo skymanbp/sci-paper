@@ -1,6 +1,6 @@
 ---
 name: final-review
-description: Pre-submission final-review orchestrator. Each round loads /sci-paper:paper and SCIPAPER_STANDARD as the framework, then runs paper-review (all A-R dimensions, including the narrative spine and adversarial escalation), figure-review, de-ai (--audit-only structural-tell audit) and a parent-level modern-physics-review in isolated worktrees. Merges sci-paper.feedback.v1 typed findings: scientific-integrity blockers must be resolved, L0 targets must reach zero, strong advisories must carry a disposition, and ordinary advisories plus unavailable axes stay visible in the report. Verifies that this disposition-complete state is stable across consecutive rounds rather than forcing all editorial feedback to zero, and never emits a universal paper PASS/FAIL. Use for: final review, submission-readiness evidence gathering, isolated orchestration of every review skill, 投稿前总审.
+description: Pre-submission final-review orchestrator. Each round loads /sci-paper:paper and SCIPAPER_STANDARD as the framework, then runs paper-review (all A-R dimensions, including the narrative spine and adversarial escalation), figure-review, de-ai (--audit-only structural-tell audit) and the physics, mainline and logic measurement primitives in isolated worktrees. Merges sci-paper.feedback.v1 typed findings: scientific-integrity blockers must be resolved, L0 targets must reach zero, strong advisories must carry a disposition, and ordinary advisories plus unavailable axes stay visible in the report. Verifies that this disposition-complete state is stable across consecutive rounds rather than forcing all editorial feedback to zero, and never emits a universal paper PASS/FAIL. Use for: final review, submission-readiness evidence gathering, isolated orchestration of every review skill, 投稿前总审.
 disable-model-invocation: false
 argument-hint: "<file_path> [--max-rounds N] [--skip <skill>[,<skill>...]] [--field <name>] [--out <dir>] [--require-consecutive N]"
 ---
@@ -19,7 +19,13 @@ The required review components are:
 3. `/sci-paper:figure-review` for compiled-page figure evidence;
 4. `/sci-paper:de-ai` in `--audit-only` mode for the structural-tell and de-AI
    measurement audit;
-5. host-level modern-physics-review, launched by the parent orchestrator to avoid nested agents.
+5. `/sci-paper:physics` for the first-principles checklist (P1-P8);
+6. `/sci-paper:mainline` for the narrative-spine cold read;
+7. `/sci-paper:logic` for reasoning, statistics and claim-evidence discipline.
+
+Components 5-7 are measurement primitives that paper-review also composes. The parent
+launches them at its own level so their cold read is independent of paper-review's
+context rather than nested inside it.
 
 `/sci-paper:condense` is an action skill, not a reviewer: redundancy findings
 surface through paper-review dimension I, and the parent routes their fixes to
@@ -29,11 +35,11 @@ condense during §3.7. Keeping detection in one lane avoids duplicate review sur
 
 1. **Run, do not remember.** Every round launches fresh isolated reviewers for all non-skipped
    components. Prior reports are comparison artifacts, not substitutes for current review.
-2. **Isolation is mandatory.** paper-review, figure-review, de-ai and MPR run
+2. **Isolation is mandatory.** paper-review, figure-review, de-ai, physics, mainline and logic run
    in separate `isolation: worktree` agents. The parent loads `paper` and the standard, merges
    reports and applies authorized fixes.
-3. **No nested agents.** paper-review receives `--no-isolated-mpr`; the parent launches MPR at
-   the same level as the other reviewers. paper-review's M.2 escalation is in-process by design.
+3. **No nested agents.** paper-review receives `--orchestrated`; the parent launches physics,
+   mainline and logic at the same level as the other reviewers. paper-review's M.2 escalation is in-process by design.
    Any child attempt to spawn an agent is a prompt error.
 4. **Preserve evidence, not verdict authority.** The parent may not discard a child finding,
    but must verify/deduplicate it and type its consequence. A CONFIRMED critique is not
@@ -70,7 +76,7 @@ Defaults:
 - no skipped reviewers
 - output under `final-review-out/<date>__<slug>/`
 
-Valid skips: `paper-review`, `figure-review`, `de-ai`, `mpr`.
+Valid skips: `paper-review`, `figure-review`, `de-ai`, `physics`, `mainline`, `logic`.
 A skip must be user-explicit, remains visible as `unmeasured`, and cannot be described as
 reviewed. A figure-less document normally yields `not_applicable`, not PASS.
 
@@ -87,7 +93,7 @@ Workflow states:
 
 1. Read the current target manuscript completely.
 2. Read `docs/SCIPAPER_STANDARD.md` and the current SKILL.md files for paper, paper-review,
-   figure-review and de-ai.
+   figure-review, de-ai, physics, mainline and logic.
 3. Resolve field evidence; missing assets remain explicit.
 4. Create the output root and round directory.
 5. Initialize a finding registry keyed by stable finding ID plus semantic deduplication key
@@ -106,12 +112,12 @@ current versions/paths in `paper-baseline.md`. This provides policy, not a child
 Launch a worktree agent with a self-contained prompt:
 
 - cold-read the current target and all sources;
-- invoke `/sci-paper:paper-review <target> --no-isolated-mpr --field <field>`;
+- invoke `/sci-paper:paper-review <target> --orchestrated --field <field>`;
 - do not spawn any child agent (M.2 escalation runs in-process);
 - return the complete typed report, including A–R coverage (dimension E narrative-spine
   answers and dimension M record included), measurement states, blockers, L0 targets,
   strong/ordinary advisories, dispositions and build evidence;
-- set isolated MPR state to `SKIPPED_FOR_ORCHESTRATOR`.
+- set physics, mainline and logic to `SKIPPED_FOR_ORCHESTRATOR`.
 
 If it attempts nesting, return `NESTED_AGENT_REJECTED`; the round becomes
 `PROMPT_VIOLATION` and must be reissued with the corrected prompt.
@@ -143,18 +149,24 @@ Launch a separate worktree agent to invoke `/sci-paper:de-ai <target> --audit-on
 The parent applies L0 fixes and selected strong-advisory rewrites itself in §3.7
 (or runs de-ai Pass 3 in the parent context); the auditor never edits.
 
-### 3.5 Parent-level isolated modern-physics-review
+### 3.5 Parent-level isolated measurement primitives
 
-Launch a sibling worktree agent, never from inside paper-review. The prompt must instruct it to:
+Launch one sibling worktree agent per primitive -- `/sci-paper:physics`,
+`/sci-paper:mainline`, `/sci-paper:logic` -- never from inside paper-review. Each prompt
+must instruct the agent to:
 
 - cold-read all current sources;
-- load and execute the host-level modern-physics-review protocol;
+- load and execute that primitive's protocol, and only that one;
 - avoid spawning sub-agents;
-- return each scientific issue with evidence and a proposed consequence class;
+- return each issue with evidence and a proposed consequence class;
 - report disagreements with other reviewers without assuming the other reviewers are wrong;
 - state unavailable checks explicitly.
 
-Normalize its output to the shared finding schema. A disagreement is a finding candidate, not
+Their scopes do not overlap by construction: physics owns first principles, logic owns
+reasoning and statistics, mainline owns whether a cold reader can follow. A primitive that
+restates another's checklist is a prompt error, not extra coverage.
+
+Normalize each output to the shared finding schema. A disagreement is a finding candidate, not
 an automatic blocker; verify the evidence and assign consequence.
 
 ### 3.6 Merge and verify
@@ -166,7 +178,9 @@ registry = merge_by_stable_id_and_semantic_key(
     paper_review,
     figure_review,
     de_ai_audit,
-    mpr,
+    physics,
+    mainline,
+    logic,
 )
 ```
 
@@ -234,7 +248,7 @@ stability unless they expose a new blocker/L0 or a new strong advisory requiring
 
 - Child failure/timeout: retry only after diagnosing the cause; repeated failure returns
   `SUBAGENT_FAILURE` with that axis unmeasured.
-- Nested-agent attempt or wrong MPR ownership: `PROMPT_VIOLATION`.
+- Nested-agent attempt or wrong primitive ownership: `PROMPT_VIOLATION`.
 - User skip: record `unmeasured` and continue under explicit limitation.
 - `--max-rounds` exhausted: `BREAK_WITH_USER_DECISION`; list pending blockers, L0 targets,
   strong advisories, failed/unmeasured axes and options. Do not increase the budget or claim
@@ -301,7 +315,7 @@ unique or free of every possible reviewer objection.
 ## 8. Anti-patterns
 
 - Reusing last round's report without rerunning isolated reviewers.
-- Allowing paper-review to spawn nested MPR.
+- Allowing paper-review to spawn a nested primitive under `--orchestrated`.
 - Treating every child CONFIRMED critique as a blocker.
 - Treating every advisory or reviewer disagreement as mandatory prose change.
 - Requiring figure-review to return PASS.
