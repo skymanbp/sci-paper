@@ -313,7 +313,7 @@ so the *use* contributes nothing at all, while the *definition* contributes
 `63` once — in the preamble, attributed to no reported section. Two errors in
 opposite directions, which is why the net was small enough to go unnoticed.
 
-Found by real-machine review of a manuscript (the manuscript) that uses the habit
+Found by real-machine review of a manuscript under review that uses the habit
 throughout: 128 numeric macros, 253 uses in the body. Expanding the uses adds
 **650** digits; dropping the definitions removes **493** spurious preamble
 digits; the net on that document is 6,689 → 6,846, or +2.3% where the two
@@ -322,7 +322,7 @@ component errors are 9.7% and 7.4%.
 **Prevalence.** Over 390 corpus documents carrying at least 50 visible digits,
 88.2% hide none this way at all. The ninetieth percentile hides 0.2% of its
 digits, the ninety-ninth 4.5%, and the heaviest corpus document 27% behind 87
-uses. the manuscript's 9.0% is the 99.5th percentile of that distribution. The habit is
+uses. That manuscript's 9.0% is the 99.5th percentile of it. The habit is
 rare, and where it appears it appears hard.
 
 **The reference did not move.** The fix changes what the projection counts, so
@@ -341,7 +341,7 @@ conservative: a macro expands only when its body is a bare numeric literal, so
 `\newcommand{\Msun}{M_\odot}` and every macro taking an argument are untouched.
 
 **What this does not close.** A macro whose body carries markup stays invisible
-— `\newcommand{\REDACTEDMACRO}{5.1\%}` is still stripped, leaving 14 digits
-across 7 uses unread in the manuscript. PDF-derived corpus entries were never affected,
+— a body such as `{5.1\%}` carries a command and is still stripped, leaving 14
+digits across 7 uses unread. PDF-derived corpus entries were never affected,
 since a PDF text layer is already rendered; the bias applied to `.tex` sources
 only, on both sides of the comparison.

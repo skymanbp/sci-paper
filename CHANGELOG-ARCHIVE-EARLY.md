@@ -475,7 +475,7 @@ policy or authorship detectors.
   an active duplicate `docs/EVALUATION.md`; regression tests cover the shared
   schema, linter CLI, document structure, and rewrite eligibility.
 - **Real-paper evaluation added.** `EVALUATION.md` records a source-traced,
-  proposal-only the manuscript introduction rewrite that removes an announced-list
+  proposal-only introduction rewrite that removes an announced-list
   template while preserving L0=0 and all protected scientific invariants. The
   manuscript remains unchanged pending author disposition.
 - **Independent-review fixes (16 verified findings).** An adversarially

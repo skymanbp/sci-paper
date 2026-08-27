@@ -7,7 +7,7 @@ to it twice over: the use site contributed nothing, and the definition site
 contributed the digits once, in the preamble, where no section reports them.
 
 Both directions are covered here, because they cancel: on the manuscript that
-prompted this (the manuscript, 2026-08-27) expanding uses added 650 digits while dropping
+prompted this (2026-08-27) expanding uses added 650 digits while dropping
 definitions removed 493, so a test that checked only the net would have passed
 against a fix that did neither.
 """

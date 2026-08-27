@@ -12,11 +12,11 @@ import rewrite_reward
 class RewriteFidelityTests(unittest.TestCase):
     def test_preserves_scientific_invariants(self):
         reference = (
-            r"the manuscript increases AUC to 0.91 at $z=0.5$ for 43 clusters "
+            r"The estimator increases AUC to 0.91 at $z=0.5$ for 43 clusters "
             r"\citep{Smith2024}; the uncertainty is not below 2 km/s."
         )
         candidate = (
-            r"For the 43 clusters, the manuscript increases AUC to 0.91 at $z=0.5$ "
+            r"For the 43 clusters, the estimator increases AUC to 0.91 at $z=0.5$ "
             r"\citep{Smith2024}. The uncertainty is not below 2 km/s."
         )
         result = rewrite_reward.fidelity_eligibility(candidate, reference)
@@ -65,11 +65,11 @@ class RewriteFidelityTests(unittest.TestCase):
         self.assertIn("512", result["invented"]["numbers"])
 
     def test_dropped_semantic_macro_is_ineligible(self):
-        reference = r"an aperture-mass family of \Nconfig{} configurations"
-        candidate = "an aperture-mass family of configurations"
+        reference = r"a filter family of \Nconfig{} configurations"
+        candidate = "a filter family of configurations"
         result = rewrite_reward.fidelity_eligibility(candidate, reference)
         self.assertFalse(result["eligible"])
-        self.assertIn("Nconfig", result["missing"]["latex_macros"])
+        self.assertIn("nconfig", result["missing"]["latex_macros"])
 
     def test_formatting_macros_are_not_protected(self):
         reference = r"The estimator \emph{clearly} improves with 43 clusters."

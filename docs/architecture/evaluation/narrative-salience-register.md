@@ -14,20 +14,21 @@ nothing here can redefine it. All machine-readable findings use the
 
 ## 11. Real introduction rewrite evaluation
 
-A proposal-only run was completed on 2026-07-12 against the manuscript commit
-`[removed]`,
-`sec_1_intro.tex` lines 54--76 (paths as of that commit; the draft tree
-was dissolved into `papers/manuscripts/the manuscript/` + git history on 2026-08-06). The manuscript was not modified. The target was the announced
-"five elements / First ... Fifth" sequence.
+A proposal-only run was completed on 2026-07-12 against one introduction
+section of a manuscript under review. The manuscript was not modified. The
+target was an announced "five elements / First ... Fifth" sequence.
+
+This repository is public and that manuscript is unpublished, so neither its
+content nor any identifier for it appears below. What the axes measured is the
+record; what the paper says is not.
 
 ### 11.1 Source and fidelity verification
 
 The original paragraph, the current method description, and its current numerical and
-citation sources were read in the same run. In particular:
-
-- [removed]
-  `notes/REDACTEDNOTE.md` section T2;
-- [unpublished manuscript content removed 2026-08-27]
+citation sources were read in the same run. Every number, macro invocation and
+citation key carried into the proposal was traced back to the file that defines
+it -- the macro file for values, the method and data sections for the claims
+they support, `references.bib` for the keys -- before the proposal was scored.
 
 The selected candidate preserved every deterministic protected invariant from the
 source paragraph: numbers, units, citations, inline mathematics/macros, uppercase
@@ -38,7 +39,12 @@ was added.
 
 ### 11.2 Proposed rewrite
 
-> [unpublished manuscript content removed 2026-08-27]
+Withheld. The proposal was a fidelity-preserving rewrite of an
+unpublished manuscript's introduction: because the rewrite gate protects
+numbers, citations, macros, entities and claim/evidence relations, it
+carries the same scientific content as the original, and quoting it here
+disclosed that content on a public repository. Removed 2026-08-27. The
+measurements it produced are unaffected and are in 11.3.
 
 ### 11.3 Before/after feedback
 
@@ -64,12 +70,12 @@ cross the project's cloud-only compute boundary; its release status remains `deg
 for the independent calibration reasons in section 7.
 
 The rewrite remains a proposal until the author accepts or rejects it. It must not enter
-the exemplar bank or the the manuscript manuscript before that decision.
+the exemplar bank or the manuscript before that decision.
 
 ## 13. Blind A/B perceptual panel and the layer-2 tell taxonomy (v0.18.0)
 
 Date: 2026-07-14. Subject: the full de-scaffold rewrite of a real 31-page ApJ
-draft (the manuscript, weak-lensing pipeline; 71 substantial paragraphs) executed under
+draft (a manuscript under review; 71 substantial paragraphs) executed under
 a mechanical fidelity gate (8 protected token multiset classes: cites, refs,
 labels, byte-frozen floats, byte-frozen display math, inline math, macro
 invocations, numeric literals, all multiset-identical before/after).
@@ -110,7 +116,7 @@ Tells the panel surfaced that the v0.17.0 detectors did not capture:
 1. **Antithesis clusters**: "X rather than Y" / "not X but Y" / "X instead of
    Y" as a default sentence engine. Corpus calibration (1,957 human paragraphs,
    wgl field): at least one antithesis in 3.3% of paragraphs, two or more in
-   **0.2%**. The the manuscript drafts: two or more in 5.6% of paragraphs (28x the
+   **0.2%**. The manuscript drafts: two or more in 5.6% of paragraphs (28x the
    human base rate). Captured in `deai_structure` as auxiliary family
    `antithesis-cluster` (threshold: 2 per paragraph).
 2. **Short reversal beats**: a setup followed by a reversal sentence of five
@@ -333,9 +339,9 @@ Positives on the case document:
 |---|---:|---:|---:|
 | `AUC` | 12 | 1 | 6.4e-5 |
 | `logit` | 6 | 0 | 0 |
-| `REDACTEDTERM` | 7 | 0 | 0 |
+| `<introduced concept>` | 7 | 0 | 0 |
 
-`REDACTEDTERM` is the concept the paper introduces, so its correct disposition
+The third term is the concept the paper introduces, so its correct disposition
 is the third the action offers (confirm the first occurrence carries a
 definition) rather than replacement. The axis cannot distinguish an introduced
 concept from a borrowed one and does not try to, which is why it emits
@@ -346,8 +352,9 @@ this document, of which roughly six were real. Three construction classes
 accounted for the rest, each handled structurally rather than by raising a
 threshold:
 
-- *Subscript decorations.* `\newcommand{\Kraw}{S_\mathrm{sad}}` yielded the fake
-  terms `sad`, `det`, `nat`, `crit`, `ang`, `eff`, `sep`. Macro bodies are still
+- *Subscript decorations.* A macro of the form `\newcommand{\Kraw}{K_\mathrm{raw}}`
+  yielded a fake term from its subscript label; seven such labels entered the
+  bank as words. Macro bodies are still
   read — a term bound to a macro is by construction repeated, and the shared
   reduction erases it, so 12 uses of `\AUC` leave no "AUC" in reduced prose — but
   a `\mathrm{}` preceded by `_` or `^` is a decoration, not a word.

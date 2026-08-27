@@ -25,7 +25,7 @@ than thresholded away:
   is corpus-rare -- `aperture-mass`, the core observable of this field, appears
   in 8 passages of 15,599. A compound is judged by its RAREST part instead: it
   is native when every part it is built from is native.
-* **Subscripts.** `\\newcommand{\\Kraw}{S_\\mathrm{sad}}` renders a subscript,
+* **Subscripts.** `\\newcommand{\\Kraw}{S_\\mathrm{raw}}` renders a subscript,
   not a word. Reading macro bodies without checking for a preceding `_` or `^`
   turns every symbol decoration into a fake foreign term.
 * **Possessives.** `sub-halo's` and `sub-halo` are one term.

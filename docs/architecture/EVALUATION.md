@@ -178,5 +178,5 @@ Historical record — v0.14.0 release gates and their status on 2026-07-12:
   green.
 
 Author decisions that remain open and do not block the plugin release: accepting or
-rejecting the §11 the manuscript rewrite proposal, and whether to ever propose an L3 operating
+rejecting the §11 rewrite proposal, and whether to ever propose an L3 operating
 point (the hard set says not yet).

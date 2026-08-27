@@ -339,13 +339,13 @@ def document_source(path: Path) -> str:
     they treat comments". The L0 lexical scan is a third view -- it must see
     `---` and `\\textemdash` as authored, so it cannot use either projection --
     and it was never brought into that guarantee. It read raw file text, and on
-    the manuscript it reported three em-dash targets that were all `% --- lane A: ...`
+    one manuscript it reported three em-dash targets that were all `% --- lane A:`
     comment rules: 3 of 3 false, with no non-comment line in the document
     carrying an em-dash at all.
 
     `read_tex_document` folds `\\input`/`\\include` back into their root,
     because a paper is a document, not a file. Reading only the root left
-    the manuscript measured on 678 of its 23,505 words while four axes still reported
+    a manuscript measured on 678 of its 23,505 words while four axes reported
     `measured` -- 53 advisories and one whole axis hidden behind a wrapper.
 
     Comment spans are blanked to equal-length runs of spaces rather than

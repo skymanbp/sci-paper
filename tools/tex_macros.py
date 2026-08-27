@@ -14,7 +14,7 @@ digits): 88.2% hide no digit this way at all, the ninetieth percentile hides
 0.2%, and the ninety-ninth hides 4.5%. The habit is rare, so the correction
 moves almost nothing -- but where a paper does commit to it, it commits hard.
 The heaviest corpus document hides 27% of its digits behind 87 macro uses, and
-one manuscript reviewed that day (the manuscript) hid 662 digits, 9.0% of its total,
+one manuscript reviewed that day hid 662 digits, 9.0% of its total,
 behind 253 uses: the 99.5th percentile of the same corpus.
 
 Expansion happens once, on the assembled document, because that is the only

@@ -52,10 +52,10 @@ class TestMacroTerms(unittest.TestCase):
         self.assertEqual(macros, {"AUC": "AUC"})
 
     def test_subscript_decoration_is_not_a_term(self):
-        # \Kraw renders S_sad: "sad" is a subscript label, not vocabulary.
-        # Reading it as a term is what produced 'sad', 'det', 'nat' and 'crit'
-        # as fake foreign words.
-        self.assertEqual(register.macro_terms("\\newcommand{\\Kraw}{S_\\mathrm{sad}}"),
+        # \Kraw renders K_raw: "raw" is a subscript label, not vocabulary.
+        # Reading it as a term is what produced fake foreign words out of the
+        # subscript labels of seven such macros.
+        self.assertEqual(register.macro_terms("\\newcommand{\\Kraw}{K_\\mathrm{raw}}"),
                          {})
 
     def test_superscript_decoration_is_not_a_term(self):

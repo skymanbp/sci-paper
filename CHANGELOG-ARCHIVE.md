@@ -516,7 +516,7 @@ as a machine inventory written for a neighbouring discipline.
   test are handled rather than thresholded away: hyphenated compounds
   are judged by their rarest part (`aperture-mass` is native via
   `aperture`), subscript decorations in macro bodies are not terms
-  (`\Kraw` renders `S_sad`, not the word "sad"), and possessives fold
+  (`\Kraw` renders `K_raw`, not the word "raw"), and possessives fold
   onto the bare term. Advisories only — field register is the author's
   judgement, and a corpus-rare term may be the concept the paper
   introduces.
