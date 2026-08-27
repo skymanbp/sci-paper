@@ -18,6 +18,7 @@ from typing import Any
 TOOLS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOOLS_DIR))
 import deai_docstructure  # noqa: E402  sibling tool import after path setup
+import extract_sections as es  # noqa: E402  document assembly and projections
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_metrics  # noqa: E402  distribution and canonical ranges
 import deai_discourse  # noqa: E402  cohesion and hedging detector
@@ -330,6 +331,33 @@ def lexical_findings(text: str, path: Path,
     return findings, axes
 
 
+def document_source(path: Path) -> str:
+    """The text every axis measures: one whole document, comments blanked.
+
+    `extract_sections.latex_to_plain` documents that its two projections share
+    one pattern set so the views of a manuscript "can never drift apart in how
+    they treat comments". The L0 lexical scan is a third view -- it must see
+    `---` and `\\textemdash` as authored, so it cannot use either projection --
+    and it was never brought into that guarantee. It read raw file text, and on
+    the manuscript it reported three em-dash targets that were all `% --- lane A: ...`
+    comment rules: 3 of 3 false, with no non-comment line in the document
+    carrying an em-dash at all.
+
+    `read_tex_document` folds `\\input`/`\\include` back into their root,
+    because a paper is a document, not a file. Reading only the root left
+    the manuscript measured on 678 of its 23,505 words while four axes still reported
+    `measured` -- 53 advisories and one whole axis hidden behind a wrapper.
+
+    Comment spans are blanked to equal-length runs of spaces rather than
+    deleted, so every line number and character offset a finding reports still
+    points where it did.
+    """
+    if path.suffix.lower() != ".tex":
+        return path.read_text(encoding="utf-8", errors="replace")
+    return es.RE_TEX_COMMENT.sub(lambda m: " " * len(m.group(0)),
+                                 es.read_tex_document(path))
+
+
 def collect_feedback(path: Path, field_profile_dir: Path | None, *,
                      ai_classifier: bool = False, ai_threshold: float = 0.7,
                      distribution: bool = True, structure: bool = True,
@@ -337,7 +365,7 @@ def collect_feedback(path: Path, field_profile_dir: Path | None, *,
                      voice: bool = False, register: bool = True,
                      salience: bool = True, discourse: bool = True
                      ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    text = path.read_text(encoding="utf-8", errors="replace")
+    text = document_source(path)
     findings, axes = lexical_findings(
         text, path, field_profile_dir, ai_classifier, ai_threshold)
     if register:

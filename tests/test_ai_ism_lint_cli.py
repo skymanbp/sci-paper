@@ -211,5 +211,52 @@ class LinterCliTests(unittest.TestCase):
         self.assertIn("execution failed", result.stderr)
 
 
+class DocumentAssemblyTests(unittest.TestCase):
+    """The lint path must read the same document the corpus path reads.
+
+    `extract_sections.latex_to_plain` promises that its projections "can never
+    drift apart in how they treat comments". The L0 lexical scan is a third
+    view -- it must see `---` as authored, so it can use neither projection --
+    and it sat outside that promise, reading raw file text. On a real
+    manuscript that made 3 of 3 em-dash targets false, every one a
+    `% --- lane A: ...` comment rule, and reading only the root file measured
+    678 of 23,505 words while four axes still reported `measured`.
+    """
+
+    def lint(self, files: "dict[str, str]"):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name, body in files.items():
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(body, encoding="utf-8")
+            return subprocess.run(
+                [sys.executable, str(LINTER), str(root / "main.tex"),
+                 "--no-distribution", "--no-structure",
+                 "--no-document-structure"],
+                text=True, capture_output=True, encoding="utf-8")
+
+    def test_an_em_dash_inside_a_latex_comment_is_not_a_target(self):
+        result = self.lint({"main.tex":
+                            "% --- lane A: all from notes/v19.json, run 2026-07-09 ---\n"
+                            "\\section{Methods}\nThe shear catalog is measured.\n"})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("L0=0", result.stdout)
+
+    def test_an_em_dash_in_prose_is_still_a_target(self):
+        # Blanking comments must not disarm the rule on the prose it protects.
+        result = self.lint({"main.tex": "\\section{Methods}\n"
+                                        "The catalog---measured here---is used.\n"})
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertNotIn("L0=0", result.stdout)
+
+    def test_an_included_file_is_measured_not_skipped(self):
+        result = self.lint({
+            "main.tex": "\\section{Methods}\nSee below.\n\\input{sections/body}\n",
+            "sections/body.tex": "The catalog---measured here---is used.\n"})
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertNotIn("L0=0", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

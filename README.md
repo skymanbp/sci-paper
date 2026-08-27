@@ -5,14 +5,14 @@
 [![Version](https://img.shields.io/badge/version-0.34.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-382%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-385%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**12 skills · 34 tools · 382 tests · one normative contract · zero authorship verdicts.**
+**12 skills · 34 tools · 385 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
@@ -470,7 +470,7 @@ assembled from its includes. Re-taken whole: the floor moved 84 → 98 ms, so no
 | `+ --oracle` (GPT-2-large token surprisal) | 33.8 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 37.2 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **9/9 checks pass** | 2.9 s | stdlib |
-| Full test suite — **382 passing**, 19 files | 66.2 s | stdlib |
+| Full test suite — **385 passing**, 19 files | 81.4 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs ~360 ms of analysis
 above the interpreter floor**, with no optional dependency installed. The two model-backed axes cost
@@ -670,14 +670,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   12 skills         ├── tests/     19 files, 382 tests
+├── skills/<name>/SKILL.md   12 skills         ├── tests/     19 files, 385 tests
 ├── tools/                   34 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 382-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 385-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page
 anchors, recorded suite sizes against real discovery, product registries, syntax,

@@ -135,7 +135,7 @@ python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The working tree passes the validator and all 382 unit/CLI tests (19 test files, collected
+The working tree passes the validator and all 385 unit/CLI tests (19 test files, collected
 2026-08-27). These commands must be rerun after every subsequent code or release-metadata
 change; the release record must quote the fresh output rather than a past result.
 
@@ -150,7 +150,7 @@ The three drift events it exists to stop are recorded in §18.8.
 ## 12. Release evidence boundary
 
 Current release gates (v0.33.0, 2026-08-27): `validate_plugin.py` all 9 checks
-pass and the full unit/CLI suite (382 tests, 19 files) passes on a clean tree;
+pass and the full unit/CLI suite (385 tests, 19 files) passes on a clean tree;
 both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
 release commit must also be green (first green runs: 31133202443 push,
 31133215203 manual dispatch).
