@@ -3,6 +3,87 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.35.0 — 2026-08-27
+
+The axis that counts numbers could not see numbers written as macros, a public
+repository was carrying an unpublished manuscript's method summary, and the
+worked example that demonstrates any of this now runs on a synthetic paper
+instead of a real one.
+
+### Numbers held in macros were invisible, in both directions
+
+A manuscript that writes `\newcommand{\Nfields}{63}` in its preamble and
+`\Nfields{}` in its results put a measured quantity where neither named text
+projection could read it. `RE_TEX_SIMPLE_CMD` reduces a command to its
+argument, so the use site contributed nothing while the definition site
+contributed the digits once, in the preamble, attributed to no reported
+section. Two errors running in opposite directions, which is why the net stayed
+small enough to go unnoticed: on the manuscript that surfaced it, expanding the
+uses adds 650 digits and dropping the definitions removes 493.
+
+Found by running the tools on a real manuscript, not by a test. The salience
+axis had been reporting recital percentiles for that paper computed on 91% of
+its digits, and correcting it moved that paper from 16 recital findings to 26.
+
+`tools/tex_macros.py` expands numeric-literal macros once, on the assembled
+document root, because that is the only scope holding both a preamble
+definition and a body use — the same reason `read_tex_document` folds
+`\include` in the first place. Only a bare numeric literal expands, so
+`\newcommand{\Msun}{M_\odot}` and every macro taking an argument are untouched.
+
+Both salience baselines were rebuilt rather than left to score expanded
+manuscripts against an unexpanded reference. They move by **zero to four
+decimals** at the p90 and p95 gates, across all three features and all seven
+buckets, in both `wgl` and `wgl-letter`: 88.2% of 390 corpus documents never
+use the construction. That is what separates a correction from a rescaling, and
+it means no published salience figure in `EVALUATION.md` changes (§22).
+
+### An unpublished manuscript's method summary was in a public repository
+
+This repository is public. Content from the author's unpublished manuscripts
+had accumulated in the evaluation record since 2026-07-12, in increments that
+each looked locally harmless — a codename in a test fixture, a macro and its
+value in a docstring, one fidelity-preserving rewrite quoted in full.
+
+The aggregate was a complete method summary: enough of the method for a competitor to reconstruct the contribution. Public for 46 days.
+
+The quoted rewrite was the largest single exposure, and it was labelled a
+proposal rather than a quotation, which is exactly why it survived review: the
+rewrite gate protects numbers, citations, macros, entities and claim/evidence
+relations, so a fidelity-preserving rewrite discloses what the original
+discloses. Being a rewrite is not a defence.
+
+Removed: the quoted block, the method-component list, manuscript codenames
+throughout, one real measured value, and manuscript-derived test fixtures,
+which now use invented macros. Kept: every measurement. Finding counts,
+percentiles, rule names, before/after tables and the panel results describe how
+the tools behave, not what the paper found, and they are why the record exists.
+
+Git history was rewritten to remove the same content from every earlier commit.
+That does not undo publication — the content may persist in existing clones,
+forks and upstream caches.
+
+### A worked example that is safe to ship
+
+`examples/` now carries a synthetic manuscript and the same paper after acting
+on the findings. The topic is a textbook one and every value is invented, so
+the demonstration no longer depends on anyone's unpublished work.
+
+It is also a more honest demonstration than a clean sweep would be. L0 targets
+go to zero and `discourse-cohesion` from 3 findings to 1, while
+`salience-recital` **rises** from 4 to 6 — because carrying a noun forward to
+link two sentences pulls the subject into sentences that also carry a numeral.
+In a number-dense passage cohesion and recital want opposite things and no
+rewrite satisfies both. Both findings are true, and which to act on is the
+author's judgement, which is why neither is a blocker and there is no score.
+
+### Also
+
+- The re-export contract test named its excluded module imports one at a time
+  (`re`, `defaultdict`, `Path`), so it failed the moment a new import appeared.
+  It now excludes module objects by type.
+- Suite: 393 tests across 20 files; `validate_plugin.py` 9/9.
+
 ## v0.34.0 — 2026-08-27
 
 The review skills separate into measurement primitives and the composites that

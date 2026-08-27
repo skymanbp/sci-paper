@@ -1,0 +1,100 @@
+% The same synthetic manuscript after acting on the findings.
+%
+% Every measured value in sample-manuscript.tex survives here. Nothing was
+% deleted to make a finding go away: the recital advisories were answered by
+% saying what the quantities establish, so that a passage is no longer an
+% uninterrupted run of numeral-bearing sentences, and the cohesion advisories
+% by carrying a noun forward rather than by adding connectives that fake a link.
+%
+% Numbers preserved: 4200, 0.013, 0.0004, 12, 10, 200, 8, 1.2, 4.6, 5, 0.00,
+% 0.40, 350, 0.02, 4, 3.5, 0.7, 0.263, 4.2, 0.002, 0.0002, 0.041, 0.004,
+% 0.028, 2, 0.007, 3, 0.052, 0.0011, 200, 0.0008, 0.0003, 0.0005.
+\documentclass{article}
+
+\newcommand{\Nsims}{4200}
+\newcommand{\mbias}{0.013}
+\newcommand{\cbias}{0.0004}
+
+\begin{document}
+
+\title{Multiplicative Shear Bias in Stacked Image Simulations}
+\author{A. Sample}
+\maketitle
+
+\begin{abstract}
+We measure the multiplicative shear bias of a moments-based shape estimator on
+\Nsims{} image simulations. The stacked bias is $m = \mbias$ with an additive
+term $c = \cbias$. That stacked bias is an average over a population, and it
+hides where the estimator actually fails. Blending sets the residual bias, not
+the signal-to-noise ratio, and at a blending fraction of 0.40 the bias reaches
+0.052.
+\end{abstract}
+
+\section{Introduction}
+
+Weak lensing surveys measure the coherent distortion of background galaxy
+shapes. That distortion is small, so the estimator that measures it has to be
+calibrated to a precision well below the survey's own statistical error.
+Calibrating any estimator requires a population whose true shear is known,
+which is what image simulations supply. This work calibrates a moments-based
+estimator against such a population and reports where the calibration stops
+holding.
+
+The calibration is a chain, and the interesting failure is at its end. A
+simulated population is built, its distribution is matched to the observed
+catalog, the estimator is run over it, and a bias model is fitted to what comes
+back. Fitting that model is routine. Propagating its residual into the survey
+error budget is not, and that residual is what this paper is about.
+
+\section{Method}
+
+The simulation grid spans signal-to-noise ratio, size, and blending fraction,
+since those are the three axes along which a moments estimator is known to
+fail. Signal-to-noise ratio is sampled in 12 bins from 10 to 200, size in 8
+bins from 1.2 to 4.6 pixels, and blending fraction in 5 steps from 0.00 to
+0.40. Each cell of that grid holds 350 realizations at an input shear of 0.02
+applied in 4 position angles, which is \Nsims{} images in total.
+
+The images themselves are conventional. A Moffat point spread function with
+$\beta = 3.5$ and a full width at half maximum of 0.7 arcsec is rendered on a
+0.263 arcsec pixel scale, with 4.2 electrons of read noise.
+
+Conventional images are measured with an unconventional estimator. It takes a
+weighted second moment rather than fitting a profile, so it recovers the
+quadrupole without assuming a light distribution, and its weight function is a
+circular Gaussian matched to the object size. That size matching is the source
+of the bias this paper calibrates, because a size-matched weight responds to
+the object's size as well as to its shape.
+
+\section{Results}
+
+The stacked bias is $m = \mbias \pm 0.002$ with $c = \cbias \pm 0.0002$. That
+stacked figure averages over a population in which the bias varies by an order
+of magnitude. Sorted by signal-to-noise ratio that bias runs from $m = 0.041$ in
+the lowest bin to $m = 0.004$ in the highest, and sorted by size the same bias
+runs from 0.028 below 2 pixels to 0.007 above 3.
+
+Neither of those trends limits the calibration. What limits the calibration is
+blending, whose bias reaches 0.052 at a blending fraction of 0.40. Correcting
+for that blending leaves a residual of 0.0011 in every cell of the grid.
+
+That residual is a property of the estimator rather than of the sample, and
+three resamplings say so. The three resamplings are a bootstrap over 200
+resamples, which scatters by 0.0008, a split of the grid by position angle,
+which moves $m$ by 0.0003, and a fresh noise realization, which moves it by
+0.0005. All three are smaller than the residual they were meant to explain.
+
+\section{Discussion and Conclusion}
+
+The estimator is calibrated to $m = \mbias$, and blending rather than
+simulation depth is what limits that calibration. Deeper simulations will not
+remove a residual that survives every resampling of the present ones. Denser
+ones will, if they sample the blending fraction beyond 0.40.
+
+Two assumptions bound that conclusion. The photometric redshift distribution
+was held fixed, and detector nonlinearity was not modelled. Neither assumption
+enters the blending term, so neither changes the limit above; both set how far
+the quoted $m$ transfers to a survey whose point spread function differs from
+the one simulated here.
+
+\end{document}

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.34.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.35.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
 [![Tests](https://img.shields.io/badge/tests-393%20passing-success.svg)](tests/)
@@ -121,30 +121,24 @@ Anyone can ship a banned-word list. These are the parts that took evidence.
 **1 · Fidelity is a gate, not a score.** `rewrite_reward.py` ranks candidates
 **only after** deterministic scientific-fidelity eligibility. The check is
 **bidirectional**: dropping *or inventing* a number, unit, citation, inline
-equation, uppercase acronym, semantic LaTeX macro, comparison direction,
-negation, or causal-direction marker scores `-inf`, whatever the style score.
-The tokenizer boundaries are themselves regression-tested, because the naive
-versions rejected faithful rewrites — a greedy numeral pattern made dropping an
-Oxford comma read as simultaneously *missing* `2400,` and *inventing* `2400`
-([`rewrite_reward.py:33`](tools/rewrite_reward.py#L33)); a permissive unit
-pattern made `"in 2020 we found"` yield the unit `we`
-([`rewrite_reward.py:41`](tools/rewrite_reward.py#L41)).
-See [demo 3](#3-the-fidelity-gate-rejects-the-best-scoring-candidate).
+equation, uppercase acronym, semantic LaTeX macro, comparison direction, negation, or causal-direction marker
+scores `-inf`, whatever the style score. The tokenizer boundaries are themselves regression-tested, because the
+naive versions rejected faithful rewrites — a greedy numeral pattern made dropping an Oxford comma read as
+simultaneously *missing* `2400,` and *inventing* `2400` ([`rewrite_reward.py:33`](tools/rewrite_reward.py#L33));
+a permissive unit pattern made `"in 2020 we found"` yield the unit `we`
+([`rewrite_reward.py:41`](tools/rewrite_reward.py#L41)). See [demo
+3](#3-the-fidelity-gate-rejects-the-best-scoring-candidate).
 
 **2 · Document-scale detection, because paragraph-scale de-AI does not fix it.**
-The load-bearing measurement: applying a paragraph-level de-AI rewrite to AI
-documents changed **22% of the text and removed all 14 em-dashes**, yet
-document-level dispersion barely moved — 0.47 → 0.49, against human 1.08
-([§9.1](docs/architecture/evaluation/document-scale.md)). Rewriting each paragraph
-toward a "more human" target still leaves them uniform *relative to each other*.
-So the primary detector is a **joint manifold statistic**: the per-document vector
-of log dispersion ratios scored by Mahalanobis distance against the human centre
-and covariance — pure-stdlib, 11-D, ridge-stabilised. The joint geometry catches
-what independent marginals cannot: a shape adversary can land plausible
-per-feature spreads with the wrong covariance. An orthogonal axis measures **role
-coupling** — humans vary paragraph shape *where the argument demands it*. On the
-493-paper human corpus the two axes' 5% tails are **exactly disjoint** (0 flagged
-by both; independence predicts ~1.3).
+The load-bearing measurement: applying a paragraph-level de-AI rewrite to AI documents changed **22% of the text
+and removed all 14 em-dashes**, yet document-level dispersion barely moved — 0.47 → 0.49, against human 1.08
+([§9.1](docs/architecture/evaluation/document-scale.md)). Rewriting each paragraph toward a "more human" target
+still leaves them uniform *relative to each other*. So the primary detector is a **joint manifold statistic**:
+the per-document vector of log dispersion ratios scored by Mahalanobis distance against the human centre and
+covariance — pure-stdlib, 11-D, ridge-stabilised. The joint geometry catches what independent marginals cannot:
+a shape adversary can land plausible per-feature spreads with the wrong covariance. An orthogonal axis measures
+**role coupling** — humans vary paragraph shape *where the argument demands it*. On the 493-paper human corpus
+the two axes' 5% tails are **exactly disjoint** (0 flagged by both; independence predicts ~1.3).
 
 **3 · Operating points are split-conformal and length-stratified.** Percentile
 thresholds fit on the papers that set them are in-sample. The shipped operating
@@ -383,6 +377,18 @@ disagreements through twelve framings to `CONFIRMED` / `REFUTED` / `MARGINAL`.
 
 ---
 
+### 6. A worked example you can run
+
+`examples/` ships a synthetic manuscript and the same paper after acting on the findings — every number preserved, every value invented, so none of it is anyone's unpublished work.
+
+| | before | after |
+|---|---:|---:|
+| L0 targets | 1 | **0** |
+| `discourse-cohesion` | 3 | **1** |
+| `salience-recital` | 4 | **6** |
+
+The last row is the point: carrying a noun forward to link two sentences pulls the subject into sentences that also carry a numeral, so in a number-dense passage cohesion and recital want opposite things and no rewrite satisfies both. Both findings are true, and which to act on is the author's judgement — which is why neither is a blocker and there is no score. Walkthrough: [`examples/README.md`](examples/README.md).
+
 ## Benchmark dashboard
 
 Two kinds of number, not interchangeable: **discrimination and calibration**,
@@ -412,14 +418,12 @@ against every tier including structure clones, while the role axis concentrates
 on the tier that narrows the manifold's margin. Every published AUC reproduced
 within **0.012** across the 42× rebuild — all eight, not a matching total.
 
-Tail power is reported plainly, including where it is weak and where it is zero,
-and **the tail-power column above is a single seed draw**: the per-seed spread on
-those tiers is 0.04–0.18, so over 12 seeds natural reads 0.170 ± 0.110. Long-form
-is not caught at the strict operating point at all, in any configuration tried.
-The estimator-noise model that was supposed to fix short documents has now been
-built and refuted — it moves the human rate not at all
-([§9.4c](docs/architecture/evaluation/document-scale.md)). Re-run the whole table
-with `python tools/eval_docscale.py --field wgl`.
+Tail power is reported plainly, including where it is weak and where it is zero, and **the tail-power column
+above is a single seed draw**: the per-seed spread on those tiers is 0.04–0.18, so over 12 seeds natural reads
+0.170 ± 0.110. Long-form is not caught at the strict operating point at all, in any configuration tried. The
+estimator-noise model that was supposed to fix short documents has now been built and refuted — it moves the
+human rate not at all ([§9.4c](docs/architecture/evaluation/document-scale.md)). Re-run the whole table with
+`python tools/eval_docscale.py --field wgl`.
 
 ### Why there is no single score: the L3 confound
 
@@ -437,16 +441,13 @@ a measured reason. Retrained 2026-08-26 on 44,576 records. Source:
 | False-positive rate — **field-topic AI text** | **0.280** | 0.208 – 0.344 | 0.318 |
 | False-positive rate — **field-jargon-dense AI text** | **0.393** | 0.278 – 0.485 | 0.417 |
 
-A 0.95 AUC headline and a 28–39% false-positive rate on field-topic AI prose are
-the same model: the learned score partly measures *field register*, so it is
-unreliable on the exact distribution a de-AI pass must catch. **Three retrains
-across a 2.6× bank range agree** — field-topic went 0.318 → 0.285 → 0.280, every
-step inside one retrain's own split range, while headline AUC moved the other way
-(0.9320 → 0.9518). More data buys the easy contrast and nothing on the one that
-matters, so the roadmap item closes by decision: **not obtainable from this
-feature set**; reopening needs different features, not a bigger bank. The
-document-level surprisal path measured 0.757, weaker than the model-free manifold
-(0.881), and adds nothing to it.
+A 0.95 AUC headline and a 28–39% false-positive rate on field-topic AI prose are the same model: the learned
+score partly measures *field register*, so it is unreliable on the exact distribution a de-AI pass must catch.
+**Three retrains across a 2.6× bank range agree** — field-topic went 0.318 → 0.285 → 0.280, every step inside
+one retrain's own split range, while headline AUC moved the other way (0.9320 → 0.9518). More data buys the easy
+contrast and nothing on the one that matters, so the roadmap item closes by decision: **not obtainable from this
+feature set**; reopening needs different features, not a bigger bank. The document-level surprisal path measured
+0.757, weaker than the model-free manifold (0.881), and adds nothing to it.
 
 Retraining is not behaviour-preserving and is not claimed to be: on 1,845
 paragraphs scored by both bundles the degraded mode's ranking holds at Spearman
@@ -676,20 +677,18 @@ sci-paper/
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
-`python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 393-test suite; both must pass
-before a release. The validator covers release metadata, skill frontmatter,
-standard references, documentation boundaries and index completeness, in-page
-anchors, recorded suite sizes against real discovery, product registries, syntax,
-runtime imports, CLI entry points, schema fields, and linter exit semantics —
-`tools/validate_plugin.py` itself is the authoritative list. A release also
-requires independent review, clean-checkout verification, and green hosted CI.
+`python tools/validate_plugin.py` runs 9 contract checks and `python -m unittest discover -s tests -v` runs the
+393-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
+standard references, documentation boundaries and index completeness, in-page anchors, recorded suite sizes
+against real discovery, product registries, syntax, runtime imports, CLI entry points, schema fields, and linter
+exit semantics — `tools/validate_plugin.py` itself is the authoritative list. A release also requires
+independent review, clean-checkout verification, and green hosted CI.
 
 ---
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.34.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.35.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.7 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative
@@ -713,6 +712,7 @@ de-AI standard.
 | **Register fires on accepted prose** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0858 findings per 1,000 words**, 44.8% of documents, rank AUC **0.286** against machine text — it still fires *more* on human papers than on AI drafts. 94.4% of the 198 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector; it is an advisory, cut at the first point where a referee-grade paper is not flagged more often than not. Replicated on a second population sampled by author rather than journal — 22 of one advisor's papers, 1996–2015 — where the AUC is **0.328** ([§21](docs/architecture/evaluation/held-out-labels.md)). |
 | **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's gate transfers almost exactly (0.2775 per passage against a 0.2710 expectation), and 7.00% of the digits it read on LaTeX were citation years until v0.32.0; precision and recall for the advice itself need `tools/label_findings.py`. |
 | **Hedging only speaks about introductions** | The epistemic-marker axis ships restricted to `intro`, where its p10 gate fires at 7.89% on 203 held-out refereed papers. Elsewhere it fires at 15–27% on prose a referee accepted, and at least one generation regime lands below chance. Cohesion needs no such restriction (6.6–14.6% across all seven buckets). |
+| **Two axes can want opposite things** | Cohesion asks a sentence to reuse the previous sentence's nouns; recital counts sentences bearing numerals. In a number-dense passage the noun worth carrying forward is the one the numbers are about, so satisfying one axis costs the other and no rewrite satisfies both ([`examples/`](examples/README.md), 4 recital findings before the cohesion fix and 6 after). Both findings are true; the contract is advisory precisely because the trade-off is the author's to make. |
 | **A fresh clone measures nothing** | All profile assets are gitignored. Until you build a profile from your own papers, every corpus-referenced axis is `unmeasured`. |
 
 ### Roadmap
@@ -731,9 +731,8 @@ with one, so the signal was the prompt ([§20](docs/architecture/evaluation/disc
 
 `sci-paper` adapts material from two MIT-licensed projects —
 [academic-humanizer](https://github.com/AIScientists-Dev/academic-humanizer) and
-[blader/humanizer](https://github.com/blader/humanizer) — with what was adopted
-and what was deliberately declined recorded in
-[ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).
+[blader/humanizer](https://github.com/blader/humanizer) — with what was adopted and what was deliberately
+declined recorded in [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).
 
 [MIT](LICENSE) covers code, skills, documentation, and tooling authored in this
 repository. User-supplied corpus contents and generated excerpts retain their

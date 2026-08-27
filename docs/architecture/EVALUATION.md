@@ -1,4 +1,4 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.34.0
+# EVALUATION: de-AI subsystem for `sci-paper` v0.35.0
 
 First recorded 2026-07-12; every section-keyed measurement re-derived against the
 rebuilt `wgl` profile on 2026-08-17.

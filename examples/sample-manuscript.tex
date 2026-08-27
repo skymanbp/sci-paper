@@ -1,0 +1,79 @@
+% A synthetic manuscript, written to be measured rather than to be read.
+%
+% Every number, author and result here is invented. The topic -- calibrating
+% multiplicative shear bias against image simulations -- is deliberately a
+% textbook one with a large published literature, so that nothing in this file
+% resembles unpublished work by anyone.
+%
+% It is written to carry the writing habits the tools measure, at densities a
+% referee would notice: an announced enumeration, an introduction with no
+% epistemic marking, paragraphs that recite quantities without ranking them,
+% adjacent sentences that share no vocabulary, and a few L0 lexical targets.
+% Running `tools/ai_ism_lint.py` on it reproduces the README's demo output.
+\documentclass{article}
+
+\newcommand{\Nsims}{4200}
+\newcommand{\mbias}{0.013}
+\newcommand{\cbias}{0.0004}
+
+\begin{document}
+
+\title{Multiplicative Shear Bias in Stacked Image Simulations}
+\author{A. Sample}
+\maketitle
+
+\begin{abstract}
+We measure the multiplicative shear bias of a moments-based shape estimator on
+\Nsims{} image simulations. The bias is $m = \mbias$ with an additive term
+$c = \cbias$. The calibration holds across signal-to-noise ratio, size, and
+blending fraction.
+\end{abstract}
+
+\section{Introduction}
+
+Weak lensing surveys measure the coherent distortion of background galaxy
+shapes. The shear signal is small and the shape estimator must be calibrated to
+a precision far below the statistical error. Image simulations provide that
+calibration by constructing a population with known input shear. This work
+delivers the calibration for a moments-based estimator.
+
+There are five elements to the approach. First, we build the simulated
+population. Second, we match its distribution to the observed catalog. Third,
+we run the estimator. Fourth, we fit the bias model. Fifth, we propagate the
+residual into the error budget. The pipeline is fully automated.
+
+\section{Method}
+
+The simulation grid spans 12 signal-to-noise bins from 10 to 200, 8 size bins
+from 1.2 to 4.6 pixels, and 5 blending fractions from 0.00 to 0.40. Each cell
+holds 350 realizations at an input shear of 0.02 applied in 4 position angles.
+The total is \Nsims{} images. The point spread function is a Moffat profile
+with $\beta = 3.5$ and a full width at half maximum of 0.7 arcsec. The pixel
+scale is 0.263 arcsec and the read noise is 4.2 electrons.
+
+The estimator is not a maximum-likelihood fit but a weighted second-moment
+measurement --- it measures the quadrupole rather than fitting a profile. The
+weight function is a circular Gaussian matched to the object size. It is
+important to note that the weight introduces a size-dependent response.
+
+\section{Results}
+
+The measured bias is $m = \mbias \pm 0.002$ and $c = \cbias \pm 0.0002$. In the
+lowest signal-to-noise bin $m = 0.041$ and in the highest $m = 0.004$. The
+size trend gives $m = 0.028$ below 2 pixels and $m = 0.007$ above 3 pixels. At
+a blending fraction of 0.40 the bias reaches 0.052. The residual after
+correction is 0.0011 in every cell.
+
+The calibration is stable. The bootstrap scatter over 200 resamples is 0.0008.
+Splitting the grid by position angle changes $m$ by 0.0003. A different noise
+realization changes it by 0.0005, highlighting the robustness of the result.
+
+\section{Discussion and Conclusion}
+
+The estimator is calibrated to $m = \mbias$. The blending term dominates the
+residual budget and future surveys will need deeper simulations. The
+photometric redshift distribution was assumed fixed. Detector nonlinearity was
+not modelled. The method transfers to any survey with a comparable point
+spread function.
+
+\end{document}
