@@ -2,16 +2,16 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.33.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.34.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-381%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-382%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**12 个 skill · 34 个工具 · 381 个测试 · 一份规范 · 零作者身份判决。**
+**12 个 skill · 34 个工具 · 382 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
@@ -419,7 +419,7 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 | `+ --oracle`（GPT-2-large token surprisal） | 33.8 s | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 37.2 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` —— **9/9 通过** | 2.9 s | 标准库 |
-| 完整测试套件 —— **381 通过**，19 个文件 | 60.1 s | 标准库 |
+| 完整测试套件 —— **382 通过**，19 个文件 | 66.2 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上只花约
 360 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 74–81 倍，并且是显式 opt-in 的
@@ -577,10 +577,10 @@ style-profile/<field>/                  生成的证据（gitignore）
 | 制品 | 规模 |
 |---|---|
 | `exemplar_paragraphs.jsonl` | **27,917** 个按 section 分类的段落，来自 19 篇精选 + 500 篇参照论文 |
-| `register_lexicon.json` | 41,721 个 passage · 53,417 个词条 |
+| `register_lexicon.json` | 41,710 个 passage · 53,414 个词条 |
 | `uid_baseline.json` | 27,917 段（GPT-2-large）· 合并 global UID 3.303 ± 0.437 |
 | `structure_baseline.json` | method 9,512 · results 3,958 · data 3,908 · intro 3,840 · discussion 3,647 · conclusion 2,609 · abstract 433 |
-| `salience_baseline.json` | abstract 13,981 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
+| `salience_baseline.json` | abstract 13,971 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
 | `docstructure_baseline.json` | 507 篇完整文档 · conformal α 0.05 · 长度分层 [46, 75] |
 | `anchoring_baseline.json` | 517 篇文档 · 六个 section 类全部高于 30 篇下限 |
 | `voice_model.joblib` | 44,576 条记录 · 14 个特征 · **无操作点**，`degraded` |
@@ -628,7 +628,7 @@ sci-paper/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
 ├── skills/<name>/SKILL.md   12 个 skill
 ├── tools/                   34 个产品工具 + 仓库 validator
-├── tests/                   19 个测试文件、381 个测试
+├── tests/                   19 个测试文件、382 个测试
 ├── style-corpus/<field>/    用户提供的只读语料（gitignore）
 ├── style-profile/<field>/   生成与标定的证据（gitignore）
 ├── ACKNOWLEDGMENTS.md       改编来源的致谢与采纳边界
@@ -639,7 +639,7 @@ sci-paper/
 ## 开发与发布
 
 `python tools/validate_plugin.py` 跑 9 项契约检查，
-`python -m unittest discover -s tests -v` 跑 381 个测试；发布前两者都必须通过。
+`python -m unittest discover -s tests -v` 跑 382 个测试；发布前两者都必须通过。
 Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权威边界与索引完整性、
 记录的测试规模与真实发现的一致性、过期契约标记、产品注册表、Python 语法、
 运行时 import、CLI 入口、schema 字段、linter 退出语义、Tier B 行为、测试与 CI 接线 ——
@@ -677,9 +677,9 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 ### 路线图
 
-只剩一项，而且它需要人而不是机器：**一条建议是不是好建议**，以及召回率。已发表论文
-标注的是「它有没有在已发表文字上开火」，不是「开得对不对」；那条路径是
-`label_findings.py`。工程清单已经清空。
+空了。`label_findings.py` 已交付 —— 跑不跑标注是作者自己的事，不是仓库的事。本项目
+自己的参照基准是 provenance：`eval_findings.py` 拿**已经存在的标注**（203 篇未见过的
+已发表审稿论文等）给各轴打分。「这条建议对不对」需要人，上面的限制表里已写明。
 
 **citation placement 不是「待定」，是被证伪了。** v0.32.0 留下的条件是「换一套独立生成的
 机器库来验」，这次补上了：同一个模型（Codex `gpt-5.6-terra`）、同样 20 个题目，提示词只差

@@ -246,7 +246,7 @@ FULLTEXT_QUERIES = [
 EPRINT = "https://export.arxiv.org/e-print/"
 MIN_FULLTEXT_SECTIONS = 3
 MIN_FULLTEXT_WORDS = 1500
-_SECTION_RE = re.compile(r"\\section\*?\{")
+_SECTION_RE = re.compile(r"\\section\*?\s*\{")  # `\section {` is legal; 0707.0484 spaces 7 of 8
 
 
 def _eprint_bytes(arxiv_id: str) -> bytes:

@@ -65,6 +65,64 @@ class HeldOutIsActuallyHeldOutTest(unittest.TestCase):
         self.assertEqual(ef.INSAMPLE_DIR, es.CALIBRATION_FULLTEXT)
 
 
+class AbstractBankIsNotAHeldOutLeakTest(unittest.TestCase):
+    """A held-out paper's abstract must not sit in a calibration bank.
+
+    The tests above guard the directory tuple. The abstract bank is a second
+    way in and nothing guarded it: `register_lexicon.json`,
+    `salience_baseline.json` and `cohesion_baseline.json` are each counted over
+    `human_abstracts_extra.jsonl` as well as the exemplar bank
+    (`deai_register.calibrate`, `deai_reference.passage_banks`), and
+    `fetch_arxiv_abstracts.known_calibration_ids` records the consequence: at
+    `RARE_DF_RATE` = 1e-4 the foreign-term threshold is about four passages, so
+    one paper's own abstract can suppress its own flags.
+
+    `--exclude-known` is full-text mode only -- the abstract sweep selects by
+    `--query-set` and has no way to exclude -- so a sweep run after a held-out
+    pull re-collects what that pull held out. On 2026-08-27 it had: 11 papers,
+    5 of them in the very set EVALUATION section 17.1 records as independently
+    verified "0 overlap".
+    """
+
+    FIELD = "wgl"
+
+    def test_no_heldout_paper_has_its_abstract_in_the_bank(self) -> None:
+        import json
+
+        import fetch_arxiv_abstracts as fa
+
+        repo = pathlib.Path(__file__).resolve().parents[1]
+        corpus = repo / "style-corpus" / self.FIELD
+        bank = (repo / "style-profile" / self.FIELD
+                / "human_abstracts_extra.jsonl")
+        if not corpus.is_dir() or not bank.exists():
+            self.skipTest("corpus and profile are user-supplied; neither ships")
+
+        def ident(raw: str) -> str:
+            """`_bare` keeps an `arxiv:` prefix; directory names never have one."""
+            return fa._bare(raw.strip().lower().removeprefix("arxiv:"))
+
+        heldout = {ident(paper.name): pull.name
+                   for pull in sorted(corpus.glob("fulltext-*"))
+                   if pull.is_dir() and pull.name != ef.INSAMPLE_DIR
+                   for paper in pull.iterdir() if paper.is_dir()}
+        leaked = []
+        with bank.open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                source = str(json.loads(line).get("source", ""))
+                if ident(source) in heldout:
+                    leaked.append(f"{source} -> {heldout[ident(source)]}")
+        self.assertEqual(
+            leaked, [],
+            f"{len(leaked)} held-out paper(s) have their abstract in "
+            f"{bank.name}, so their own vocabulary is in their own "
+            f"denominator. Drop those records, then re-run "
+            f"`deai_register`, `deai_salience` and `deai_discourse` "
+            f"--calibrate and re-take every published rate.")
+
+
 class ThinPopulationTest(unittest.TestCase):
     """A rate resting on too few documents must say so, not print a number."""
 

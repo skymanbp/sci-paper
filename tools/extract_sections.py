@@ -146,14 +146,14 @@ def _math_numerals(match: "re.Match[str]") -> str:
         body = body.replace(token, " ")
     return " " + body + " "
 
-# The title group allows ONE level of nested braces. Written as `[^}]+` it
-# stopped at the first inner `}`, so `\section{Results\label{sec:res}}` yielded
-# the title `Results\label{sec:res` and `\section{\hspace*{+0.0mm}Foo}` yielded
-# `\hspace*{+0.0mm` -- 14 such fragments were still reaching `unknown` in the
-# 517-document wgl corpus on 2026-08-26. One level is enough for every form
-# seen there (`\label`, `\hspace*`, `\texorpdfstring`); this is not a TeX parser.
+# The title group allows ONE level of nested braces: written `[^}]+` it stopped
+# at the first inner `}`, so `\section{Results\label{sec:res}}` yielded the title
+# `Results\label{sec:res` -- 14 such fragments reached `unknown` in the
+# 517-document wgl corpus on 2026-08-26. One level covers every form seen there.
+# `\s*` before the brace because LaTeX allows a space after a control word: 9 of
+# 790 downloaded papers use it, and those headers were invisible here until now.
 RE_SECTION = re.compile(
-    r"\\(section|subsection|chapter)\*?\{((?:[^{}]|\{[^{}]*\})*)\}", re.IGNORECASE
+    r"\\(section|subsection|chapter)\*?\s*\{((?:[^{}]|\{[^{}]*\})*)\}", re.IGNORECASE
 )
 # Applied to a captured title before it is classified. Without it, markup that
 # survives inside the braces decides the bucket instead of the words do.

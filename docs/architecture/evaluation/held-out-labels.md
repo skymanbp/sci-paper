@@ -1,4 +1,4 @@
-# EVALUATION — Held-out refereed papers as labels · `sci-paper` v0.32.0
+# EVALUATION — Held-out papers as labels · `sci-paper` v0.32.0 and v0.34.0
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the
@@ -10,9 +10,11 @@ Normative policy lives in [`SCIPAPER_STANDARD.md`](../../SCIPAPER_STANDARD.md);
 nothing here can redefine it. All machine-readable findings use the
 `sci-paper.feedback.v1` contract.
 
-Split out of [`narrative-salience-register.md`](narrative-salience-register.md)
-on 2026-08-27 when that file passed the repository's 750-line budget. The
-sections it holds are unchanged; only their home is.
+§17 was split out of
+[`narrative-salience-register.md`](narrative-salience-register.md) on 2026-08-27
+when that file passed the repository's 750-line budget; its content is unchanged,
+only its home is. §21 was written here afterwards, because it is about the same
+thing: which papers are held out, and what it costs when one quietly is not.
 
 ---
 
@@ -51,6 +53,16 @@ Verified independently of the fetcher's own filter: **0 overlap** with
 `exemplar_paragraphs.jsonl` sources, **0** with `fulltext-arxiv/`. A random
 sample of 8 re-queried against the arXiv API returned 8 refereed
 `journal_ref`s, published 2013–2017 — all pre-LLM.
+
+> **⚠️ Correction (2026-08-27).** That verification was true when it was run and
+> is not a standing property. `--exclude-known` is full-text mode only; the
+> abstract sweep selects by `--query-set` and has no way to exclude, so a later
+> sweep re-collected **5** of these 200 papers' abstracts — `1406.6152v2`,
+> `1412.7521v2`, `1512.04555v1`, `1606.04321v1`, `1608.08629v2`. The overlap was
+> 0 at build time, grew silently, and nothing was watching. All 5 were removed on
+> 2026-08-27 (§21), and `test_eval_findings.AbstractBankIsNotAHeldOutLeakTest`
+> now fails if any held-out paper's abstract is in the bank. **The §18.4 register
+> figures are unaffected and reproduce exactly** — see §21.3.
 
 A first sweep returned **zero** candidates: 5,618 unique results, all already
 calibrated. Results come back newest-first, so an existing corpus occupies a
@@ -146,6 +158,111 @@ null`. It now reports `degraded`, and its findings carry `measurement_status:
 degraded` rather than being silenced. `wgl` (2.4e-5) is unaffected. Since
 v0.32.0 such a profile also borrows its field's bank rather than only declaring
 itself coarse ([§18.5](projection-and-operating-point.md)).
+
+---
+
+## 21. A second held-out population, and the leak that had reopened (2026-08-27)
+
+§17's label is *the field accepted this*: 203 refereed ApJ/ApJL/A&A papers. A
+second provenance label was available and says something different — papers by
+one author, the user's advisor, whose prose is the imitation target rather than
+a sample of the field. If register and salience behave the same way on both,
+neither result is a property of how one population was sampled.
+
+**22 papers**, `astro-ph/9608043` through `1511.02891` — 1996 to 2015, so the
+whole population predates any LLM. Fetched with
+`--author "au:\"Dell'Antonio\" AND cat:astro-ph*" --author-is "Dell'Antonio"
+--max-authors 8 --exclude-known --date-lo 199101010000`. That clears
+`MIN_DOCUMENTS = 20` with a margin of 2; below it `eval_findings.py` reports
+`unmeasured` rather than a rate.
+
+### 21.1 Building the population turned up two silent corpus bugs
+
+LaTeX permits whitespace between a control word and its argument, so
+`\section {Title}` is legal. Two regexes required the brace to follow
+immediately, and both were wrong in the same way:
+
+- `fetch_arxiv_abstracts._SECTION_RE` decides whether an e-print is structured
+  enough to keep. `0707.0484` writes **7 of its 8** headers with a space and was
+  being discarded as unstructured prose.
+- `extract_sections.RE_SECTION` splits a paper into buckets. **9 of 790**
+  downloaded papers use the spaced form — **0 of them exclusively**, which is
+  why calibration was partially rather than wholly mis-split, and why nothing
+  downstream ever looked broken.
+
+Rebuilding the profile after the fix changed **5 of 27** artifacts. The exemplar
+bank held at **27,917** paragraphs and **0** changed bucket, so the total says
+nothing; the per-item diff is where the fix is visible. In `2105.12993v1` a
+paragraph's body had begun with the literal words `Lensing amplitude anomaly` —
+an unrecognised heading glued to the text under it — and now starts clean. One
+paragraph boundary moved in a tier-2 paper, renumbering 24 ids in that file.
+`sentence_stats.method` went n 2,205 → 2,204 and mean 23.72 → 23.73;
+`lexicon.total_tokens` 228,187 → 228,180. Every LLM-typical word's raw count is
+identical — only the per-1k denominators moved, in the seventh decimal.
+
+### 21.2 Six of the 22 were not actually held out — and neither were five of §17's
+
+`register_lexicon.json`, `salience_baseline.json` and `cohesion_baseline.json`
+are each counted over `human_abstracts_extra.jsonl` as well as the exemplar
+bank, and at `RARE_DF_RATE = 1e-4` the foreign-term threshold sits near four
+passages, so one paper's own abstract can suppress its own flags. Sweeping every
+`fulltext-*` directory except the calibration breadth pull found **11** such
+records, not the 6 the mentor set was checked for:
+
+| pull | papers | abstracts in the calibration bank |
+|---|---:|---:|
+| `fulltext-mentor` | 22 | **6** |
+| `fulltext-heldout` | 203 | **5** |
+| `fulltext-authoritative` | 75 | 0 |
+
+The mechanism is one-directional and was never guarded. `--exclude-known` is
+full-text mode only; the abstract sweep selects by `--query-set` and cannot
+exclude, so any sweep run after a held-out pull re-collects what that pull held
+out. §17.1's independently verified "0 overlap" was true on the day and had been
+false since. All 11 records were removed (**13,804 → 13,793**) and the three
+baselines recalibrated: register **41,721 → 41,710** passages and
+**53,417 → 53,414** terms, salience `abstract` **13,981 → 13,971**, cohesion
+`abstract` **13,977 → 13,967**, hedging `abstract` **10,413 → 10,404**.
+`AbstractBankIsNotAHeldOutLeakTest` now fails on any recurrence, naming the
+paper and the pull it belongs to; it was verified by reinstating one removed
+record and watching it fail.
+
+### 21.3 What the leak was worth
+
+| | mentor, leaked | mentor, clean | §17 held-out, before | after |
+|---|---:|---:|---:|---:|
+| n | 22 | 22 | 203 | 203 |
+| register documents flagged | 0.318 | **0.364** | 0.4483 | **0.4483** |
+| register per 1,000 words | 0.047 | **0.059** | 0.0858 | **0.0858** |
+| salience documents flagged | 0.955 | 0.955 | 0.966 | 0.966 |
+| paired leakage suppressed | 0.875 of 8 | **0.900 of 10** | 0.944 of 198 | 0.944 of 198 |
+
+On the mentor set the removal did exactly what the mechanism predicts: two more
+papers flag once their own vocabulary leaves their own denominator. On §17's
+population it changed nothing at three decimals — 11 records are 0.026% of
+41,721 passages and none of the five crossed the threshold. **Every figure
+published in §18.4 reproduces after the removal**, which is the useful half of a
+null result: the leak was real, it was worth measuring, and it was not load-
+bearing for anything already published.
+
+### 21.4 Register is not a detector — replicated on an independent population
+
+Rank AUC of machine text over the advisor's own papers is **0.328** for
+`L0.register` and **0.635** for `L2.salience_hierarchy`. The register figure is
+below 0.5 on a population §18.4 never touched, sampled by author rather than by
+journal, spanning 1996–2015 rather than 2012–2018. §18.4 refuted the operating
+point by showing AUC stays under 0.5 at every setting on one population; this is
+that refutation reproducing on another. The axis fires *more* on real papers
+than on generated prose, and a second population does not rescue it.
+
+Salience transfers: its 0.9 gate lands at **0.2781** of passages over 996
+measured, against **0.2710** expected from three independent gates — the same
+agreement §17 records, on papers from a different two decades.
+
+**What this does not establish.** One field, one advisor, 22 papers. The
+population is small enough that one paper is 4.5 percentage points of the
+register rate, and the two populations share a corpus and a calibration, so
+they are not independent evidence about the *corpus* — only about the sampling.
 
 ### 17.5 Salience: calibration transfers, essentially exactly
 

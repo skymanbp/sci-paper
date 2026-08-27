@@ -60,8 +60,8 @@ granularities are both valid and are not comparable:
 
 | artifact | unit | bucket sizes |
 |---|---|---|
-| `cohesion_baseline.json` | paragraph | abstract 13,977 · method 6,903 · intro 3,252 · results 3,183 · data 2,992 · discussion 2,932 · conclusion 1,975 |
-| `hedging_baseline.json` | section | abstract 10,413 · intro 502 · method 438 · conclusion 382 · discussion 327 · results 316 · data 299 |
+| `cohesion_baseline.json` | paragraph | abstract 13,967 · method 6,903 · intro 3,252 · results 3,183 · data 2,992 · discussion 2,932 · conclusion 1,975 |
+| `hedging_baseline.json` | section | abstract 10,404 · intro 502 · method 438 · conclusion 382 · discussion 327 · results 316 · data 299 |
 
 ### 19.2 Both floors were measured, not chosen
 

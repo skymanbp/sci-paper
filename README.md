@@ -2,17 +2,17 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.33.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.34.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-381%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-382%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**12 skills · 34 tools · 381 tests · one normative contract · zero authorship verdicts.**
+**12 skills · 34 tools · 382 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
@@ -470,7 +470,7 @@ assembled from its includes. Re-taken whole: the floor moved 84 → 98 ms, so no
 | `+ --oracle` (GPT-2-large token surprisal) | 33.8 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 37.2 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **9/9 checks pass** | 2.9 s | stdlib |
-| Full test suite — **381 passing**, 19 files | 60.1 s | stdlib |
+| Full test suite — **382 passing**, 19 files | 66.2 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs ~360 ms of analysis
 above the interpreter floor**, with no optional dependency installed. The two model-backed axes cost
@@ -619,10 +619,10 @@ For scale, the reference profile behind every measured number here carries:
 | Asset | Scale |
 |---|---|
 | `exemplar_paragraphs.jsonl` | **27,917** section-typed paragraphs from 19 curated + 500 reference papers |
-| `register_lexicon.json` | 41,721 passages · 53,417 terms |
+| `register_lexicon.json` | 41,710 passages · 53,414 terms |
 | `uid_baseline.json` | 27,917 paragraphs under GPT-2-large · pooled global UID 3.303 ± 0.437 |
 | `structure_baseline.json` | method 9,512 · results 3,958 · data 3,908 · intro 3,840 · discussion 3,647 · conclusion 2,609 · abstract 433 |
-| `salience_baseline.json` | abstract 13,981 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
+| `salience_baseline.json` | abstract 13,971 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
 | `docstructure_baseline.json` | 507 complete documents · conformal α 0.05 · length strata [46, 75] |
 | `anchoring_baseline.json` | 517 documents · all six section classes above the 30-document minimum |
 | `voice_model.joblib` | 44,576 records · 14 features · **no operating point**, `degraded` |
@@ -670,14 +670,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   12 skills         ├── tests/     19 files, 381 tests
+├── skills/<name>/SKILL.md   12 skills         ├── tests/     19 files, 382 tests
 ├── tools/                   34 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 9 contract checks and
-`python -m unittest discover -s tests -v` runs the 381-test suite; both must pass
+`python -m unittest discover -s tests -v` runs the 382-test suite; both must pass
 before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page
 anchors, recorded suite sizes against real discovery, product registries, syntax,
@@ -717,8 +717,8 @@ de-AI standard.
 
 ### Roadmap
 
-One item, and it needs a person rather than a machine: whether an individual advisory is good
-*advice*, and recall. Provenance cannot supply either; `label_findings.py` is that path.
+Empty. `label_findings.py` ships; running it is the author's business, not the repository's. What
+this project measures against is provenance — `eval_findings.py`, on labels that already exist.
 
 **Closed by refutation, not by shipping.** The length-aware manifold, a larger conformal calibration
 set, long-form tail power, three L3 retrains, the leakage contrast, the register operating point, and
