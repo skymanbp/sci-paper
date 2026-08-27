@@ -307,9 +307,9 @@ parent passes explicit interface flags:
   design and never spawns);
 - `de-ai --audit-only` (measurement + audit, no rewrite, no spawning).
 
-The parent launches the modern-physics reviewer as a sibling isolated agent. Child
-review coverage is preserved in the current isolated process rather than silently
-reduced.
+The parent launches `physics`, `mainline` and `logic` as sibling isolated agents,
+one per primitive, never from inside `paper-review`. Child review coverage is
+preserved in the current isolated process rather than silently reduced.
 
 ## 9. Calibration artifacts
 

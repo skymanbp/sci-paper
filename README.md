@@ -366,14 +366,14 @@ departs from the human band*, which is what the finding says.
 ### 5. What a full review looks like
 
 The linter is one input. `/sci-paper:final-review` orchestrates the rest in
-isolated worktrees and merges typed findings from four independent passes:
+isolated worktrees and merges typed findings from six independent passes:
 
 | Pass | Covers |
 |---|---|
 | `paper-review` | 18 dimensions **A–R**: mathematics, physics, logic and statistics, language and de-AI, structure and narrative spine, citation existence and relevance, data/results/figures, interfaces, redundancy, reproducibility, modern-physics checks, systemic consistency, adversarial verification, staleness, process artifacts, draft language, reference precision, glossary alignment |
 | `figure-review` | every figure re-rendered from the compiled PDF at 150 DPI — caption/data consistency, units, readability at print size, colour accessibility, float placement, cross-figure coherence |
 | `de-ai --audit-only` | the L0–L4 measurement stack plus the vendored humanizer structural-tell catalogue |
-| modern-physics review | parent-level domain check |
+| `physics` · `mainline` · `logic` | three measurement primitives, one sibling agent each: first principles P1–P8; the cold reader's seven questions against the contribution graph; claim graph, empirical statistics and claim–evidence discipline |
 
 The merge rule is the point: **integrity blockers must be resolved, L0 targets
 must reach zero, every strong advisory needs a recorded disposition, and ordinary
@@ -710,7 +710,7 @@ de-AI standard.
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` — and now for a *measured* reason. Burstiness reverses sign on adversarial prose (AUC 0.181) and signposting runs below chance (0.247), so no operating point is available to write. |
 | **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.846 and triage overlap 0.654, but an old triage list will not reproduce exactly. |
 | **A quarter of the corpus is never used** | Headings matching no section bucket are dropped rather than guessed: **2,334 of 9,178 (25.4%)** in `wgl`, 42 of 148 in `wgl-letter`. The remainder is mostly topic headings ("Matter power spectrum"); "Measurements" and "Background" were refused as genuinely ambiguous. |
-| **Register fires on accepted prose** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0858 findings per 1,000 words**, 44.8% of documents, rank AUC **0.286** against machine text — it still fires *more* on human papers than on AI drafts. 94.4% of the 198 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector; it is an advisory, cut at the first point where a referee-grade paper is not flagged more often than not. |
+| **Register fires on accepted prose** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0858 findings per 1,000 words**, 44.8% of documents, rank AUC **0.286** against machine text — it still fires *more* on human papers than on AI drafts. 94.4% of the 198 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector; it is an advisory, cut at the first point where a referee-grade paper is not flagged more often than not. Replicated on a second population sampled by author rather than journal — 22 of one advisor's papers, 1996–2015 — where the AUC is **0.328** ([§21](docs/architecture/evaluation/held-out-labels.md)). |
 | **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's gate transfers almost exactly (0.2775 per passage against a 0.2710 expectation), and 7.00% of the digits it read on LaTeX were citation years until v0.32.0; precision and recall for the advice itself need `tools/label_findings.py`. |
 | **Hedging only speaks about introductions** | The epistemic-marker axis ships restricted to `intro`, where its p10 gate fires at 7.89% on 203 held-out refereed papers. Elsewhere it fires at 15–27% on prose a referee accepted, and at least one generation regime lands below chance. Cohesion needs no such restriction (6.6–14.6% across all seven buckets). |
 | **A fresh clone measures nothing** | All profile assets are gitignored. Until you build a profile from your own papers, every corpus-referenced axis is `unmeasured`. |

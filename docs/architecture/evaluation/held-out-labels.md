@@ -159,6 +159,35 @@ degraded` rather than being silenced. `wgl` (2.4e-5) is unaffected. Since
 v0.32.0 such a profile also borrows its field's bank rather than only declaring
 itself coarse ([§18.5](projection-and-operating-point.md)).
 
+### 17.5 Salience: calibration transfers, essentially exactly
+
+`ADVISORY_PERCENTILE` is 0.90 over three features, and `salience_findings`
+emits one finding per over-recital passage led by its most extreme feature. If
+the three gates were independent, the per-passage rate would be
+1 − 0.9³ = **0.2710**. Measured on the held-out set: **2,690 findings over
+9,946 eligible passages = 0.2705**.
+
+Agreement to three decimals on papers the baseline never saw is the strongest
+calibration-transfer evidence in this record, and it also implies the three
+features are close to independent out of sample. The 0.966 document flag rate
+carries no defect signal: at 0.27 per passage, a paper with ~49 eligible
+passages flags with probability ~1 by construction. Density is the statistic;
+document flag rate is not. Leakage is small here too — 1.165 vs 1.053 per
+1,000 words, a factor of 1.11 against register's 3.7 — and the axis
+discriminates machine text at AUC **0.770**.
+
+### 17.6 Limits
+
+The register figure is an upper bound on advice-quality false positives, not a
+precision figure; whether an individual advisory is *good advice* still needs a
+human, and `label_findings.py` remains the path to it. Recall is unmeasured for
+both axes and provenance labels cannot supply it. The held-out set is one field,
+one journal family, 2012–2018, and the fetch stopped at the `--max-papers 200`
+cap rather than at exhaustion, so 203 is not a power calculation. `machine:ai`
+tiers are short (median 1,266–1,788 words) against 9,793, so every
+machine-vs-human AUC inherits the length asymmetry of §9. The paired leakage
+test adds only the paper's own passages, so 86.3% is a lower bound.
+
 ---
 
 ## 21. A second held-out population, and the leak that had reopened (2026-08-27)
@@ -263,32 +292,3 @@ agreement §17 records, on papers from a different two decades.
 population is small enough that one paper is 4.5 percentage points of the
 register rate, and the two populations share a corpus and a calibration, so
 they are not independent evidence about the *corpus* — only about the sampling.
-
-### 17.5 Salience: calibration transfers, essentially exactly
-
-`ADVISORY_PERCENTILE` is 0.90 over three features, and `salience_findings`
-emits one finding per over-recital passage led by its most extreme feature. If
-the three gates were independent, the per-passage rate would be
-1 − 0.9³ = **0.2710**. Measured on the held-out set: **2,690 findings over
-9,946 eligible passages = 0.2705**.
-
-Agreement to three decimals on papers the baseline never saw is the strongest
-calibration-transfer evidence in this record, and it also implies the three
-features are close to independent out of sample. The 0.966 document flag rate
-carries no defect signal: at 0.27 per passage, a paper with ~49 eligible
-passages flags with probability ~1 by construction. Density is the statistic;
-document flag rate is not. Leakage is small here too — 1.165 vs 1.053 per
-1,000 words, a factor of 1.11 against register's 3.7 — and the axis
-discriminates machine text at AUC **0.770**.
-
-### 17.6 Limits
-
-The register figure is an upper bound on advice-quality false positives, not a
-precision figure; whether an individual advisory is *good advice* still needs a
-human, and `label_findings.py` remains the path to it. Recall is unmeasured for
-both axes and provenance labels cannot supply it. The held-out set is one field,
-one journal family, 2012–2018, and the fetch stopped at the `--max-papers 200`
-cap rather than at exhaustion, so 203 is not a power calculation. `machine:ai`
-tiers are short (median 1,266–1,788 words) against 9,793, so every
-machine-vs-human AUC inherits the length asymmetry of §9. The paired leakage
-test adds only the paper's own passages, so 86.3% is a lower bound.
