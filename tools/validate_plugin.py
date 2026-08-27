@@ -310,6 +310,60 @@ def _broken_section_references(path: Path) -> list[str]:
     return broken
 
 
+RETIRED_SKILLS = ("modern-physics-review", "现代物理 review")
+RE_SKILL_REF = re.compile(
+    r"/sci-paper:([a-z][a-z0-9-]*)|skills/([a-z][a-z0-9-]*)/SKILL\.md")
+
+
+def _unshipped_skill_references(path: Path, shipped: set[str]) -> list[str]:
+    """Prose naming a skill this repository does not ship.
+
+    `check_skills` verifies every shipped skill is registered. Nothing verified
+    the other direction, so retiring `modern-physics-review` in v0.34.0 left
+    both READMEs' fifth demo and DEAI_SUBSYSTEM §8 describing a review pass that
+    no longer exists. Retired names are listed rather than inferred: prose calls
+    it "the modern-physics reviewer", which no form-based rule can catch.
+    """
+    text = read_text(path)
+    found = []
+    for match in RE_SKILL_REF.finditer(text):
+        name = match.group(1) or match.group(2)
+        if name not in shipped:
+            line = text[: match.start()].count("\n") + 1
+            found.append(f"{path.relative_to(REPO).as_posix()}:{line} {name}")
+    for retired in RETIRED_SKILLS:
+        index = text.find(retired)
+        if index >= 0:
+            line = text[:index].count("\n") + 1
+            found.append(f"{path.relative_to(REPO).as_posix()}:{line} "
+                         f"retired name {retired!r}")
+    return found
+
+
+RE_NUMBERED_HEADING = re.compile(r"(?m)^#{2,3}\s+(\d+)(?:\.(\d+))?\.?\s")
+
+
+def _sections_out_of_order(path: Path) -> list[str]:
+    """A numbered heading that sits before a lower-numbered one.
+
+    Section numbers are global across the evaluation record, so their order is
+    part of the contract and nothing checked it. §21 was anchored on the
+    paragraph that closes §17.4 -- not the end of that file -- so the document
+    read 17.1-17.4, 21, 17.5, 17.6 with every other check green.
+    """
+    text = read_text(path)
+    seen = []
+    for match in RE_NUMBERED_HEADING.finditer(text):
+        minor = int(match.group(2)) if match.group(2) else 0
+        seen.append((int(match.group(1)) + minor / 100,
+                     text[: match.start()].count("\n") + 1,
+                     match.group(0).strip()))
+    return [f"{path.relative_to(REPO).as_posix()}:{line} '{title}' follows "
+            f"'{prior}'"
+            for (value, line, title), (previous, _, prior) in zip(seen[1:], seen)
+            if value < previous]
+
+
 def check_documentation_boundaries() -> str:
     # v0.21.0 made docs/EVALUATION.md the single canonical evaluation record;
     # v0.27.0 categorized docs/ and moved it under architecture/. A copy left
@@ -359,11 +413,21 @@ def check_documentation_boundaries() -> str:
     require(not stranded,
             "numbered cross-references point at pages that do not carry that "
             "section: " + "; ".join(stranded))
+    skills = {path.parent.name for path in (REPO / "skills").glob("*/SKILL.md")}
+    ghosts = [item for page in pages
+              for item in _unshipped_skill_references(page, skills)]
+    require(not ghosts,
+            "documentation names a skill this repository does not ship: "
+            + "; ".join(ghosts))
+    disordered = [item for page in pages for item in _sections_out_of_order(page)]
+    require(not disordered,
+            "numbered headings run backwards: " + "; ".join(disordered))
     refs = sum(len(RE_SECTION_REF.findall(read_text(page))) for page in pages)
     return (f"documentation boundaries are unambiguous "
             f"({len(shipped)} documents, all indexed; "
             f"{len(pages)} pages anchor-checked; "
-            f"{refs} numbered cross-references resolved)")
+            f"{refs} numbered cross-references resolved; "
+            f"{len(skills)} skills named only where shipped; heading order clean)")
 
 
 def _discovered_test_count() -> tuple[int, int]:
