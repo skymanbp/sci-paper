@@ -17,6 +17,7 @@ change here changes what those distributions mean and needs a profile rebuild.
 from __future__ import annotations
 
 import re
+import tex_macros
 from collections import defaultdict
 from pathlib import Path
 
@@ -357,9 +358,10 @@ def read_tex_document(path: Path, _seen: set[Path] | None = None) -> str:
     bundles most of their prose, one of them 9,741 of 9,743 words.
 
     An unresolvable target (`\\input{aa.cls}`) degrades to leaving the call in
-    place rather than failing. `_seen` breaks include cycles.
+    place rather than failing. `_seen` breaks include cycles. Numeric macros are
+    expanded once here (`tex_macros`): only the root holds definition and use.
     """
-    seen = _seen if _seen is not None else set()
+    top, seen = _seen is None, set() if _seen is None else _seen
     resolved = path.resolve()
     if resolved in seen:
         return ""
@@ -378,7 +380,7 @@ def read_tex_document(path: Path, _seen: set[Path] | None = None) -> str:
         for name in names:
             child = _resolve_include(path, name)
             out.append(read_tex_document(child, seen) if child else line)
-    return "".join(out)
+    return tex_macros.expand_numeric("".join(out)) if top else "".join(out)
 
 
 def _resolve_include(root: Path, name: str) -> Path | None:
@@ -740,11 +742,9 @@ def split_pdf_into_sections(text: str) -> dict[str, str]:
         if current == "skip":
             continue
         sections[current].append(line)
-    # Drop empty buckets
     out = {}
     for k, lines in sections.items():
         joined = "\n".join(lines).strip()
         if joined:
             out[k] = joined
     return out
-

@@ -252,12 +252,17 @@ class ReExportContractTests(unittest.TestCase):
     """
 
     def test_every_public_name_is_re_exported(self):
+        # An imported module is not a name this module defines, and naming each
+        # one to exclude it (`re`, `defaultdict`, `Path`) put the test one
+        # `import` behind its own subject: adding `tex_macros` failed it.
+        import types
         import extract_sections as sections
         expected = {n for n in vars(sections)
                     if not n.startswith("__")
+                    and not isinstance(vars(sections)[n], types.ModuleType)
                     and getattr(vars(sections)[n], "__module__", "extract_sections")
                     in ("extract_sections", "re", None)
-                    and n not in {"annotations", "re", "defaultdict", "Path"}}
+                    and n != "annotations"}
         missing = sorted(n for n in expected if not hasattr(es, n))
         self.assertEqual(missing, [], f"extract_style does not re-export: {missing}")
 

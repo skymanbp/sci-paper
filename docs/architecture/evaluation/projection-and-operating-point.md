@@ -300,3 +300,48 @@ single-paragraph blocks reproduce finding-for-finding in all three arms; only
 the reference denominators moved (`n=3964` → 3,958, `n=2541` → 3,206) and one
 percentile with them (p73 → p71). Demo 2's draft was not retained, so it stays
 dated (§18.7).
+
+## 22. Numbers held in macros were invisible to the axis that counts numbers (2026-08-27)
+
+§18.2 found the salience axis reading digits that were not quantities. This is
+the same class in the other direction: quantities the axis could not read.
+
+A manuscript that writes `\newcommand{\Nfields}{63}` in its preamble and
+`\Nfields{}` in its results has put a measured number where neither named
+projection can see it. `RE_TEX_SIMPLE_CMD` reduces a command to its argument,
+so the *use* contributes nothing at all, while the *definition* contributes
+`63` once — in the preamble, attributed to no reported section. Two errors in
+opposite directions, which is why the net was small enough to go unnoticed.
+
+Found by real-machine review of a manuscript (the manuscript) that uses the habit
+throughout: 128 numeric macros, 253 uses in the body. Expanding the uses adds
+**650** digits; dropping the definitions removes **493** spurious preamble
+digits; the net on that document is 6,689 → 6,846, or +2.3% where the two
+component errors are 9.7% and 7.4%.
+
+**Prevalence.** Over 390 corpus documents carrying at least 50 visible digits,
+88.2% hide none this way at all. The ninetieth percentile hides 0.2% of its
+digits, the ninety-ninth 4.5%, and the heaviest corpus document 27% behind 87
+uses. the manuscript's 9.0% is the 99.5th percentile of that distribution. The habit is
+rare, and where it appears it appears hard.
+
+**The reference did not move.** The fix changes what the projection counts, so
+both salience baselines were rebuilt rather than left to score expanded
+manuscripts against an unexpanded reference. Movement at the p90 and p95 gates,
+across all three features and all seven buckets, in both `wgl` and
+`wgl-letter`: **zero, to four decimals.** Passage counts are identical. This is
+what distinguishes a correction from a rescaling — the reference population
+barely uses the construction, so no published salience figure in this record
+changes, while the affected manuscript's own reading does.
+
+Expansion runs once, on the assembled document root, because that is the only
+scope holding both a preamble definition and a body use
+([`tools/tex_macros.py`](../../../tools/tex_macros.py)). It is deliberately
+conservative: a macro expands only when its body is a bare numeric literal, so
+`\newcommand{\Msun}{M_\odot}` and every macro taking an argument are untouched.
+
+**What this does not close.** A macro whose body carries markup stays invisible
+— `\newcommand{\REDACTEDMACRO}{5.1\%}` is still stripped, leaving 14 digits
+across 7 uses unread in the manuscript. PDF-derived corpus entries were never affected,
+since a PDF text layer is already rendered; the bias applied to `.tex` sources
+only, on both sides of the comparison.
