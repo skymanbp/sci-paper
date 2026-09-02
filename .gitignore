@@ -74,3 +74,5 @@ Thumbs.db
 *.log
 *.out
 *.synctex.gz
+# HuggingFace hub entries relocated from the user cache (junction back)
+models/hf-cache/
