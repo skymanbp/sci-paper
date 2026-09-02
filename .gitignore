@@ -76,3 +76,5 @@ Thumbs.db
 *.synctex.gz
 # HuggingFace hub entries relocated from the user cache (junction back)
 models/hf-cache/
+# cc-enforcer index / cc-memory state: machine-local, never content
+.ccm/
