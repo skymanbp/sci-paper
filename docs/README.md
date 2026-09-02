@@ -1,7 +1,7 @@
 # Documentation index
 
-Four kinds of document live here, and the difference between them is load-bearing:
-only the first is normative.
+Six kinds of document live here, and the difference between them is load-bearing:
+only the first two are normative.
 
 | | Document | Kind | Read it when |
 |---|---|---|---|
@@ -12,7 +12,7 @@ only the first is normative.
 | **Evidence** | [architecture/EVALUATION.md](architecture/EVALUATION.md) — the hub | Evaluation contract, current per-axis status, repository verification, release evidence boundary, and the map of every section. | You want to know whether an axis can be trusted, and on what sample. **Start here**, then follow the map. |
 | **Frozen design notes** | [design-notes/DEAI_ARCHITECTURE_ROADMAP.md](design-notes/DEAI_ARCHITECTURE_ROADMAP.md)<br>[design-notes/DEAI_FRONTIER.md](design-notes/DEAI_FRONTIER.md) | Dated reasoning records, **not status documents**. Their present tense is the present tense of the day they were written. | You want to know *why* a design decision was taken. |
 
-The evidence record is one document split across five files, because a single one
+The evidence record is one document split across eight files, because a single one
 had grown past the point of being readable. Section numbers are **global**: §9.5 means
 the same thing wherever it is cited from, and the hub's section map says which file it
 lives in.
@@ -20,12 +20,12 @@ lives in.
 | Part | Sections | Evidence |
 |---|---|---|
 | [architecture/EVALUATION.md](architecture/EVALUATION.md) | 1–3, 12 | The hub: contract, axis status, repository verification, release boundary, section map |
-| [architecture/evaluation/lexical-structure-uid.md](architecture/evaluation/lexical-structure-uid.md) | 4–6 | L0 behaviour, sentence-structure reference, UID reference |
+| [architecture/evaluation/lexical-structure-uid.md](architecture/evaluation/lexical-structure-uid.md) | 4–6, 16 | L0 behaviour, sentence-structure reference, UID reference |
 | [architecture/evaluation/learned-model.md](architecture/evaluation/learned-model.md) | 7, 8, 10 | Learned field similarity and its confound audit, rewrite eligibility, author hard set |
 | [architecture/evaluation/document-scale.md](architecture/evaluation/document-scale.md) | 9 | Whole-document dispersion: the keystone axis, its adversarial tiers and conformal operating points |
 | [architecture/evaluation/narrative-salience-register.md](architecture/evaluation/narrative-salience-register.md) | 11, 13–15 | Real rewrite evaluation, blind perceptual panel, salience hierarchy, domain register, narrative salience |
-| [architecture/evaluation/held-out-labels.md](architecture/evaluation/held-out-labels.md) | 17 | Held-out refereed papers as provenance labels: the register false-positive rate, the salience gate-transfer check, and the paired leakage test |
-| [architecture/evaluation/projection-and-operating-point.md](architecture/evaluation/projection-and-operating-point.md) | 18 | Citation projection symmetry, the digits the salience axis was misreading, the held-out collection guard, the register operating point derived against refereed prose, citation placement measured but not shipped (refuted in §20), and the three drift events behind the check that now pins every published figure to its artifact |
+| [architecture/evaluation/held-out-labels.md](architecture/evaluation/held-out-labels.md) | 17, 21 | Held-out refereed papers as provenance labels: the register false-positive rate, the salience gate-transfer check, and the paired leakage test |
+| [architecture/evaluation/projection-and-operating-point.md](architecture/evaluation/projection-and-operating-point.md) | 18, 22 | Citation projection symmetry, the digits the salience axis was misreading, the held-out collection guard, the register operating point derived against refereed prose, citation placement measured but not shipped (refuted in §20), and the three drift events behind the check that now pins every published figure to its artifact |
 | [architecture/evaluation/discourse-and-citation.md](architecture/evaluation/discourse-and-citation.md) | 19–20 | The two discourse axes and why they measure at different units — hedging has no paragraph-scale lower tail, so it calibrates per section and speaks only for the bucket where its gate was shown to transfer — and citation placement refuted by a second, independently produced machine bank: one prompt line moves the same statistic from 0.053 to 0.734 |
 
 ## The authority order
@@ -68,11 +68,11 @@ universal paper PASS/FAIL.
 `tools/validate_plugin.py` enforces the following, so drift fails CI rather than
 accumulating:
 
-- the release version appears in the header line of both architecture documents;
+- the release version appears in the header line of `DEAI_SUBSYSTEM.md` and `EVALUATION.md`;
 - every document in `docs/` is linked from this index (no orphan documents);
 - each file under `design-notes/` declares itself a design note in its header;
 - no document reappears at a location it was moved away from;
-- every suite size recorded in `EVALUATION.md` matches actual test discovery.
+- every suite size recorded anywhere in the evidence record or in either README matches actual test discovery.
 
 One convention it cannot enforce lives in the suite instead. The figures these
 documents quote come from `style-profile/<field>/`, which is gitignored, so no

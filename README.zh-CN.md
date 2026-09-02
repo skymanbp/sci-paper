@@ -118,7 +118,7 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 牛津逗号"被读成同时*丢失* `2400,` 又*凭空加上* `2400`
 （[`rewrite_reward.py:33`](tools/rewrite_reward.py#L33)）；过宽的单位模式让
 `"in 2020 we found"` 产出单位 `we`
-（[`rewrite_reward.py:41`](tools/rewrite_reward.py#L41)）。
+（[`rewrite_reward.py:56`](tools/rewrite_reward.py#L56)）。
 见 [demo 3](#3-保真门枪毙了风格分最高的候选)。
 
 **二 · 全文尺度检测，因为段落尺度的去 AI 根本没用。** 本仓库最关键的一次测量：
@@ -425,7 +425,7 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 360 ms**，且不需要任何可选依赖。两条模型驱动的轴贵 74–81 倍，并且是显式 opt-in 的
 flag —— lint 一篇论文不该需要一块 GPU。这次它们反而变快了（48.7 → 33.8 s、59.1 →
 37.2 s），而每一条标准库行都随地板上移；这张表说不清原因，请把它们读成「这台机器
-今天」而不是趋势。CI 每次 push 与 PR 都跑 validator + 套件，Python 3.11，Ubuntu。
+今天」而不是趋势。CI 每次推到 main 的 push 与每个 PR 都跑 validator + 套件，Python 3.11，Ubuntu。
 
 ---
 
@@ -623,7 +623,7 @@ style-profile/<field>/                  生成的证据（gitignore）
 ```text
 sci-paper/
 ├── .claude-plugin/          plugin.json · marketplace.json
-├── .github/workflows/       ci.yml —— 每次 push 与 PR 跑 validator + 测试
+├── .github/workflows/       ci.yml —— 推到 main 的 push 与 PR 跑 validator + 测试
 ├── docs/                    ← 索引与权威顺序在 docs/README.md
 │   ├── SCIPAPER_STANDARD.md      唯一规范契约（v3.7）
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md（hub）+ evaluation/

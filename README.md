@@ -126,7 +126,7 @@ scores `-inf`, whatever the style score. The tokenizer boundaries are themselves
 naive versions rejected faithful rewrites — a greedy numeral pattern made dropping an Oxford comma read as
 simultaneously *missing* `2400,` and *inventing* `2400` ([`rewrite_reward.py:33`](tools/rewrite_reward.py#L33));
 a permissive unit pattern made `"in 2020 we found"` yield the unit `we`
-([`rewrite_reward.py:41`](tools/rewrite_reward.py#L41)). See [demo
+([`rewrite_reward.py:56`](tools/rewrite_reward.py#L56)). See [demo
 3](#3-the-fidelity-gate-rejects-the-best-scoring-candidate).
 
 **2 · Document-scale detection, because paragraph-scale de-AI does not fix it.**
@@ -475,7 +475,7 @@ The headline: **a complete model-free pass over a 5,084-word manuscript costs ~3
 above the interpreter floor**, with no optional dependency installed. The two model-backed axes cost
 74×–81× more and are opt-in flags — you should not need a GPU to lint a paper. This time they moved
 *down* (48.7 → 33.8 s, 59.1 → 37.2 s) while every stdlib row rose with the floor; read those two as
-this machine today, not a trend. CI runs validator and suite on every push and PR, Python 3.11, Ubuntu.
+this machine today, not a trend. CI runs validator and suite on every push to main and on every PR, Python 3.11, Ubuntu.
 
 ---
 
@@ -666,7 +666,7 @@ dossier is evidence, not a standard and not proof of authorship.
 ```text
 sci-paper/
 ├── .claude-plugin/          plugin.json · marketplace.json
-├── .github/workflows/       ci.yml — validator + test suite on push and PR
+├── .github/workflows/       ci.yml — validator + test suite on push to main and PR
 ├── docs/                    ← index + authority order at docs/README.md
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
