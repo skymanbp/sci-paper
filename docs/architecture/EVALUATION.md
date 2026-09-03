@@ -150,11 +150,11 @@ The three drift events it exists to stop are recorded in §18.8.
 
 ## 12. Release evidence boundary
 
-Current release gates (v0.35.0, 2026-08-27): `validate_plugin.py` all 9 checks
-pass and the full unit/CLI suite (394 tests, 20 files) passes on a clean tree;
-both are rerun before every tag, and as of v0.25.1 the hosted CI run on the
-release commit must also be green (first green runs: 31133202443 push,
-31133215203 manual dispatch).
+Current release gates (as of 2026-09-03; last tagged release v0.35.0):
+`validate_plugin.py` all 9 checks pass and the full unit/CLI suite
+(394 tests, 20 files) passes on a clean tree; both are rerun before every tag,
+and as of v0.25.1 the hosted CI run on the release commit must also be green
+(first green runs: 31133202443 push, 31133215203 manual dispatch).
 
 A v0.28.0-specific gate applies because this release changes what the corpus
 layer reads: no figure may be carried forward on assertion. Every section-keyed

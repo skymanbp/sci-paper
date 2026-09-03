@@ -459,6 +459,9 @@ features and posture — but an old triage list will not reproduce exactly.
 Measured 2026-08-27 on Windows 11, Python 3.13.3, RTX 4060 Ti, median of 7 subprocess runs (3 for the
 model-backed rows and the suite) including interpreter startup, on a real 5,084-word corpus paper
 assembled from its includes. Re-taken whole: the floor moved 84 → 98 ms, so no v0.33.0 row compares.
+The suite row carries its own date: the suite reached 394 tests on 2026-09-03, and that row was
+re-taken then — median of 3, the three runs spanning 70.0 – 86.9 s. Every other row stands from the
+2026-08-27 take; the table is re-taken whole at the next release.
 
 | Pass | Median wall | Dependencies |
 |---|---:|---|
@@ -469,7 +472,7 @@ assembled from its includes. Re-taken whole: the floor moved 84 → 98 ms, so no
 | `+ --oracle` (GPT-2-large token surprisal) | 33.8 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 37.2 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **9/9 checks pass** | 2.9 s | stdlib |
-| Full test suite — **394 passing**, 20 files | 81.4 s | stdlib |
+| Full test suite — **394 passing**, 20 files | 73.0 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs ~360 ms of analysis
 above the interpreter floor**, with no optional dependency installed. The two model-backed axes cost
