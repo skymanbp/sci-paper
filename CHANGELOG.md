@@ -3,6 +3,60 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.35.1 — 2026-09-03
+
+A post-release audit of the documentation, not of the code. An escape the
+writer lost had truncated the tools table in both READMEs, the one published
+figure with no artifact behind it was wrong, and several figures and dates in
+the record had drifted from what they describe.
+
+### A lost backslash ended the tools table four rows early
+
+The `tools/tex_macros.py` row wrote `\newcommand` without its backslash, and
+the consumed newline split the row, so the table stopped rendering there —
+`retrieve_exemplars`, `fetch_arxiv_abstracts`, `train_ai_ism_classifier` and
+`extract_md_negatives` fell out of it, in both READMEs. The same damage sat in
+the v0.32.0 changelog entry at `\nocite`.
+
+### The worked example published a count the linter does not report
+
+`examples/README.md` said 19 total advisories where `ai_ism_lint` reports 18.
+It was the only published-figure document with no artifact behind it, so
+nothing read it. `tests/test_published_figures.py` now renders both of its
+tables — the before/after summary and the per-rule counts — by running the
+linter on the two shipped manuscripts and looking for the result, the same way
+every other pinned figure is rendered from the artifact it was read from. A
+cell the linter does not produce fails the case, so a document that agrees with
+a stale run and a document nobody updated fail identically.
+
+### Figures and dates the record had drifted from
+
+- **203**, not 200, held-out refereed papers, in the two `DISPOSITIONS.md` rows
+  that still carried the count from before §18 re-measured it.
+- The v0.30.0–v0.33.0 changelog headings were dated 2026-08-27; their tagger
+  dates are **2026-08-26**.
+- The release-gate label in `EVALUATION.md` §12 stamped a version on a suite
+  size measured after it. It now reads "as of 2026-09-03; last tagged release
+  v0.35.0", so the version names the tag and the date names the measurement.
+- Both README latency tables paired 394 tests with 81.4 s, a wall time taken on
+  the 393-test suite. The suite row is re-taken: **73.0 s**, median of 3, the
+  three runs spanning 70.0–86.9 s. Every other row still stands from the
+  2026-08-27 take and the preamble now says which rows carry which date.
+- `docs/README.md` called the evidence record five files where it is eight,
+  gave three of them section maps missing the sections added since, counted
+  four kinds of document where six live there, and described the validator's
+  version and suite-size checks narrower than they are.
+- The unit-pattern anchor in both READMEs pointed at `rewrite_reward.py:41`;
+  the pattern is at `:56`.
+- Both READMEs said CI runs on every push. `ci.yml` filters `branches: [main]`,
+  so it runs on every push to `main` and every pull request.
+
+### Also
+
+- `.gitignore` covers `models/hf-cache/`, `.ce/` and `.ccm/` — relocated model
+  cache and machine-local tool state, never repository content.
+- Suite: 394 tests across 20 files; `validate_plugin.py` 9/9.
+
 ## v0.35.0 — 2026-08-27
 
 The axis that counts numbers could not see numbers written as macros, a public
