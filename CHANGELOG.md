@@ -37,7 +37,7 @@ a stale run and a document nobody updated fail identically.
   dates are **2026-08-26**.
 - The release-gate label in `EVALUATION.md` §12 stamped a version on a suite
   size measured after it. It now reads "as of 2026-09-03; last tagged release
-  v0.35.0", so the version names the tag and the date names the measurement.
+  v0.35.1", so the version names the tag and the date names the measurement.
 - Both README latency tables paired 394 tests with 81.4 s, a wall time taken on
   the 393-test suite. The suite row is re-taken: **73.0 s**, median of 3, the
   three runs spanning 70.0–86.9 s. Every other row still stands from the
