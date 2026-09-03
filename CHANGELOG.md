@@ -344,7 +344,7 @@ opens with the supersession banner and names both thresholds.
   reached 830 lines against the repository's 750-line budget, which made it
   unwritable rather than merely long.
 
-## v0.33.0 — 2026-08-27
+## v0.33.0 — 2026-08-26
 
 The roadmap's last engineering item ships and its strongest measurement is
 refuted. Both outcomes came from the same discipline: measure the thing against
@@ -446,7 +446,7 @@ detectors spelled out separately.
   (~325 ms above the floor). The first re-run was discarded — it read a 295 ms
   interpreter floor because it was competing with the session that started it.
 
-## v0.32.0 — 2026-08-27
+## v0.32.0 — 2026-08-26
 
 Asked what was still open, the audit found two more places where the calibration
 side and the detection side were not reading the same text — and one of them let
@@ -465,8 +465,7 @@ optional-argument forms, plus `\citealp`, `\citeyear`, `\citeauthor`,
 `\citenum`, `\citeyearpar`.
 
 Matched now **by shape, not by name**, in three behaviours, because three exist:
-a citation renders a mark, a declaration (`
-ocite`, `\setcitestyle`) renders
+a citation renders a mark, a declaration (`\nocite`, `\setcitestyle`) renders
 nothing, and `\citetext` wraps prose the author wrote. A name allowlist is the
 wrong instrument — the tail is per-paper local macros (`\citeg`, `\citejap`,
 `\putcite`, one paper each). Verified exhaustively: 46 names × 5 written forms
@@ -560,7 +559,7 @@ from one generation process and one bank cannot separate "AI cites more" from
 
 328 tests across 17 files; validator 9/9.
 
-## v0.31.0 — 2026-08-27
+## v0.31.0 — 2026-08-26
 
 Asked what was left undone, the answer turned out to be inside the number
 v0.30.0 had just published. **58.7% of the register false positives measured on
@@ -622,7 +621,7 @@ vocabulary — the held-out sweep pulled sub-mm papers whose instrument names
 
 315 tests across 17 files; validator 9/9.
 
-## v0.30.1 — 2026-08-27
+## v0.30.1 — 2026-08-26
 
 An audit for anything left undone found a second field running a different
 rule from the documented one, with no sign that it was.
@@ -656,7 +655,7 @@ sections 11 and 13–15, which stopped being true when §17 landed.
 
 308 tests across 17 files; validator 9/9.
 
-## v0.30.0 — 2026-08-27
+## v0.30.0 — 2026-08-26
 
 The last open roadmap item is closed, and closing it produced a worse result
 than leaving it open would have shown. Half of it never needed a labeller: a

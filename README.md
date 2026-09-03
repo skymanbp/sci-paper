@@ -5,14 +5,14 @@
 [![Version](https://img.shields.io/badge/version-0.35.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-393%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-394%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**12 skills · 35 tools · 393 tests · one normative contract · zero authorship verdicts.**
+**12 skills · 35 tools · 394 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
 [How it works](#how-it-works) · [See it work](#see-it-work) ·
@@ -469,7 +469,7 @@ assembled from its includes. Re-taken whole: the floor moved 84 → 98 ms, so no
 | `+ --oracle` (GPT-2-large token surprisal) | 33.8 s | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 37.2 s | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **9/9 checks pass** | 2.9 s | stdlib |
-| Full test suite — **393 passing**, 20 files | 81.4 s | stdlib |
+| Full test suite — **394 passing**, 20 files | 81.4 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs ~360 ms of analysis
 above the interpreter floor**, with no optional dependency installed. The two model-backed axes cost
@@ -569,8 +569,7 @@ reproducible evidence. Per-tool detail: [tools/README.md](tools/README.md).
 | `tools/cli_common.py` | build | Shared command-line preamble and field resolution, used by 25 of 35 tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
 | `tools/extract_style.py` | build | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. Re-exports every public name from `extract_sections.py`. |
 | `tools/extract_sections.py` | build | Source-text projection and section splitting: the section vocabulary and its classifier, both named LaTeX projections, and the PDF heading heuristic. Section buckets key every per-section reference, so changing this requires a profile rebuild. |
-| `tools/tex_macros.py` | build | Expands numeric-literal `
-ewcommand` macros once on the assembled document root, so a quantity an author wrote as a macro reaches the projections that count numerals. Conservative: symbolic and argument-taking macros are untouched. |
+| `tools/tex_macros.py` | build | Expands numeric-literal `\newcommand` macros once on the assembled document root, so a quantity an author wrote as a macro reaches the projections that count numerals. Conservative: symbolic and argument-taking macros are untouched. |
 | `tools/retrieve_exemplars.py` | build | Retrieves section- and topic-matched exemplar paragraphs, with embedding or explicit fallback retrieval. |
 | `tools/fetch_arxiv_abstracts.py` | build | Fetches dated abstract corpora for controlled evaluation and training, optionally restricted to a subfield query set and named refereed journals, or complete LaTeX sources for one author (`--author` + `--author-is` + `--max-authors`). Rate limiting **stops the sweep and exits 2** rather than writing a truncated corpus as if it were complete. |
 | `tools/train_ai_ism_classifier.py` | legacy | Trains the legacy word-ngram classifier, used only as degraded advisory evidence. |
@@ -671,14 +670,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   12 skills         ├── tests/     20 files, 393 tests
+├── skills/<name>/SKILL.md   12 skills         ├── tests/     20 files, 394 tests
 ├── tools/                   35 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 9 contract checks and `python -m unittest discover -s tests -v` runs the
-393-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
+394-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page anchors, recorded suite sizes
 against real discovery, product registries, syntax, runtime imports, CLI entry points, schema fields, and linter
 exit semantics — `tools/validate_plugin.py` itself is the authoritative list. A release also requires

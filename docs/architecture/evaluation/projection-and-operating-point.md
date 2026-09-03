@@ -1,4 +1,4 @@
-# EVALUATION — Projection symmetry, the register operating point, citation placement · `sci-paper` v0.32.0
+# EVALUATION — Projection symmetry, the register operating point, citation placement · `sci-paper` v0.32.0 and v0.35.0
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the

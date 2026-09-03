@@ -29,7 +29,7 @@ profile on 2026-08-27 and will move with the corpus.
 |---|---:|---:|
 | L0 targets | 1 | **0** |
 | integrity blockers | 0 | 0 |
-| total advisories | 19 | 16 |
+| total advisories | 18 | 16 |
 | strong advisories | 7 | 7 |
 | document-scale findings | 8 | **6** |
 

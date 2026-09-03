@@ -13,6 +13,10 @@ turn you paste it" -- and that rule broke three times in three releases:
 - the UID baseline finished rebuilding after the v0.32.0 tag, with nothing
   pointing at the four documents that quote it.
 
+One document has no artifact at all. `examples/README.md` publishes what the
+linter reports about the two example manuscripts this repository ships, so its
+source is the run, and that case renders its counts by running it.
+
 Each case below renders the expected substring FROM the artifact and then looks
 for it, so a document that agrees with a stale artifact and a document nobody
 updated fail identically. That is the point: this is not a spell-check of the
@@ -25,20 +29,42 @@ layer up.
 
 from __future__ import annotations
 
+import collections
+import functools
 import json
 import pathlib
 import re
+import subprocess
+import sys
 import unittest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 UID_DOC = "docs/architecture/evaluation/lexical-structure-uid.md"
 EVALUATION_DOC = "docs/architecture/EVALUATION.md"
 DISCOURSE_DOC = "docs/architecture/evaluation/discourse-and-citation.md"
+EXAMPLES_DOC = "examples/README.md"
+EXAMPLE_BEFORE = "examples/sample-manuscript.tex"
+EXAMPLE_AFTER = "examples/sample-manuscript-revised.tex"
+LINTER = "tools/ai_ism_lint.py"
+DOCSCALE_DETECTOR = "deai_docstructure"
 RE_PROFILE_FIELD = re.compile(r"style-profile/([^/`\s]+)/uid_baseline\.json")
 BUCKETS = ("method", "results", "data", "intro", "discussion", "conclusion",
            "abstract")
 AXIS_TABLE_ORDER = ("abstract", "method", "data", "intro", "discussion",
                     "results", "conclusion")
+# The per-rule table in examples/README.md, in its order: one rule named with
+# its variant, one with its layer, five with neither. Which rules the
+# walkthrough tabulates is the document's choice; every count in it is the
+# linter's.
+EXAMPLE_RULE_ROWS = (
+    ("`discourse-cohesion`", "discourse-cohesion"),
+    ("`em-dash` (L0)", "em-dash"),
+    ("`ing-tail:highlighting`", "ing-tail:highlighting"),
+    ("`document-uniformity`", "document-uniformity"),
+    ("`document-role-decoupling`", "document-role-decoupling"),
+    ("`structure-template`", "structure-template"),
+    ("`salience-recital`", "salience-recital"),
+)
 
 
 def _field() -> str | None:
@@ -102,6 +128,53 @@ def uid_row(bucket: str) -> tuple[str, str, str]:
     return f"{uid['n']:,}", f"{uid['mean']:.2f}", f"{uid['stdev']:.2f}"
 
 
+@functools.lru_cache(maxsize=None)
+def lint_report(manuscript: str) -> dict:
+    """The shipped linter's own report for one shipped example manuscript.
+
+    Every other figure here has an artifact behind it; this one has a run. The
+    walkthrough publishes what `ai_ism_lint` reports about `examples/`, so the
+    source its table must agree with is the linter, and a cell the linter does
+    not produce fails this case.
+    """
+    finished = subprocess.run(
+        [sys.executable, str(REPO / LINTER), str(REPO / manuscript),
+         "--field", FIELD or "", "--format", "json"],
+        capture_output=True, text=True, encoding="utf-8")
+    # Exit 1 is the documented code for "an L0 target is present", which the
+    # before-manuscript is written to carry. Only a third code is a failure.
+    if finished.returncode not in (0, 1):
+        raise RuntimeError(f"{manuscript}: lint exited {finished.returncode}\n"
+                           f"{finished.stderr}")
+    return json.loads(finished.stdout)
+
+
+def example_rule_counts(manuscript: str) -> collections.Counter:
+    """Findings per rule, counted under the whole rule and under its family.
+
+    The table names one rule with its variant (`ing-tail:highlighting`) and
+    four without (`document-uniformity` covers six features), so a count has to
+    be readable at either spelling.
+    """
+    counts: collections.Counter = collections.Counter()
+    for finding in lint_report(manuscript)["findings"]:
+        counts[finding["rule"]] += 1
+        family = finding["rule"].split(":")[0]
+        if family != finding["rule"]:
+            counts[family] += 1
+    return counts
+
+
+def example_docscale_findings(manuscript: str) -> int:
+    """The document-scale row: what the whole-document detector emitted."""
+    return sum(1 for finding in lint_report(manuscript)["findings"]
+               if finding["detector"]["name"] == DOCSCALE_DETECTOR)
+
+
+def example_row(label: str, before: int, after: int) -> str:
+    return f"| {label} | {before} | {after} |"
+
+
 def expectations(document: str) -> list[tuple[str, str]]:
     """(label, exact substring) pairs `document` must contain, rendered now.
 
@@ -140,6 +213,31 @@ def expectations(document: str) -> list[tuple[str, str]]:
              + ("documents · all six section classes" if english
                 else "篇文档 · 六个 section 类")),
         ]
+    if document == EXAMPLES_DOC:
+        reports = [lint_report(EXAMPLE_BEFORE), lint_report(EXAMPLE_AFTER)]
+        kinds = [report["summary"]["by_kind"] for report in reports]
+        rules = [example_rule_counts(EXAMPLE_BEFORE),
+                 example_rule_counts(EXAMPLE_AFTER)]
+        return [
+            ("L0 targets",
+             example_row("L0 targets", *(kind["l0_target"] for kind in kinds))),
+            ("integrity blockers",
+             example_row("integrity blockers",
+                         *(kind["integrity_blocker"] for kind in kinds))),
+            ("total advisories",
+             example_row("total advisories",
+                         *(kind["advisory"] for kind in kinds))),
+            ("strong advisories",
+             example_row("strong advisories",
+                         *(report["summary"]["strong_advisories"]
+                           for report in reports))),
+            ("document-scale findings",
+             example_row("document-scale findings",
+                         example_docscale_findings(EXAMPLE_BEFORE),
+                         example_docscale_findings(EXAMPLE_AFTER))),
+        ] + [(f"per rule: {rule}",
+              example_row(label, *(count[rule] for count in rules)))
+             for label, rule in EXAMPLE_RULE_ROWS]
     if document == DISCOURSE_DOC:
         # §19 is the only place two references built at different units are
         # quoted side by side, and reading one against the other is the exact
@@ -198,12 +296,19 @@ class PublishedFiguresMatchTheirArtifactsTest(unittest.TestCase):
 
     def assert_document_carries_its_figures(self, document: str) -> None:
         text = (REPO / document).read_text(encoding="utf-8")
+        source = f"style-profile/{FIELD}/"
+        if document == EXAMPLES_DOC:
+            # Which cell the walkthrough bolds is editorial; the digits in it
+            # are not. The emphasis is dropped before the comparison rather
+            # than reproduced here.
+            text = text.replace("**", "")
+            source = f"linting examples/ against the `{FIELD}` profile"
         for label, wanted in expectations(document):
             with self.subTest(figure=label):
                 self.assertIn(
                     wanted, text,
                     f"{document} no longer carries the {label} figure; "
-                    f"style-profile/{FIELD}/ now says {wanted!r}")
+                    f"{source} now says {wanted!r}")
 
     @needs_profile
     def test_the_english_readme_artifact_table(self) -> None:
@@ -224,6 +329,10 @@ class PublishedFiguresMatchTheirArtifactsTest(unittest.TestCase):
     @needs_profile
     def test_the_discourse_reference_tables(self) -> None:
         self.assert_document_carries_its_figures(DISCOURSE_DOC)
+
+    @needs_profile
+    def test_the_worked_example_tables(self) -> None:
+        self.assert_document_carries_its_figures(EXAMPLES_DOC)
 
 
 class TheCheckKnowsWhatItIsCheckingTest(unittest.TestCase):
