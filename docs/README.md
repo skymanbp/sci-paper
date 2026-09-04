@@ -12,7 +12,7 @@ only the first two are normative.
 | **Evidence** | [architecture/EVALUATION.md](architecture/EVALUATION.md) — the hub | Evaluation contract, current per-axis status, repository verification, release evidence boundary, and the map of every section. | You want to know whether an axis can be trusted, and on what sample. **Start here**, then follow the map. |
 | **Frozen design notes** | [design-notes/DEAI_ARCHITECTURE_ROADMAP.md](design-notes/DEAI_ARCHITECTURE_ROADMAP.md)<br>[design-notes/DEAI_FRONTIER.md](design-notes/DEAI_FRONTIER.md) | Dated reasoning records, **not status documents**. Their present tense is the present tense of the day they were written. | You want to know *why* a design decision was taken. |
 
-The evidence record is one document split across eight files, because a single one
+The evidence record is one document split across nine files, because a single one
 had grown past the point of being readable. Section numbers are **global**: §9.5 means
 the same thing wherever it is cited from, and the hub's section map says which file it
 lives in.
@@ -27,6 +27,7 @@ lives in.
 | [architecture/evaluation/held-out-labels.md](architecture/evaluation/held-out-labels.md) | 17, 21 | Held-out refereed papers as provenance labels: the register false-positive rate, the salience gate-transfer check, and the paired leakage test |
 | [architecture/evaluation/projection-and-operating-point.md](architecture/evaluation/projection-and-operating-point.md) | 18, 22 | Citation projection symmetry, the digits the salience axis was misreading, the held-out collection guard, the register operating point derived against refereed prose, citation placement measured but not shipped (refuted in §20), and the three drift events behind the check that now pins every published figure to its artifact |
 | [architecture/evaluation/discourse-and-citation.md](architecture/evaluation/discourse-and-citation.md) | 19–20 | The two discourse axes and why they measure at different units — hedging has no paragraph-scale lower tail, so it calibrates per section and speaks only for the bucket where its gate was shown to transfer — and citation placement refuted by a second, independently produced machine bank: one prompt line moves the same statistic from 0.053 to 0.734 |
+| [architecture/evaluation/vocabulary-and-residue.md](architecture/evaluation/vocabulary-and-residue.md) | 23 | The zero-hit vocabulary audit (exhaustive, not a detector), the collocation axis against a leave-one-out reference, the three structure families taken from a mentor's comments, the removal map's baseline on refereed papers, and the residue rules' false-positive rate |
 
 ## The authority order
 
@@ -59,7 +60,7 @@ universal paper PASS/FAIL.
 | Per-tool registry, calibration, and failure behavior | [../tools/README.md](../tools/README.md) |
 | Supplying a field corpus | [../style-corpus/README.md](../style-corpus/README.md) |
 | Generated profile assets and build boundaries | [../style-profile/README.md](../style-profile/README.md) |
-| Per-version history | [../CHANGELOG.md](../CHANGELOG.md) · [../CHANGELOG-ARCHIVE-RECENT.md](../CHANGELOG-ARCHIVE-RECENT.md) (v0.27.1-v0.29.0) · [../CHANGELOG-ARCHIVE.md](../CHANGELOG-ARCHIVE.md) (v0.22.0-v0.27.0) · [../CHANGELOG-ARCHIVE-EARLY.md](../CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0) |
+| Per-version history | [../CHANGELOG.md](../CHANGELOG.md) · [../CHANGELOG-ARCHIVE-RECENT.md](../CHANGELOG-ARCHIVE-RECENT.md) (v0.27.1-v0.31.0) · [../CHANGELOG-ARCHIVE.md](../CHANGELOG-ARCHIVE.md) (v0.22.0-v0.27.0) · [../CHANGELOG-ARCHIVE-EARLY.md](../CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0) |
 | Working rules for this repository | [../CLAUDE.md](../CLAUDE.md) |
 | Adapted-material attribution and adoption boundaries | [../ACKNOWLEDGMENTS.md](../ACKNOWLEDGMENTS.md) |
 

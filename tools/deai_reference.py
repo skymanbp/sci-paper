@@ -164,6 +164,18 @@ def _labelled_sections(text: str):
         yield start, end, bucket
 
 
+def without_headings(block: str) -> str:
+    """The block with every heading command blanked, line count preserved.
+
+    The banks hold the prose UNDER a heading and never its words, so a heading
+    left in a manuscript unit is measured on one side of every percentile only,
+    and with no terminator of its own it fuses with the first sentence below it
+    (`Validation Rescored catalogs ...`). Blanking rather than deleting keeps
+    every reported line number pointing where it did.
+    """
+    return es.RE_HEADING_COMMAND.sub(lambda m: " " * len(m.group(0)), block)
+
+
 def sections(text: str) -> list[tuple[int, int, str, str]]:
     """(start_line, end_line, bucket, block) for every SECTION-sized unit.
 
@@ -179,9 +191,9 @@ def sections(text: str) -> list[tuple[int, int, str, str]]:
                 for line in range(start, end + 1)}
     lines = text.splitlines()
     for start, end, bucket in _labelled_sections(text):
-        body = "\n".join(line for number, line in
-                         enumerate(lines[start - 1:end], start)
-                         if number not in consumed)
+        body = without_headings("\n".join(
+            line for number, line in enumerate(lines[start - 1:end], start)
+            if number not in consumed))
         if body.strip():
             found.append((start, end, bucket, body))
     return found
@@ -195,9 +207,9 @@ def units(text: str) -> list[tuple[int, int, str, str]]:
 
     lines = text.splitlines()
     for section_start, section_end, bucket in _labelled_sections(text):
-        segment = "\n".join(lines[section_start - 1:section_end])
+        segment = without_headings("\n".join(lines[section_start - 1:section_end]))
         for start, end, block in metrics.paragraph_line_ranges(segment, section_start):
-            if start in consumed:
+            if start in consumed or not block.strip():
                 continue
             found.append((start, end, bucket, block))
     return found

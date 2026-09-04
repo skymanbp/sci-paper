@@ -132,7 +132,19 @@ Axes and tools:
   never a curated list of another field's words, because a list cannot separate
   `AUC` (1 astronomy passage in 15,599) from `epoch` (402) and `accuracy` (774).
   Advisories only; a corpus-rare term may be a borrowed method's accepted name
-  or the concept the paper introduces.
+  or the concept the paper introduces. The same tool's **zero-hit audit**
+  (`register-zero:<term>`) is exhaustive rather than thresholded: every body
+  word the manuscript uses that no corpus passage carries is listed, strong
+  unless the word is a mechanical formation of an attested stem (`clamped` from
+  `clamp`). A strong hit is answered by one of the §4.2 dispositions, never by
+  silence.
+- **L2 collocation** (`deai_collocation`) — sentences that join common words
+  the field never joins (`physical cells`, `controlled grid`): the fraction of a
+  sentence's adjacent content-word pairs that no corpus passage attests, against
+  a per-section leave-one-out reference. A pair the field writes by chance would
+  have been seen; a pair it never wrote is a coinage or a figure of speech, and
+  the action names the relation it compresses. Advisory; a term this paper
+  defines keeps its pair.
 - **L2 salience hierarchy** (`deai_salience`) — whether a passage ranks the
   quantities it reports or recites them. Not numeric density (a quantitative
   abstract is supposed to carry numbers) but how far the numerals run without an
@@ -146,7 +158,16 @@ Axes and tools:
 - **L2 sentence structure** (`deai_structure`) — template families
   (announced enumeration, ordinal runs, setup-list-wrap, repeated
   modal/anaphoric frames, symmetric closers) plus the auxiliary families
-  (antithesis clusters, short reversal beats).
+  (antithesis clusters, short reversal beats, paper-as-agent subjects, wh-cleft
+  openers, modifier stacks of three-plus tokens with two hyphenated compounds).
+  Auxiliary families never enter the template score; they name the sentence.
+- **L4 residue** (`deai_residue`) — the trace an edit leaves: self-referential
+  drafting history (`we initially`, `no longer`), edit-meta text (`TODO`, `see
+  previous version`), and a heading or caption that promises what the body
+  never delivers (`negative-label`). With `--before` or `--git-ref` the diff
+  rule reports a label the edit added and the body does not earn, and exit 1
+  gates the pass; a residue finding is fixed by rewriting the sentence to the
+  current state of the science, never by adding an explanation.
 - **L2 document structure** (`deai_docstructure`) — the de-AI centre of
   gravity: per-stratum cross-paragraph dispersion manifold, role coupling,
   split-conformal operating points. Word-level rewriting cannot move this
@@ -354,9 +375,13 @@ genre requires: a methods paragraph specifying a parameter grid is an
 enumeration by nature, and the finding only reports that it is denser than most
 human method passages.
 
-### 4.2 Register dispositions (`register-foreign`)
+### 4.2 Register dispositions (`register-foreign`, `register-zero`)
 
-Three dispositions, in preference order, each recorded:
+Three dispositions, in preference order, each recorded. A strong `register-zero`
+hit must take one of them explicitly: it is a word no passage of the field has
+ever written, and the only reasons to keep it are that this paper defines it
+(disposition 3, with the definition at first use) or that it names a method the
+field has not used before (disposition 2, with the citation that introduces it).
 
 1. **Name the field's own quantity.** Prefer the term the audience reads in,
    when one exists and means the same thing. A weak-lensing reader asks about
@@ -502,7 +527,7 @@ When the corpus changes, re-run `tools/extract_style.py` and
   reviewer.
 - Tools: `ai_ism_lint` (L0 hub + aggregation), `deai_metrics`,
   `deai_oracle`, `deai_structure`, `deai_salience`, `deai_register`,
-  `deai_docstructure`, `deai_anchoring`,
+  `deai_collocation`, `deai_residue`, `deai_docstructure`, `deai_anchoring`,
   `deai_voice`, `deai_partition`, `deai_provenance`, `deai_personal`,
   `rewrite_reward` (fidelity + length gate), `retrieve_exemplars`,
   `extract_style`, `build_profile`, `deai_feedback` (schema + ranking).

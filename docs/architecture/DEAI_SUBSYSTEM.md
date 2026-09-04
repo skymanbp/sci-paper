@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.35.1)
+# De-AI subsystem architecture (current as of v0.36.0)
 
 ## 1. Purpose
 
@@ -117,6 +117,19 @@ a macro body is a subscript decoration rather than a term, and possessives fold
 onto the bare term. Macro bodies are read because the shared reduction erases
 macro-bound vocabulary entirely. Findings are always advisories.
 
+The same tool carries the **zero-hit audit** (`register-zero:<term>`), which is
+exhaustive where the threshold rule is selective: every body word with corpus
+document frequency 0 is listed, once, with its sentence. Both sides of the
+comparison use one projection — preamble, bibliography, comments and section
+headings excluded from the manuscript exactly as they are absent from the
+passage banks (`body_only`, built on `extract_sections.RE_HEADING_COMMAND`) —
+because a word present on one side only is a projection defect, not a finding.
+Exemptions are mechanical and few: a formation of an attested stem
+(`clamped`/`clamp`, `holdouts`/`holdout`) is ordinary rather than strong; a word
+the paper defines or a cited method's name is the author's disposition, not the
+tool's. The audit is not a detector — refereed papers carry more zero-hit words
+than machine drafts (EVALUATION §23.1) — and ships as advice.
+
 ### L1: information distribution
 
 [`../tools/deai_metrics.py`](../../tools/deai_metrics.py) measures section-aware
@@ -140,6 +153,15 @@ structural patterns that keyword replacement cannot repair:
 - setup, list, and wrap-up symmetry;
 - balanced closers;
 - repeated paragraph templates.
+
+An auxiliary class — antithesis clusters, short reversal beats, paper-as-agent
+subjects ("This paper presents"), wh-cleft openers ("What matters is") and
+modifier stacks (a run of three or more tokens before a head noun carrying at
+least two hyphenated compounds) — is reported under `structure-auxiliary` and
+never enters `template_score`, so the calibrated manifold does not move when a
+family is added. The last three came from a mentor's margin comments on a real
+Letter; their human baseline fractions per bucket are in the structure baseline
+(`paper_agent_frac`, `wh_cleft_frac`, `modifier_stack_frac`).
 
 These are advisories. A detector match identifies a construction to inspect; it does
 not establish that the construction is wrong or machine-generated.
@@ -170,6 +192,25 @@ is right for lexical and shape statistics and zeroes every numeral signal on
 `.tex` input; the numeral-preserving projection shares the same pattern set and
 differs only in what happens inside an inline math span. Displayed equations are
 dropped by both.
+
+### L2: collocation
+
+[`../tools/deai_collocation.py`](../../tools/deai_collocation.py) asks a question
+the register axis cannot: whether a sentence joins words the field never joins.
+Each word may be ordinary — `physical` and `cells` both are — and the pair still
+one no passage of 41,710 has written. The unit is the sentence, the feature the
+fraction of its distinct adjacent content-word pairs that the bank does not
+attest, and the reference is leave-one-out per bucket: at calibration a pair the
+bank saw in exactly one passage is treated as that passage's own, so the
+reference distribution is what a held-out sentence would see. Only common words
+are judged as partners (`COMMON_RATE`, unigram df ≥ 2 × 10⁻⁴), because a rare
+word's pairs are rare for the reason the register axis already reports; a pair
+breaks at punctuation, a `[math]`/`[CITE]` placeholder or a dash, because
+`yields, separate` is two clauses. Each flagged pair carries its expected
+co-occurrence λ = df(a)·df(b)/N and e^−λ, so a reader can see that `measurements
+projected` (λ = 183) is a stronger absence than `sub-halo abundances` (λ = 0.3).
+A document-level novel-pair fraction is reported as evidence and used by
+`eval_findings`; it is not a percentile, because the reference is per sentence.
 
 ### L2: discourse texture (cohesion, hedging)
 
@@ -246,6 +287,34 @@ paragraph-unit findings at 0.5 confidence; `deai_voice` emits at paragraph unit
 and is capped by construction, so a per-paragraph score can never present as a
 high-confidence AI verdict.
 
+### L4: residue, and the removal map
+
+[`../tools/deai_residue.py`](../../tools/deai_residue.py) reads the trace an edit
+leaves rather than the prose it produced. Four rules, all deterministic:
+`residue-self-history:<word>` (a drafting-history term — `initially`, `no
+longer`, `we switched` — in a first-person sentence with no citation, so a
+history *of the literature* is not one of the paper); `residue-edit-meta`
+(`TODO`, `see previous version`, case-sensitive for the upper-case markers);
+`residue-negative-label` (a heading or caption whose object head stems never
+occur in the body, on documents of 400 words or more — ordinary, because it
+names 29% of refereed papers); and, given `--before` or `--git-ref`,
+`residue-negative-label-added` (a label the edit introduced and the body does
+not earn — strong). The literal and label rules read `deai_register.body_only`,
+because a `\newcommand{\TODO}` in a preamble and a bibliography title are not
+prose an edit left. The strong and ordinary history families are defined once
+in the tool and mirrored between markers in `skills/paper/SKILL.md`;
+`validate_plugin` calls the tool's own `validator_check`, which proves the mirror
+and scans the shipped documentation for the edit-meta literals. A strong finding
+exits 1, the third narrow exit contract after `length_gate` and `rewrite_reward`.
+
+[`../tools/condense_map.py`](../../tools/condense_map.py) is the measurement
+behind `/sci-paper:condense`: six scans (restatement with its canonical home,
+zero-gain sentences, dead figure/table/label/macro/acronym, verbose
+constructions, repeated symbol glosses, duplicated paragraphs), each entry with
+the words it would free, totalled into a budget whose default target excludes the
+abstract/conclusion carve-out. It deletes nothing; `length_gate.py
+--require-shrink` turns its target into an exit code.
+
 ## 6. Claim-first rewriting
 
 The `/sci-paper:de-ai` skill (Pass 3) does not polish the original sentence in
@@ -275,8 +344,9 @@ All active writing and review skills implement the same standard:
   structural-tell audit (Pass 2), and claim-first reconstruction with hard
   fidelity eligibility (Pass 3); it treats corpus profiles as descriptive
   evidence, never competing policy;
-- `condense` executes the standard's §5.3 condensation policy with
-  one-canonical-home deduplication, closed by the length gate;
+- `condense` executes the standard's §5.3 condensation policy over the
+  machine-built removal map, one disposition per entry, closed by the length
+  gate against the map's target and by the residue diff gate;
 - `paper-review` emits typed, source-traced findings across its review
   dimensions, including the narrative-spine protocol (dimension E, which never
   requires exactly one narrative spine) and adversarial escalation
@@ -343,7 +413,9 @@ standard.
 - shared schema fields and allowed enums;
 - linter exit and Tier B cap semantics;
 - normative/evaluation document authority boundaries;
-- required tests and CI wiring.
+- required tests and CI wiring;
+- the residue contract: the history families the paper skill quotes match the
+  tool's, and no shipped document carries an edit-meta literal.
 
 The authoritative check list is `validate_plugin.py` itself (`tools/README.md`
 mirrors it); this summary is descriptive.

@@ -47,12 +47,73 @@ RE_ANTITHESIS = re.compile(
     r"\b(rather than|instead of)\b|\bnot\s+(?:\w+\s+){0,3}?but\b", re.I)
 RE_REVERSAL = re.compile(
     r"^(it|they|this|that)\b[^.!?]{0,25}\b(not|never|opposite)\b", re.I)
+# Advisor-round families (v0.36.0; advisor-round taxonomy, 2026-09-01). Three
+# constructions an advisor marked as reading like a prompt or a machine, each
+# abstracted to its form; no sentence from that round is quoted anywhere in
+# this repository. Auxiliary like the two above: never in `template_score`.
+#   paper-agent    the paper as a thinking agent ("this Letter asks whether")
+#   wh-cleft       a wh-clause as subject with the point in the predicate
+#                  ("what it can conclude is limited by")
+#   modifier-stack a noun buried under a run of pre-modifiers, at least two of
+#                  them hyphenated or numeric ("per-map empirical B-mode null")
+RE_PAPER_AGENT = re.compile(
+    r"\b(?:this|the present|our)\s+(?:paper|letter|work|study|article|analysis|"
+    r"note|manuscript)\s+(?:asks?|answers?|argues?|wonders?|explores?|seeks?|"
+    r"hopes?|believes?|claims?|contends?|concludes?|finds?|suggests?|reveals?|"
+    r"cannot|can|does not|will not)\b", re.I)
+RE_WH_CLEFT = re.compile(
+    r"^(?:what|how|whether|why)\b[^.!?;:]{2,60}?\b(?:is|are|was|were|remains|"
+    r"becomes)\s+(?:that|the|a|an|to|whether|how|not|limited|set|governed|"
+    r"determined|simply|this|its|our)\b", re.I)
+_MODIFIER_TOKEN = r"[A-Za-z0-9][A-Za-z0-9\-']*"
+_MODIFIER_FUNCTION = frozenset("""a an the of in on at to for from by with and or
+but as is are was were be been that this these those it its we our which than
+then there where when while if so such not no also both each any all some more
+most less very can may will do does has have had into over under between among
+through per via""".split())
 MIN_WORDS = 30
 ANAPHORA_RUN = 3
 ORDINAL_RUN = 2
 MODAL_RUN = 3
 ANTITHESIS_CLUSTER = 2
 REVERSAL_MAX_WORDS = 5
+MODIFIER_STACK_RUN = 3
+MODIFIER_STACK_COMPOUNDS = 2
+
+
+def modifier_stacks(sentence: str) -> list[str]:
+    """Noun phrases of >= MODIFIER_STACK_RUN consecutive non-function tokens in
+    which >= MODIFIER_STACK_COMPOUNDS are hyphenated compounds.
+
+    A run of content tokens is cut at the head noun, the token after the last
+    compound, because without a parser that is the only place a phrase can be
+    seen to end: `non-compensated 500-configuration subfamily fails` reports
+    the phrase, not the verb. `[math]`/`[CITE]` placeholders and every
+    punctuation mark break a run, so a list of quantities is not a phrase.
+    """
+    stacks: list[str] = []
+    for clause in re.split(r"[,;:()\[\]\"“”]|--|—|–", sentence):
+        run: list[str] = []
+        for token in clause.split():
+            word = token.strip(".!?'\"")
+            if (not re.fullmatch(_MODIFIER_TOKEN, word)
+                    or word.lower() in _MODIFIER_FUNCTION):
+                run = _flush_stack(run, stacks)
+                continue
+            run.append(word)
+            if token != word:                       # trailing sentence punctuation
+                run = _flush_stack(run, stacks)
+        _flush_stack(run, stacks)
+    return stacks
+
+
+def _flush_stack(run: list[str], stacks: list[str]) -> list[str]:
+    compounds = [index for index, word in enumerate(run) if "-" in word.strip("-")]
+    if compounds and len(compounds) >= MODIFIER_STACK_COMPOUNDS:
+        phrase = run[: compounds[-1] + 2]           # through the head noun
+        if len(phrase) >= MODIFIER_STACK_RUN:
+            stacks.append(" ".join(phrase))
+    return []
 
 
 def _first_word(sentence: str) -> str:
@@ -116,12 +177,24 @@ def paragraph_structure(text: str) -> dict[str, Any]:
         len(es.words(sentence)) <= REVERSAL_MAX_WORDS
         and RE_REVERSAL.match(sentence.strip())
         for sentence in sentences)
+    paper_agent = sum(1 for sentence in sentences if RE_PAPER_AGENT.search(sentence))
+    wh_cleft = sum(1 for sentence in sentences if RE_WH_CLEFT.match(sentence.strip()))
+    stacks = [stack for sentence in sentences for stack in modifier_stacks(sentence)]
     auxiliary: list[str] = []
     if antithesis_count >= ANTITHESIS_CLUSTER:
         auxiliary.append("antithesis-cluster")
     if reversal_beat:
         auxiliary.append("short-reversal")
+    if paper_agent:
+        auxiliary.append("paper-agent")
+    if wh_cleft:
+        auxiliary.append("wh-cleft")
+    if stacks:
+        auxiliary.append("modifier-stack")
     return {
+        "paper_agent_count": paper_agent,
+        "wh_cleft_count": wh_cleft,
+        "modifier_stacks": stacks,
         "n_sent": len(sentences),
         "announced": announced,
         "ordinal_run": ordinal_run,
@@ -253,6 +326,9 @@ def structure_findings(text: str, field_profile_dir: Path | None,
                     observed={"auxiliary_templates": values["auxiliary_templates"],
                               "antithesis_count": values["antithesis_count"],
                               "reversal_beat": values["reversal_beat"],
+                              "paper_agent_count": values["paper_agent_count"],
+                              "wh_cleft_count": values["wh_cleft_count"],
+                              "modifier_stacks": values["modifier_stacks"],
                               "sentence_count": values["n_sent"]},
                     reference=feedback.reference_block(
                         field_profile_dir, bucket=bucket, n=reference_n,
@@ -267,7 +343,11 @@ def structure_findings(text: str, field_profile_dir: Path | None,
                              f"{', '.join(values['auxiliary_templates'])}{aux_context}."),
                     action=("Keep an antithesis only where the contrast is load-bearing "
                             "technical content; state posture contrasts as plain positive "
-                            "claims; flatten short reversal beats into connected prose."),
+                            "claims; flatten short reversal beats into connected prose. "
+                            "Give a paper-as-agent sentence a human or physical subject "
+                            "(we ask / the data show); turn a wh-cleft into a plain "
+                            "subject-verb claim; unpack a modifier stack into a head "
+                            "noun and one relative clause or prepositional phrase."),
                     evidence=values["auxiliary_templates"],
                 ))
     return findings
@@ -286,6 +366,7 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
         "n": 0, "templated": 0, "announced": 0, "ordinal": 0,
         "tricolon": 0, "anaphora": 0, "modal": 0, "balanced": 0,
         "auxiliary": 0, "antithesis_cluster": 0, "reversal": 0,
+        "paper_agent": 0, "wh_cleft": 0, "modifier_stack": 0,
     })
     for line in bank.open(encoding="utf-8"):
         record = json.loads(line)
@@ -306,6 +387,9 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
         item["auxiliary"] += bool(values["auxiliary_templates"])
         item["antithesis_cluster"] += values["antithesis_count"] >= ANTITHESIS_CLUSTER
         item["reversal"] += values["reversal_beat"]
+        item["paper_agent"] += values["paper_agent_count"] > 0
+        item["wh_cleft"] += values["wh_cleft_count"] > 0
+        item["modifier_stack"] += bool(values["modifier_stacks"])
     output: dict[str, Any] = {}
     for bucket, item in aggregate.items():
         n = max(1, item["n"])
@@ -321,6 +405,9 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
             "auxiliary_frac": item["auxiliary"] / n,
             "antithesis_cluster_frac": item["antithesis_cluster"] / n,
             "reversal_frac": item["reversal"] / n,
+            "paper_agent_frac": item["paper_agent"] / n,
+            "wh_cleft_frac": item["wh_cleft"] / n,
+            "modifier_stack_frac": item["modifier_stack"] / n,
         }
     (field_profile_dir / "structure_baseline.json").write_text(
         json.dumps(output, indent=2), encoding="utf-8")

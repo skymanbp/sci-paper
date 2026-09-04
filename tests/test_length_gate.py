@@ -145,6 +145,40 @@ class LengthGateCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0,
                          result.stdout + result.stderr)
 
+    def test_require_shrink_fails_a_pass_that_barely_cut(self):
+        # Nine prose words before; dropping one word is an 11% cut, short of
+        # the 30% required, so the gate must refuse to close green.
+        after = BEFORE.replace("The estimator uses five filters.",
+                               "The estimator uses filters.")
+        result = self.run_gate(BEFORE, after, "--require-shrink", "0.3")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("length-shrink-short", result.stdout)
+        self.assertIn("NOT MET", result.stdout)
+
+    def test_require_shrink_passes_when_the_cut_is_deep_enough(self):
+        after = ("\\section{Methods}\nFive filters.\n"
+                 "\\section{Results}\nThe slope is negative.\n")
+        result = self.run_gate(BEFORE, after, "--require-shrink", "30%",
+                               "--format", "json")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        budget = json.loads(result.stdout)["length_budget"]
+        self.assertTrue(budget["shrink_met"])
+        self.assertEqual(budget["required_shrink_words"], 4)
+
+    def test_require_shrink_accepts_a_word_count(self):
+        after = BEFORE.replace("The estimator uses five filters.",
+                               "The estimator uses filters.")
+        result = self.run_gate(BEFORE, after, "--require-shrink", "1")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        result = self.run_gate(BEFORE, after, "--require-shrink", "2")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+
+    def test_require_shrink_rejects_nonsense(self):
+        for bad in ("0", "-0.2", "1.5", "lots"):
+            result = self.run_gate(BEFORE, BEFORE, "--require-shrink", bad)
+            self.assertEqual(result.returncode, 2, bad + result.stderr)
+            self.assertIn("--require-shrink", result.stderr)
+
     def test_json_report_is_self_describing(self):
         after = BEFORE.replace("for all clusters", "for all clusters everywhere")
         result = self.run_gate(BEFORE, after, "--format", "json")

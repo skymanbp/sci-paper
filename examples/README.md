@@ -29,8 +29,8 @@ profile on 2026-08-27 and will move with the corpus.
 |---|---:|---:|
 | L0 targets | 1 | **0** |
 | integrity blockers | 0 | 0 |
-| total advisories | 18 | 16 |
-| strong advisories | 7 | 7 |
+| total advisories | 21 | 22 |
+| strong advisories | 8 | 10 |
 | document-scale findings | 8 | **6** |
 
 Per rule:
@@ -44,6 +44,7 @@ Per rule:
 | `document-role-decoupling` | 1 | **0** | |
 | `structure-template` | 1 | 2 | announced enumeration gone, two announced counts remain |
 | `salience-recital` | 4 | **6** | **rose — see below** |
+| `collocation-novel` | 3 | **6** | rose for the same reason, and for one of its own — see below |
 
 ## Nothing was deleted to make a finding go away
 
@@ -58,6 +59,18 @@ sentences — and not by removing quantities, which is the failure mode that
 action text explicitly warns against. The cohesion advisories were answered by
 carrying a noun forward from the previous sentence, not by adding connectives
 that fake a link.
+
+## A coined term keeps its pair
+
+`collocation-novel` counts, per sentence, the adjacent common-word pairs that
+no passage of the field's corpus has ever written. It went from 3 findings to 6
+because the revision says `blending fraction` — this synthetic paper's own
+parameter, a pair the real literature does not use — in more sentences, and
+because carrying a noun forward for cohesion puts it next to words it had not
+stood beside before. That is the axis's stated exception, not a defect to fix:
+a term this paper defines keeps its pair and gets its definition at first use,
+and the disposition is recorded as *kept*, never answered by dissolving the pair
+or changing the claim.
 
 ## The interesting result: two axes pulling against each other
 

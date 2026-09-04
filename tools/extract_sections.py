@@ -98,12 +98,10 @@ def classify_section(name: str) -> str:
 RE_TEX_COMMENT = re.compile(r"(?<!\\)%.*?$", re.MULTILINE)
 RE_TEX_DISPLAY_MATH = re.compile(
     r"\\begin\{(equation|align|gather|eqnarray|displaymath|multline)\*?\}.*?\\end\{\1\*?\}",
-    re.DOTALL,
-)
+    re.DOTALL)
 RE_TEX_INLINE_MATH = re.compile(r"\$[^$]+\$|\\\(.+?\\\)", re.DOTALL)
 RE_TEX_ENV_FIGURE_TABLE = re.compile(
-    r"\\begin\{(figure|table|figure\*|table\*)\}.*?\\end\{\1\}", re.DOTALL
-)
+    r"\\begin\{(figure|table|figure\*|table\*)\}.*?\\end\{\1\}", re.DOTALL)
 # Citations, in three behaviours (EVALUATION section 18). A four-name allowlist
 # missed 42 of the corpus's 46 cite-command names, and all four of the ones it
 # had whenever they carried natbib's optional argument, so the key of
@@ -154,8 +152,11 @@ def _math_numerals(match: "re.Match[str]") -> str:
 # `\s*` before the brace because LaTeX allows a space after a control word: 9 of
 # 790 downloaded papers use it, and those headers were invisible here until now.
 RE_SECTION = re.compile(
-    r"\\(section|subsection|chapter)\*?\s*\{((?:[^{}]|\{[^{}]*\})*)\}", re.IGNORECASE
-)
+    r"\\(section|subsection|chapter)\*?\s*\{((?:[^{}]|\{[^{}]*\})*)\}", re.IGNORECASE)
+# A whole heading command, for callers that REMOVE headings from prose (the
+# banks hold the text under a heading, never its words). One owner.
+RE_HEADING_COMMAND = re.compile(r"\\(?:chapter|section|subsection|subsubsection|paragraph)\*?"
+                                r"(?:\[[^\]]*\])?\{(?:[^{}]|\{[^{}]*\})*\}")
 # Applied to a captured title before it is classified. Without it, markup that
 # survives inside the braces decides the bucket instead of the words do.
 RE_HEADING_TEXORPDF = re.compile(r"\\texorpdfstring\s*\{(.*?)\}\s*\{[^{}]*\}")
@@ -186,8 +187,7 @@ def clean_heading(name: str) -> str:
 # preamble (before the first \section{}) and would otherwise be dropped.
 # AASTeX also accepts `\begin{abstract}` and ApJ's older `\abstract{...}` form.
 RE_ABSTRACT_ENV = re.compile(
-    r"\\begin\{abstract\}(.*?)\\end\{abstract\}", re.DOTALL | re.IGNORECASE
-)
+    r"\\begin\{abstract\}(.*?)\\end\{abstract\}", re.DOTALL | re.IGNORECASE)
 
 
 def latex_to_plain(text: str) -> str:

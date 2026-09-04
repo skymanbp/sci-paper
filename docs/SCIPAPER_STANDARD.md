@@ -6,14 +6,13 @@
 > implement this document. If a skill,
 > tool, style profile, or workflow conflicts with this file, this file wins.
 >
-> Status: **v3.7 (2026-08-25)**. v3.7 moves §11's disposition register to
-> [`architecture/DISPOSITIONS.md`](architecture/DISPOSITIONS.md) and this
-> version history to [`../CHANGELOG.md`](../CHANGELOG.md), so the contract is
-> the contract. No consequence class, exit code, ranking rule, or measurement
-> state changed. The substantive change is recorded in that register:
-> `L1.distribution`'s operating point is now **refuted by measurement** rather
-> than merely absent, so `deai_policy.json` is withdrawn as an adoption
-> candidate. §§0-10 are otherwise unchanged from v3.6.
+> Status: **v3.8 (2026-09-04)**. v3.8 adds the zero-hit audit to `L0.register`,
+> the `L2.collocation` axis, three auxiliary structure families, the `L4.residue`
+> axis with its diff gate, and a third mechanical enforcement point in §5.3
+> (the removal map and `--require-shrink`). No consequence class changed; one
+> exit contract was added (§0.1, `deai_residue.py`). The disposition register is
+> [`architecture/DISPOSITIONS.md`](architecture/DISPOSITIONS.md) and the
+> version history [`../CHANGELOG.md`](../CHANGELOG.md).
 
 ---
 
@@ -58,13 +57,15 @@ reference. They must not claim that a machine wrote it.
 
 Standalone advisory tools return `0` when measurement completes, whether or
 not advisories are found. They return nonzero only for invalid input,
-configuration failure, or execution failure. Two exceptions carry their own
-narrow actionable contracts, and in both the meaning of `1` is a measured
+configuration failure, or execution failure. Three exceptions carry their own
+narrow actionable contracts, and in each the meaning of `1` is a measured
 outcome the caller must act on, never a failure:
 
 - `length_gate.py` returns 0 when the document's net unjustified prose growth
-  is within tolerance, 1 when it exceeds the tolerance, and 2 for invalid input
-  or execution failure (§5.3);
+  is within tolerance and any `--require-shrink` target is met, 1 otherwise,
+  and 2 for invalid input or execution failure (§5.3);
+- `deai_residue.py` returns 0 when no strong residue finding is present, 1 when
+  one is (§2 L4), and 2 for invalid input or execution failure;
 - `rewrite_reward.py` returns 0 when at least one candidate is eligible, 1 when
   every candidate fails scientific-fidelity or length-budget eligibility (the
   caller preserves the original and regenerates tighter, §6), and 2 for invalid
@@ -155,6 +156,10 @@ hyphenated compound is judged by its rarest part, because hyphenation is an
 open construction and every compound is corpus-rare. Register findings are
 always advisories: a corpus-rare term may be a borrowed method's accepted name,
 or the concept the paper is introducing, and only the author can say which.
+The same axis carries an exhaustive **zero-hit audit** (`register-zero:<term>`):
+every body word no corpus passage carries is listed, strong unless it is a
+mechanical formation of an attested stem, and a strong hit takes a §5.2 step-1b
+disposition — define the word, cite the method it names, or use the field's own.
 
 ### L1: information distribution
 
@@ -166,33 +171,36 @@ Hardcoded universal prose thresholds are forbidden.
 
 ### L2: sentence and document structure
 
-Sentence-level template families include:
-
-- announced enumeration;
-- ordinal runs;
-- setup-list-wrap patterns;
-- repeated lexical or modal/anaphoric sentence frames;
-- balanced or symmetric closers.
+Sentence-level template families: announced enumeration; ordinal runs;
+setup-list-wrap patterns; repeated lexical or modal/anaphoric sentence frames;
+balanced or symmetric closers.
 
 A second, **auxiliary family class** covers rhetorical figures that are
 legitimate in isolation but machine-typical at density: **antithesis clusters**
-(two or more contrastive frames such as "X rather than Y" / "not X but Y" in
-one paragraph) and **short reversal beats** (a punchy reversal sentence of five
-words or fewer, such as "It would not."). Auxiliary families emit ordinary
-advisories under their own rule (`structure-auxiliary`) and are excluded from
-`template_score`, so the calibrated document-dispersion manifold is unchanged by
-their addition. The repair rule is asymmetric: keep a contrastive frame only
-where the contrast is load-bearing technical content, and state posture
-contrasts as plain positive claims. Perceptually confirmed tells that resist
-pattern capture — aphoristic "perform rigor" closers — are documented as a
-panel-advisory class in `EVALUATION.md` rather than forced into a detector.
+(two or more contrastive frames such as "X rather than Y" in one paragraph),
+**short reversal beats** ("It would not."), **paper-as-agent subjects** ("This
+paper presents"), **wh-cleft openers** ("What matters is"), and **modifier
+stacks** (three-plus tokens before a head noun with two hyphenated compounds).
+Auxiliary families emit ordinary advisories under `structure-auxiliary` and are
+excluded from `template_score`, so the calibrated dispersion manifold is
+unchanged by them. The repair is asymmetric: keep a contrastive frame only where
+the contrast is load-bearing content, give a paper-as-agent sentence a human or
+physical subject, and unpack a stack into the relation it compresses.
+Perceptually confirmed tells that resist pattern capture — aphoristic "perform
+rigor" closers — are a panel-advisory class in `EVALUATION.md`, not a detector.
+
+A **collocation axis** (`L2.collocation`, `deai_collocation`) measures, per
+sentence, the fraction of adjacent common-word pairs no passage of the field's
+corpus attests, against a leave-one-out reference per section. A pair the field
+would write by chance has been seen; one it never wrote is a coinage or a figure
+of speech ("physical cells"), and the action names the relation it compresses.
+Advisory; a defined term keeps its pair, and no claim is changed to dissolve one.
 
 A **blind perceptual panel** — independent cold-read judges who score AI-feel
-and must name concrete tells with quotes, compared across document versions —
-is a recognized L2 validation instrument. Its diagnostic reading is the *tell
-inventory turnover*, not the mean score: judges saturate on the most visible
-tell family, so removing it exposes the next stratum at a similar score. The
-protocol and its case study live in `EVALUATION.md`.
+and must name concrete tells with quotes across document versions — is a
+recognized L2 validation instrument, read by *tell inventory turnover* rather
+than mean score: judges saturate on the most visible family, so removing it
+exposes the next stratum at a similar score (protocol in `EVALUATION.md`).
 
 Document-level evidence concerns shape rather than repeated subject matter, and
 is the de-AI center of gravity: field register shifts the *level* of
@@ -219,21 +227,16 @@ writing-quality band, **not an AI-discrimination axis**: the "under-anchoring is
 the AI tell" hypothesis is refuted for strong-model generations (EVALUATION §9.6).
 
 A third L2 axis, `L2.salience_hierarchy` (`deai_salience`), measures whether a
-passage ranks the quantities it reports or recites them. Sentence structure and
-document shape both stay silent here: a passage can vary its sentence lengths,
-sit inside the human dispersion band, and still hand the reader an undifferentiated
-inventory of results. The measured quantity is deliberately not numeric density,
-because a quantitative abstract is supposed to carry numbers; it is how far the
-numerals run without an interpreting sentence between them. A human writer stops
-to say what a result establishes before reporting the next one. Calibration is
-per section bucket on the field's own passage banks, at one unit (a passage) on
-both sides, and the reading is P(X ≤ x) against a fine quantile grid, because two
-of the three features are ratios of small integers whose reference distributions
-are tie-heavy. Where a reference has no spread above the advisory gate the
-feature abstains: with every upper-tail passage sharing one value, P(X ≤ x)
-reaches 1.0 there and an ordinary passage would read as the 100th percentile.
-The repair is ranking, never deletion, and a number that is the sole support of
-a claim stays where it is.
+passage ranks the quantities it reports or recites them — not numeric density
+(a quantitative abstract is supposed to carry numbers) but how far the numerals
+run without an interpreting sentence between them. A human writer stops to say
+what a result establishes before reporting the next one. Calibration is per
+section bucket on the field's own passage banks at one unit (a passage) on both
+sides, read as P(X ≤ x) on a fine quantile grid because the features are
+tie-heavy ratios of small integers; where a reference has no spread above the
+gate the feature abstains rather than reading an ordinary passage as the 100th
+percentile. The repair is ranking, never deletion, and a number that is the
+sole support of a claim stays where it is.
 
 A detector needs enough sections and substantial paragraphs to support the
 measurement. Otherwise it reports `insufficient_evidence` and leaves the axis
@@ -290,25 +293,21 @@ Removing tells is insufficient. A faithful rewrite should add or strengthen:
 Every added number, citation, entity, unit, causal claim, and qualifier must be
 traceable to a source. Specificity never licenses invention.
 
-L4 also holds the **cooperative repair tools**, none an AI detector, each turning
-the subsystem from a verdict machine into a writing partner. The partition
-operator is corpus-referenced and `measured` wherever the human dispersion
-manifold is calibrated; the provenance and personal-baseline tools are honestly
-`unmeasured` until the author supplies their own draft history or prior papers:
+L4 also holds the **cooperative repair tools**, none an AI detector: the
+fidelity-free partition operator (`deai_partition`, zero-token merge/split
+suggestions toward the human dispersion band, `measured` wherever the manifold
+is calibrated), the editing-provenance ledger (`deai_provenance`, the author's
+own draft history only) and the personal dispersion baseline (`deai_personal`,
+the author's own prior papers), the last two honestly `unmeasured` until the
+author supplies that history. Their binding rows are in the §8 annex.
 
-- **`deai_partition`** — fidelity-free merge/split suggestions that move a
-  document toward the human dispersion band. Operations touch zero tokens, so the
-  protected-invariant sets are byte-identical and the `-inf` fidelity gate cannot
-  fire. Suggest-only; reordering deliberately excluded.
-- **`deai_provenance`** (axis `L4.editing_provenance`) — matches each current
-  paragraph to a designated AI-draft ancestor (an earlier file or a git ref from
-  the author's own history) and labels the span by a deterministic token edit
-  ratio (`ai_untouched` → `author_original`). It reads only the author's own
-  history and never asserts authorship of anyone else's text.
-- **`deai_personal`** (axis `L4.personal_baseline`) — uses the author's own prior
-  papers as a same-author, same-field, same-jargon dispersion reference,
-  sidestepping the field-topic confound entirely, and flags a draft that varies
-  paragraph shape far less than the author usually does.
+L4 further owns the **residue axis** (`L4.residue`, `deai_residue`): the trace
+an edit leaves behind — drafting history told in the first person ("we
+initially", "no longer"), edit-meta text (`TODO`, "see previous version"), and a
+heading or caption promising what the body never delivers. With a pre-edit
+snapshot the diff rule reports a label the edit added and the body does not
+earn, and a strong finding exits 1 (§0.1). The repair is the current state of
+the science in one sentence, never an explanation of how it got there.
 
 ### QD: scientific and editorial quality
 
@@ -475,7 +474,7 @@ confound-free self-checks.
    for, keep the borrowed term but define it at first use in field terms, or
    confirm the definition is present if the paper is introducing the concept.
    This step never runs to zero and never swaps a term whose replacement would
-   change the claim.
+   change the claim. A strong `register-zero` hit is not left undispositioned.
 
 2. **L1 distribution.** Where a section is flagged for low burstiness or
    connective-opener signposting, restore field-appropriate sentence-length
@@ -495,6 +494,12 @@ confound-free self-checks.
    other rewrite, and an accepted disposition is the right outcome wherever the
    density is what the genre requires (a methods paragraph specifying a
    parameter grid).
+
+3c. **L2 collocation.** Where `deai_collocation` reports a sentence joining
+   words the field does not join, write the relation out: a modifier standing
+   in for a procedure names the procedure, a figurative verb becomes what was
+   done, an abbreviating noun pair is written out once. A coined term keeps its
+   pair and gets its definition; the claim never changes to dissolve a pair.
 
 4. **L2 document structure (the keystone).** If the dispersion manifold or
    role-coupling flags over-uniformity, apply `deai_partition` merge/split
@@ -545,7 +550,7 @@ Fix loops report a length delta (words or characters) for every edited passage
 alongside the §5 step-9 counts, and re-measurement (§5 step 7) includes length.
 Clearing a detector signal by inflating prose is a defect, not a fix.
 
-Enforcement is mechanical, not aspirational, at two points:
+Enforcement is mechanical, not aspirational, at three points:
 
 - **Candidate time (preventive).** `rewrite_reward.py --original <paragraph>`
   makes the budget a second hard eligibility gate: a candidate longer than the
@@ -563,14 +568,22 @@ Enforcement is mechanical, not aspirational, at two points:
   1 when it exceeds it, 2 for execution failure. A pure section rename
   appears as a paired shrink/growth that nets to zero, so it does not trip
   the exit gate; the paired findings document it for the report.
+- **Condensation (targeted).** `condense_map.py <file>` enumerates every
+  removable entry — restatements with their canonical home, zero-gain
+  sentences, dead figures/tables/labels/macros/acronyms, verbose constructions,
+  repeated glosses, duplicated paragraphs — with the words each frees, and
+  totals a default target (restatement plus zero-gain outside the
+  abstract/conclusion carve-out). A condensing pass dispositions every entry
+  (deleted, merged, or kept with a reason) and closes with `length_gate.py
+  --require-shrink <target>`: a net cut short of the target is a strong
+  `length-shrink-short` finding and exit 1; `deai_residue.py --before` then
+  confirms no heading or caption promises what the cut body no longer says.
 
-A fix or rewrite loop may not close (§5.1) while a `length-growth` finding
-lacks a disposition: condense back within budget, record the author's
-justification, or note the rename that pairs the growth with a shrink.
-Comments and mathematics do not count toward the budget; the gate measures
-rendered prose. Snapshot the pre-edit version (a scratch copy or the git ref)
-before the first edit of every loop, so the gate always has an honest
-baseline.
+A fix or rewrite loop may not close (§5.1) while a `length-growth`,
+`length-shrink-short`, or strong residue finding lacks a disposition. Comments
+and mathematics do not count toward the budget; the gate measures rendered
+prose. Snapshot the pre-edit version (a scratch copy or the git ref) before
+the first edit of every loop, so every gate has an honest baseline.
 
 ### 5.4 Thesis spine: one result, everything subordinate to it (文章主旨)
 

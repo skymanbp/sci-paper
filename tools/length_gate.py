@@ -37,11 +37,8 @@ import extract_style as es  # noqa: E402  LaTeX-to-prose cleaning
 FRONT_MATTER = "(front matter)"
 # Heading commands are stripped before counting: the budget measures body
 # prose, and a section RENAME must not register as prose growth. The pattern
-# accepts starred forms, an optional short-title argument, and one level of
-# nested braces inside the title.
-HEADING_PATTERN = re.compile(
-    r"\\(?:chapter|section|subsection|subsubsection|paragraph)\*?"
-    r"(?:\[[^\]]*\])?\{(?:[^{}]|\{[^{}]*\})*\}")
+# is the shared one (starred forms, optional short title, one nesting level).
+HEADING_PATTERN = es.RE_HEADING_COMMAND
 
 
 def prose_word_count(tex: str) -> int:
@@ -190,6 +187,58 @@ def gate_findings(before_text: str, after_text: str, path: Path,
     return findings, summary
 
 
+def parse_required_shrink(raw: str | None) -> float | int | None:
+    """`--require-shrink` as a fraction (float in (0, 1)) or a word count (int > 0).
+
+    The growth gate is one-sided: it stops a condensation pass from growing
+    the document and says nothing when the pass removed almost nothing. This
+    is the other side, so a "condense" round that shaved four words cannot
+    close green.
+    """
+    if raw is None:
+        return None
+    text = raw.strip().rstrip("%")
+    try:
+        value = float(text)
+    except ValueError as error:
+        raise ValueError(f"--require-shrink expects a fraction or a word count, "
+                         f"got {raw!r}") from error
+    if raw.strip().endswith("%"):
+        value /= 100.0
+    if value <= 0:
+        raise ValueError("--require-shrink must be positive")
+    if value < 1 or "." in text:
+        if value >= 1:
+            raise ValueError("--require-shrink fraction must be below 1")
+        return value
+    return int(value)
+
+
+def required_shrink_words(shrink: float | int | None, total_before: int) -> int | None:
+    if shrink is None:
+        return None
+    if isinstance(shrink, float):
+        return int(round(shrink * total_before))
+    return shrink
+
+
+def shortfall_finding(path: Path, summary: dict[str, Any], required: int
+                      ) -> dict[str, Any]:
+    removed = -summary["total_delta"]
+    return _finding(
+        path=path, rule="length-shrink-short", section="(document)",
+        strength="strong", strong_advisory=True,
+        observed={"required_shrink_words": required, "removed_words": removed,
+                  "total_before": summary["total_before"],
+                  "total_after": summary["total_after"]},
+        message=(f"The pass removed {removed} words of the {required} required "
+                 f"({summary['total_before']} -> {summary['total_after']})."),
+        action=("Return to the condense map: every restatement and zero-gain "
+                "entry left in place needs a recorded keep reason, or comes "
+                "out. Lower the target only with the author's agreement."),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     cli_common.utf8_stdout()
     parser = cli_common.base_parser(__doc__)
@@ -204,6 +253,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="record a justification for one section's growth")
     parser.add_argument("--allow-total", default=None, metavar="REASON",
                         help="record one justification covering every section")
+    parser.add_argument("--require-shrink", default=None, metavar="FRACTION|WORDS",
+                        help="exit 1 unless total prose fell by at least this much: "
+                             "a fraction of the baseline in (0, 1), or a word count")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
@@ -223,6 +275,11 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 2
     try:
+        shrink = parse_required_shrink(args.require_shrink)
+    except ValueError as error:
+        print(f"[length_gate] {error}", file=sys.stderr)
+        return 2
+    try:
         if args.git_ref is not None:
             before_text = read_git_version(args.after, args.git_ref)
         else:
@@ -237,6 +294,13 @@ def main(argv: list[str] | None = None) -> int:
         report = feedback.build_report(path=args.after, findings=findings, axes=axes)
         gate_exit = (1 if summary["net_unjustified_growth"] > args.tolerance_words
                      else 0)
+        required = required_shrink_words(shrink, summary["total_before"])
+        shrink_met = None if required is None else -summary["total_delta"] >= required
+        if shrink_met is False:
+            gate_exit = 1
+            findings.append(shortfall_finding(args.after, summary, required))
+            report = feedback.build_report(path=args.after, findings=findings,
+                                           axes=axes)
         # The JSON report must be self-describing: a downstream orchestrator
         # derives the gate result from the report alone, never from stdout.
         report["length_budget"] = {
@@ -246,6 +310,8 @@ def main(argv: list[str] | None = None) -> int:
             "justified_growth": summary["justified_growth"],
             "net_unjustified_growth": summary["net_unjustified_growth"],
             "tolerance_words": args.tolerance_words,
+            "required_shrink_words": required,
+            "shrink_met": shrink_met,
             "gate_exit": gate_exit,
         }
         if args.format == "json":
@@ -261,6 +327,9 @@ def main(argv: list[str] | None = None) -> int:
             lines.append(f"net unjustified growth: "
                          f"{summary['net_unjustified_growth']:+d} words "
                          f"(tolerance {args.tolerance_words})")
+            if required is not None:
+                lines.append(f"required shrink: {required} words; "
+                             f"{'met' if shrink_met else 'NOT MET'}")
             rendered = "\n".join(lines) + "\n" + feedback.render_text(report) + "\n"
         if args.output is not None:
             args.output.write_text(rendered, encoding="utf-8")

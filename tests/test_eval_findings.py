@@ -129,8 +129,12 @@ class ThinPopulationTest(unittest.TestCase):
     @staticmethod
     def _rows(n: int, findings: float) -> list[dict[str, float]]:
         return [{"n_words": 1000.0, "n_salience_units": 10.0,
-                 "L0.register": findings,
-                 "L2.salience_hierarchy": findings, "salience_strong": 0.0}
+                 "L0.register": findings, "L0.register-zero": findings,
+                 "register_zero_strong": 0.0,
+                 "L2.salience_hierarchy": findings, "salience_strong": 0.0,
+                 "L2.collocation": findings,
+                 "collocation_novel_fraction": 0.25,
+                 "collocation_judged_pairs": 40.0}
                 for _ in range(n)]
 
     def test_below_the_floor_is_unmeasured(self) -> None:
@@ -235,9 +239,33 @@ class SalienceGateTransferTest(unittest.TestCase):
 
     def test_no_passages_is_unmeasured_not_a_zero_rate(self) -> None:
         rows = [{"n_words": 1000.0, "n_salience_units": 0.0, "L0.register": 0.0,
-                 "L2.salience_hierarchy": 0.0, "salience_strong": 0.0}
+                 "L0.register-zero": 0.0, "register_zero_strong": 0.0,
+                 "L2.salience_hierarchy": 0.0, "salience_strong": 0.0,
+                 "L2.collocation": 0.0, "collocation_novel_fraction": 0.2,
+                 "collocation_judged_pairs": 10.0}
                 for _ in range(ef.MIN_DOCUMENTS)]
         self.assertEqual(ef.salience_gate_transfer(rows)["status"], "unmeasured")
+
+    def test_collocation_is_ranked_on_the_document_fraction(self) -> None:
+        # Flag counts per 1k words would confound the sentence gate with
+        # length; the axis's own document-level quantity is the score, and a
+        # document with no judged pairs (NaN) drops out rather than ranking.
+        rows = ThinPopulationTest._rows(2, 1.0)
+        rows[1]["collocation_novel_fraction"] = float("nan")
+        self.assertEqual(ef._density(rows, "L2.collocation"), [0.25])
+        rendered = ef.render(ef.build_report(
+            "wgl", {"published-heldout": ThinPopulationTest._rows(ef.MIN_DOCUMENTS, 1.0),
+                    "machine:t1": ThinPopulationTest._rows(ef.MIN_DOCUMENTS, 2.0)}))
+        self.assertIn("document novel-pair fraction", rendered)
+        self.assertIn("col flag", rendered)
+
+    def test_the_zero_hit_audit_is_a_separate_column(self) -> None:
+        # The every-word audit and the rarity rule are read differently, so
+        # they must never be summed into one register count.
+        rows = ThinPopulationTest._rows(ef.MIN_DOCUMENTS, 1.0)
+        rendered = ef.render(ef.build_report("wgl", {"published-heldout": rows}))
+        self.assertIn("zero flag", rendered)
+        self.assertIn("L0.register-zero", ef.AXES)
 
     def test_the_rendered_table_carries_both_numbers(self) -> None:
         rows = ThinPopulationTest._rows(ef.MIN_DOCUMENTS, 1.0)

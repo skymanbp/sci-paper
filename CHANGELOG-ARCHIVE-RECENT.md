@@ -1,12 +1,186 @@
-# Changelog archive — v0.27.1 through v0.29.0
+# Changelog archive — v0.27.1 through v0.31.0
 
-Entries moved out of [CHANGELOG.md](CHANGELOG.md) on 2026-08-26, when the live
-changelog passed the repository's 750-line budget. Nothing here is edited; the
+Entries moved out of [CHANGELOG.md](CHANGELOG.md) on 2026-08-26 (v0.27.1–v0.29.0)
+and 2026-09-04 (v0.30.0–v0.31.0), each time the live changelog passed the
+repository's 750-line budget. Nothing here is edited; the
 history is verbatim.
 
 - Current releases: [CHANGELOG.md](CHANGELOG.md)
 - **v0.22.0 through v0.27.0**: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)
 - **v0.21.0 and earlier**: [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)
+
+---
+
+## v0.31.0 — 2026-08-26
+
+Asked what was left undone, the answer turned out to be inside the number
+v0.30.0 had just published. **58.7% of the register false positives measured on
+held-out refereed papers were not about vocabulary at all.**
+
+### Calibration and detection were reading different documents
+
+The corpus document frequency is built from `exemplar_paragraphs.jsonl`, which
+`extract_style` produces by section-splitting and dropping the preamble and
+every `skip` bucket. `manuscript_terms` read the **whole raw file**. So the two
+sides of one ratio ran on different projections: `dipartimento`, `cedex`,
+`helsinki` and a long list of author surnames have df 0 on the corpus side
+because front matter and bibliographies were stripped there, and count ≥ 5 on
+the manuscript side because they were not stripped here.
+
+Measured on the 203 held-out papers, by region:
+
+| region | share of findings |
+|---|---:|
+| body prose | 41.3% |
+| preamble (title / author / affiliation) | 27.5% |
+| bibliography (`thebibliography`, `\bibitem`) | 26.3% |
+| TeX control words (from preamble macro bodies) | 4.1% |
+| `skip` sections | 0.9% |
+
+A bibliography is an *environment*, not a section, so the section-level `skip`
+bucket never saw it — it sits inside the span of whatever section precedes it.
+
+`deai_register.body_only` blanks those regions, preserving line numbers so
+section attribution keeps working, and keeps the abstract environment that
+AASTeX puts inside the dropped preamble.
+
+### Corrected figures
+
+| | v0.30.0 | v0.31.0 |
+|---|---:|---:|
+| held-out register, per 1,000 words | 0.991 | **0.384** |
+| held-out register, documents flagged | 93.6% | **87.2%** |
+| rank AUC vs machine text | 0.080 | **0.148** |
+| paired leakage suppressed | 72.7% of 2,287 | **86.3% of 887** |
+| **every salience figure** | — | **byte-identical** |
+
+No threshold changed. Salience reproducing exactly is the control: it needed no
+fix, and was checked rather than assumed — 0 of its 1,077 findings on these
+papers fall in a bibliography, so the class has one member.
+
+What remains is a long tail rather than one cause: LaTeX markup that
+`latex_to_plain` does not strip (`htb` from a float specifier, `hsize`,
+`vskip`), a few surnames in running prose, and genuine cross-subfield
+vocabulary — the held-out sweep pulled sub-mm papers whose instrument names
+(`mambo`, `aztec`, `pdbi`) a weak-lensing corpus really does not contain.
+
+### Also
+
+- `render` printed the whole gate-transfer dict into the sentence naming the
+  0.9 percentile; a local name collision, now pinned by a test.
+- §17 moved to `evaluation/held-out-labels.md`; its host had passed the
+  750-line budget.
+
+315 tests across 17 files; validator 9/9.
+
+## v0.30.1 — 2026-08-26
+
+An audit for anything left undone found a second field running a different
+rule from the documented one, with no sign that it was.
+
+### A count floor cannot guard a rate gate
+
+`MIN_CORPUS_PASSAGES` is 500 passages; `RARE_DF_RATE` is 1e-4. The two are
+unrelated. A bank of *n* passages cannot express a non-zero document-frequency
+rate below 1/n, so under **10,000** passages the firing rule collapses from
+"df rate below the gate" to "df == 0" — a single occurrence anywhere clears the
+flag.
+
+EVALUATION §15.5 derived exactly this in v0.26.1 and used it to reject a
+254-document subfield bank, but the conclusion was never turned into a guard.
+The shipped `wgl-letter` profile has **706** passages — **14.2× coarser** than
+the gate — and `register_axis_status` returned `measured` with `reason: null`
+while running the collapsed rule in production.
+
+`deai_register.resolves_rare_rate` now decides this. A bank that cannot express
+the gate reports `degraded` naming the coarseness and the rule actually in
+force, and its findings carry `measurement_status: degraded` with
+`reference.resolves_rare_rate: false`. They are **not** silenced: a term in
+zero corpus passages is absent whatever the resolution, and converting a
+degraded measurement into zero findings is the one thing this repository must
+not do. The two guards keep distinct jobs — below 500 passages the axis emits
+nothing; between 500 and 10,000 it emits, degraded. `wgl` is unaffected
+(41,593 passages resolve to 2.4e-5, comfortably under the gate).
+
+Also: `docs/README.md` recorded the narrative/salience/register part as holding
+sections 11 and 13–15, which stopped being true when §17 landed.
+
+308 tests across 17 files; validator 9/9.
+
+## v0.30.0 — 2026-08-26
+
+The last open roadmap item is closed, and closing it produced a worse result
+than leaving it open would have shown. Half of it never needed a labeller: a
+refereed ApJ/ApJL/A&A paper is text a human wrote and a referee accepted, so
+its provenance is already a label for "does this axis fire on accepted prose".
+
+### `tools/eval_findings.py` — provenance labels instead of hand labels
+
+200 held-out refereed papers were fetched and verified disjoint from all three
+calibration banks — **0** overlap with `human_abstracts_extra.jsonl`, **0** with
+the 516 `exemplar_paragraphs.jsonl` sources, **0** with `fulltext-arxiv/`. A
+random sample of 8, re-queried against the arXiv API, returned 8 refereed
+`journal_ref`s published 2013–2017, all pre-LLM.
+
+Enforcing held-out status was not a formality. `RARE_DF_RATE` is 1e-4, so on
+41,593 passages the foreign-term threshold sits at **4.16 passages** — one
+paper's own paragraphs can carry its own vocabulary over the line.
+
+### `L0.register` fires on accepted prose
+
+On papers it never saw: **0.991 findings per 1,000 words**, 93.6% of documents,
+rank AUC **0.080** against machine text — it fires *more* on human papers than
+on AI drafts, because generated prose reuses common field vocabulary while real
+papers introduce genuinely rare terms. Recorded, not retuned: a replacement
+operating point has to be derived against a held-out target rate and validated
+the same way. This is now the one open roadmap item, and unlike the vague item
+it replaces it has a number attached.
+
+### `L2.salience_hierarchy` calibration transfers essentially exactly
+
+`ADVISORY_PERCENTILE` is 0.90 over three features, so an independent-gate
+expectation is 1 − 0.9³ = **0.2710** per passage. Measured on the held-out set:
+2,690 findings over 9,946 eligible passages = **0.2705**. Its 0.966 document
+flag rate carries no defect signal — at 0.27 per passage a paper with ~49
+eligible passages flags with probability ~1 by construction. Machine text
+separates at AUC **0.770**.
+
+### The obvious leakage estimate is confounded; the paired one is not
+
+Comparing held-out against in-sample papers looked like the leakage
+measurement, and is not: the two populations are era-disjoint (2020–2021 vs
+2012–2018), so the contrast charges six years of vocabulary drift to
+calibration leakage. Replaced by a paired test on one population where bank
+membership is the only difference — **72.7% of 2,287** held-out register flags
+would be suppressed by the paper's own membership, so the in-sample view of
+this axis was ~3.7× optimistic.
+
+### Fetcher and hygiene
+
+- `--fulltext-dir`, `--exclude-known` and `--start-at` on
+  `fetch_arxiv_abstracts.py`. A first sweep returned **zero** candidates —
+  5,618 results, all already calibrated — because results come back
+  newest-first and an existing corpus occupies a contiguous shallow band. On
+  `cat:astro-ph.CO AND abs:cluster`, offsets 0–2000 were 100% known and 2000+
+  were ~85% new.
+- An interlock refuses to write a held-out set into the directory
+  `extract_style.py` reads as calibration breadth, and a test pins that the
+  held-out directory is not a calibration source — the failure it prevents is
+  silent, since the next rebuild would absorb the evaluation set with no error.
+- Journal-key validation now runs in full-text mode too; `--fulltext --journals
+  apjjl` previously kept nothing instead of failing.
+- `.gitignore` covers `style-corpus/**/fulltext-*/` as a class rather than one
+  directory name, so a new evaluation set cannot start life as a tracked copy
+  of other people's papers.
+- `cli_common.emit_report` shares the `--format` / `--output` tail between the
+  two evidence tools.
+- The changelog archives were rebalanced under the 750-line budget: v0.27.0
+  moved to `CHANGELOG-ARCHIVE.md`, v0.21.0 and older to
+  `CHANGELOG-ARCHIVE-EARLY.md`.
+
+303 tests across 17 files; validator 9/9.
+
+---
 
 ---
 

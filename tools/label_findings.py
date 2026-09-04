@@ -1,6 +1,6 @@
 """Sample findings for human labelling, then score the axes against the labels.
 
-All four finding-emitting axes -- register, salience, cohesion and hedging --
+All five finding-emitting axes -- register, salience, cohesion, hedging and collocation --
 are corpus-referenced: they compare a manuscript against the field's own banks.
 Nothing in the repository says whether a human agrees that a given advisory is
 *right*, so precision against human judgement, and recall, are unmeasured.
@@ -58,6 +58,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_discourse  # noqa: E402 -- because of that same sys.path insert
+import deai_collocation  # noqa: E402 -- because of that same sys.path insert
 import deai_register  # noqa: E402 -- because of that same sys.path insert
 import eval_findings  # noqa: E402 -- for HELDOUT_DIR, so the name has one owner
 import deai_salience  # noqa: E402 -- because of that same sys.path insert
@@ -78,6 +79,7 @@ CONTROL_QUESTION = ('This passage was NOT flagged. Should it have been? true = y
 EMITTERS = (
     (deai_register.register_findings, ("L0.register",), None),
     (deai_salience.salience_findings, ("L2.salience_hierarchy",), None),
+    (deai_collocation.collocation_findings, ("L2.collocation",), None),
     (deai_discourse.discourse_findings,
      tuple(deai_discourse.axis_name(feature) for feature in deai_discourse.AXES),
      lambda finding: deai_discourse.axis_name(

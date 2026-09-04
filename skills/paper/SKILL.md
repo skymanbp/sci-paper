@@ -144,7 +144,11 @@ deleting its hedges has been damaged.
 1. 这段是不是**只**描述了当前最终态？（如果包含过去态，删掉过去态。）
 2. 一个从未参与本研究的读者，看了这段会觉得有别的方案 / 旧版本存在过吗？如果会 → **重写**。
 3. 修订时新增的内容是"重写过的最终态"还是"在旧态上贴的补丁"？是补丁 → **撕掉补丁、重写整段**，不要"补丁 + 解释为什么打补丁"。
-4. 是否出现 *initially / originally / previously / at first / earlier / now / currently / corrected / revised / updated / supersedes* 等过程时间词指向**本文自身研究进程**？任一命中 → **重写**。（指外部科学时间维度的不算，例如 "recent supernova observations" / "previously published catalogs"。）
+4. 是否出现过程时间词指向**本文自身研究进程**？任一命中 → **重写**。（指外部科学时间维度的不算，例如 "recent supernova observations" / "previously published catalogs"。）词族与 `tools/deai_residue.py` 同源，`validate_plugin` 比对两处；检测端（`residue-self-history`）只在同句带 we / our / this paper 且无引用时报：
+   <!-- residue-family:start -->
+   - 高精度（strong）：`previous draft`、`earlier draft`、`previous version`、`earlier version`、`supersedes`、`superseded`、`no longer`、`we tried`、`we switched`、`we abandoned`、`we replaced`、`we moved away from`
+   - 普通（ordinary，常见科学用词，只提示；`initially`/`originally`/`at first` 在已发表论文里多是流程顺序而非改稿史）：`initially`、`originally`、`at first`、`now`、`currently`、`earlier`、`previously`、`corrected`、`revised`、`updated`
+   <!-- residue-family:end -->
 
 **与 "Formula Derivation Standards" 中"射箭画靶"的关系**
 

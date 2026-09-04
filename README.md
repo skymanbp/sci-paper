@@ -2,23 +2,21 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.35.1-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.36.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-394%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-463%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**12 skills · 35 tools · 394 tests · one normative contract · zero authorship verdicts.**
+**12 skills · 38 tools · 463 tests · one normative contract · zero authorship verdicts.**
 
-[中文文档](README.zh-CN.md) — [What it does](#what-it-does) ·
-[How it works](#how-it-works) · [See it work](#see-it-work) ·
-[Benchmarks](#benchmark-dashboard) · [Install](#install) ·
-[Skills](#skills-12) · [Tools](#tools-35) ·
-[Limitations](#status-known-limitations-and-roadmap) ·
+[中文文档](README.zh-CN.md) — [What it does](#what-it-does) · [How it works](#how-it-works) ·
+[See it work](#see-it-work) · [Benchmarks](#benchmark-dashboard) · [Install](#install) ·
+[Skills](#skills-12) · [Tools](#tools-38) · [Limitations](#status-known-limitations-and-roadmap) ·
 [The standard](docs/SCIPAPER_STANDARD.md) · [Docs](docs/README.md)
 
 ---
@@ -155,11 +153,14 @@ them and are [in the dashboard](#document-scale-discrimination-and-its-false-pos
 
 **4 · Register comes from your corpus, not from a word list.**
 `deai_register.py` flags terms the manuscript leans on (≥ 15 uses) whose document
-frequency **in your field's own corpus** is below 1e-4. No curated
-cross-discipline blocklist. That is what lets `AUC` (df 1) separate from `epoch`
-(df 402) and `accuracy` (df 774) with no hand-maintained astronomy exception
-list. Compounds are judged by their rarest part; `\mathrm{}` after `_` or `^` is
-a subscript, not a term; possessives fold.
+frequency **in your field's own corpus** is below 1e-4 — no curated cross-discipline blocklist, which is
+what lets `AUC` (df 1) separate from `epoch` (df 402) and `accuracy` (df 774) with no hand-maintained
+astronomy exception list. The same corpus answers a blunter question exhaustively: the **zero-hit audit**
+lists every body word no passage of the field has ever written, and `deai_collocation.py` every sentence
+that joins common words the field never joins (`physical cells`, `controlled grid`), each pair with the
+number of passages that would have written it by chance. Both are advice with author dispositions — a
+term the paper defines keeps its word and its pair — and neither is a detector: refereed papers carry
+*more* zero-hit words than machine drafts ([§23](docs/architecture/evaluation/vocabulary-and-residue.md)).
 
 **5 · Silence is never read as clean.** Every axis reports one of `measured`,
 `degraded`, `unmeasured`, `not_applicable`, and every report lists all four — in
@@ -186,10 +187,10 @@ killed each one. **A refuted detector is evidence, and it stays in the record.**
 
 ## See it work
 
-Demo 1 was re-run on **2026-08-26** at v0.32.0 on the `wgl` reference profile; demo 2 is a
-dated v0.28.0 record whose draft was not retained. Both predate the v0.33.0 discourse axes —
-pass `--no-discourse` to reproduce their counts. Nothing is illustrative. A fresh clone ships
-**no** profile ([why](#field-aware-evidence)), so `measured` axes need one built from yours.
+Demo 1 was re-run on **2026-08-26** at v0.32.0 on the `wgl` reference profile; demo 2 is a dated v0.28.0
+record whose draft was not retained. Both predate the discourse, collocation and residue axes — pass
+`--no-discourse --no-collocation --no-residue` to reproduce their counts. Nothing is illustrative. A fresh
+clone ships **no** profile ([why](#field-aware-evidence)), so `measured` axes need one built from yours.
 
 ### 1. Three treatments of the same paragraph
 
@@ -456,29 +457,29 @@ features and posture — but an old triage list will not reproduce exactly.
 
 ### Latency and repository health
 
-Measured 2026-08-27 on Windows 11, Python 3.13.3, RTX 4060 Ti, median of 7 subprocess runs (3 for the
-model-backed rows and the suite) including interpreter startup, on a real 5,084-word corpus paper
-assembled from its includes. Re-taken whole: the floor moved 84 → 98 ms, so no v0.33.0 row compares.
-The suite row carries its own date: the suite reached 394 tests on 2026-09-03, and that row was
-re-taken then — median of 3, the three runs spanning 70.0 – 86.9 s. Every other row stands from the
-2026-08-27 take; the table is re-taken whole at the next release.
+Measured 2026-09-04 on Windows 11, Python 3.13.3, RTX 4060 Ti, median of 7 subprocess runs (3 for the
+suite) including interpreter startup, on a real 5,084-word corpus paper assembled from its includes.
+Every stdlib row is re-taken; the floor moved 98 → 75 ms, so no earlier row compares. The two
+model-backed rows are **not** re-taken: another process held the GPU at 100% for the whole take, and a
+number measured under that would describe the contention, not the axis — they stand from 2026-08-27.
 
 | Pass | Median wall | Dependencies |
 |---|---:|---|
-| Python interpreter floor | 98 ms | — |
-| L0 lexicon + register | **317 ms** | stdlib |
-| **All model-free axes** (L0 + L1 + L2 incl. document structure and discourse) | **458 ms** | stdlib |
-| `length_gate.py` | 258 ms | stdlib |
-| `+ --oracle` (GPT-2-large token surprisal) | 33.8 s | `transformers` + `torch` |
-| `+ --voice` (learned L3 triage) | 37.2 s | `scikit-learn` + `sentence-transformers` |
-| `validate_plugin.py` — **9/9 checks pass** | 2.9 s | stdlib |
-| Full test suite — **394 passing**, 20 files | 73.0 s | stdlib |
+| Python interpreter floor | 75 ms | — |
+| L0 lexicon + register (incl. the zero-hit audit) | **514 ms** | stdlib |
+| **All model-free axes** (L0 + L1 + L2 incl. document structure, discourse, collocation, residue) | **1.07 s** | stdlib |
+| the same with `--no-collocation` (no pair bank to load) | 474 ms | stdlib |
+| `length_gate.py` | 212 ms | stdlib |
+| `+ --oracle` (GPT-2-large token surprisal) | 33.8 s (2026-08-27) | `transformers` + `torch` |
+| `+ --voice` (learned L3 triage) | 37.2 s (2026-08-27) | `scikit-learn` + `sentence-transformers` |
+| `validate_plugin.py` — **10/10 checks pass** | 0.42 s | stdlib |
+| Full test suite — **463 passing**, 23 files (median of 3, spanning 51.0 – 62.3 s) | 52.2 s | stdlib |
 
-The headline: **a complete model-free pass over a 5,084-word manuscript costs ~360 ms of analysis
-above the interpreter floor**, with no optional dependency installed. The two model-backed axes cost
-74×–81× more and are opt-in flags — you should not need a GPU to lint a paper. This time they moved
-*down* (48.7 → 33.8 s, 59.1 → 37.2 s) while every stdlib row rose with the floor; read those two as
-this machine today, not a trend. CI runs validator and suite on every push to main and on every PR, Python 3.11, Ubuntu.
+The headline: **a complete model-free pass over a 5,084-word manuscript costs ~1.0 s above the
+interpreter floor**, with no optional dependency installed — and 0.6 s of that is loading the
+541,309-pair collocation bank, which `--no-collocation` drops to ~0.4 s. The two model-backed axes cost
+30×–35× more than the full model-free pass and are opt-in flags — you should not need a GPU to lint a
+paper. CI runs validator and suite on every push to main and on every PR, Python 3.11, Ubuntu.
 
 ---
 
@@ -533,7 +534,7 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 What each one gives you: [the twelve skills, by layer](#the-twelve-skills-by-layer).
 Drive them as `/sci-paper:<name> draft.tex --field wgl`; `calibrate` comes first, once per field.
 
-## Tools (35)
+## Tools (38)
 
 One `sci-paper.feedback.v1` contract for every finding; corpus, training, and
 evaluation entries produce artifacts instead. `layer` is the axis the tool serves
@@ -544,13 +545,16 @@ reproducible evidence. Per-tool detail: [tools/README.md](tools/README.md).
 |---|---|---|
 | `tools/deai_feedback.py` | core | Implements `sci-paper.feedback.v1`: stable IDs, consequence classes, measurement states, dispositions, ranking, summaries, rendering. Standard library only. |
 | `tools/ai_ism_lint.py` | core | The unified CLI. Aggregates L0 and every advisory axis into one ranked text/JSON report. Exit `0` = no L0 target, `1` = L0 target present, `2` = invalid input or execution failure. |
-| `tools/length_gate.py` | core | Per-section prose length-budget delta gate (standard §5.3). Exit 1 on net unjustified growth between two document versions; `--allow` records justifications. |
+| `tools/length_gate.py` | core | Per-section prose length-budget delta gate (standard §5.3). Exit 1 on net unjustified growth between two document versions, or on a net cut short of `--require-shrink`; `--allow` records justifications. |
+| `tools/condense_map.py` | core | The removal map behind `/sci-paper:condense`: restatements with their canonical home, zero-gain sentences, dead figures/tables/labels/macros/acronyms, verbose constructions, repeated glosses, duplicated paragraphs — each with the words it frees, totalled into a shrink target. Deletes nothing. |
+| `tools/deai_residue.py` | core | The trace an edit leaves: first-person drafting history, edit-meta text, a heading or caption the body never earns, and with `--before` the label an edit added. Exit 1 on a strong finding. |
 | `tools/rewrite_reward.py` | core | Ranks rewrite candidates **after** hard scientific-fidelity eligibility. Dropping *or inventing* a protected invariant scores `-inf`. |
-| `tools/deai_register.py` | L0 | Domain register: terms the manuscript leans on that the field's own corpus does not carry, judged by corpus document frequency rather than a curated cross-discipline list. Compounds are judged by their rarest part. Advisories only. |
+| `tools/deai_register.py` | L0 | Domain register: terms the manuscript leans on that the field's own corpus does not carry, judged by corpus document frequency rather than a curated cross-discipline list. Compounds are judged by their rarest part. The zero-hit audit lists every body word with df 0. Advisories only. |
+| `tools/deai_collocation.py` | L2 | Sentences that join common words the field never joins: the fraction of adjacent content-word pairs unattested in the corpus, against a leave-one-out per-section reference; each pair carries its chance-absence probability. Advisories only; a defined term keeps its pair. |
 | `tools/ai_ism_negatives_handcrafted.txt` | L0 | Seed negative examples for the legacy classifier (data asset). |
 | `tools/deai_metrics.py` | L1 | Model-free information-distribution findings — sentence-length variation, connective openers — with explicit calibration state. |
 | `tools/deai_oracle.py` | L1 | Optional token-surprisal and Uniform Information Density evidence. Unavailable assets and compatibility thresholds stay explicit. |
-| `tools/deai_structure.py` | L2 | Sentence and paragraph construction: enumeration, repeated frames, parallel runs, symmetry, and related template families. |
+| `tools/deai_structure.py` | L2 | Sentence and paragraph construction: enumeration, repeated frames, parallel runs, symmetry, and related template families; auxiliary families (antithesis, reversal beats, paper-as-agent, wh-cleft, modifier stacks) name the sentence without entering the score. |
 | `tools/deai_salience.py` | L2 | Salience hierarchy: how far a passage's measured quantities run without an interpreting sentence between them, against a per-section human reference. Sole consumer of the numeral-preserving LaTeX projection. |
 | `tools/deai_discourse.py` | L2 | Discourse texture on the LOW tail: given/new linkage per paragraph, and epistemic-marker rate per **section** — hedging has no paragraph-scale lower tail, so the two axes calibrate at different units and each artifact records its own. Hedging speaks only for introductions, where its operating point was shown to transfer. |
 | `tools/deai_reference.py` | L2 | The one `(feature, unit)` percentile reference every per-bucket axis shares: quantile grid, plateau-top percentile reader, sample floor, paragraph and section sweeps, calibration loop. Holds no policy; its invariant is that calibration and detection never drift apart on what a unit is. |
@@ -566,10 +570,10 @@ reproducible evidence. Per-tool detail: [tools/README.md](tools/README.md).
 | `tools/deai_provenance.py` | L4 | Editing-provenance ledger over the author's **own** draft history; labels each span AI-untouched → author-original by token edit ratio. Not a detector; `unmeasured` without an AI-draft ancestor. |
 | `tools/deai_personal.py` | L4 | Personal dispersion baseline against the author's own prior papers — a confound-free same-author reference. `unmeasured` below three papers. |
 | `tools/eval_docscale.py` | eval | Reproduces the §9 document-scale table — human false-flag rate and per-tier tail power — by scoring the corpus and every `docval` tier through the same operating point findings use. |
-| `tools/eval_findings.py` | eval | Scores register and salience against **provenance** labels instead of hand labels: their firing rate on held-out refereed ApJ/ApJL/A&A papers, on the in-sample papers, and on the `docval` machine tiers, plus a paired test that isolates calibration leakage from publication era. |
-| `tools/label_findings.py` | eval | Samples findings from all four finding-emitting axes (register, salience, cohesion, hedging) into a human-labelling sheet, re-serves a blind subset for intra-rater agreement, and reports per-axis precision plus **pooled** recall, stratified by named `--population NAME=DIR` sets. Reports `unmeasured` for any stratum under 20 labels. |
+| `tools/eval_findings.py` | eval | Scores register, salience, cohesion, hedging and collocation against **provenance** labels instead of hand labels: their firing rate on held-out refereed ApJ/ApJL/A&A papers, on the in-sample papers, and on the `docval` machine tiers, plus a paired test that isolates calibration leakage from publication era. |
+| `tools/label_findings.py` | eval | Samples findings from all five finding-emitting axes (register, salience, cohesion, hedging, collocation) into a human-labelling sheet, re-serves a blind subset for intra-rater agreement, and reports per-axis precision plus **pooled** recall, stratified by named `--population NAME=DIR` sets. Reports `unmeasured` for any stratum under 20 labels. |
 | `tools/build_profile.py` | build | Builds the basic field profile: extraction, optional legacy classifier, exemplar-cache warm-up. |
-| `tools/cli_common.py` | build | Shared command-line preamble and field resolution, used by 25 of 35 tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
+| `tools/cli_common.py` | build | Shared command-line preamble and field resolution, used by 28 of 38 tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
 | `tools/extract_style.py` | build | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. Re-exports every public name from `extract_sections.py`. |
 | `tools/extract_sections.py` | build | Source-text projection and section splitting: the section vocabulary and its classifier, both named LaTeX projections, and the PDF heading heuristic. Section buckets key every per-section reference, so changing this requires a profile rebuild. |
 | `tools/tex_macros.py` | build | Expands numeric-literal `\newcommand` macros once on the assembled document root, so a quantity an author wrote as a macro reaches the projections that count numerals. Conservative: symbolic and argument-taking macros are untouched. |
@@ -659,7 +663,7 @@ dossier is evidence, not a standard and not proof of authorship.
 | Corpus reference | **User-supplied, tiered, gitignored** | Style is field-relative. A generic prior is the thing being replaced. |
 | Optional models | `transformers`+`torch`, `scikit-learn`, `sentence-transformers` | Strictly opt-in flags. Absence degrades an axis, never the run. |
 | Distribution | **Claude Code plugin** (`.claude-plugin/plugin.json`) | Skills at `skills/<name>/SKILL.md`, namespaced `/sci-paper:<name>`. |
-| Contract enforcement | `tools/validate_plugin.py` + GitHub Actions | 9 checks over manifests, registries, doc authority, recorded counts, imports, CLI entry points, exit semantics, tests, CI wiring. Drift fails CI instead of accumulating. |
+| Contract enforcement | `tools/validate_plugin.py` + GitHub Actions | 10 checks over manifests, registries, doc authority, recorded counts, imports, CLI entry points, exit semantics, tests, CI wiring, and the residue contract. Drift fails CI instead of accumulating. |
 
 ---
 
@@ -670,17 +674,17 @@ sci-paper/
 ├── .claude-plugin/          plugin.json · marketplace.json
 ├── .github/workflows/       ci.yml — validator + test suite on push to main and PR
 ├── docs/                    ← index + authority order at docs/README.md
-│   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.7)
+│   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.8)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   12 skills         ├── tests/     20 files, 394 tests
-├── tools/                   35 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
+├── skills/<name>/SKILL.md   12 skills         ├── tests/     23 files, 463 tests
+├── tools/                   38 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
-`python tools/validate_plugin.py` runs 9 contract checks and `python -m unittest discover -s tests -v` runs the
-394-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
+`python tools/validate_plugin.py` runs 10 contract checks and `python -m unittest discover -s tests -v` runs the
+463-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page anchors, recorded suite sizes
 against real discovery, product registries, syntax, runtime imports, CLI entry points, schema fields, and linter
 exit semantics — `tools/validate_plugin.py` itself is the authoritative list. A release also requires
@@ -690,12 +694,12 @@ independent review, clean-checkout verification, and green hosted CI.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.35.1**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.36.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
-**Normative core:** `docs/SCIPAPER_STANDARD.md` v3.7 — the complete de-AI
+**Normative core:** `docs/SCIPAPER_STANDARD.md` v3.8 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative
-layer, the `calibration_unit` confidence cap, the §5.2 de-AI-ization procedure,
-the §5.3 condense-not-accumulate rule with mechanical enforcement, and the §5.4
+layer and residue axis, the `calibration_unit` confidence cap, the §5.2 de-AI-ization procedure,
+the §5.3 condense-not-accumulate rule with three mechanical enforcement points, and the §5.4
 thesis spine shipped deliberately **without** a detector). There is no separate
 de-AI standard.
 
@@ -711,7 +715,7 @@ de-AI standard.
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` — and now for a *measured* reason. Burstiness reverses sign on adversarial prose (AUC 0.181) and signposting runs below chance (0.247), so no operating point is available to write. |
 | **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.846 and triage overlap 0.654, but an old triage list will not reproduce exactly. |
 | **A quarter of the corpus is never used** | Headings matching no section bucket are dropped rather than guessed: **2,334 of 9,178 (25.4%)** in `wgl`, 42 of 148 in `wgl-letter`. The remainder is mostly topic headings ("Matter power spectrum"); "Measurements" and "Background" were refused as genuinely ambiguous. |
-| **Register fires on accepted prose** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0858 findings per 1,000 words**, 44.8% of documents, rank AUC **0.286** against machine text — it still fires *more* on human papers than on AI drafts. 94.4% of the 198 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector; it is an advisory, cut at the first point where a referee-grade paper is not flagged more often than not. Replicated on a second population sampled by author rather than journal — 22 of one advisor's papers, 1996–2015 — where the AUC is **0.328** ([§21](docs/architecture/evaluation/held-out-labels.md)). |
+| **Register fires on accepted prose, and the vocabulary audits are advice** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0351 findings per 1,000 words** after the v0.36.0 heading fix (0.0858 before it), 30.0% of documents, rank AUC **0.352** against machine text — it still fires *more* on human papers than on AI drafts, and 95.1% of the 81 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector (replicated by author rather than journal, 22 papers, AUC **0.328**, [§21](docs/architecture/evaluation/held-out-labels.md)). The exhaustive zero-hit audit is the same fact at full strength: every refereed paper carries words the corpus never wrote (2.66 per 1,000, AUC 0.221), so it and the collocation axis ship as advice with author dispositions, and the collocation bank costs 0.6 s per run that `--no-collocation` drops ([§23](docs/architecture/evaluation/vocabulary-and-residue.md)). |
 | **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's gate transfers almost exactly (0.2775 per passage against a 0.2710 expectation), and 7.00% of the digits it read on LaTeX were citation years until v0.32.0; precision and recall for the advice itself need `tools/label_findings.py`. |
 | **Hedging only speaks about introductions** | The epistemic-marker axis ships restricted to `intro`, where its p10 gate fires at 7.89% on 203 held-out refereed papers. Elsewhere it fires at 15–27% on prose a referee accepted, and at least one generation regime lands below chance. Cohesion needs no such restriction (6.6–14.6% across all seven buckets). |
 | **Two axes can want opposite things** | Cohesion asks a sentence to reuse the previous sentence's nouns; recital counts sentences bearing numerals. In a number-dense passage the noun worth carrying forward is the one the numbers are about, so satisfying one axis costs the other and no rewrite satisfies both ([`examples/`](examples/README.md), 4 recital findings before the cohesion fix and 6 after). Both findings are true; the contract is advisory precisely because the trade-off is the author's to make. |
@@ -742,10 +746,5 @@ source rights and are **not** covered by this repository license.
 
 ---
 
-<sub>**Keywords:** Claude Code plugin · Claude Code skills · agent skills ·
-scientific writing · academic writing · paper review · peer review · manuscript
-preparation · AI text detection · AI-generated text detector · humanizer · de-AI ·
-AI detector for research papers · LaTeX · arXiv · astrophysics · weak gravitational
-lensing · cosmology · ApJ · MNRAS · PRD · JCAP · NSF proposal · NIH Specific Aims ·
-research writing assistant · corpus-driven style · conformal prediction · split
+<sub>**Keywords:** Claude Code plugin · Claude Code skills · agent skills · scientific writing · academic writing · paper review · peer review · manuscript preparation · AI text detection · AI-generated text detector · humanizer · de-AI · AI detector for research papers · LaTeX · arXiv · astrophysics · weak gravitational lensing · cosmology · ApJ · MNRAS · PRD · JCAP · NSF proposal · NIH Specific Aims · research writing assistant · corpus-driven style · conformal prediction · split
 conformal · uniform information density · reproducibility · scientific integrity · LLM tooling · research automation.</sub>

@@ -79,6 +79,11 @@ class TestCompoundFrequency(unittest.TestCase):
         self.assertEqual(register.corpus_document_frequency("auc", self.TABLE),
                          (1, "auc"))
 
+    def test_a_compound_with_one_short_part_is_judged_on_its_long_part(self):
+        # `no-dip`: "no" is too short to carry meaning, "dip" is the word.
+        self.assertEqual(register.corpus_document_frequency("no-mass", self.TABLE),
+                         (900, "mass"))
+
 
 class TestFindings(unittest.TestCase):
     def test_no_lexicon_yields_no_findings_and_an_unmeasured_axis(self):
@@ -106,15 +111,40 @@ class TestFindings(unittest.TestCase):
             )
             rules = {finding["rule"]
                      for finding in register.register_findings(document, profile)}
-            self.assertIn("register-foreign:auc", rules)
+            self.assertIn("register-zero:auc", rules)
             for native in ("epoch", "accuracy", "aperture", "mass"):
+                self.assertNotIn(f"register-zero:{native}", rules)
                 self.assertNotIn(f"register-foreign:{native}", rules)
 
-    def test_a_single_mention_is_not_enough(self):
+    def test_a_single_mention_of_an_unattested_word_is_flagged(self):
+        # Owner rule 2026-09-04: every word is looked up, and one in zero
+        # corpus passages is a strong marker unless the text supplies a reason.
         with tempfile.TemporaryDirectory(prefix="register-") as raw:
             profile = build_profile(Path(raw), [NATIVE_PASSAGE] * 600)
-            document = "\\section{Validation}\nWe report the AUC once.\n"
-            self.assertEqual(register.register_findings(document, profile), [])
+            document = "\\section{Validation}\nWe report the auc once.\n"
+            findings = {f["rule"]: f
+                        for f in register.register_findings(document, profile)}
+            finding = findings["register-zero:auc"]
+            self.assertEqual(finding["strength"], "strong")
+            self.assertEqual(finding["reference"]["use_floor"], 1)
+            self.assertIn("coins", finding["recommended_action"])
+            # The section title is not body prose on either side of the ratio.
+            self.assertNotIn("register-zero:validation", findings)
+
+    def test_a_single_mention_of_a_rare_attested_word_is_not_enough(self):
+        # Rarity below the gate still needs the manuscript to LEAN on the term;
+        # absence is the only fact that speaks at floor 1.
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            profile = build_profile(
+                Path(raw), [NATIVE_PASSAGE] * 12000 + ["The logit values."])
+            document = "\\section{Validation}\nWe report the logit once.\n"
+            rules = {f["rule"] for f in
+                     register.register_findings(document, profile)}
+            self.assertFalse({r for r in rules if r.endswith(":logit")})
+            rules = {f["rule"] for f in
+                     register.register_findings(foreign_document(), profile)}
+            self.assertIn("register-foreign:logit", rules)
+            self.assertNotIn("register-zero:logit", rules)
 
     def test_findings_are_advisories_never_l0_targets(self):
         with tempfile.TemporaryDirectory(prefix="register-") as raw:
@@ -125,6 +155,68 @@ class TestFindings(unittest.TestCase):
             for finding in findings:
                 self.assertEqual(finding["kind"], "advisory")
                 self.assertEqual(finding["layer"], "L0")
+
+
+class ZeroHitJustificationTest(unittest.TestCase):
+    """The reasons the owner allows for an unattested word, read from the text.
+
+    A zero-hit word is strong unless the manuscript itself says why it is
+    there: it defines the word, the word is a name, or the field writes its
+    stem. Each downgrades to ordinary and names its reason; none is silent.
+    """
+
+    def _findings(self, body: str):
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            profile = build_profile(Path(raw), [NATIVE_PASSAGE] * 600)
+            return register.register_findings(
+                "\\section{Validation}\n" + body + "\n", profile)
+
+    def _one(self, body: str, term: str):
+        found = [f for f in self._findings(body) if f["rule"] == f"register-zero:{term}"]
+        self.assertEqual(len(found), 1, body)
+        return found[0]
+
+    def test_an_acronym_expanded_in_text_is_defined_here(self):
+        finding = self._one("The normalised aperture flux (NAF) is measured. "
+                            "The NAF is quoted.", "naf")
+        self.assertEqual(finding["strength"], "ordinary")
+        self.assertEqual(finding["observed"]["justification"], "defined-here")
+
+    def test_a_defining_sentence_marks_a_coined_term(self):
+        finding = self._one("We call this quantity the saddleness. "
+                            "The saddleness is measured.", "saddleness")
+        self.assertEqual(finding["observed"]["justification"], "defined-here")
+        self.assertIn("definition precedes every use", finding["message"])
+
+    def test_a_word_capitalised_at_every_use_is_a_name(self):
+        finding = self._one("The catalog from Euclid is used. "
+                            "We match to Euclid positions.", "euclid")
+        self.assertEqual(finding["observed"]["justification"], "name")
+        self.assertEqual(finding["strength"], "ordinary")
+
+    def test_a_derived_form_of_a_native_word_names_its_stem(self):
+        finding = self._one("The shearing of the catalog is measured.", "shearing")
+        self.assertEqual(finding["observed"]["justification"], "derived-form")
+        self.assertEqual(finding["observed"]["native_stem"], "shear")
+        self.assertIn("'shear'", finding["message"])
+
+    def test_an_unexplained_word_is_strong_and_says_so(self):
+        finding = self._one("The catalog is rescored after the cut.", "rescored")
+        self.assertEqual(finding["strength"], "strong")
+        self.assertIsNone(finding["observed"]["justification"])
+        self.assertIn("Nothing in the manuscript", finding["message"])
+
+    def test_a_sentence_initial_capital_is_not_name_evidence(self):
+        finding = self._one("Rescored catalogs are used. The cut is applied.",
+                            "rescored")
+        self.assertEqual(finding["strength"], "strong")
+
+    def test_the_stemmer_does_not_reach_below_three_letters(self):
+        self.assertIsNone(register.native_stem("ins", {"in": 5}))
+        self.assertIsNone(register.native_stem("rescored", {"score": 5}))
+        self.assertEqual(register.native_stem("epochs", {"epoch": 5}), "epoch")
+        self.assertEqual(register.native_stem("planes", {"plane": 5}), "plane")
+        self.assertEqual(register.native_stem("fitted", {"fit": 5}), "fit")
 
 
 class BodyProjectionTest(unittest.TestCase):
@@ -190,6 +282,36 @@ class BodyProjectionTest(unittest.TestCase):
                     "\\section{Validation}\n"
                     "We report \\AUC, \\AUC, \\AUC, \\AUC and \\AUC here.\n")
         self.assertIn("auc", register.manuscript_terms(document))
+
+    # Third instance of the asymmetry: the corpus side blanks every math span,
+    # detection blanked only what fit on one line. On the advisor-round Letter
+    # the macro names inside a multi-line equation (`\dsep`, `\rmain`), a float
+    # option (`htb`), a bibliography style and a `\texttt` identifier all
+    # surfaced as zero-hit "words".
+    def test_a_macro_inside_multi_line_math_is_not_a_word(self) -> None:
+        document = ("\\section{Methods}\n"
+                    "The convergence is\n"
+                    "\\begin{equation}\n"
+                    "\\kappa = \\frac{\\kappa_\\rmain(\\dsep)}{2}\n"
+                    "\\end{equation}\n"
+                    "and $\\dsep\n"
+                    "/ r$ spans lines.\n")
+        terms = register.manuscript_terms(document)
+        self.assertNotIn("rmain", terms)
+        self.assertNotIn("dsep", terms)
+        self.assertIn("convergence", terms)
+        self.assertIn("spans", terms)
+
+    def test_float_options_bibliography_commands_and_code_are_not_words(self) -> None:
+        document = ("\\section{Methods}\n"
+                    "\\begin{figure*}[!htb]\n\\end{figure*}\n"
+                    "The \\texttt{cw\\_mscale} mode is used.\n"
+                    "\\bibliographystyle{aasjournalv7}\n")
+        terms = register.manuscript_terms(document)
+        for leaked in ("htb", "mscale", "aasjournalv", "aasjournalv7"):
+            self.assertNotIn(leaked, terms)
+        self.assertIn("mode", terms)
+        self.assertEqual(terms["mode"]["line"], 4)
 
 
 class BankResolutionTest(unittest.TestCase):

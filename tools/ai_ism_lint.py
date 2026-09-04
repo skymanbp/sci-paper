@@ -21,8 +21,10 @@ import deai_docstructure  # noqa: E402  sibling tool import after path setup
 import extract_sections as es  # noqa: E402  document assembly and projections
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_metrics  # noqa: E402  distribution and canonical ranges
+import deai_collocation  # noqa: E402  field-collocation detector
 import deai_discourse  # noqa: E402  cohesion and hedging detector
 import deai_register  # noqa: E402  domain-register detector
+import deai_residue  # noqa: E402  edit-residue detector
 import deai_salience  # noqa: E402  salience-hierarchy detector
 import deai_structure  # noqa: E402  sentence-construction detector
 
@@ -363,7 +365,8 @@ def collect_feedback(path: Path, field_profile_dir: Path | None, *,
                      distribution: bool = True, structure: bool = True,
                      document_structure: bool = True, oracle: bool = False,
                      voice: bool = False, register: bool = True,
-                     salience: bool = True, discourse: bool = True
+                     salience: bool = True, discourse: bool = True,
+                     collocation: bool = True, residue: bool = True
                      ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     text = document_source(path)
     findings, axes = lexical_findings(
@@ -371,6 +374,12 @@ def collect_feedback(path: Path, field_profile_dir: Path | None, *,
     if register:
         findings.extend(deai_register.register_findings(text, field_profile_dir, path))
         axes.append(deai_register.register_axis_status(field_profile_dir))
+    if collocation:
+        findings.extend(deai_collocation.collocation_findings(text, field_profile_dir, path))
+        axes.append(deai_collocation.collocation_axis_status(field_profile_dir, text))
+    if residue:
+        findings.extend(deai_residue.residue_findings(text, path))
+        axes.append(deai_residue.residue_axis_status(text))
     if salience:
         findings.extend(deai_salience.salience_findings(text, field_profile_dir, path))
         axes.append(deai_salience.salience_axis_status(field_profile_dir))
@@ -417,7 +426,8 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
          document_structure: bool = True, output_format: str = "text",
          output: Path | None = None, top: int | None = None,
          register: bool = True, salience: bool = True,
-         discourse: bool = True) -> int:
+         discourse: bool = True, collocation: bool = True,
+         residue: bool = True) -> int:
     del summary  # retained as a compatibility option; reports always include totals
     if not path.exists():
         print(f"[ai_ism_lint] file not found: {path}", file=sys.stderr)
@@ -428,7 +438,7 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
             ai_threshold=ai_threshold, distribution=distribution,
             structure=structure, document_structure=document_structure,
             oracle=oracle, voice=voice, register=register, salience=salience,
-            discourse=discourse)
+            discourse=discourse, collocation=collocation, residue=residue)
         report = feedback.build_report(path=path, findings=findings, axes=axes, top=top)
         rendered = (feedback.dump_report(report)
                     if output_format == "json" else feedback.render_text(report) + "\n")
@@ -472,6 +482,10 @@ def main(argv: list[str] | None = None) -> int:
                         default=True)
     parser.add_argument("--discourse", action=argparse.BooleanOptionalAction,
                         default=True)
+    parser.add_argument("--collocation", action=argparse.BooleanOptionalAction,
+                        default=True)
+    parser.add_argument("--residue", action=argparse.BooleanOptionalAction,
+                        default=True)
     parser.add_argument("--oracle", action="store_true")
     parser.add_argument("--voice", action="store_true")
     parser.add_argument("--format", choices=("text", "json"), default="text")
@@ -491,7 +505,8 @@ def main(argv: list[str] | None = None) -> int:
         document_structure=args.document_structure, oracle=args.oracle,
         voice=args.voice, output_format=args.format, output=args.output,
         top=args.top, register=args.register, salience=args.salience,
-        discourse=args.discourse,
+        discourse=args.discourse, collocation=args.collocation,
+        residue=args.residue,
     )
 
 

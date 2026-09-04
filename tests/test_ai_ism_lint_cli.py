@@ -97,6 +97,27 @@ class LinterCliTests(unittest.TestCase):
         self.assertEqual(statuses["L1.distribution"], "unmeasured")
         self.assertEqual(statuses["L2.sentence_structure"], "unmeasured")
         self.assertEqual(statuses["L2.document_structure"], "unmeasured")
+        self.assertEqual(statuses["L2.collocation"], "unmeasured")
+        # Residue needs no calibration: it is deterministic on the text.
+        self.assertEqual(statuses["L4.residue"], "measured")
+
+    def test_residue_and_collocation_can_be_switched_off(self):
+        result = self.run_lint(
+            "\\section{Methods}\nWe initially tried a wider filter.\n",
+            *self.isolated, "--no-residue", "--no-collocation",
+            "--format", "json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        axes = {axis["axis"] for axis in report["axes"]}
+        self.assertNotIn("L4.residue", axes)
+        self.assertNotIn("L2.collocation", axes)
+
+    def test_self_history_residue_is_advisory_not_l0(self):
+        result = self.run_lint(
+            "\\section{Methods}\nWe initially tried a wider filter.\n",
+            *self.isolated)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("residue-self-history", result.stdout)
 
     def test_top_limits_details_not_summary(self):
         result = self.run_lint(

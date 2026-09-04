@@ -47,12 +47,8 @@ DESIGN_NOTES = (
 # Paths a doc must NOT reappear at. Each entry was a real location before the
 # v0.27.0 reorganisation, so a stale copy would read as authoritative.
 FORBIDDEN_DOC_COPIES = (
-    "EVALUATION.md",
-    "docs/EVALUATION.md",
-    "docs/DEAI_SUBSYSTEM.md",
-    "docs/DEAI_ARCHITECTURE_ROADMAP.md",
-    "docs/DEAI_FRONTIER.md",
-    "docs/HANDOFF.md",
+    "EVALUATION.md", "docs/EVALUATION.md", "docs/DEAI_SUBSYSTEM.md",
+    "docs/DEAI_ARCHITECTURE_ROADMAP.md", "docs/DEAI_FRONTIER.md", "docs/HANDOFF.md",
 )
 
 NORMATIVE_SKILLS = {
@@ -69,21 +65,18 @@ NORMATIVE_SKILLS = {
     "proposal-polish",
 }
 CORE_IMPORTS = {
-    "ai_ism_lint",
-    "deai_docstructure",
-    "deai_features",
-    "deai_feedback",
-    "deai_metrics",
-    "deai_oracle",
-    "deai_structure",
-    "deai_voice",
-    "rewrite_reward",
+    "ai_ism_lint", "condense_map", "deai_collocation", "deai_docstructure",
+    "deai_features", "deai_feedback", "deai_metrics", "deai_oracle",
+    "deai_residue", "deai_structure", "deai_voice", "rewrite_reward",
 }
 CORE_CLIS = CORE_IMPORTS - {"deai_feedback"}
 REQUIRED_TESTS = {
     "test_ai_ism_lint_cli.py",
     "test_deai_docstructure.py",
     "test_deai_feedback.py",
+    # Carries the validator hook's own test; the residue word family is
+    # checked in both places or in neither.
+    "test_deai_residue.py",
     # The only check that can see whether a published number still has a
     # source: the artifacts it reads are gitignored, so deleting this file
     # would silently restore the drift it was written to stop.
@@ -233,17 +226,8 @@ def check_skills() -> str:
                     f"skills/{name}/SKILL.md contains stale marker {marker!r}: {explanation}")
 
     standard = read_text(REPO / STANDARD_DOC)
-    for token in (
-        SCHEMA,
-        "integrity_blocker",
-        "l0_target",
-        "advisory",
-        "measured",
-        "degraded",
-        "unmeasured",
-        "not_applicable",
-        "rejected_as_false_positive",
-    ):
+    for token in (SCHEMA, "integrity_blocker", "l0_target", "advisory", "measured",
+                  "degraded", "unmeasured", "not_applicable", "rejected_as_false_positive"):
         require(token in standard, f"SCIPAPER_STANDARD.md missing contract token {token!r}")
     return f"skills and normative standard agree ({len(documents)} skills)"
 
@@ -712,7 +696,18 @@ def check_tests_and_ci() -> str:
     return f"required tests and CI wiring present ({len(present)} test files)"
 
 
-# Module level so the count is readable: the READMEs publish "9 contract checks"
+def check_residue_contract() -> str:
+    # The check body lives in tools/deai_residue.py beside the word families it
+    # compares, so the detector and the validator cannot disagree on the list.
+    sys.path.insert(0, str(TOOLS))
+    try:
+        return importlib.import_module("deai_residue").validator_check(REPO, require)
+    finally:
+        if sys.path and sys.path[0] == str(TOOLS):
+            sys.path.pop(0)
+
+
+# Module level so the count is readable: the READMEs publish "10 contract checks"
 # and check_registry_counts verifies that claim against this tuple.
 CHECKS = (
     check_manifests,
@@ -724,6 +719,7 @@ CHECKS = (
     check_runtime_contract,
     check_linter_exit_semantics,
     check_tests_and_ci,
+    check_residue_contract,
 )
 
 

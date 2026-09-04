@@ -69,6 +69,55 @@ class AuxiliaryFamilyTests(unittest.TestCase):
         self.assertEqual(values["template_score"], len(values["templates"]))
         self.assertNotIn("antithesis-cluster", values["templates"])
 
+    def test_paper_as_agent_detected(self):
+        text = ("This Letter asks whether the filter response can separate the "
+                "two populations at the depth of the survey.")
+        values = structure.paragraph_structure(text)
+        self.assertEqual(values["paper_agent_count"], 1)
+        self.assertIn("paper-agent", values["auxiliary_templates"])
+
+    def test_paper_that_merely_presents_is_not_an_agent(self):
+        # "This paper presents" is the field's own convention, not a mind.
+        text = ("This paper presents the filter response measured on the "
+                "shear catalog around each cluster in the survey.")
+        values = structure.paragraph_structure(text)
+        self.assertEqual(values["paper_agent_count"], 0)
+
+    def test_wh_cleft_detected(self):
+        text = ("What it can conclude is limited by the noise of the map. "
+                "The remaining sentences describe the aperture mass filter.")
+        values = structure.paragraph_structure(text)
+        self.assertEqual(values["wh_cleft_count"], 1)
+        self.assertIn("wh-cleft", values["auxiliary_templates"])
+
+    def test_a_plain_wh_question_word_is_not_a_cleft(self):
+        text = ("How the filter responds depends on the truncation radius, so "
+                "the radius is fixed before any peak is counted.")
+        values = structure.paragraph_structure(text)
+        self.assertEqual(values["wh_cleft_count"], 0)
+
+    def test_modifier_stack_detected(self):
+        stacks = structure.modifier_stacks(
+            "We adopt a per-map empirical B-mode null for every configuration.")
+        self.assertEqual(stacks, ["per-map empirical B-mode null"])
+        stacks = structure.modifier_stacks(
+            "The non-compensated 500-configuration subfamily fails the test.")
+        self.assertEqual(stacks, ["non-compensated 500-configuration subfamily"])
+
+    def test_ordinary_compound_noun_phrases_are_not_stacks(self):
+        self.assertEqual(structure.modifier_stacks(
+            "The weak-lensing mass map is smoothed, and the [math] peak is kept."), [])
+        self.assertEqual(structure.modifier_stacks(
+            "We use 500 configurations of the aperture-mass filter."), [])
+
+    def test_advisor_families_stay_out_of_template_score(self):
+        text = ("This Letter asks whether a per-map empirical B-mode null holds. "
+                "What it can conclude is limited by the noise of the map.")
+        values = structure.paragraph_structure(text)
+        self.assertEqual(values["template_score"], 0)
+        for family in ("paper-agent", "wh-cleft", "modifier-stack"):
+            self.assertIn(family, values["auxiliary_templates"])
+
     def test_findings_emit_auxiliary_rule(self):
         text = "\\section{Methods}\n\n" + ANTITHESIS_HEAVY + "\n"
         findings = structure.structure_findings(text, None)

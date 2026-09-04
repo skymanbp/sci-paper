@@ -26,6 +26,8 @@ style-profile/
     ├── docstructure_baseline.json          # optional complete-document baseline
     ├── salience_baseline.json              # per-section salience reference (deai_salience.py --calibrate)
     ├── register_lexicon.json               # corpus document frequency (deai_register.py --calibrate)
+    ├── collocation_bank.json               # unigram + adjacent-pair document frequency (deai_collocation.py --calibrate)
+    ├── collocation_baseline.json           # per-section leave-one-out novel-pair reference, sentence unit
     ├── deai_policy.json                    # optional calibrated operating points
     ├── voice_model.joblib                  # optional learned field-similarity model
     ├── voice_features_cache.npz            # learned-model feature cache
@@ -82,6 +84,9 @@ python tools/deai_salience.py --field <name> --calibrate
 
 # Corpus document frequency for the domain-register axis (L0.register)
 python tools/deai_register.py --field <name> --calibrate
+
+# Pair bank and leave-one-out sentence reference for the collocation axis (L2.collocation)
+python tools/deai_collocation.py --field <name> --calibrate
 
 # Optional learned field-similarity model; still degraded until the recorded
 # confound audit and operating point justify stronger use

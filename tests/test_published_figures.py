@@ -53,7 +53,7 @@ BUCKETS = ("method", "results", "data", "intro", "discussion", "conclusion",
 AXIS_TABLE_ORDER = ("abstract", "method", "data", "intro", "discussion",
                     "results", "conclusion")
 # The per-rule table in examples/README.md, in its order: one rule named with
-# its variant, one with its layer, five with neither. Which rules the
+# its variant, one with its layer, six with neither. Which rules the
 # walkthrough tabulates is the document's choice; every count in it is the
 # linter's.
 EXAMPLE_RULE_ROWS = (
@@ -64,6 +64,7 @@ EXAMPLE_RULE_ROWS = (
     ("`document-role-decoupling`", "document-role-decoupling"),
     ("`structure-template`", "structure-template"),
     ("`salience-recital`", "salience-recital"),
+    ("`collocation-novel`", "collocation-novel"),
 )
 
 

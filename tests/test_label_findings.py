@@ -101,10 +101,10 @@ class AxisCoverageTests(unittest.TestCase):
     one of the two unlabelled forever.
     """
 
-    def test_all_four_finding_emitting_axes_are_sampled(self) -> None:
+    def test_all_five_finding_emitting_axes_are_sampled(self) -> None:
         self.assertEqual(sorted(labels.AXES),
-                         ["L0.register", "L2.cohesion", "L2.hedging",
-                          "L2.salience_hierarchy"])
+                         ["L0.register", "L2.cohesion", "L2.collocation",
+                          "L2.hedging", "L2.salience_hierarchy"])
 
     def test_the_multi_axis_emitter_tags_each_feature_separately(self) -> None:
         _, axes, axis_of = next(e for e in labels.EMITTERS if len(e[1]) > 1)

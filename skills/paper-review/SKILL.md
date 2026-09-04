@@ -142,6 +142,12 @@ uncertainty、多重比较、prior）与**声明-证据纪律**（动词强度�
 - announced enumeration、parallel-modal runs、setup/list/wrap-up symmetry、重复段落/章节
   几何、burstiness、UID、document shape、learned field-similarity、-ing 分词尾巴与
   阐释式冒号（linter `ing-tail` / `colon-elaboration`）是 advisory。
+- 词汇层两条证据来自语料而非词表：`register-zero:<term>`（全文逐词零命中审计，
+  strong 除非是已证实词干的机械派生）与 `collocation-novel:<section>`（一句中相邻
+  常用词对在语料里从未同现的比例，如 `physical cells`）。零命中 strong 必须走
+  de-ai §4.2 的三种 disposition 之一（本文定义 / 首次引入并引用 / 换成领域词）。
+- `deai_structure` 的 auxiliary 家族（paper-as-agent 主语、wh-cleft 开头、三词以上
+  且含两个连字符复合的修饰堆）只命名句子，不进 template score；命中是 advisory。
 - learned signals 只表示 field-similarity/triage，不证明作者身份；没有 calibrated
   operating point 时必须 `degraded`。
 - **结构 tell 审计（每轮必跑；`/sci-paper:de-ai` `--audit-only` 模式，其 Pass 2）**：
@@ -196,7 +202,10 @@ coverage、intro promise、results/discussion/conclusion closure、图表首次�
 
 ### I. Redundancy
 
-- 找重复 claim、无信息增量段、死定义、死 figure/table 和重复解释。
+- 先跑 `python tools/condense_map.py <file> --format json`：六类可删条目
+  （restatement / zero-gain / dead:{figure,table,label,macro,acronym} / verbose /
+  regloss / duplicate）各带 `removable_words`，`condense_budget` 给出默认删减目标。
+  人工只补工具看不到的重复（同一 claim 换说法跨越三句以上）。
 - 若冗余造成两个互相冲突的版本，则为 `integrity_blocker`；纯压缩与可读性通常 advisory。
 - 本维度只产 finding；冗余修复的**动作**路由到 `/sci-paper:condense` 执行
   （one-canonical-home 去重 + length gate 收口）。
@@ -273,8 +282,12 @@ stale scientific content、冲突副本或 required artifact drift 是 `integrit
 
 ### O. Process-artifact removal
 
-- 删除“initially/originally/previous draft/we tried then changed”等本文内部研究旅程。
-- 只保留当前科学状态。
+- 先跑 `python tools/deai_residue.py <file> --before <scratch>/length-baseline.tex`
+  （或 `--git-ref`）：`residue-self-history:<word>`（我们最初/曾经/不再……的研究旅程）、
+  `residue-edit-meta`（TODO、"see previous version" 等编辑元文本）、
+  `residue-negative-label`（标题或 caption 承诺正文没有的东西）与 diff 规则
+  `residue-negative-label-added`。strong finding 使工具 exit 1，本轮不得收尾。
+- 只保留当前科学状态；修法是把句子改写成当前状态，不是追加解释。
 - 外部 published baseline 的正式 head-to-head 比较可以保留，前提是有 citation、protocol
   和 numerical comparison。
 - 过程叙述若使当前 method/claim 不清或引入 stale content，按 blocker；否则按 advisory。
@@ -331,7 +344,11 @@ stale scientific content、冲突副本或 required artifact drift 是 `integrit
    `python tools/length_gate.py <file> --before <scratch>/length-baseline.tex`
    （或 `--git-ref <ref>`）。exit 1 = 存在无理由净增长——精简回预算内，
    或用 `--allow "<section>=<理由>"` 记录作者批准的理由后重跑至 exit 0。
-   `length-growth` finding 未 disposition 时循环不得收尾。
+   `length-growth` finding 未 disposition 时循环不得收尾。本轮若执行了
+   condense，加 `--require-shrink <condense_budget.default_target_words>`：
+   删减未达目标产生 strong `length-shrink-short` 且 exit 1。
+9. **收尾前跑 residue diff**：`python tools/deai_residue.py <file> --before
+   <scratch>/length-baseline.tex`；exit 1（strong residue）时循环不得收尾。
 
 伪代码：
 

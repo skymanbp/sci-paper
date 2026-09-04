@@ -6,7 +6,7 @@ the repository's 750-line budget. Nothing here is edited; the history is
 verbatim.
 
 - Current releases: [CHANGELOG.md](CHANGELOG.md)
-- **v0.27.1 through v0.29.0**: [CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)
+- **v0.27.1 through v0.31.0**: [CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)
 - **v0.21.0 and earlier**: [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)
 
 ---

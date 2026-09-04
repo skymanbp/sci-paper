@@ -25,14 +25,24 @@ Three populations, and the contrast between them is the measurement:
 
 The two axes must be read differently, because they are gated differently:
 
-- **register** is an absolute rarity test, so its held-out rate is a
-  false-positive rate and low is correct.
+- **register** (`register-foreign`) is an absolute rarity test, so its held-out
+  rate is a false-positive rate and low is correct.
+- **register-zero** is the owner's every-word audit: a word in zero corpus
+  passages at any use count. Its held-out rate is the COST of the audit on
+  accepted prose, and its AUC is expected below 0.5 -- refereed papers carry
+  more unattested words than machine drafts do (EVALUATION §23). It is
+  reported so that cost is a number rather than an impression.
 - **salience** is a percentile gate (`ADVISORY_PERCENTILE` = 0.90), so about a
   tenth of calibration passages exceed it BY DESIGN. Its held-out rate is a
   calibration-transfer check: near the design rate is correct behaviour, far
   above it means the percentile did not transfer to unseen papers. It is not a
   bug count, and reporting it as one would manufacture a defect out of the
   gate's own definition.
+- **collocation** is the same kind of gate, per sentence, so its held-out
+  per-sentence rate is read the same way. Its discrimination is scored on the
+  document novel-pair fraction (`document_novelty`), the one quantity of the
+  axis that is not a percentile, because a count of flagged sentences per
+  1,000 words would confound the gate with document length.
 
 What this does NOT measure: "this paper was published" does not mean every
 sentence in it is beyond improvement, so the held-out register rate is an UPPER
@@ -51,6 +61,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
+import deai_collocation  # noqa: E402 -- because of that same sys.path insert
 import deai_register  # noqa: E402 -- because of that same sys.path insert
 import deai_salience  # noqa: E402 -- because of that same sys.path insert
 import extract_sections as es  # noqa: E402 -- because of that same sys.path insert
@@ -60,13 +71,18 @@ SCHEMA = "sci-paper.findings-eval.v1"
 HELDOUT_DIR = "fulltext-heldout"
 INSAMPLE_DIR = "fulltext-arxiv"
 MIN_DOCUMENTS = 20   # below this a rate is reported `unmeasured`, never as 0/0
-# Deliberately TWO, where `label_findings.AXES` carries four. This file is not a
-# generic axis loop: each axis needs a reading of its own -- register is an
-# absolute rarity test whose held-out rate IS a false-positive rate, salience is
-# a percentile gate whose non-zero rate is its design point -- and the discourse
-# axes have neither a summarizer nor a stated reading here yet. Adding their
-# names without that would print two more rates nobody can interpret.
-AXES = ("L0.register", "L2.salience_hierarchy")
+# Deliberately FOUR, where `label_findings.AXES` carries more. This file is not
+# a generic axis loop: each axis needs a reading of its own -- register is an
+# absolute rarity test whose held-out rate IS a false-positive rate, the
+# zero-hit audit's held-out rate is its cost, salience and collocation are
+# percentile gates whose non-zero rate is their design point -- and the
+# discourse axes have neither a summarizer nor a stated reading here yet.
+# Adding their names without that would print two more rates nobody can
+# interpret.
+AXES = ("L0.register", "L0.register-zero", "L2.salience_hierarchy",
+        "L2.collocation")
+# Scored on a document-level quantity of its own rather than per-1k-words.
+DOCUMENT_SCORES = {"L2.collocation": "collocation_novel_fraction"}
 
 
 def _bundle_documents(root: Path) -> list[tuple[str, str]]:
@@ -103,17 +119,30 @@ def score_document(text: str, field_dir: Path, path: str) -> dict[str, float]:
     rate against the rate the percentile is supposed to produce.
     """
     register = deai_register.register_findings(text, field_dir, path)
+    zero = [f for f in register if f["rule"].startswith("register-zero:")]
     salience = deai_salience.salience_findings(text, field_dir, path)
     strong = sum(1 for f in salience
                  if f.get("strength") == "strong" or f.get("strong_advisory"))
     units = sum(1 for unit in deai_salience._units(text)
                 if deai_salience.salience_features(unit[3]) is not None)
+    collocation = deai_collocation.collocation_findings(text, field_dir, path)
+    bank = deai_collocation.load_bank(field_dir)
+    novelty = (deai_collocation.document_novelty(text, bank) if bank
+               else {"novel_fraction": None, "judged_pairs": 0})
     return {
         "n_words": float(len(text.split())),
         "n_salience_units": float(units),
-        "L0.register": float(len(register)),
+        "L0.register": float(len(register) - len(zero)),
+        "L0.register-zero": float(len(zero)),
+        "register_zero_strong": float(
+            sum(1 for f in zero if f["strength"] == "strong")),
         "L2.salience_hierarchy": float(len(salience)),
         "salience_strong": float(strong),
+        "L2.collocation": float(len(collocation)),
+        "collocation_novel_fraction": (
+            float("nan") if novelty["novel_fraction"] is None
+            else float(novelty["novel_fraction"])),
+        "collocation_judged_pairs": float(novelty["judged_pairs"]),
     }
 
 
@@ -135,6 +164,11 @@ def summarize(rows: list[dict[str, float]], axis: str) -> dict:
 
 
 def _density(rows: list[dict[str, float]], axis: str) -> list[float]:
+    """The per-document score an axis is ranked on: findings per 1,000 words,
+    or the axis's own document-level quantity where one is declared."""
+    score = DOCUMENT_SCORES.get(axis)
+    if score:
+        return [r[score] for r in rows if r.get(score) == r.get(score)]  # drops NaN
     return [1000.0 * r[axis] / r["n_words"] for r in rows if r["n_words"]]
 
 
@@ -162,7 +196,12 @@ def leakage_paired(text: str, field_dir: Path, path: str) -> tuple[int, int]:
     own = [block for block in text.split("\n\n") if len(block.split()) >= 5]
     flagged = survives = 0
     for finding in deai_register.register_findings(text, field_dir, path):
-        term = str(finding["rule"]).split("register-foreign:", 1)[-1]
+        # The zero-hit audit is suppressed by own membership by construction
+        # (one occurrence anywhere clears "absent"), so pairing it measures
+        # nothing; the rarity rule is the one whose leakage is a question.
+        if not str(finding["rule"]).startswith("register-foreign:"):
+            continue
+        term = deai_register.normalize(finding["observed"]["term"])
         df, _ = deai_register.corpus_document_frequency(term, table)
         own_df = sum(1 for block in own if term.lower() in block.lower())
         flagged += 1
@@ -294,12 +333,16 @@ def render(report: dict) -> str:
              f"salience gate={gate}  register rare-df={report['rare_df_rate']}",
              f"{'population':22s} {'n':>4s} {'med w':>7s} "
              f"{'reg flag':>10s} {'reg/1kw':>9s} "
-             f"{'sal flag':>10s} {'sal/1kw':>9s}"]
+             f"{'zero flag':>10s} {'zero/1kw':>9s} "
+             f"{'sal flag':>10s} {'sal/1kw':>9s} "
+             f"{'col flag':>10s} {'col/1kw':>9s}"]
     for label, entry in report["populations"].items():
         lines.append(f"{label:22s} {entry['n_documents']:>4d} "
                      f"{entry['median_words']:>7.0f} "
                      f"{_cell(entry['L0.register'])} "
-                     f"{_cell(entry['L2.salience_hierarchy'])}")
+                     f"{_cell(entry['L0.register-zero'])} "
+                     f"{_cell(entry['L2.salience_hierarchy'])} "
+                     f"{_cell(entry['L2.collocation'])}")
     lines.append("")
     discrimination = report["discrimination"]
     if discrimination.get("status"):
@@ -308,7 +351,9 @@ def render(report: dict) -> str:
         for axis, entry in discrimination.items():
             auc = entry["auc_machine_over_heldout"]
             shown = f"{auc:.3f}" if auc is not None else "unmeasured"
-            lines.append(f"AUC machine over held-out published  {axis:24s} {shown}")
+            basis = "document novel-pair fraction" if axis in DOCUMENT_SCORES else "per 1k words"
+            lines.append(f"AUC machine over held-out published  {axis:24s} {shown}"
+                         f"  ({basis})")
     transfer = report["salience_gate_transfer"]
     if transfer.get("status") == "measured":
         lines.append(
