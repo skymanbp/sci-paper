@@ -23,17 +23,17 @@ of the §5.2 step-1b dispositions.
 
 **It is exhaustive, and it is not a detector.** Rates per 1,000 body words, and
 the fraction of documents with at least one finding (`eval_findings.py --field
-wgl`, 2026-09-04):
+wgl`, 2026-09-04, re-taken under v0.36.1's float projection):
 
 | population | n | `register-zero` /1k words | documents flagged | `register` (15-use rule) /1k words |
 |---|---:|---:|---:|---:|
-| held-out refereed | 203 | **2.658** | 100.0% | 0.035 |
-| in-sample refereed (bank members) | 544 | 0.902 | 92.5% | 0.010 |
-| machine, all tiers | 173 | 1.086 | 86.7% | 0.002 |
-| machine `ai_adversarial` | 40 | 2.099 | 95.0% | 0.000 |
-| machine `ai_long` | 29 | 1.030 | 100.0% | 0.003 |
+| held-out refereed | 203 | **2.212** | 100.0% | 0.025 |
+| in-sample refereed (bank members) | 544 | 0.605 | 75.9% | 0.005 |
+| machine, all tiers | 173 | 0.980 | 80.9% | 0.002 |
+| machine `ai_adversarial` | 40 | 1.823 | 92.5% | 0.000 |
+| machine `ai_long` | 29 | 0.954 | 100.0% | 0.003 |
 
-Rank AUC of machine over held-out on the per-1k rate is **0.221**: a refereed
+Rank AUC of machine over held-out on the per-1k rate is **0.246**: a refereed
 paper carries more words the corpus never wrote than a machine draft does,
 which is the same direction §18.4 found for the thresholded rule at every floor
 from 5 to 50. The audit therefore ships as advice with author dispositions and
@@ -63,7 +63,12 @@ code in one process: **196 findings → 81**, 0.0858 → 0.0351 per 1,000 words,
 44.8% → 30.0% of documents, rank AUC 0.286 → 0.352, and the paired
 own-membership test of §17.3 reads 95.1% of 81 (was 94.4% of 198). The figures
 §18.4 and §21 quote stand as what they measured on that day; the operating
-point they chose is unchanged.
+point they chose is unchanged. A fourth seam followed in v0.36.1 — floats,
+blanked whole on the corpus side and never on the line-by-line manuscript side,
+so table preambles and caption words read as zero-hit terms — and the same
+papers re-measured at 81 → **57** findings, 0.0247 per 1,000 words, 22.2% of
+documents, AUC 0.392, own-membership 98.2% of 57; the table above is the
+re-taken one.
 
 ## 23.2 `L2.collocation`: sentences that join words the field never joins
 
@@ -107,15 +112,16 @@ documents with at least one):
 
 | population | n | findings /1k words | documents flagged |
 |---|---:|---:|---:|
-| held-out refereed | 203 | 2.044 | 99.0% |
-| in-sample refereed (bank members) | 544 | 0.112 | 39.9% |
+| held-out refereed | 203 | 2.031 | 99.0% |
+| in-sample refereed (bank members) | 544 | 0.110 | 39.2% |
 | machine, all tiers | 173 | 3.317 | 100.0% |
 | machine `ai_long` | 29 | 2.651 | 100.0% |
 | machine `ai_adversarial` | 40 | 4.581 | 100.0% |
 
 On the document novel-pair fraction the rank AUC of machine over held-out is
-**0.688** — the axis separates, unlike the two vocabulary rules, and less than
-salience (0.770). Two things the table must not be read as. The held-out row
+**0.691** — the axis separates, unlike the two vocabulary rules, and less than
+salience (0.774); both re-taken under v0.36.1's float projection, which moved
+them from 0.688 and 0.770. Two things the table must not be read as. The held-out row
 is an upper bound on the design rate, not the rate itself: the reference is
 leave-one-out over bank passages of one era, and a 2020–2021 paper's pairs drift
 from a 2012–2018 bank for reasons that have nothing to do with how it is

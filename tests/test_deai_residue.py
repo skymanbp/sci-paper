@@ -107,6 +107,16 @@ class NegativeLabelTests(unittest.TestCase):
         self.assertEqual(residue.negative_label_findings(text), [])
         self.assertIn("not applied", residue.residue_axis_status(text)["reason"])
 
+    def test_the_negated_object_stops_at_the_sentence_end(self):
+        # A caption is several sentences; the object must not run into the next.
+        caption = ("The volume renders the catalog, not a mass reconstruction. "
+                   "The solid spheres mark each structure.")
+        self.assertEqual([obj for obj, _ in residue.negated_objects(caption)],
+                         ["a mass reconstruction"])
+        text = long_body("A mass reconstruction is never made. "
+                         "\\begin{figure}\\caption{" + caption + "}\\end{figure}")
+        self.assertEqual(residue.negative_label_findings(text), [])
+
     def test_a_heading_negation_is_also_a_label(self):
         text = long_body("\\subsection{Results with no compensating kernel}")
         found = residue.negative_label_findings(text)

@@ -313,6 +313,27 @@ class BodyProjectionTest(unittest.TestCase):
         self.assertIn("mode", terms)
         self.assertEqual(terms["mode"]["line"], 4)
 
+    def test_floats_and_table_preambles_are_blanked_across_lines(self) -> None:
+        # The corpus side drops a whole float in one pass over the passage;
+        # detection projected one line at a time, so a column specification
+        # and a caption's words counted here only (14 of 90 zero-hit terms on
+        # one manuscript, 2026-09-04). A panel range `a--c` is not a word.
+        document = ("\\section{Methods}\n"
+                    "\\begin{table*}\n\\caption{Rates in crimson.}\n"
+                    "\\begin{tabular*}{\\textwidth}{@{}l@{\\extracolsep{\\fill}}lll@{}}\n"
+                    "a & b \\\\\n\\end{tabular*}\n\\end{table*}\n"
+                    "\\begin{deluxetable*}{@{\\extracolsep{0pt plus 1filll}}lcl}\n"
+                    "\\tabletypesize{\\scriptsize}\n"
+                    "\\tablenotetext{a}{Tied entry.}\n\\end{deluxetable*}\n"
+                    "\\setlength{\\tabcolsep}{2pt}\n"
+                    "Figure~\\ref{fig:x}a--c draws the shear catalog.\n")
+        terms = register.manuscript_terms(document)
+        for leaked in ("filllll", "filll", "crimson", "scriptsize", "atied",
+                       "tabcolsep", "textwidth", "a--c"):
+            self.assertNotIn(leaked, terms)
+        self.assertIn("shear", terms)
+        self.assertEqual(terms["shear"]["line"], 13)
+
 
 class BankResolutionTest(unittest.TestCase):
     """A bank too coarse for the gate must say so, not report `measured`.

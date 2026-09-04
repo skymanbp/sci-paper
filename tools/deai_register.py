@@ -103,6 +103,16 @@ RE_MATH_SPAN = re.compile(
 # `cw_mscale`). The float pattern keeps its `\begin{...}` so the environment
 # stripper downstream still sees it.
 RE_FLOAT_OPTION = re.compile(r"(\\begin\{[A-Za-z*]+\})\[[^\]\n]*\]")
+# Length settings and table-note commands outside a float render no prose.
+# Floats themselves are blanked whole in `body_only` (the fourth line seam,
+# after RE_MATH_SPAN): the corpus side replaces `\begin{table}...\end{table}`
+# with a placeholder in one pass over the passage, detection projected one
+# LINE at a time, so a `tabular*` column specification and a caption's words
+# counted on this side only -- `filllll`, `crimson`, `isosurfaces` at df 0,
+# 14 of 90 zero-hit terms on one manuscript (2026-09-04).
+RE_LENGTH_CMD = re.compile(
+    r"\\(?:setlength|addtolength|tabletypesize|tablewidth|tablenotemark"
+    r"|tablenotetext|vspace|hspace)\*?\s*\{[^{}]*\}(?:\s*\{[^{}]*\})?")
 RE_BIB_COMMAND = re.compile(r"\\bibliography(?:style)?\s*\{[^}]*\}")
 RE_CODE_SPAN = re.compile(
     r"\\(?:texttt|lstinline|url|path)\s*\{[^{}]*\}|\\href\s*\{[^{}]*\}"
@@ -331,7 +341,8 @@ def body_only(text: str) -> str:
 
     # Headings too: the corpus passages are the prose UNDER a heading, never
     # its words, so a section title counted here and nowhere else.
-    for pattern in (RE_MATH_SPAN, RE_BIB_COMMAND, RE_CODE_SPAN, RE_HEADING):
+    for pattern in (RE_MATH_SPAN, es.RE_TEX_ENV_FIGURE_TABLE, RE_LENGTH_CMD,
+                    RE_BIB_COMMAND, RE_CODE_SPAN, RE_HEADING):
         body = pattern.sub(blank, body)
     return RE_FLOAT_OPTION.sub(
         lambda match: match.group(1) + " " * (len(match.group(0)) - len(match.group(1))),
@@ -349,7 +360,8 @@ def manuscript_terms(text: str) -> dict[str, dict[str, Any]]:
 
     def record(raw: str, line_no: int, times: int = 1) -> None:
         key = normalize(raw)
-        if len(key) < 3:
+        # `a--c`, a figure-panel range, passes RE_WORD but is not a word.
+        if len(key) < 3 or sum(ch.isalpha() for ch in key) < 3:
             return
         counts[key] += times
         lines.setdefault(key, line_no)

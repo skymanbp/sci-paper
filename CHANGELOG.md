@@ -3,6 +3,40 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.36.1 — 2026-09-04
+
+The first run of v0.36.0 on a manuscript with AASTeX tables: three tool
+defects, none of them in the manuscript.
+
+### The fourth line seam: floats
+
+`deai_register` projected the manuscript one line at a time, so a
+`\begin{table*}…\end{table*}` spanning lines was never blanked the way the
+corpus side blanks it in one pass over a passage. A `tabular*` column
+specification (`@{\extracolsep{\fill}}lll`), `\tabletypesize{\scriptsize}`,
+`\tablenotetext{a}{Tied…}` and every caption's words counted on the manuscript
+side only: 23 of 90 zero-hit terms on one paper were `filllll`, `tabcolsep`,
+`aTied`, `crimson`, `isosurfaces`. `body_only` now blanks floats and
+length/table-note commands across lines beside the math spans of §23.1; the
+shared float pattern names `deluxetable*`, `longtable` and a bare `tabular*`
+as tables on both sides; a token with fewer than three letters (`a--c`, a
+panel range) is not a word. Re-measured on the same populations: held-out
+`register-zero` 2.658 → **2.212** per 1,000 words, still on 100% of refereed
+papers, rank AUC 0.221 → 0.246; the thresholded rule 81 → **57** findings,
+0.0351 → 0.0247 per 1,000, 30.0% → 22.2% of documents, AUC 0.352 → 0.392,
+own-membership 98.2% of 57. Salience and collocation lose the passages that
+were table cells (held-out 1.2025 → 1.1925 and 2.044 → 2.031 per 1,000, AUCs
+0.770 → 0.774 and 0.688 → 0.691); every machine row and the Letter figure
+§23.1 quotes (14 words, 11 strong) are unchanged.
+
+### A negated object stops at the sentence end
+
+`residue-negative-label` captured "a mass reconstruction. The solid spheres
+mark…" as one object and reported `solid` absent from the body. The capture
+now ends at `.`, `!` or `?` as well as at a clause mark. Two regression tests
+(465 in 23 files); manifests and headers at 0.36.1; §23.1 table and both
+README limitation rows re-taken.
+
 ## v0.36.0 — 2026-09-04
 
 Five tracks from one plan, each answering a specific complaint about what the

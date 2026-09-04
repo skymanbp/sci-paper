@@ -100,8 +100,8 @@ RE_TEX_DISPLAY_MATH = re.compile(
     r"\\begin\{(equation|align|gather|eqnarray|displaymath|multline)\*?\}.*?\\end\{\1\*?\}",
     re.DOTALL)
 RE_TEX_INLINE_MATH = re.compile(r"\$[^$]+\$|\\\(.+?\\\)", re.DOTALL)
-RE_TEX_ENV_FIGURE_TABLE = re.compile(
-    r"\\begin\{(figure|table|figure\*|table\*)\}.*?\\end\{\1\}", re.DOTALL)
+RE_TEX_ENV_FIGURE_TABLE = re.compile(  # deluxetable/longtable/tabular are tables too
+    r"\\begin\{(figure\*?|table\*?|deluxetable\*?|longtable\*?|tabular\*?)\}.*?\\end\{\1\}", re.DOTALL)
 # Citations, in three behaviours (EVALUATION section 18). A four-name allowlist
 # missed 42 of the corpus's 46 cite-command names, and all four of the ones it
 # had whenever they carried natbib's optional argument, so the key of

@@ -103,13 +103,16 @@ RE_EDIT_META = (
 )
 
 # Rule 2 / 5. Labels are headings and captions; the negated object runs from
-# the marker to the next punctuation or coordinating word.
+# the marker to the next punctuation (a sentence end included: a caption is
+# several sentences, and "not a mass reconstruction. The solid spheres..."
+# once made `solid` the absent object) or coordinating word.
 RE_LABEL = re.compile(
     r"\\(?:chapter|section|subsection|subsubsection|paragraph|caption)\*?"
     r"(?:\[[^\]]*\])?\{((?:[^{}]|\{[^{}]*\})*)\}")
 RE_NEGATION = re.compile(
     r"\b(?:no|non|not|without|excluding|neither|nor|absent|minus|free of|lacking)"
-    r"\b[-\s]*((?:[^,;:()\[\]]|\[math\])+?)(?=[,;:()\[\]]|\s+(?:and|or|with|versus|vs)\b|$)",
+    r"\b[-\s]*((?:[^,;:.!?()\[\]]|\[math\])+?)"
+    r"(?=[,;:.!?()\[\]]|\s+(?:and|or|with|versus|vs)\b|$)",
     re.I)
 MIN_WORDS_NEGATIVE_LABEL = 400
 LABEL_HEAD_WORDS = 3

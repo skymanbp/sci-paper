@@ -2,17 +2,17 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.36.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.36.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-463%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-465%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**12 skills · 38 tools · 463 tests · one normative contract · zero authorship verdicts.**
+**12 skills · 38 tools · 465 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) · [How it works](#how-it-works) ·
 [See it work](#see-it-work) · [Benchmarks](#benchmark-dashboard) · [Install](#install) ·
@@ -473,7 +473,7 @@ number measured under that would describe the contention, not the axis — they 
 | `+ --oracle` (GPT-2-large token surprisal) | 33.8 s (2026-08-27) | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 37.2 s (2026-08-27) | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **10/10 checks pass** | 0.42 s | stdlib |
-| Full test suite — **463 passing**, 23 files (median of 3, spanning 51.0 – 62.3 s) | 52.2 s | stdlib |
+| Full test suite — **465 passing**, 23 files (median of 3, spanning 51.0 – 62.3 s) | 52.2 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs ~1.0 s above the
 interpreter floor**, with no optional dependency installed — and 0.6 s of that is loading the
@@ -677,14 +677,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.8)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   12 skills         ├── tests/     23 files, 463 tests
+├── skills/<name>/SKILL.md   12 skills         ├── tests/     23 files, 465 tests
 ├── tools/                   38 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 10 contract checks and `python -m unittest discover -s tests -v` runs the
-463-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
+465-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page anchors, recorded suite sizes
 against real discovery, product registries, syntax, runtime imports, CLI entry points, schema fields, and linter
 exit semantics — `tools/validate_plugin.py` itself is the authoritative list. A release also requires
@@ -694,7 +694,7 @@ independent review, clean-checkout verification, and green hosted CI.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.36.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.36.1**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.8 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative
@@ -715,7 +715,7 @@ de-AI standard.
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` — and now for a *measured* reason. Burstiness reverses sign on adversarial prose (AUC 0.181) and signposting runs below chance (0.247), so no operating point is available to write. |
 | **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.846 and triage overlap 0.654, but an old triage list will not reproduce exactly. |
 | **A quarter of the corpus is never used** | Headings matching no section bucket are dropped rather than guessed: **2,334 of 9,178 (25.4%)** in `wgl`, 42 of 148 in `wgl-letter`. The remainder is mostly topic headings ("Matter power spectrum"); "Measurements" and "Background" were refused as genuinely ambiguous. |
-| **Register fires on accepted prose, and the vocabulary audits are advice** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0351 findings per 1,000 words** after the v0.36.0 heading fix (0.0858 before it), 30.0% of documents, rank AUC **0.352** against machine text — it still fires *more* on human papers than on AI drafts, and 95.1% of the 81 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector (replicated by author rather than journal, 22 papers, AUC **0.328**, [§21](docs/architecture/evaluation/held-out-labels.md)). The exhaustive zero-hit audit is the same fact at full strength: every refereed paper carries words the corpus never wrote (2.66 per 1,000, AUC 0.221), so it and the collocation axis ship as advice with author dispositions, and the collocation bank costs 0.6 s per run that `--no-collocation` drops ([§23](docs/architecture/evaluation/vocabulary-and-residue.md)). |
+| **Register fires on accepted prose, and the vocabulary audits are advice** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0247 findings per 1,000 words** after the v0.36.0 heading fix and the v0.36.1 float fix (0.0858 before them), 22.2% of documents, rank AUC **0.392** against machine text — it still fires *more* on human papers than on AI drafts, and 98.2% of the 57 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector (replicated by author rather than journal, 22 papers, AUC **0.328**, [§21](docs/architecture/evaluation/held-out-labels.md)). The exhaustive zero-hit audit is the same fact at full strength: every refereed paper carries words the corpus never wrote (2.21 per 1,000, AUC 0.246), so it and the collocation axis ship as advice with author dispositions, and the collocation bank costs 0.6 s per run that `--no-collocation` drops ([§23](docs/architecture/evaluation/vocabulary-and-residue.md)). |
 | **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's gate transfers almost exactly (0.2775 per passage against a 0.2710 expectation), and 7.00% of the digits it read on LaTeX were citation years until v0.32.0; precision and recall for the advice itself need `tools/label_findings.py`. |
 | **Hedging only speaks about introductions** | The epistemic-marker axis ships restricted to `intro`, where its p10 gate fires at 7.89% on 203 held-out refereed papers. Elsewhere it fires at 15–27% on prose a referee accepted, and at least one generation regime lands below chance. Cohesion needs no such restriction (6.6–14.6% across all seven buckets). |
 | **Two axes can want opposite things** | Cohesion asks a sentence to reuse the previous sentence's nouns; recital counts sentences bearing numerals. In a number-dense passage the noun worth carrying forward is the one the numbers are about, so satisfying one axis costs the other and no rewrite satisfies both ([`examples/`](examples/README.md), 4 recital findings before the cohesion fix and 6 after). Both findings are true; the contract is advisory precisely because the trade-off is the author's to make. |
