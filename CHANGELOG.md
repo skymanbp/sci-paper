@@ -3,6 +3,39 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.37.0 — 2026-09-05
+
+### A sentence that says what its object never does is a residue
+
+The negative-label rule of v0.36.0 read headings and captions; the same
+defect in body prose had no detector and no name in the standard. The
+author's name for it is a menu line reading "tomato and egg (no braised
+pork)": the head `never participates in the detection decision`, the
+reference stratum `carries no quoted number`, `no support threshold is
+applied, because …`. Each tells the reader what the thing is not, in the
+place where the thing should stand, and each is what a revision leaves when
+an ingredient was taken out and its absence written in. `residue-absence`
+(`deai_residue.py`, rule 6) reads body sentences for the families, exempts a
+sentence that cites (a contrast with published work is a baseline, not a
+tombstone), and skips a hyphenated compound (`never-touched controls` is a
+name). Strengths were tiered on the held-out refereed full texts, 442 files
+and 1,899,092 prose words: `never` and the `nothing is` / `none sees` / `no …
+is applied` forms occur 0.008 times per 1,000 words there (15 `never`
+sentences in 13 files, all physics, bounds or procedure) and are strong;
+`carries no`, `is not applied` and `does not participate` occur 0.02–0.05 per
+1,000 words, in 6–15% of files, mostly as procedure, and are ordinary; `is
+not a` and `with no` were measured and left out, being the hedges and
+definitions-by-contrast §6 protects (§23.4a). On the author's pipeline paper
+before its sweep the rule found 15 strong and 17 ordinary sentences, `never`
+at 118 times the refereed rate; after it, 0 strong and 2 ordinary physics
+statements kept under a disposition. The families live once in the tool,
+mirrored between `absence-family` markers in `skills/paper/SKILL.md` beside
+the history families, and `validator_check` now proves both mirrors. The
+standard's L4 voice bullet says what the rule enforces: a sentence says what
+an object does, not what it never does; the `paper` skill's forward-narrative
+self-check gains the item, with the physics-fact and scope-limit exemptions
+stated beside it. Seven tests; 523 in 27 files.
+
 ## v0.36.3 — 2026-09-05
 
 The measurement v0.36.2 reopened is closed, and the profile every figure in

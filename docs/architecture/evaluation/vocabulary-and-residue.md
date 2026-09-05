@@ -182,11 +182,12 @@ and nine stacks, and the two stacks the mentor marked are among the nine.
 
 ## 23.4 `L4.residue`: the trace an edit leaves
 
-Four deterministic rules (`deai_residue.py`): self-referential drafting
-history (a family word in a first-person sentence with no citation), edit-meta
-literals, a heading or caption whose object the body never names, and — given
-`--before` or `--git-ref` — a label the edit added and does not earn. A strong
-finding exits 1. The strengths were set on the 203 held-out papers (70,848
+Five deterministic rules (`deai_residue.py`): self-referential drafting
+history (a family word in a first-person sentence with no citation), a sentence
+that defines the paper's own object by what it never does or has (§23.4a),
+edit-meta literals, a heading or caption whose object the body never names, and
+— given `--before` or `--git-ref` — a label the edit added and does not earn. A
+strong finding exits 1. The strengths were set on the 203 held-out papers (70,848
 body prose sentences; 85,324 under the raw-source projection the first three
 passes counted), in four passes:
 
@@ -214,6 +215,41 @@ papers; 68 of the 69 edit-meta hits are `\textcolor{red}` inside tables, an
 author's emphasis that the disposition `kept` answers in a word. The static
 negative-label rule fires on 26% of refereed papers and is ordinary; only the
 diff rule gates. The Letter carries 0 residue findings.
+
+### 23.4a `residue-absence`: the prose form of the negative label
+
+The author's name for the defect is a menu line reading "tomato and egg (no
+braised pork)": a sentence that tells the reader what the paper's own object
+never does or has, where the thing itself should stand (`the head never
+participates in the decision`, `the reference carries no quoted number`, `no
+support threshold is applied, because …`). The negative-label rule catches it
+in headings and captions; this rule reads body sentences, and a citation in
+the sentence exempts it as a baseline contrast. The families were tiered on
+the held-out full texts (442 files, 1,899,092 prose words), counting sentences
+without a citation token:
+
+| family | sentences | files | per 1,000 words | tier |
+|---|---:|---:|---:|---|
+| `never` (not a hyphenated compound) | 15 | 13 / 442 | 0.008 | strong |
+| `nothing is` / `none sees` / `none enters` | 16 | 15 / 442 | 0.008 | strong |
+| `no … is applied` template | 5 | 5 / 442 | 0.003 | strong |
+| `carries no` and its verb family | 98 | 67 / 442 | 0.052 | ordinary |
+| `is not applied` and its verb family | 41 | 27 / 442 | 0.022 | ordinary |
+| `does not participate` and its verb family | 62 | 44 / 442 | 0.033 | ordinary |
+| `is not a` (measured, not adopted) | 120 | 84 / 442 | 0.063 | — |
+| `with no` (measured, not adopted) | 96 | 65 / 442 | 0.051 | — |
+
+The refereed uses of the strong forms are physics (`[math] never vanishes`),
+bounds (`never exceeds 0.1%`) and procedure (`we linearly interpolate, and
+never extrapolate`), one to two per paper that carries one; the ordinary
+forms are procedure in the majority (`we do not use any data below z`). The
+two rejected forms are hedges and definitions by contrast (`this is not the
+case`, `not a surprise`), the qualifier class §6 protects. On the author's
+pipeline paper before its sweep the rule found 15 strong and 17 ordinary
+sentences in 11,661 prose words, `never` alone at 0.94 per 1,000 words, 118
+times the refereed rate; after the sweep, 0 strong and 2 ordinary, both
+physics kept under a recorded disposition. The Letter went from 2 strong to
+0 strong and 1 ordinary.
 
 ## 23.5 The removal map: what a refereed paper has to remove
 

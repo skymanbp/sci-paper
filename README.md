@@ -2,17 +2,17 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.36.3-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.37.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-516%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-523%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**12 skills · 40 tools · 516 tests · one normative contract · zero authorship verdicts.**
+**12 skills · 40 tools · 523 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) · [How it works](#how-it-works) ·
 [See it work](#see-it-work) · [Benchmarks](#benchmark-dashboard) · [Install](#install) ·
@@ -474,7 +474,7 @@ at 100%, and a number taken under that describes the contention, not the axis. V
 | `+ --oracle` (GPT-2-large token surprisal) | 33.8 s (2026-08-27) | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 37.2 s (2026-08-27) | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **11/11 checks pass** | 2.24 s | stdlib |
-| Full test suite — **516 passing**, 27 files (median of 3, spanning 50.3 – 51.9 s) | 51.0 s | stdlib |
+| Full test suite — **523 passing**, 27 files (median of 3, spanning 50.2 – 53.2 s) | 51.9 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs ~1.0 s above the interpreter
 floor**, with no optional dependency installed — and 0.6 s of that is loading the 530,677-pair collocation
@@ -547,7 +547,7 @@ gates, `build` corpus and profile construction, `eval` evidence. Detail: [tools/
 | `tools/length_gate.py` | core | Per-section prose length-budget delta gate (standard §5.3). Exit 1 on net unjustified growth between two document versions, or on a net cut short of `--require-shrink`; `--allow` records justifications. |
 | `tools/verify_references.py` | core | Verifies a bibliography against the registries its identifiers name (CrossRef, DataCite, arXiv): a DOI or arXiv identifier that resolves nowhere, or a cited key with no entry, is an integrity blocker; a first author, year or title that disagrees with the record is a strong advisory; journal, volume and page differences are ordinary. An entry the network could not answer for stays `unmeasured`. Exit 1 on a blocker. |
 | `tools/condense_map.py` | core | The removal map behind `/sci-paper:condense`: restatements with their canonical home, zero-gain sentences, dead figures/tables/labels/macros/acronyms, verbose constructions, repeated glosses, duplicated paragraphs — each with the words it frees, totalled into a shrink target. Deletes nothing. |
-| `tools/deai_residue.py` | core | The trace an edit leaves: first-person drafting history, edit-meta text, a heading or caption the body never earns, and with `--before` the label an edit added. Exit 1 on a strong finding. |
+| `tools/deai_residue.py` | core | The trace an edit leaves: first-person drafting history, a sentence that defines its object by what it never does, edit-meta text, a heading or caption the body never earns, and with `--before` the label an edit added. Exit 1 on a strong finding. |
 | `tools/rewrite_reward.py` | core | Ranks rewrite candidates **after** hard scientific-fidelity eligibility. Dropping *or inventing* a protected invariant scores `-inf`. |
 | `tools/deai_register.py` | L0 | Domain register: terms the manuscript leans on that the field's own corpus does not carry, judged by corpus document frequency rather than a curated cross-discipline list. Compounds are judged by their rarest part. The zero-hit audit lists every body word with df 0. Advisories only. |
 | `tools/deai_collocation.py` | L2 | Sentences that join common words the field never joins: the fraction of adjacent content-word pairs unattested in the corpus, against a leave-one-out per-section reference; each pair carries its chance-absence probability. Advisories only; a defined term keeps its pair. |
@@ -677,14 +677,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.8)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   12 skills         ├── tests/     27 files, 516 tests
+├── skills/<name>/SKILL.md   12 skills         ├── tests/     27 files, 523 tests
 ├── tools/                   40 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 11 contract checks and `python -m unittest discover -s tests -v` runs the
-516-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
+523-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page anchors, recorded suite sizes
 against real discovery, product registries, syntax, runtime imports, CLI entry points, schema fields, and linter
 exit semantics — `tools/validate_plugin.py` itself is the authoritative list. A release also requires
@@ -694,7 +694,7 @@ independent review, clean-checkout verification, and green hosted CI.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.36.3**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.37.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.8 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative

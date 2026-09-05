@@ -68,6 +68,49 @@ class SelfHistoryTests(unittest.TestCase):
             self.assertNotIn("drop the negation", low)
 
 
+class AbsenceTests(unittest.TestCase):
+    def found(self, text):
+        return residue.absence_findings(text)
+
+    def test_never_is_strong(self):
+        found = self.found("\\section{Methods}\nThe characterization head never "
+                           "participates in the detection decision.\n")
+        self.assertEqual([(f["rule"], f["strength"], f["observed"]["phrase"]) for f in found],
+                         [("residue-absence", "strong", "never")])
+
+    def test_the_template_form_is_strong(self):
+        found = self.found("\\section{Methods}\nNo minimum configuration support is "
+                           "applied at any layer.\n")
+        self.assertEqual([f["strength"] for f in found], ["strong"])
+        self.assertEqual(found[0]["observed"]["phrase"],
+                         "no minimum configuration support is applied")
+
+    def test_carries_no_is_ordinary(self):
+        found = self.found("\\section{Data}\nThe reference stratum carries no quoted "
+                           "number.\n")
+        self.assertEqual([(f["strength"], f["observed"]["phrase"]) for f in found],
+                         [("ordinary", "carries no")])
+
+    def test_a_hyphenated_compound_is_a_name(self):
+        self.assertEqual(self.found("\\section{Data}\nThe never-touched controls are "
+                                    "scored last.\n"), [])
+
+    def test_a_citation_makes_it_a_baseline_contrast(self):
+        self.assertEqual(self.found("\\section{Intro}\nUnlike \\citet{x}, the null is "
+                                    "never an assumed noise field.\n"), [])
+
+    def test_the_action_keeps_load_bearing_qualifiers(self):
+        low = residue.ABSENCE_ACTION.lower()
+        self.assertIn("scope limit", low)
+        self.assertNotIn("delete the negation", low)
+
+    def test_the_families_are_read_between_their_own_markers(self):
+        start, end = residue.ABSENCE_MARKERS
+        text = f"{start}\n- `never`, `carries no`\n{end}\n`is not used`"
+        self.assertEqual(residue.family_listed_in(text, residue.ABSENCE_MARKERS),
+                         {"never", "carries no"})
+
+
 class EditMetaTests(unittest.TestCase):
     def test_literal_marks_are_strong(self):
         text = "\\section{Results}\nThe slope (removed) is negative. TODO check.\n"

@@ -1,7 +1,7 @@
 """Edit-residue feedback for scientific prose (L4): traces an editing loop leaves behind.
 
 A manuscript revised in many passes accumulates marks that were true of the
-process and are not true of the science. Three static rules and one diff rule
+process and are not true of the science. Four static rules and one diff rule
 find them; none is an authorship claim and none touches the L0 exit status.
 
 - `residue-self-history` -- the text narrates its own drafting: `initially`,
@@ -20,6 +20,17 @@ find them; none is an authorship claim and none touches the L0 exit status.
 - `residue-edit-meta` -- literal editing marks: `(removed)`, `TODO`,
   `\\textcolor{red}`, `in the revised version`. Comments are blanked before the
   scan, so a note the author keeps for themselves is not a finding.
+- `residue-absence` -- a sentence that defines the paper's own object by what
+  it never does or has (`the head never participates in the decision`, `the
+  reference carries no quoted number`): the prose form of the negative label,
+  a menu line reading "no braised pork". The reader meets an absence in place
+  of the thing; the fix says what the object does. Two tiers, set on the
+  held-out refereed corpus (442 files, 1.90 million prose words): `never`
+  and the `nothing is` / `none sees` / `no ... is applied` forms occur 0.008
+  times per 1,000 words there (15 `never` sentences in 13 files) and are
+  strong; `carries no`, `is not applied`, `does not participate` occur
+  0.02-0.05 per 1,000 words, in 6-15% of files, mostly as procedure ("we do
+  not use any data below z = 0.1"), and are ordinary.
 - `residue-negative-label-added` (diff only) -- a negative label that is NEW
   in this edit and whose negated object was PRESENT before and is absent
   now: the patch that removed a thing and left its absence in a caption.
@@ -31,10 +42,10 @@ exit contract of `length_gate`: 0 clean, 1 a strong residue finding is
 present, 2 invalid input. Both are mechanical gates of SCIPAPER_STANDARD
 section 5.3 (condense, do not accumulate): a patch is not a fix.
 
-The rule-1 word families defined here are the SINGLE SOURCE. `skills/paper/
-SKILL.md` lists them verbatim between `residue-family` markers and
-`validate_plugin` compares the two, so the writer and the detector cannot
-drift apart on which words count.
+The rule-1 and rule-6 word families defined here are the SINGLE SOURCE.
+`skills/paper/SKILL.md` lists them verbatim between `residue-family` and
+`absence-family` markers and `validate_plugin` compares the two, so the
+writer and the detector cannot drift apart on which words count.
 """
 
 from __future__ import annotations
@@ -80,6 +91,41 @@ RE_SELF = re.compile(
     r"\b(?:we|our|us|this (?:paper|letter|work|study|analysis|manuscript|note))\b",
     re.I)
 CITATION_TOKEN = "[CITE]"
+
+# Rule 6. The absence families (see the module docstring for the corpus
+# rates behind the tiers). `no ... is applied` is a template: `no` and an
+# object of one to three words, then a passive of the listed verbs. A
+# hyphenated compound (`never-touched controls`) is a name, not a predicate,
+# and is excluded from the `never` match.
+ABSENCE_STRONG = ("never", "nothing is", "nothing was", "none sees", "none enters",
+                  "no ... is applied")
+ABSENCE_ORDINARY = (
+    "carries no", "carry no", "carrying no", "holds no", "touches no", "sees no",
+    "enters no", "makes no", "is not applied", "are not applied", "is not used",
+    "are not used", "is not quoted", "is not combined", "is not treated",
+    "are not treated", "is not reproduced", "does not participate",
+    "do not participate", "does not enter", "does not claim", "does not see",
+    "do not see",
+)
+ABSENCE_MARKERS = ("<!-- absence-family:start -->", "<!-- absence-family:end -->")
+ABSENCE_TEMPLATE = (
+    r"no \w+(?: \w+){0,2} (?:is|are|was|were) (?:applied|used|combined|quoted|imposed)")
+
+
+def _absence_regex(family: tuple[str, ...]) -> re.Pattern[str]:
+    parts = []
+    for phrase in family:
+        if phrase == "no ... is applied":
+            parts.append(ABSENCE_TEMPLATE)
+        elif phrase == "never":
+            parts.append(r"never(?!-)")
+        else:
+            parts.append(re.escape(phrase))
+    return re.compile(r"\b(?:" + "|".join(parts) + r")\b", re.I)
+
+
+RE_ABSENCE_STRONG = _absence_regex(ABSENCE_STRONG)
+RE_ABSENCE_ORDINARY = _absence_regex(ABSENCE_ORDINARY)
 
 # Rule 3. Literal editing marks. The upper-case tokens are matched
 # case-sensitively at word boundaries; everything else case-insensitively.
@@ -207,6 +253,40 @@ def self_history_findings(text: str, path: str | Path | None = None) -> list[dic
             message=(f"The sentence narrates the draft's own history ({word!r}) "
                      "about the authors, with no citation anchoring the contrast."),
             action=HISTORY_ACTION))
+    return findings
+
+
+ABSENCE_ACTION = (
+    "Say what the object does, is, or contains, and let the sentence end "
+    "there. Keep the sentence as it stands when the absence is a physical "
+    "fact, a scope limit, or a conceded limitation, and record that "
+    "disposition; a load-bearing qualifier is never cut to clear a finding.")
+
+
+def absence_findings(text: str, path: str | Path | None = None) -> list[dict[str, Any]]:
+    """Rule 6. A sentence contrasting this work with cited work is a baseline
+    comparison, not a tombstone, so a citation in the sentence exempts it as
+    in rule 1."""
+    findings = []
+    for start, end, bucket, sentence in _sentences(text):
+        if CITATION_TOKEN in sentence:
+            continue
+        strong = RE_ABSENCE_STRONG.search(sentence)
+        hit = strong or RE_ABSENCE_ORDINARY.search(sentence)
+        if hit is None:
+            continue
+        phrase = " ".join(hit.group(0).lower().split())
+        findings.append(_finding(
+            rule="residue-absence", path=path, line=start, end_line=end,
+            section=bucket, scope="sentence",
+            strength="strong" if strong else "ordinary",
+            confidence=1.0 if strong else 0.6,
+            observed={"excerpt": sentence[:160], "phrase": phrase,
+                      "tier": "strong" if strong else "ordinary"},
+            message=(f"The sentence defines its subject by what it does not do "
+                     f"or have ({phrase!r}): an absence stands where the thing "
+                     "should."),
+            action=ABSENCE_ACTION))
     return findings
 
 
@@ -346,6 +426,7 @@ def residue_findings(text: str, path: str | Path | None = None) -> list[dict[str
     # paragraph and the vocabulary projection was hiding it. The sentence rule
     # keeps the raw text because `reference.units` needs the headings.
     return (self_history_findings(text, path)
+            + absence_findings(text, path)
             + negative_label_findings(text, path, body_text=register.body_only(text))
             + edit_meta_findings(register.body_lines(text), path))
 
@@ -366,8 +447,8 @@ RE_MD_CODE = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
 DOC_SCAN = ("README.md", "README.zh-CN.md", "docs/SCIPAPER_STANDARD.md")
 
 
-def family_listed_in(skill_text: str) -> set[str]:
-    start, end = FAMILY_MARKERS
+def family_listed_in(skill_text: str, markers: tuple[str, str] = FAMILY_MARKERS) -> set[str]:
+    start, end = markers
     if start not in skill_text or end not in skill_text:
         return set()
     block = skill_text.split(start, 1)[1].split(end, 1)[0]
@@ -386,11 +467,16 @@ def validator_check(repo: Path, require) -> str:
     markdown headings at all: "Condense, Do Not Accumulate" is a policy stated
     as an imperative, not a label defined against content the page lost.
     """
-    listed = family_listed_in((repo / "skills" / "paper" / "SKILL.md").read_text("utf-8"))
-    expected = set(HISTORY_STRONG) | set(HISTORY_ORDINARY)
-    require(listed == expected,
-            "skills/paper/SKILL.md residue word family differs from deai_residue: "
-            f"missing={sorted(expected - listed)}, extra={sorted(listed - expected)}")
+    skill_text = (repo / "skills" / "paper" / "SKILL.md").read_text("utf-8")
+    families = (("residue", FAMILY_MARKERS, set(HISTORY_STRONG) | set(HISTORY_ORDINARY)),
+                ("absence", ABSENCE_MARKERS, set(ABSENCE_STRONG) | set(ABSENCE_ORDINARY)))
+    terms = 0
+    for name, markers, expected in families:
+        listed = family_listed_in(skill_text, markers)
+        require(listed == expected,
+                f"skills/paper/SKILL.md {name} word family differs from deai_residue: "
+                f"missing={sorted(expected - listed)}, extra={sorted(listed - expected)}")
+        terms += len(expected)
     pages = [repo / name for name in DOC_SCAN]
     pages.extend(sorted((repo / "skills").glob("*/SKILL.md")))
     marks = []
@@ -400,7 +486,7 @@ def validator_check(repo: Path, require) -> str:
             for match in RE_DOC_EDIT_META.finditer(line):
                 marks.append(f"{page.relative_to(repo).as_posix()}:{number} {match.group(0)!r}")
     require(not marks, "editing residue in documentation: " + "; ".join(marks))
-    return (f"residue word family in sync ({len(expected)} terms); "
+    return (f"residue and absence word families in sync ({terms} terms); "
             f"{len(pages)} documents free of editing marks")
 
 

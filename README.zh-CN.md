@@ -2,16 +2,16 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.36.3-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.37.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-516%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-523%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**12 个 skill · 40 个工具 · 516 个测试 · 一份规范 · 零作者身份判决。**
+**12 个 skill · 40 个工具 · 523 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
@@ -432,7 +432,7 @@ LaTeX include 组装而成。标准库的每一行都重测了：解释器地板
 | `+ --oracle`（GPT-2-large token surprisal） | 33.8 s（2026-08-27） | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 37.2 s（2026-08-27） | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` —— **11/11 通过** | 2.24 s | 标准库 |
-| 完整测试套件 —— **516 通过**，27 个文件（3 次取中位数，落在 50.3 – 51.9 s） | 51.0 s | 标准库 |
+| 完整测试套件 —— **523 通过**，27 个文件（3 次取中位数，落在 50.2 – 53.2 s） | 51.9 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上约花 1.0 s**，
 且不需要任何可选依赖——其中 0.6 s 是加载 530,677 个词对的 collocation 库，
@@ -518,7 +518,7 @@ profile 构建，`eval` 可复现的证据。逐工具细节见 [tools/README.md
 | `tools/length_gate.py` | core | 按 section 的散文长度预算增量门（规范 §5.3）。两个版本之间存在无理由净增长、或净删减未达 `--require-shrink` 目标则 exit 1；`--allow` 记录理由。 |
 | `tools/verify_references.py` | core | 把 bibliography 逐条对到其标识符所指的登记库（CrossRef、DataCite、arXiv）：DOI / arXiv 号在任何登记库都解析不到、或正文引用了没有条目的 key，是 integrity blocker；第一作者、年份、标题与记录不符是 strong advisory；期刊、卷、页差异是 ordinary。网络没答复的条目保持 `unmeasured`。有 blocker 则 exit 1。 |
 | `tools/condense_map.py` | core | `/sci-paper:condense` 背后的可删图：复述（带 canonical home）、零信息句、死 figure/table/label/macro/缩写、冗长构式、重复符号释义、跨节重复段——每条带可释放词数，汇总成删减目标。它自己不删任何东西。 |
-| `tools/deai_residue.py` | core | 编辑留下的痕迹：第一人称的研究旅程、编辑元文本、正文兑现不了的标题或 caption，以及加 `--before` 后本次编辑新增的标签。有 strong finding 则 exit 1。 |
+| `tools/deai_residue.py` | core | 编辑留下的痕迹：第一人称的研究旅程、用"它从不做什么"来描述对象的句子、编辑元文本、正文兑现不了的标题或 caption，以及加 `--before` 后本次编辑新增的标签。有 strong finding 则 exit 1。 |
 | `tools/rewrite_reward.py` | core | **先过**科学保真硬门再对改写候选排序。丢掉*或凭空加上*受保护不变量 → `-inf`。 |
 | `tools/deai_register.py` | L0 | 领域 register：稿子反复依赖、但本领域语料里不存在的术语。判据是语料的 document frequency，而不是一张手工整理的"外来词表"。复合词按其最罕见的部分判定。零命中审计列出正文里每一个 df 为 0 的词。只产 advisory。 |
 | `tools/deai_collocation.py` | L2 | 把本领域从不并置的常用词并置起来的句子：相邻实词对在语料里零共现的比例，对照按 section 分桶的留一法参照；每个词对带自己的"按机会缺席"概率。只产 advisory；本文定义的术语保留它的词对。 |
@@ -647,7 +647,7 @@ sci-paper/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
 ├── skills/<name>/SKILL.md   12 个 skill
 ├── tools/                   40 个产品工具 + 仓库 validator
-├── tests/                   27 个测试文件、516 个测试
+├── tests/                   27 个测试文件、523 个测试
 ├── style-corpus/<field>/    用户提供的只读语料（gitignore）
 ├── style-profile/<field>/   生成与标定的证据（gitignore）
 ├── ACKNOWLEDGMENTS.md       改编来源的致谢与采纳边界
@@ -658,7 +658,7 @@ sci-paper/
 ## 开发与发布
 
 `python tools/validate_plugin.py` 跑 11 项契约检查，
-`python -m unittest discover -s tests -v` 跑 516 个测试；发布前两者都必须通过。
+`python -m unittest discover -s tests -v` 跑 523 个测试；发布前两者都必须通过。
 Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权威边界与索引完整性、
 记录的测试规模与真实发现的一致性、过期契约标记、产品注册表、Python 语法、
 运行时 import、CLI 入口、schema 字段、linter 退出语义、Tier B 行为、测试与 CI 接线 ——
@@ -669,7 +669,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 ## 现状、已知限制与路线图
 
-当前版本：**v0.36.3**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)（v0.33.0–v0.34.0）、[CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)（v0.27.1–v0.32.0）、[CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
+当前版本：**v0.37.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)（v0.33.0–v0.34.0）、[CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)（v0.27.1–v0.32.0）、[CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
 
 **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.8 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层与 residue 轴、`calibration_unit` 置信度封顶、§5.2 去 AI 化

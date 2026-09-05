@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.36.3)
+# De-AI subsystem architecture (current as of v0.37.0)
 
 ## 1. Purpose
 
@@ -295,10 +295,16 @@ high-confidence AI verdict.
 ### L4: residue, and the removal map
 
 [`../tools/deai_residue.py`](../../tools/deai_residue.py) reads the trace an edit
-leaves rather than the prose it produced. Four rules, all deterministic:
+leaves rather than the prose it produced. Five rules, all deterministic:
 `residue-self-history:<word>` (a drafting-history term — `initially`, `no
 longer`, `we switched` — in a first-person sentence with no citation, so a
-history *of the literature* is not one of the paper); `residue-edit-meta`
+history *of the literature* is not one of the paper); `residue-absence` (a
+sentence defining the paper's own object by what it never does or has, the
+prose form of the negative label: `never` and the `nothing is` / `none sees` /
+`no … is applied` forms are strong, at 0.008 per 1,000 words in refereed prose;
+`carries no`, `is not applied`, `does not participate` are ordinary, at
+0.02–0.05 per 1,000 and mostly procedure; a citation in the sentence makes it a
+baseline contrast and exempts it); `residue-edit-meta`
 (`TODO`, `see previous version`, case-sensitive for the upper-case markers;
 `we have added` only with a document object, since in refereed prose it is a
 procedure); `residue-negative-label` (a heading or caption whose object head
@@ -307,7 +313,7 @@ because it names 26% of refereed papers); and, given `--before` or `--git-ref`,
 `residue-negative-label-added` (a label the edit introduced and the body does
 not earn — strong). The literal and label rules read `deai_register.body_only`,
 because a `\newcommand{\TODO}` in a preamble and a bibliography title are not
-prose an edit left. The strong and ordinary history families are defined once
+prose an edit left. The history and absence families are defined once
 in the tool and mirrored between markers in `skills/paper/SKILL.md`;
 `validate_plugin` calls the tool's own `validator_check`, which proves the mirror
 and scans the shipped documentation for the edit-meta literals. A strong finding

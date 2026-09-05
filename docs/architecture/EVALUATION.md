@@ -1,4 +1,4 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.36.3
+# EVALUATION: de-AI subsystem for `sci-paper` v0.37.0
 
 First recorded 2026-07-12; every section-keyed measurement re-derived against the
 rebuilt `wgl` profile on 2026-08-17.
@@ -140,7 +140,7 @@ python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The working tree passes the validator and all 516 unit/CLI tests (27 test files, collected
+The working tree passes the validator and all 523 unit/CLI tests (27 test files, collected
 2026-09-05). These commands must be rerun after every subsequent code or release-metadata
 change; the release record must quote the fresh output rather than a past result.
 
@@ -154,9 +154,9 @@ The three drift events it exists to stop are recorded in §18.8.
 
 ## 12. Release evidence boundary
 
-Current release gates (as of 2026-09-04; last tagged release v0.36.3):
+Current release gates (as of 2026-09-05; last tagged release v0.37.0):
 `validate_plugin.py` all 11 checks pass and the full unit/CLI suite
-(516 tests, 27 files) passes on a clean tree; both are rerun before every tag,
+(523 tests, 27 files) passes on a clean tree; both are rerun before every tag,
 and as of v0.25.1 the hosted CI run on the release commit must also be green
 (first green runs: 31133202443 push, 31133215203 manual dispatch).
 

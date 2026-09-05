@@ -163,8 +163,11 @@ Axes and tools:
   Auxiliary families never enter the template score; they name the sentence.
 - **L4 residue** (`deai_residue`) — the trace an edit leaves: self-referential
   drafting history (`we initially`, `no longer`), edit-meta text (`TODO`, `see
-  previous version`), and a heading or caption that promises what the body
-  never delivers (`negative-label`). With `--before` or `--git-ref` the diff
+  previous version`), a sentence that defines the paper's own object by what
+  it never does or has (`residue-absence`: `never` strong, `carries no`
+  ordinary, exempt with a citation in the sentence), and a heading or caption
+  that promises what the body never delivers (`negative-label`). With
+  `--before` or `--git-ref` the diff
   rule reports a label the edit added and the body does not earn, and exit 1
   gates the pass; a residue finding is fixed by rewriting the sentence to the
   current state of the science, never by adding an explanation.
