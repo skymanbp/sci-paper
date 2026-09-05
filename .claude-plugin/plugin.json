@@ -1,6 +1,6 @@
 {
   "name": "sci-paper",
-  "version": "0.37.0",
+  "version": "0.37.1",
   "description": "Scientific paper writing, source-traced review, and de-AI rewriting for top-tier journals (ApJ/MNRAS/PRD/JCAP-class) and NSF/NIH proposals. Ships 12 skills and 40 tools under one typed standard: scientific-integrity blockers that cannot be waived as style preferences, a zero-target L0 lexicon, ranked advisories, explicit measurement states so missing calibration never reads as clean, claim-first rewriting gated on hard scientific-fidelity eligibility, a mechanical length budget with a machine-built removal map and a required-shrink gate, corpus-calibrated salience-hierarchy, domain-register (with an exhaustive zero-hit vocabulary audit), collocation, and discourse-texture (given/new cohesion, epistemic hedging) axes, each judged against the field's own per-section distribution at the unit it was calibrated at, a residue axis that gates the trace an edit leaves, A-R review with narrative-spine and adversarial-escalation dimensions, registry-verified bibliographies (CrossRef, DataCite, arXiv), pixel-measured figure review, and isolated multi-reviewer orchestration. Learned scores are field-similarity triage, never an authorship verdict. See CHANGELOG.md for per-version history.",
   "author": {
     "name": "skymanbp",

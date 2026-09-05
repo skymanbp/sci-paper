@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.37.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.37.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
 [![Tests](https://img.shields.io/badge/tests-523%20passing-success.svg)](tests/)
@@ -474,7 +474,7 @@ at 100%, and a number taken under that describes the contention, not the axis. V
 | `+ --oracle` (GPT-2-large token surprisal) | 33.8 s (2026-08-27) | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 37.2 s (2026-08-27) | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **11/11 checks pass** | 2.24 s | stdlib |
-| Full test suite — **523 passing**, 27 files (median of 3, spanning 50.2 – 53.2 s) | 51.9 s | stdlib |
+| Full test suite — **523 passing**, 27 files (median of 3, spanning 49.8 – 51.7 s) | 51.5 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs ~1.0 s above the interpreter
 floor**, with no optional dependency installed — and 0.6 s of that is loading the 530,677-pair collocation
@@ -694,7 +694,7 @@ independent review, clean-checkout verification, and green hosted CI.
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.37.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.37.1**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.8 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative

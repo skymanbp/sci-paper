@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.37.0)
+# De-AI subsystem architecture (current as of v0.37.1)
 
 ## 1. Purpose
 
@@ -300,7 +300,9 @@ leaves rather than the prose it produced. Five rules, all deterministic:
 longer`, `we switched` — in a first-person sentence with no citation, so a
 history *of the literature* is not one of the paper); `residue-absence` (a
 sentence defining the paper's own object by what it never does or has, the
-prose form of the negative label: `never` and the `nothing is` / `none sees` /
+prose form of the negative label, deleted outright where the neighbouring
+sentences already carry the positive statement and rewritten only where they
+do not: `never` and the `nothing is` / `none sees` /
 `no … is applied` forms are strong, at 0.008 per 1,000 words in refereed prose;
 `carries no`, `is not applied`, `does not participate` are ordinary, at
 0.02–0.05 per 1,000 and mostly procedure; a citation in the sentence makes it a

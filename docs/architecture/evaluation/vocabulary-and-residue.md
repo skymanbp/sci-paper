@@ -251,6 +251,26 @@ times the refereed rate; after the sweep, 0 strong and 2 ordinary, both
 physics kept under a recorded disposition. The Letter went from 2 strong to
 0 strong and 1 ordinary.
 
+**Delete first (v0.37.1).** The first sweep rewrote every class-A sentence
+positively. Read in context, a share of those rewrites carried nothing the
+neighbouring sentences did not: `downstream of detection` had reached five
+occurrences in the pipeline paper, an appendix restated the method section's
+`catalog coordinates`, a one-line topic sentence repeated the sentence
+after it. The author's ruling, now the rule's action text, is
+to delete the clause first and rewrite only what the page lacks; the second
+sweep cut 17 such clauses or sentences across the two manuscripts (Letter
+body 2235 → 2221 words). The §6 fidelity gate then reports what the ruling
+implies: with the absence clause gone, its `not` / `no` / `never` is a
+missing negation invariant. On the final text `rewrite_reward` flagged
+4 of 7 changed Letter paragraphs and 38 of 54 changed
+pipeline-paper paragraphs, every flag the dropped absence marker or a token
+inside the deleted clause (`\ref`, `because`, a math symbol), plus one
+tokenizer artifact (`CDM-consistent` unpacked to `CDM`, read as a dropped
+acronym); each is recorded under the absence disposition, and none was
+answered by restoring the negation. The gate is necessary, not sufficient,
+in both directions: it cannot tell a load-bearing qualifier from an absence
+clause, so the human disposition decides, and the record names which.
+
 ## 23.5 The removal map: what a refereed paper has to remove
 
 `condense_map.py` on the 203 held-out papers (median 7,174 prose words) and the

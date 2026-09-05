@@ -257,10 +257,14 @@ def self_history_findings(text: str, path: str | Path | None = None) -> list[dic
 
 
 ABSENCE_ACTION = (
-    "Say what the object does, is, or contains, and let the sentence end "
-    "there. Keep the sentence as it stands when the absence is a physical "
-    "fact, a scope limit, or a conceded limitation, and record that "
-    "disposition; a load-bearing qualifier is never cut to clear a finding.")
+    "Delete the clause first: where the neighbouring sentences already say "
+    "what the object does, the absence adds nothing and the sentence ends "
+    "without it. Say what the object does, is, or contains only where the "
+    "page does not yet say it. Keep the sentence as it stands when the "
+    "absence is a physical fact, a scope limit, or a conceded limitation, "
+    "and record that disposition; a load-bearing qualifier is never cut to "
+    "clear a finding. The fidelity gate then reports the dropped negation "
+    "marker as missing; record it under the same disposition.")
 
 
 def absence_findings(text: str, path: str | Path | None = None) -> list[dict[str, Any]]:

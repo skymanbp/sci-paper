@@ -102,6 +102,7 @@ class AbsenceTests(unittest.TestCase):
     def test_the_action_keeps_load_bearing_qualifiers(self):
         low = residue.ABSENCE_ACTION.lower()
         self.assertIn("scope limit", low)
+        self.assertTrue(low.startswith("delete the clause first"))
         self.assertNotIn("delete the negation", low)
 
     def test_the_families_are_read_between_their_own_markers(self):

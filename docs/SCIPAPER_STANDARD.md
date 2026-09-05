@@ -289,7 +289,7 @@ Removing tells is insufficient. A faithful rewrite should add or strengthen:
 - section-appropriate variation in sentence and paragraph shape;
 - forward narrative that describes the current scientific state rather than
   the history of drafting or failed internal approaches, and says what an
-  object does rather than what it never does (the absence residue of §5.3).
+  object does rather than what it never does, deleting the absence outright where the context already carries the positive statement (the absence residue of §5.3).
 
 Every added number, citation, entity, unit, causal claim, and qualifier must be
 traceable to a source. Specificity never licenses invention.

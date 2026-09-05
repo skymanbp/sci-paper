@@ -165,7 +165,10 @@ Axes and tools:
   drafting history (`we initially`, `no longer`), edit-meta text (`TODO`, `see
   previous version`), a sentence that defines the paper's own object by what
   it never does or has (`residue-absence`: `never` strong, `carries no`
-  ordinary, exempt with a citation in the sentence), and a heading or caption
+  ordinary, exempt with a citation in the sentence; delete the clause where
+  its neighbours already carry the positive statement, rewrite only what the
+  page lacks, and record the dropped negation the §6 gate reports), and a
+  heading or caption
   that promises what the body never delivers (`negative-label`). With
   `--before` or `--git-ref` the diff
   rule reports a label the edit added and the body does not earn, and exit 1

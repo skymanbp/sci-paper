@@ -3,6 +3,31 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.37.1 — 2026-09-05
+
+### An absence is deleted before it is rewritten
+
+v0.37.0 named the absence residue and told the writer to say what the
+object does instead. Applied to the author's two manuscripts, that action
+had a failure mode of its own: a positive rewrite that only restates what
+the neighbouring sentences already carry (`downstream of detection` reached
+five occurrences in one paper; a statistic "reads position in catalog
+coordinates" in an appendix whose method section had said so). The ruling
+now in the rule's action, the `paper` skill's self-check, the `de-ai` skill's
+residue bullet, and the standard's L4 bullet: judge the sentence in context
+and delete the clause first; rewrite only what the page does not yet say;
+keep a physical fact, a scope limit, or a conceded limitation as it stands.
+The second sweep over the two manuscripts cut 17 such clauses or sentences
+that the first sweep had rewritten, and the Pass-3 gate of `rewrite_reward`
+then did what §6 says it does: the dropped negation marker is a `missing`
+invariant, reported on 4 of 7 changed Letter paragraphs and
+38 of 54 pipeline-paper paragraphs, every one the absence clause
+itself or its companion (`\ref`, `because`, a math token inside the deleted
+clause), and one tokenizer artifact (`CDM-` read as an acronym). The action
+text says so, and the disposition is recorded beside the finding rather than
+the negation restored (§23.4a). No detector changed; one test reads the new
+action. 523 tests in 27 files.
+
 ## v0.37.0 — 2026-09-05
 
 ### A sentence that says what its object never does is a residue
