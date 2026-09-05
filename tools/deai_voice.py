@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_features as df   # noqa: E402  resolves only after the sys.path insert
 import deai_feedback as feedback  # noqa: E402  shared finding contract
-import deai_metrics as dm    # noqa: E402  same reason
+import deai_reference as reference  # noqa: E402  the shared paragraph sweep
 import extract_style as es   # noqa: E402  same reason
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -178,20 +178,15 @@ def voice_findings(text: str, field_profile_dir: Path | None,
     model_name = bundle.get("model", df.do.DEFAULT_MODEL)
     centroid = df.corpus_centroid(field_profile_dir)
     scored: list[dict] = []
-    lines = text.splitlines()
-    for start, end, raw_label in dm.section_line_ranges(text):
-        bucket = dm._bucket_for(raw_label)
-        segment = "\n".join(lines[start - 1:end])
-        for paragraph_start, paragraph_end, block in dm.paragraph_line_ranges(
-                segment, start):
-            if len(es.words(es.latex_to_plain(block))) < 30:
-                continue
-            score = voice_score(block, field_profile_dir, model_name, centroid)
-            if score is None:
-                continue
-            scored.append({"score": score, "bucket": bucket,
-                           "raw_label": raw_label,
-                           "start": paragraph_start, "end": paragraph_end})
+    for paragraph_start, paragraph_end, raw_label, bucket, block in reference.paragraphs(text):
+        if len(es.words(es.latex_to_plain(block))) < 30:
+            continue
+        score = voice_score(block, field_profile_dir, model_name, centroid)
+        if score is None:
+            continue
+        scored.append({"score": score, "bucket": bucket,
+                       "raw_label": raw_label,
+                       "start": paragraph_start, "end": paragraph_end})
     if not scored:
         return []
 

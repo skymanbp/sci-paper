@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.36.1)
+# De-AI subsystem architecture (current as of v0.36.2)
 
 ## 1. Purpose
 
@@ -294,10 +294,11 @@ leaves rather than the prose it produced. Four rules, all deterministic:
 `residue-self-history:<word>` (a drafting-history term — `initially`, `no
 longer`, `we switched` — in a first-person sentence with no citation, so a
 history *of the literature* is not one of the paper); `residue-edit-meta`
-(`TODO`, `see previous version`, case-sensitive for the upper-case markers);
-`residue-negative-label` (a heading or caption whose object head stems never
-occur in the body, on documents of 400 words or more — ordinary, because it
-names 29% of refereed papers); and, given `--before` or `--git-ref`,
+(`TODO`, `see previous version`, case-sensitive for the upper-case markers;
+`we have added` only with a document object, since in refereed prose it is a
+procedure); `residue-negative-label` (a heading or caption whose object head
+stems never occur in the body, on documents of 400 words or more — ordinary,
+because it names 26% of refereed papers); and, given `--before` or `--git-ref`,
 `residue-negative-label-added` (a label the edit introduced and the body does
 not earn — strong). The literal and label rules read `deai_register.body_only`,
 because a `\newcommand{\TODO}` in a preamble and a bibliography title are not

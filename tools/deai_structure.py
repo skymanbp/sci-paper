@@ -17,7 +17,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_feedback as feedback  # noqa: E402  sibling import after path setup
-import deai_metrics as metrics  # noqa: E402  canonical section/paragraph ranges
+import deai_reference as reference  # noqa: E402  the shared paragraph sweep
 import extract_style as es  # noqa: E402  canonical tokenizer
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -258,98 +258,97 @@ def structure_findings(text: str, field_profile_dir: Path | None,
     baseline = load_baseline(field_profile_dir)
     policy = load_policy(field_profile_dir)
     findings: list[dict[str, Any]] = []
-    lines = text.splitlines()
-    for start, end, raw_label in metrics.section_line_ranges(text):
-        bucket = metrics._bucket_for(raw_label)
-        segment = "\n".join(lines[start - 1:end])
-        for paragraph_start, paragraph_end, block in metrics.paragraph_line_ranges(
-                segment, start):
-            if len(es.words(es.latex_to_plain(block))) < MIN_WORDS:
-                continue
-            values = paragraph_structure(block)
-            if not values["templates"] and not values["auxiliary_templates"]:
-                continue
-            bucket_reference = baseline.get(bucket, {}) if baseline else {}
-            human_fraction = bucket_reference.get("templated_frac")
-            reference_n = int(bucket_reference.get("n", 0))
-            rare_fraction = (policy or {}).get("rare_template_fraction")
-            if values["templates"]:
-                strong = bool(
-                    baseline and policy and human_fraction is not None
-                    and rare_fraction is not None and reference_n >= 20
-                    and human_fraction <= float(rare_fraction)
-                )
-                status = "measured" if baseline and policy else (
-                    "degraded" if baseline else "unmeasured")
-                context = (f"; reference {bucket} fraction {human_fraction:.1%} "
-                           f"(n={reference_n})") if human_fraction is not None else ""
-                findings.append(feedback.make_finding(
-                    kind="advisory", layer="L2",
-                    rule=f"structure-template:{bucket}", scope="paragraph",
-                    calibration_unit="paragraph",
-                    line=paragraph_start, end_line=paragraph_end,
-                    section=raw_label, path=path, detector="deai_structure",
-                    measurement_status=status,
-                    strength="strong" if strong else "ordinary",
-                    strong_advisory=strong,
-                    observed={"templates": values["templates"],
-                              "template_score": values["template_score"],
-                              "sentence_count": values["n_sent"]},
-                    reference=feedback.reference_block(
-                        field_profile_dir, bucket=bucket, n=reference_n,
-                        templated_fraction=human_fraction,
-                        operating_point=rare_fraction,
-                        provenance="structure_baseline.json" if baseline else None),
-                    normalized_distance=(1.0 - float(human_fraction))
-                    if human_fraction is not None else None,
-                    confidence={"value": min(1.0, values["n_sent"] / 6.0),
-                                "basis": f"{values['n_sent']} sentences; deterministic template evidence"},
-                    message=("Paragraph contains repeated sentence-construction "
-                             f"template(s): {', '.join(values['templates'])}{context}."),
-                    action=("Dissolve unnecessary enumeration or symmetry while preserving "
-                            "the claim, evidence, and logical dependencies."),
-                    evidence=values["templates"],
-                ))
-            if values["auxiliary_templates"]:
-                aux_fraction = bucket_reference.get("auxiliary_frac")
-                aux_context = (f"; reference {bucket} fraction {aux_fraction:.1%} "
-                               f"(n={reference_n})") if aux_fraction is not None else ""
-                findings.append(feedback.make_finding(
-                    kind="advisory", layer="L2",
-                    rule=f"structure-auxiliary:{bucket}", scope="paragraph",
-                    calibration_unit="paragraph",
-                    line=paragraph_start, end_line=paragraph_end,
-                    section=raw_label, path=path, detector="deai_structure",
-                    measurement_status="measured" if aux_fraction is not None else (
-                        "degraded" if baseline else "unmeasured"),
-                    strength="ordinary", strong_advisory=False,
-                    observed={"auxiliary_templates": values["auxiliary_templates"],
-                              "antithesis_count": values["antithesis_count"],
-                              "reversal_beat": values["reversal_beat"],
-                              "paper_agent_count": values["paper_agent_count"],
-                              "wh_cleft_count": values["wh_cleft_count"],
-                              "modifier_stacks": values["modifier_stacks"],
-                              "sentence_count": values["n_sent"]},
-                    reference=feedback.reference_block(
-                        field_profile_dir, bucket=bucket, n=reference_n,
-                        auxiliary_fraction=aux_fraction,
-                        provenance="structure_baseline.json" if baseline else None),
-                    normalized_distance=(1.0 - float(aux_fraction))
-                    if aux_fraction is not None else None,
-                    confidence={"value": min(1.0, values["n_sent"] / 6.0),
-                                "basis": f"{values['n_sent']} sentences; deterministic rhetorical-figure evidence"},
-                    message=("Paragraph leans on rhetorical figure(s) rare in the "
-                             "field reference: "
-                             f"{', '.join(values['auxiliary_templates'])}{aux_context}."),
-                    action=("Keep an antithesis only where the contrast is load-bearing "
-                            "technical content; state posture contrasts as plain positive "
-                            "claims; flatten short reversal beats into connected prose. "
-                            "Give a paper-as-agent sentence a human or physical subject "
-                            "(we ask / the data show); turn a wh-cleft into a plain "
-                            "subject-verb claim; unpack a modifier stack into a head "
-                            "noun and one relative clause or prepositional phrase."),
-                    evidence=values["auxiliary_templates"],
-                ))
+    # The shared paragraph sweep blanks headings before splitting: left in
+    # place, a heading one newline above a wh-cleft opener fused with it
+    # (`Methods What it can conclude is`) and the family was missed while the
+    # same paragraph two newlines below the heading was reported.
+    for paragraph_start, paragraph_end, raw_label, bucket, block in reference.paragraphs(text):
+        if len(es.words(es.latex_to_plain(block))) < MIN_WORDS:
+            continue
+        values = paragraph_structure(block)
+        if not values["templates"] and not values["auxiliary_templates"]:
+            continue
+        bucket_reference = baseline.get(bucket, {}) if baseline else {}
+        human_fraction = bucket_reference.get("templated_frac")
+        reference_n = int(bucket_reference.get("n", 0))
+        rare_fraction = (policy or {}).get("rare_template_fraction")
+        if values["templates"]:
+            strong = bool(
+                baseline and policy and human_fraction is not None
+                and rare_fraction is not None and reference_n >= 20
+                and human_fraction <= float(rare_fraction)
+            )
+            status = "measured" if baseline and policy else (
+                "degraded" if baseline else "unmeasured")
+            context = (f"; reference {bucket} fraction {human_fraction:.1%} "
+                       f"(n={reference_n})") if human_fraction is not None else ""
+            findings.append(feedback.make_finding(
+                kind="advisory", layer="L2",
+                rule=f"structure-template:{bucket}", scope="paragraph",
+                calibration_unit="paragraph",
+                line=paragraph_start, end_line=paragraph_end,
+                section=raw_label, path=path, detector="deai_structure",
+                measurement_status=status,
+                strength="strong" if strong else "ordinary",
+                strong_advisory=strong,
+                observed={"templates": values["templates"],
+                          "template_score": values["template_score"],
+                          "sentence_count": values["n_sent"]},
+                reference=feedback.reference_block(
+                    field_profile_dir, bucket=bucket, n=reference_n,
+                    templated_fraction=human_fraction,
+                    operating_point=rare_fraction,
+                    provenance="structure_baseline.json" if baseline else None),
+                normalized_distance=(1.0 - float(human_fraction))
+                if human_fraction is not None else None,
+                confidence={"value": min(1.0, values["n_sent"] / 6.0),
+                            "basis": f"{values['n_sent']} sentences; deterministic template evidence"},
+                message=("Paragraph contains repeated sentence-construction "
+                         f"template(s): {', '.join(values['templates'])}{context}."),
+                action=("Dissolve unnecessary enumeration or symmetry while preserving "
+                        "the claim, evidence, and logical dependencies."),
+                evidence=values["templates"],
+            ))
+        if values["auxiliary_templates"]:
+            aux_fraction = bucket_reference.get("auxiliary_frac")
+            aux_context = (f"; reference {bucket} fraction {aux_fraction:.1%} "
+                           f"(n={reference_n})") if aux_fraction is not None else ""
+            findings.append(feedback.make_finding(
+                kind="advisory", layer="L2",
+                rule=f"structure-auxiliary:{bucket}", scope="paragraph",
+                calibration_unit="paragraph",
+                line=paragraph_start, end_line=paragraph_end,
+                section=raw_label, path=path, detector="deai_structure",
+                measurement_status="measured" if aux_fraction is not None else (
+                    "degraded" if baseline else "unmeasured"),
+                strength="ordinary", strong_advisory=False,
+                observed={"auxiliary_templates": values["auxiliary_templates"],
+                          "antithesis_count": values["antithesis_count"],
+                          "reversal_beat": values["reversal_beat"],
+                          "paper_agent_count": values["paper_agent_count"],
+                          "wh_cleft_count": values["wh_cleft_count"],
+                          "modifier_stacks": values["modifier_stacks"],
+                          "sentence_count": values["n_sent"]},
+                reference=feedback.reference_block(
+                    field_profile_dir, bucket=bucket, n=reference_n,
+                    auxiliary_fraction=aux_fraction,
+                    provenance="structure_baseline.json" if baseline else None),
+                normalized_distance=(1.0 - float(aux_fraction))
+                if aux_fraction is not None else None,
+                confidence={"value": min(1.0, values["n_sent"] / 6.0),
+                            "basis": f"{values['n_sent']} sentences; deterministic rhetorical-figure evidence"},
+                message=("Paragraph leans on rhetorical figure(s) rare in the "
+                         "field reference: "
+                         f"{', '.join(values['auxiliary_templates'])}{aux_context}."),
+                action=("Keep an antithesis only where the contrast is load-bearing "
+                        "technical content; state posture contrasts as plain positive "
+                        "claims; flatten short reversal beats into connected prose. "
+                        "Give a paper-as-agent sentence a human or physical subject "
+                        "(we ask / the data show); turn a wh-cleft into a plain "
+                        "subject-verb claim; unpack a modifier stack into a head "
+                        "noun and one relative clause or prepositional phrase."),
+                evidence=values["auxiliary_templates"],
+            ))
     return findings
 
 

@@ -29,8 +29,8 @@ profile on 2026-08-27 and will move with the corpus.
 |---|---:|---:|
 | L0 targets | 1 | **0** |
 | integrity blockers | 0 | 0 |
-| total advisories | 21 | 22 |
-| strong advisories | 8 | 10 |
+| total advisories | 20 | 18 |
+| strong advisories | 8 | 8 |
 | document-scale findings | 8 | **6** |
 
 Per rule:
@@ -44,7 +44,7 @@ Per rule:
 | `document-role-decoupling` | 1 | **0** | |
 | `structure-template` | 1 | 2 | announced enumeration gone, two announced counts remain |
 | `salience-recital` | 4 | **6** | **rose — see below** |
-| `collocation-novel` | 3 | **6** | rose for the same reason, and for one of its own — see below |
+| `collocation-novel` | 2 | **3** | rose for the same reason, and for one of its own — see below |
 
 ## Nothing was deleted to make a finding go away
 
@@ -63,11 +63,11 @@ that fake a link.
 ## A coined term keeps its pair
 
 `collocation-novel` counts, per sentence, the adjacent common-word pairs that
-no passage of the field's corpus has ever written. It went from 3 findings to 6
-because the revision says `blending fraction` — this synthetic paper's own
-parameter, a pair the real literature does not use — in more sentences, and
-because carrying a noun forward for cohesion puts it next to words it had not
-stood beside before. That is the axis's stated exception, not a defect to fix:
+no passage of the field's corpus has ever written. It went from 2 findings to 3
+because the revision says `blending fraction` and `blending term` — this
+synthetic paper's own parameter, a pair the real literature does not use — in
+more sentences, and because carrying `bias` forward for cohesion puts it next
+to words it had not stood beside before (`bias runs`). That is the axis's stated exception, not a defect to fix:
 a term this paper defines keeps its pair and gets its definition at first use,
 and the disposition is recorded as *kept*, never answered by dissolving the pair
 or changing the claim.

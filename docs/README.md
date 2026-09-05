@@ -60,9 +60,10 @@ universal paper PASS/FAIL.
 | Per-tool registry, calibration, and failure behavior | [../tools/README.md](../tools/README.md) |
 | Supplying a field corpus | [../style-corpus/README.md](../style-corpus/README.md) |
 | Generated profile assets and build boundaries | [../style-profile/README.md](../style-profile/README.md) |
-| Per-version history | [../CHANGELOG.md](../CHANGELOG.md) · [../CHANGELOG-ARCHIVE-RECENT.md](../CHANGELOG-ARCHIVE-RECENT.md) (v0.27.1-v0.31.0) · [../CHANGELOG-ARCHIVE.md](../CHANGELOG-ARCHIVE.md) (v0.22.0-v0.27.0) · [../CHANGELOG-ARCHIVE-EARLY.md](../CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0) |
+| Per-version history | [../CHANGELOG.md](../CHANGELOG.md) · [../CHANGELOG-ARCHIVE-RECENT.md](../CHANGELOG-ARCHIVE-RECENT.md) (v0.27.1-v0.32.0) · [../CHANGELOG-ARCHIVE.md](../CHANGELOG-ARCHIVE.md) (v0.22.0-v0.27.0) · [../CHANGELOG-ARCHIVE-EARLY.md](../CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0) |
 | Working rules for this repository | [../CLAUDE.md](../CLAUDE.md) |
 | Adapted-material attribution and adoption boundaries | [../ACKNOWLEDGMENTS.md](../ACKNOWLEDGMENTS.md) |
+| External review records (findings, first-party verification, disposition) | [audits/codex-review-2026-09-04.md](audits/codex-review-2026-09-04.md) |
 
 ## Conventions this directory is held to
 
@@ -73,7 +74,8 @@ accumulating:
 - every document in `docs/` is linked from this index (no orphan documents);
 - each file under `design-notes/` declares itself a design note in its header;
 - no document reappears at a location it was moved away from;
-- every suite size recorded anywhere in the evidence record or in either README matches actual test discovery.
+- every suite size recorded anywhere in the evidence record or in either README matches actual test discovery;
+- no tracked source or document exceeds 750 lines, the same cap the editing hook enforces.
 
 One convention it cannot enforce lives in the suite instead. The figures these
 documents quote come from `style-profile/<field>/`, which is gitignored, so no

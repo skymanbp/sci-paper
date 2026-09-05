@@ -123,11 +123,24 @@ class FindingTests(unittest.TestCase):
                              ("advisory", "L2", "collocation-novel:method"))
             self.assertGreater(finding["observed"]["novel_pairs"], 0)
             pair = finding["observed"]["pairs"][0]
-            self.assertIn("expected_passages", pair)
-            self.assertLessEqual(pair["p_absent_by_chance"], 1.0)
+            # Co-presence, named as such: the bank knows which passages hold a
+            # word, not where, so the weight is not an adjacency probability.
+            self.assertIn("expected_copresent_passages", pair)
+            self.assertLessEqual(pair["p_copresence_absent"], 1.0)
             self.assertIn("coins", finding["recommended_action"])
-            # A sentence-unit finding cannot claim more than the paragraph cap.
+            # The unit is the sentence, in the schema as in the reference, and
+            # a sentence-unit finding cannot claim more than the paragraph cap.
+            self.assertEqual((finding["scope"], finding["calibration_unit"]),
+                             ("sentence", "sentence"))
             self.assertLessEqual(finding["confidence"]["value"], 0.5)
+
+    def test_a_slash_a_number_or_a_bare_stop_breaks_a_pair(self):
+        for sentence in ("The alpha/beta filter keeps the noise floor.",
+                         "The alpha 500 beta filter keeps the noise floor.",
+                         "The alpha.beta filter keeps the noise floor."):
+            pairs = collocation.content_pairs(sentence)
+            self.assertNotIn(("alpha", "beta"), pairs, sentence)
+            self.assertIn(("noise", "floor"), pairs, sentence)
 
     def test_no_bank_is_unmeasured_not_clean(self):
         with tempfile.TemporaryDirectory(prefix="colloc-") as raw:

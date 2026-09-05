@@ -44,11 +44,29 @@ class PassageSelectionTests(unittest.TestCase):
             + " ".join(["appendix"] * 60) + "\n"
         )
         found = labels._passages(document)
-        buckets = {bucket for bucket, _ in found}
+        buckets = {bucket for bucket, _text, _start, _end in found}
         self.assertIn("method", buckets)
         # An appendix is `skip`; it must not supply a control passage.
         self.assertNotIn("skip", buckets)
-        self.assertTrue(all(len(text.split()) >= 40 for _, text in found))
+        self.assertTrue(all(len(text.split()) >= 40 for _, text, _s, _e in found))
+        # A control carries the line range a finding reports, so the two can be
+        # compared by position rather than by a text prefix findings lack.
+        self.assertEqual([(start, end) for _b, _t, start, end in found], [(3, 3)])
+
+    def test_a_flagged_passage_is_excluded_from_controls_by_position(self):
+        document = ("\\section{Methods}\n\n" + " ".join(["calibration"] * 60) + "\n\n"
+                    + " ".join(["shear"] * 60) + "\n")
+        passages = labels._passages(document)
+        self.assertEqual([(s, e) for _b, _t, s, e in passages], [(3, 3), (5, 5)])
+        # A finding carries its location; the control set drops the passage it
+        # sits in, whether or not the sampling quota kept that finding.
+        entries = [{"axis": "L0.register",
+                    "finding": {"location": {"start_line": 3, "end_line": 3}}},
+                   {"axis": "L2.collocation", "error": "unreadable"}]
+        spans = labels.flagged_spans(entries)
+        self.assertEqual(spans, [(3, 3)])
+        kept = labels.unflagged_passages(passages, spans)
+        self.assertEqual([(s, e) for _b, _t, s, e in kept], [(5, 5)])
 
 
 class RelabelContractTests(unittest.TestCase):

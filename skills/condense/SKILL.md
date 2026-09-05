@@ -82,8 +82,8 @@ condense's ranked sweep.
    `python tools/condense_map.py <file> --format json --output <scratch>/condense-map.json`.
    Six scans, each entry with `removable_words`:
    - `condense-restatement` — a sentence whose content words are ≥ 80 %
-     covered by an earlier sentence in another section (or ≥ 60 % by one
-     sentence): canonical home named, copy listed.
+     covered by earlier sentences in union, with one earlier sentence (any
+     section) covering ≥ 60 % on its own: canonical home named, copy listed.
    - `condense-zero-gain` — roadmap sentences ("In this section we..."),
      assurance refrains, `Note that` / `It is worth noting` openers.
    - `condense-dead:{figure,table,label,macro,acronym}` — defined or placed,

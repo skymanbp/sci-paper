@@ -178,6 +178,24 @@ class DiscriminationGuardTest(unittest.TestCase):
                                          "machine:ai": machine})
         auc = report["discrimination"]["L0.register"]["auc_machine_over_heldout"]
         self.assertEqual(auc, 1.0)   # machine flags more, so it outranks always
+        self.assertEqual(report["discrimination"]["L0.register"]["n_heldout_scored"],
+                         ef.MIN_DOCUMENTS)
+
+    def test_the_floor_counts_scorable_documents_not_rows(self) -> None:
+        # Twenty rows a side of which nineteen carry no judged pair (NaN): the
+        # floor applied before the drop let one document a side print AUC 1.0.
+        heldout = ThinPopulationTest._rows(ef.MIN_DOCUMENTS, 0.0)
+        machine = ThinPopulationTest._rows(ef.MIN_DOCUMENTS, 5.0)
+        for rows, value in ((heldout, 0.0), (machine, 1.0)):
+            for index, row in enumerate(rows):
+                row["collocation_novel_fraction"] = value if index == 0 else float("nan")
+        report = ef.build_report("wgl", {"published-heldout": heldout,
+                                         "machine:ai": machine})
+        collocation = report["discrimination"]["L2.collocation"]
+        self.assertEqual(collocation["status"], "unmeasured")
+        self.assertIn("scorable heldout n=1", collocation["why"])
+        self.assertEqual(report["discrimination"]["L0.register"]["auc_machine_over_heldout"], 1.0)
+        self.assertIn("unmeasured", ef.render(report))
 
     def test_machine_tiers_are_pooled_into_one_row(self) -> None:
         rows = ThinPopulationTest._rows(ef.MIN_DOCUMENTS, 1.0)

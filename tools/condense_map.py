@@ -99,10 +99,33 @@ def content_words(sentence: str) -> set[str]:
             if len(w) >= 3 and register.normalize(w) not in collocation.STOPWORDS}
 
 
+# What a bag of content words cannot see and a restatement must not change: a
+# negation, a number (digits or the number words the stopword list drops), a
+# comparison. `is significant` and `is not significant` share every content
+# word; before this the second was a restatement of the first.
+RE_INVARIANT = re.compile(
+    r"\b(?:not|no|never|without|neither|nor|cannot|only|fewer|less|more|larger|"
+    r"smaller|higher|lower|greater|above|below|increases?d?|decreases?d?|"
+    r"one|two|three|four|five|six|seven|eight|nine|ten)\b|\d+(?:[.,]\d+)*", re.I)
+# A roadmap sentence is removable WHOLE when it says at most this many content
+# words the document has not said before it; past that it carries a claim of
+# its own and only the cue is budgeted.
+ZERO_GAIN_OWN_WORDS = 3
+
+
+def invariants(sentence: str) -> frozenset[str]:
+    return frozenset(m.group(0).lower() for m in RE_INVARIANT.finditer(sentence))
+
+
 def _finding(*, rule: str, path: str | Path | None, line: int, end_line: int | None,
              section: str | None, scope: str, removable: int, observed: dict[str, Any],
-             message: str, action: str, confidence: float = 1.0) -> dict[str, Any]:
-    observed = {**observed, "removable_words": int(removable)}
+             message: str, action: str, confidence: float = 1.0,
+             unit: str | None = None, whole: bool = False) -> dict[str, Any]:
+    # `unit` names the sentence (`line:index`) or paragraph (`line:*`) the
+    # words come from and `whole_unit` whether the finding removes all of it;
+    # the budget sums a unit once, whatever number of scans name it.
+    observed = {**observed, "removable_words": int(removable), "unit": unit,
+                "whole_unit": bool(whole)}
     return feedback.make_finding(
         kind="advisory", layer="QD", rule=rule, scope=scope, path=path, line=line,
         end_line=end_line, section=section, detector="condense_map",
@@ -117,11 +140,13 @@ def _finding(*, rule: str, path: str | Path | None, line: int, end_line: int | N
 def _sentence_records(text: str) -> list[dict[str, Any]]:
     records = []
     for start, end, bucket, block in reference.units(text):
-        for sentence in es.sentences(es.latex_to_plain(block)):
+        for index, sentence in enumerate(es.sentences(es.latex_to_plain(block))):
             clean = " ".join(sentence.split())
             if clean:
                 records.append({"line": start, "end": end, "bucket": bucket,
+                                "unit": f"{start}:{index}",
                                 "text": clean, "words": content_words(clean),
+                                "invariants": invariants(clean),
                                 "n_words": len(clean.split())})
     return records
 
@@ -141,13 +166,17 @@ def restatement_findings(records: list[dict[str, Any]], path=None) -> list[dict[
                 coverage = len(words & earlier) / len(words)
                 if coverage > best:
                     best_index, best = earlier_index, coverage
-            if union >= UNION_COVERAGE and best >= SINGLE_COVERAGE:
-                home = records[best_index]
+            home = records[best_index] if best_index >= 0 else None
+            # A sentence that adds a negation, a number or a comparison its
+            # home does not carry restates nothing; it is a different claim.
+            if (union >= UNION_COVERAGE and best >= SINGLE_COVERAGE
+                    and record["invariants"] <= home["invariants"]):
                 carve = record["bucket"] in CARVE_OUT_BUCKETS
                 findings.append(_finding(
                     rule="condense-restatement", path=path, line=record["line"],
                     end_line=record["end"], section=record["bucket"], scope="sentence",
                     removable=record["n_words"], confidence=round(best, 2),
+                    unit=record["unit"], whole=True,
                     observed={"excerpt": record["text"][:160],
                               "canonical_line": home["line"],
                               "canonical_excerpt": home["text"][:160],
@@ -167,26 +196,36 @@ def restatement_findings(records: list[dict[str, Any]], path=None) -> list[dict[
 
 
 def zero_gain_findings(records: list[dict[str, Any]], path=None) -> list[dict[str, Any]]:
+    """A roadmap cue budgets the cue; the whole sentence only when nothing of
+    its own is left once the cue is gone (`In this section we describe the
+    filter`), never a claim that happens to open with one (`In this paper we
+    measure a mass of five units`). The abstract/conclusion carve-out applies
+    to a whole sentence exactly as it does to a restatement."""
     findings = []
+    seen: set[str] = set()
     for record in records:
         text = record["text"]
-        whole = RE_ZERO_GAIN_SENTENCE.match(text)
-        phrase = None if whole else RE_ZERO_GAIN_PHRASE.search(text)
-        if not whole and not phrase:
-            continue
-        hit = (whole or phrase).group(0)
-        removable = record["n_words"] if whole else len(hit.split())
-        findings.append(_finding(
-            rule="condense-zero-gain", path=path, line=record["line"],
-            end_line=record["end"], section=record["bucket"], scope="sentence",
-            removable=removable,
-            observed={"excerpt": text[:160], "cue": hit.lower(),
-                      "whole_sentence": bool(whole)},
-            message=(f"{'Sentence' if whole else 'Phrase'} carries no claim, "
-                     f"evidence or qualification: {hit.lower()!r}."),
-            action=("Delete it. If one clause is load-bearing, fold that clause "
-                    "into the neighbouring sentence; the structure already "
-                    "carries the roadmap.")))
+        opener = RE_ZERO_GAIN_SENTENCE.match(text)
+        phrase = None if opener else RE_ZERO_GAIN_PHRASE.search(text)
+        if opener or phrase:
+            hit = (opener or phrase).group(0)
+            own = content_words(text[opener.end():]) - seen if opener else set()
+            whole = bool(opener) and len(own) <= ZERO_GAIN_OWN_WORDS
+            carve = whole and record["bucket"] in CARVE_OUT_BUCKETS
+            findings.append(_finding(
+                rule="condense-zero-gain", path=path, line=record["line"],
+                end_line=record["end"], section=record["bucket"], scope="sentence",
+                removable=record["n_words"] if whole else len(hit.split()),
+                unit=record["unit"], whole=whole,
+                observed={"excerpt": text[:160], "cue": hit.lower(),
+                          "whole_sentence": whole, "genre_carve_out": carve},
+                message=(f"{'Sentence' if whole else 'Phrase'} carries no claim, "
+                         f"evidence or qualification: {hit.lower()!r}."
+                         + (" -- abstract/conclusion carve-out" if carve else "")),
+                action=("Delete it. If one clause is load-bearing, fold that clause "
+                        "into the neighbouring sentence; the structure already "
+                        "carries the roadmap.")))
+        seen |= record["words"]
     return findings
 
 
@@ -199,7 +238,7 @@ def dead_artifact_findings(text: str, path=None) -> list[dict[str, Any]]:
         labels = RE_TEX_LABEL.findall(match.group(2))
         if labels and not any(label.strip() in referenced for label in labels):
             caption = RE_TEX_CAPTION.search(match.group(2))
-            words = len(es.latex_to_plain(caption.group(1)).split()) if caption else 0
+            words = len(es.prose_words(caption.group(1))) if caption else 0
             line = text[: match.start()].count("\n") + 1
             findings.append(_finding(
                 rule=f"condense-dead:{match.group(1)}", path=path, line=line,
@@ -255,7 +294,7 @@ def verbose_findings(records: list[dict[str, Any]], path=None) -> list[dict[str,
             findings.append(_finding(
                 rule="condense-verbose", path=path, line=record["line"],
                 end_line=record["end"], section=record["bucket"], scope="sentence",
-                removable=len(phrase.split()) - len(shorter.split()),
+                removable=len(phrase.split()) - len(shorter.split()), unit=record["unit"],
                 observed={"excerpt": record["text"][:160], "phrase": phrase,
                           "replacement": shorter},
                 message=f"{phrase!r} has the shorter equivalent {shorter!r}.",
@@ -264,7 +303,7 @@ def verbose_findings(records: list[dict[str, Any]], path=None) -> list[dict[str,
             findings.append(_finding(
                 rule="condense-verbose", path=path, line=record["line"],
                 end_line=record["end"], section=record["bucket"], scope="sentence",
-                removable=1,
+                removable=1, unit=record["unit"],
                 observed={"excerpt": record["text"][:160],
                           "phrase": match.group(0).lower(), "replacement": "one hedge"},
                 message=f"Stacked hedge {match.group(0).lower()!r}: one modal is a hedge already.",
@@ -310,7 +349,7 @@ def duplicate_findings(text: str, path=None) -> list[dict[str, Any]]:
             findings.append(_finding(
                 rule="condense-duplicate", path=path, line=start, end_line=end,
                 section=bucket, scope="paragraph", removable=len(plain.split()),
-                confidence=round(jaccard, 2),
+                confidence=round(jaccard, 2), unit=f"{start}:*", whole=True,
                 observed={"excerpt": plain[:160], "canonical_line": e_start,
                           "canonical_section": e_bucket, "jaccard": round(jaccard, 3),
                           "genre_carve_out": carve},
@@ -330,18 +369,50 @@ def condense_map(text: str, path: str | Path | None = None) -> list[dict[str, An
             + regloss_findings(text, path) + duplicate_findings(text, path))
 
 
+def removable_words(findings: list[dict[str, Any]]) -> int:
+    """Words the findings free, each sentence or paragraph counted ONCE.
+
+    Three scans naming one sentence free one sentence, not three: a whole-unit
+    finding takes the unit's words, phrase findings inside a unit add up only
+    where nothing removes the unit whole, and a sentence inside a paragraph a
+    duplicate scan removes is not counted again. Summing every finding gave a
+    46-word document a 75-word target.
+    """
+    whole: dict[str, int] = {}
+    phrases: dict[str, int] = {}
+    loose = 0
+    for finding in findings:
+        observed = finding["observed"]
+        unit, words = observed.get("unit"), int(observed["removable_words"])
+        if unit is None:
+            loose += words
+        elif observed.get("whole_unit"):
+            whole[unit] = max(whole.get(unit, 0), words)
+        else:
+            phrases[unit] = phrases.get(unit, 0) + words
+    removed_paragraphs = {unit.split(":")[0] for unit in whole if unit.endswith(":*")}
+    total = loose
+    for unit in set(whole) | set(phrases):
+        if not unit.endswith(":*") and unit.split(":")[0] in removed_paragraphs:
+            continue
+        total += max(whole.get(unit, 0), phrases.get(unit, 0))
+    return total
+
+
 def condense_budget(text: str, findings: list[dict[str, Any]]) -> dict[str, Any]:
-    prose_words = len(es.latex_to_plain(text).split())
+    """`removable_by_rule` is candidate mass per scan (overlaps included, so a
+    reader sees what each scan found); `removable_total` and the default
+    target count each unit once."""
+    prose_words = len(es.prose_words(text))
     by_rule: dict[str, int] = {}
-    target = 0
     for finding in findings:
         family = finding["rule"].split(":")[0]
-        removable = int(finding["observed"]["removable_words"])
-        by_rule[family] = by_rule.get(family, 0) + removable
-        if (family in ("condense-restatement", "condense-zero-gain")
-                and not finding["observed"].get("genre_carve_out")):
-            target += removable
-    total = sum(by_rule.values())
+        by_rule[family] = by_rule.get(family, 0) + int(finding["observed"]["removable_words"])
+    total = removable_words(findings)
+    target = removable_words([
+        finding for finding in findings
+        if finding["rule"].split(":")[0] in ("condense-restatement", "condense-zero-gain")
+        and not finding["observed"].get("genre_carve_out")])
     return {"prose_words": prose_words, "removable_by_rule": dict(sorted(by_rule.items())),
             "removable_total": total,
             "removable_fraction": round(total / prose_words, 4) if prose_words else None,

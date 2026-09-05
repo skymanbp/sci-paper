@@ -157,9 +157,9 @@ open construction and every compound is corpus-rare. Register findings are
 always advisories: a corpus-rare term may be a borrowed method's accepted name,
 or the concept the paper is introducing, and only the author can say which.
 The same axis carries an exhaustive **zero-hit audit** (`register-zero:<term>`):
-every body word no corpus passage carries is listed, strong unless it is a
-mechanical formation of an attested stem, and a strong hit takes a §5.2 step-1b
-disposition — define the word, cite the method it names, or use the field's own.
+every body word no corpus passage carries is listed, strong unless it is an
+attested stem's formation, a term defined here at first use, or a proper name;
+a strong hit takes a §5.2 step-1b disposition — define, cite the method, or use the field's own.
 
 ### L1: information distribution
 
@@ -179,8 +179,8 @@ A second, **auxiliary family class** covers rhetorical figures that are
 legitimate in isolation but machine-typical at density: **antithesis clusters**
 (two or more contrastive frames such as "X rather than Y" in one paragraph),
 **short reversal beats** ("It would not."), **paper-as-agent subjects** ("This
-paper presents"), **wh-cleft openers** ("What matters is"), and **modifier
-stacks** (three-plus tokens before a head noun with two hyphenated compounds).
+Letter asks whether"), **wh-cleft openers** ("What matters is"), and **modifier
+stacks** (a noun phrase of three-plus tokens, head included, with two hyphenated compounds).
 Auxiliary families emit ordinary advisories under `structure-auxiliary` and are
 excluded from `template_score`, so the calibrated dispersion manifold is
 unchanged by them. The repair is asymmetric: keep a contrastive frame only where
@@ -191,9 +191,9 @@ rigor" closers — are a panel-advisory class in `EVALUATION.md`, not a detector
 
 A **collocation axis** (`L2.collocation`, `deai_collocation`) measures, per
 sentence, the fraction of adjacent common-word pairs no passage of the field's
-corpus attests, against a leave-one-out reference per section. A pair the field
-would write by chance has been seen; one it never wrote is a coinage or a figure
-of speech ("physical cells"), and the action names the relation it compresses.
+corpus attests, against a leave-one-out reference per section. A pair it never
+wrote is a coinage or a figure of speech ("physical cells"), weighted by the
+co-presence of its words (a ranking aid, never a filter); the action names the relation it compresses.
 Advisory; a defined term keeps its pair, and no claim is changed to dissolve one.
 
 A **blind perceptual panel** — independent cold-read judges who score AI-feel

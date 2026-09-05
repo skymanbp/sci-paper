@@ -89,17 +89,34 @@ EDIT_META_CASE = ("TODO", "FIXME")
 EDIT_META = (
     "(removed)", "(deleted)", "(added)", "(new)", "(updated)", "(moved)",
     "(revised)", "(old)", "(was:", "\\textcolor{red}", "\\hl{", "\\sout{",
-    "\\st{", "in this revision", "in the revised version",
-    "the revised manuscript", "we have revised", "we have added",
-    "we have removed", "as requested by the referee",
-    "as suggested by the referee", "in response to the referee",
-    "per the referee", "per reviewer", "reviewer's comment",
+    "\\st{", "in this revision", "the revised manuscript",
+    "as requested by the referee", "as suggested by the referee",
+    "in response to the referee", "per the referee", "per reviewer",
+    "reviewer's comment",
+)
+# `we have added` is an editing mark only when its object is a part of the
+# document. In refereed prose it is a procedure twelve times out of twelve on
+# the 203 held-out papers (`we have added uniform Gaussian noise`, `we have
+# removed the emission`), and `in the revised version of \citet{...}` is the
+# history of another paper. The mark therefore needs a document object within
+# a few words, and the revised version must not be someone else's.
+DOCUMENT_PART = (
+    r"(?:section|subsection|paragraph|sentence|figure|table|appendix|footnote|"
+    r"discussion|text|reference|citation|caption|panel|note|comment|caveat|"
+    r"clarification|explanation|description|statement|remark|abstract|"
+    r"introduction|conclusion|manuscript|paper|draft|version)s?\b")
+EDIT_META_DOCUMENT = (
+    r"we\s+have\s+(?:added|removed|revised|rewritten|reworded)\s+(?:\S+\s+){0,3}?" + DOCUMENT_PART,
+    r"in\s+the\s+revised\s+(?:version|draft)\b(?!\s+of\b)",
 )
 # Two compiled forms, not one alternation: a scoped `(?i:...)` group next to a
 # case-sensitive branch is the construction that hid a stray byte here once.
+# A space in a phrase matches any whitespace, so `in the revised\nversion` is
+# one mark across a line break rather than none.
 RE_EDIT_META = (
     re.compile(r"\b(?:" + "|".join(re.escape(w) for w in EDIT_META_CASE) + r")\b"),
-    re.compile("|".join(re.escape(w) for w in EDIT_META), re.I),
+    re.compile("|".join(re.escape(w).replace("\\ ", r"\s+") for w in EDIT_META)
+               + "|" + "|".join(EDIT_META_DOCUMENT), re.I),
 )
 
 # Rule 2 / 5. Labels are headings and captions; the negated object runs from
@@ -200,16 +217,22 @@ EDIT_META_ACTION = (
 
 
 def edit_meta_findings(text: str, path: str | Path | None = None) -> list[dict[str, Any]]:
+    """Scanned over the whole text, not line by line, so a phrase mark that
+    wraps at a line break is still one mark; the line reported is the one the
+    mark starts on."""
     findings = []
-    for number, line in enumerate(text.splitlines(), start=1):
-        hits = (m for rx in RE_EDIT_META for m in rx.finditer(line))
-        for match in sorted(hits, key=lambda m: m.start()):
-            findings.append(_finding(
-                rule="residue-edit-meta", path=path, line=number, end_line=None,
-                section=None, scope="sentence", strength="strong",
-                observed={"excerpt": line.strip()[:160], "mark": match.group(0)},
-                message=f"An editing mark {match.group(0)!r} is in the manuscript text.",
-                action=EDIT_META_ACTION))
+    lines = text.splitlines()
+    hits = sorted((m for rx in RE_EDIT_META for m in rx.finditer(text)),
+                  key=lambda m: m.start())
+    for match in hits:
+        number = text[:match.start()].count("\n") + 1
+        mark = " ".join(match.group(0).split())
+        findings.append(_finding(
+            rule="residue-edit-meta", path=path, line=number, end_line=None,
+            section=None, scope="sentence", strength="strong",
+            observed={"excerpt": lines[number - 1].strip()[:160], "mark": mark},
+            message=f"An editing mark {mark!r} is in the manuscript text.",
+            action=EDIT_META_ACTION))
     return findings
 
 
@@ -253,7 +276,7 @@ def negative_label_findings(text: str, path: str | Path | None = None,
     the object is looked for in body prose only. Ordinary, not strong: on 203
     refereed papers the static rule fires in 30% of documents, so it names a
     label to check, and the diff rule is the one that gates."""
-    if len(es.latex_to_plain(text).split()) < MIN_WORDS_NEGATIVE_LABEL:
+    if len(es.prose_words(text)) < MIN_WORDS_NEGATIVE_LABEL:
         return []
     body = _body_stems(register.body_only(text) if body_text is None else body_text)
     findings = []
@@ -276,8 +299,18 @@ def negative_label_findings(text: str, path: str | Path | None = None,
 
 def negative_label_added_findings(before: str, after: str,
                                   path: str | Path | None = None) -> list[dict[str, Any]]:
-    """Rule 5: negation new in this edit, its object present before and gone now."""
+    """Rule 5: a negation new in this edit whose WHOLE object was in the body
+    before and is not now.
+
+    Whole object, not any stem: `Without the saddle correction` added while
+    `correction` alone left the body is a label about something the paper
+    never had, and reporting it as a patched absence charged the edit with a
+    removal it did not make. A negation the old labels already carried is not
+    new either, however the rest of the caption changed around it.
+    """
     old_labels = {label for _line, label in _labels(before)}
+    old_negations = {obj.lower() for label in old_labels
+                     for obj, _stems in negated_objects(label)}
     old_body = _body_stems(register.body_only(before))
     new_body = _body_stems(register.body_only(after))
     findings = []
@@ -285,7 +318,9 @@ def negative_label_added_findings(before: str, after: str,
         if label in old_labels:
             continue
         for obj, stems in negated_objects(label):
-            removed = [s for s in stems if s in old_body and s not in new_body]
+            if obj.lower() in old_negations or not all(s in old_body for s in stems):
+                continue
+            removed = [s for s in stems if s not in new_body]
             if not removed:
                 continue
             findings.append(_finding(
@@ -302,19 +337,21 @@ def negative_label_added_findings(before: str, after: str,
 
 
 def residue_findings(text: str, path: str | Path | None = None) -> list[dict[str, Any]]:
-    # One projection for the literal and label rules: the preamble
-    # (`\newcommand{\TODO}`) and the bibliography are not prose an edit left
-    # behind. Same asymmetry class as `deai_register.body_only`, so it is that
-    # function, not a copy of it; the sentence rule keeps the raw text because
-    # `reference.units` needs the headings to find the sections.
-    body = register.body_only(text)
+    # Two projections of one line-drop (`deai_register.body_lines`): the
+    # preamble (`\newcommand{\TODO}`) and the bibliography are not prose an
+    # edit left behind, so both rules skip them. The label rule then reads the
+    # vocabulary projection (`body_only`, headings and floats blanked) because
+    # the object must be in the BODY; the mark rule reads the visible lines,
+    # because a `TODO` in a caption or a heading is as left behind as one in a
+    # paragraph and the vocabulary projection was hiding it. The sentence rule
+    # keeps the raw text because `reference.units` needs the headings.
     return (self_history_findings(text, path)
-            + negative_label_findings(text, path, body_text=body)
-            + edit_meta_findings(body, path))
+            + negative_label_findings(text, path, body_text=register.body_only(text))
+            + edit_meta_findings(register.body_lines(text), path))
 
 
 def residue_axis_status(text: str) -> dict[str, Any]:
-    words = len(es.latex_to_plain(text).split())
+    words = len(es.prose_words(text))
     reason = None
     if words < MIN_WORDS_NEGATIVE_LABEL:
         reason = (f"negative-label rule not applied below "
@@ -370,7 +407,7 @@ def validator_check(repo: Path, require) -> str:
 # --- CLI ---------------------------------------------------------------------
 
 def _blank_comments(text: str) -> str:
-    return sections.RE_TEX_COMMENT.sub(lambda m: " " * len(m.group(0)), text)
+    return sections.blank_preserving(text, sections.RE_TEX_COMMENT)
 
 
 def main(argv: list[str] | None = None) -> int:

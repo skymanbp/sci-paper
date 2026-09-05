@@ -95,9 +95,15 @@ class CalibrationUnitTests(unittest.TestCase):
         f = self.make(calibration_unit="document", value=0.9)
         self.assertEqual(f["confidence"]["value"], 0.9)
 
+    def test_sentence_unit_caps_like_paragraph(self):
+        # The collocation axis calibrates per sentence: a unit smaller than a
+        # paragraph, so the same structural cap applies.
+        f = self.make(calibration_unit="sentence", value=0.9)
+        self.assertEqual(f["confidence"]["value"], feedback.PARAGRAPH_CONFIDENCE_CAP)
+
     def test_unknown_unit_raises(self):
         with self.assertRaises(ValueError):
-            self.make(calibration_unit="sentence")
+            self.make(calibration_unit="clause")
 
 
 if __name__ == "__main__":

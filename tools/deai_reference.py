@@ -156,24 +156,32 @@ def _abstracts(text: str) -> list[tuple[int, int, str, str]]:
 
 
 def _labelled_sections(text: str):
-    """(start, end, bucket) for each section a reference may be keyed on."""
-    for start, end, raw_label in metrics.section_line_ranges(text):
-        bucket = metrics._bucket_for(raw_label)
-        if bucket in {"skip", "unknown"} and raw_label.startswith("("):
+    """(start, end, raw_label, bucket) for each section a reference may be keyed on.
+
+    The preamble is title-block markup, never prose; everything else is a unit,
+    including a document with no heading at all (`(document)`, bucket
+    `unknown`), which an earlier reading dropped so that a sectionless file
+    produced no residue or removal-map findings and no message saying so.
+    """
+    for start, end, raw_label, bucket in metrics.section_units(text):
+        if bucket == metrics.PREAMBLE_BUCKET:
             continue
-        yield start, end, bucket
+        yield start, end, raw_label, bucket
 
 
 def without_headings(block: str) -> str:
-    """The block with every heading command blanked, line count preserved.
+    """The block with every heading and float blanked, line count preserved.
 
     The banks hold the prose UNDER a heading and never its words, so a heading
     left in a manuscript unit is measured on one side of every percentile only,
     and with no terminator of its own it fuses with the first sentence below it
-    (`Validation Rescored catalogs ...`). Blanking rather than deleting keeps
-    every reported line number pointing where it did.
+    (`Validation Rescored catalogs ...`). A float is blanked whole for the same
+    reason, BEFORE the paragraph split: the corpus side projects a passage in
+    one pass, and a `\\caption` separated from its `\\begin{figure}` by a blank
+    line was becoming a paragraph of its own here. Blanking rather than
+    deleting keeps every reported line number pointing where it did.
     """
-    return es.RE_HEADING_COMMAND.sub(lambda m: " " * len(m.group(0)), block)
+    return es.blank_preserving(block, es.RE_HEADING_COMMAND, es.RE_TEX_ENV_FIGURE_TABLE)
 
 
 def sections(text: str) -> list[tuple[int, int, str, str]]:
@@ -190,7 +198,7 @@ def sections(text: str) -> list[tuple[int, int, str, str]]:
     consumed = {line for start, end, _, _ in found
                 for line in range(start, end + 1)}
     lines = text.splitlines()
-    for start, end, bucket in _labelled_sections(text):
+    for start, end, _label, bucket in _labelled_sections(text):
         body = without_headings("\n".join(
             line for number, line in enumerate(lines[start - 1:end], start)
             if number not in consumed))
@@ -199,20 +207,33 @@ def sections(text: str) -> list[tuple[int, int, str, str]]:
     return found
 
 
-def units(text: str) -> list[tuple[int, int, str, str]]:
-    """(start_line, end_line, bucket, block) for every PARAGRAPH-sized unit."""
-    found = _abstracts(text)
-    consumed = {line for start, end, _, _ in found
-                for line in range(start, end + 1)}
+def paragraphs(text: str) -> list[tuple[int, int, str, str, str]]:
+    """(start_line, end_line, raw_label, bucket, block) for every PARAGRAPH unit.
 
+    The one paragraph sweep of the manuscript side: abstracts first, then every
+    section's blank-line paragraphs with headings and floats blanked. Every
+    per-paragraph axis reads this rather than cutting the document itself, so a
+    paragraph boundary, a bucket and a line number mean the same thing in every
+    report. `units` is the same list without the raw section title.
+    """
+    found = [(start, end, "abstract", bucket, block)
+             for start, end, bucket, block in _abstracts(text)]
+    consumed = {line for start, end, _, _, _ in found
+                for line in range(start, end + 1)}
     lines = text.splitlines()
-    for section_start, section_end, bucket in _labelled_sections(text):
+    for section_start, section_end, raw_label, bucket in _labelled_sections(text):
         segment = without_headings("\n".join(lines[section_start - 1:section_end]))
         for start, end, block in metrics.paragraph_line_ranges(segment, section_start):
             if start in consumed or not block.strip():
                 continue
-            found.append((start, end, bucket, block))
+            found.append((start, end, raw_label, bucket, block))
     return found
+
+
+def units(text: str) -> list[tuple[int, int, str, str]]:
+    """(start_line, end_line, bucket, block) for every PARAGRAPH-sized unit."""
+    return [(start, end, bucket, block)
+            for start, end, _label, bucket, block in paragraphs(text)]
 
 
 def passage_banks(field_profile_dir: Path) -> list[tuple[str, Path, str | None]]:

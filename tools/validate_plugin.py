@@ -441,21 +441,15 @@ LATENCY_COUNT_RE = re.compile(
 def check_recorded_test_counts() -> str:
     """Every recorded suite size must match the suite that actually exists.
 
-    docs/architecture/EVALUATION.md quoted two different sizes for the same
-    release (147/13 in section 3, 172/14 in section 12) because nothing
-    compared either figure with the repository. A count is a measurement, so
-    it is validated like one.
+    EVALUATION.md once quoted two sizes for one release (147/13 in §3, 172/14
+    in §12) because nothing compared either with the repository. A count is a
+    measurement, so it is validated like one -- across the WHOLE record (a
+    stale count in a part file went unchecked after the split) and in both
+    READMEs' latency tables (scanning docs/ alone let 360/19 survive to 381/19).
     """
     tests, files = _discovered_test_count()
-    # Scan the WHOLE evidence record. Before the record was split, checking the
-    # single EVALUATION.md was the same thing; afterwards it was not, and a
-    # stale count in a part file would have gone unchecked -- the precise
-    # failure mode this function exists to prevent.
     documents = [REPO / EVALUATION_DOC]
     documents.extend(sorted((REPO / EVALUATION_PARTS_DIR).glob("*.md")))
-    # Both READMEs publish the suite size in their latency table. That is a
-    # recorded measurement wherever it is written, so it is checked wherever it
-    # is written -- scanning only docs/ is what let 360/19 survive to 381/19.
     documents.extend(REPO / name for name in ("README.md", "README.zh-CN.md"))
     claims: list[tuple[tuple[int, int], str]] = []
     for path in documents:
@@ -645,11 +639,8 @@ def check_linter_exit_semantics() -> str:
             "clean.tex": "We measure the response. The data constrain the model.\n",
             "l0.tex": "We delve into the response.\n",
             "tier-b-cap.tex": "\\section{Introduction}\nFurthermore, the result is stable.\n",
-            "tier-b-excess.tex": (
-                "\\section{Introduction}\n"
-                "Furthermore, the result is stable.\n\n"
-                "Furthermore, the estimate is reproducible.\n"
-            ),
+            "tier-b-excess.tex": ("\\section{Introduction}\nFurthermore, the result is "
+                                  "stable.\n\nFurthermore, the estimate is reproducible.\n"),
         }
         paths: dict[str, Path] = {}
         for name, text in fixtures.items():
@@ -658,15 +649,9 @@ def check_linter_exit_semantics() -> str:
             paths[name] = path
 
         def run(path: Path) -> int:
-            return lint_module.lint(
-                path,
-                None,
-                distribution=False,
-                structure=False,
-                document_structure=False,
-                output_format="json",
-                output=root / f"{path.stem}.json",
-            )
+            return lint_module.lint(path, None, distribution=False, structure=False,
+                                    document_structure=False, output_format="json",
+                                    output=root / f"{path.stem}.json")
 
         require(run(paths["clean.tex"]) == 0, "clean input must return linter status 0")
         require(run(paths["l0.tex"]) == 1, "Tier A input must return linter status 1")
@@ -674,9 +659,8 @@ def check_linter_exit_semantics() -> str:
                 "one Tier B occurrence per section/word must return status 0")
         require(run(paths["tier-b-excess.tex"]) == 1,
                 "Tier B excess must return linter status 1")
-        # The exit-2 fixture intentionally lints a nonexistent file; swallow
-        # the linter's expected "file not found" stderr line so validator
-        # output does not open with a spurious error.
+        # The exit-2 fixture lints a nonexistent file; its expected stderr line
+        # is swallowed so validator output does not open with a spurious error.
         with contextlib.redirect_stderr(io.StringIO()):
             missing_status = run(root / "missing.tex")
         require(missing_status == 2, "missing input must return linter status 2")
@@ -707,7 +691,28 @@ def check_residue_contract() -> str:
             sys.path.pop(0)
 
 
-# Module level so the count is readable: the READMEs publish "10 contract checks"
+LINE_BUDGET = 750  # the hard per-file cap every tracked source and document obeys
+BUDGETED_SUFFIXES = {".py", ".md", ".yml", ".toml", ".json"}
+
+
+def check_line_budget() -> str:
+    # The cap was enforced only by the editing hook, so a file could cross it
+    # through any other route and no check would say so.
+    listed = subprocess.run(["git", "-C", str(REPO), "ls-files"], check=True,
+                            capture_output=True, text=True).stdout.split("\n")
+    over, at_cap = [], []
+    for name in filter(None, listed):
+        path = REPO / name
+        if path.suffix not in BUDGETED_SUFFIXES or not path.is_file():
+            continue
+        count = len(path.read_text(encoding="utf-8").splitlines())
+        (over if count > LINE_BUDGET else at_cap if count == LINE_BUDGET else []).append(name)
+    require(not over, f"files past the {LINE_BUDGET}-line budget: {', '.join(over)}")
+    suffix = f"; at the cap: {', '.join(at_cap)}" if at_cap else ""
+    return f"every tracked file is within the {LINE_BUDGET}-line budget{suffix}"
+
+
+# Module level so the count is readable: the READMEs publish "11 contract checks"
 # and check_registry_counts verifies that claim against this tuple.
 CHECKS = (
     check_manifests,
@@ -720,6 +725,7 @@ CHECKS = (
     check_linter_exit_semantics,
     check_tests_and_ci,
     check_residue_contract,
+    check_line_budget,
 )
 
 

@@ -315,44 +315,54 @@ def body_only(text: str) -> str:
 
     Lines are blanked rather than deleted so `usage["line"]` still indexes the
     original document and section attribution keeps working. Spans that cross
-    lines -- mathematics, code, float options, bibliography commands -- are
-    blanked character by character for the same reason (`RE_MATH_SPAN`).
+    lines -- mathematics, code, float options, bibliography commands, and
+    since the fifth seam a citation `\\citep{\\nKey}` -- are blanked character
+    by character for the same reason (`extract_sections.blank_preserving`).
+    Headings too: the corpus passages are the prose UNDER a heading, never its
+    words, so a section title counted here and nowhere else.
     """
-    lines = text.splitlines()
-    drop: set[int] = set()
-    for start, end, label in metrics.section_line_ranges(text):
-        if label == "(preamble)" or es.classify_section(label) == "skip":
-            drop.update(range(start, end + 1))
-    for pattern in (RE_BIB_ENV, RE_BIBITEM):
-        for match in pattern.finditer(text):
-            first = text[:match.start()].count("\n") + 1
-            drop.update(range(first, first + match.group(0).count("\n") + 1))
-    # The abstract is body prose the corpus does carry, and in AASTeX it sits
-    # inside the preamble that was just dropped.
-    for match in es.RE_ABSTRACT_ENV.finditer(text):
-        first = text[:match.start()].count("\n") + 1
-        drop.difference_update(
-            range(first, first + match.group(0).count("\n") + 1))
-    body = "\n".join("" if n in drop else line
-                     for n, line in enumerate(lines, start=1))
-
-    def blank(match: "re.Match[str]") -> str:
-        return re.sub(r"[^\n]", " ", match.group(0))
-
-    # Headings too: the corpus passages are the prose UNDER a heading, never
-    # its words, so a section title counted here and nowhere else.
-    for pattern in (RE_MATH_SPAN, es.RE_TEX_ENV_FIGURE_TABLE, RE_LENGTH_CMD,
-                    RE_BIB_COMMAND, RE_CODE_SPAN, RE_HEADING):
-        body = pattern.sub(blank, body)
+    body = es.blank_preserving(
+        body_lines(text), RE_MATH_SPAN, es.RE_TEX_ENV_FIGURE_TABLE, RE_LENGTH_CMD,
+        RE_BIB_COMMAND, RE_CODE_SPAN, RE_HEADING, es.RE_TEX_CITE_SILENT,
+        es.RE_TEX_CITE, es.RE_TEX_LABEL_REF)
     return RE_FLOAT_OPTION.sub(
         lambda match: match.group(1) + " " * (len(match.group(0)) - len(match.group(1))),
         body)
 
 
+def body_lines(text: str) -> str:
+    """The lines of `text` that are body prose, every other line emptied.
+
+    Drops the preamble, every `skip` section (bucket inherited, so a
+    `\\subsection` under Acknowledgments goes with it) and the bibliography,
+    and restores the abstract, which in AASTeX sits inside the preamble. What
+    it keeps is everything a reader SEES -- headings, captions, table cells
+    included -- which is the projection an editing-mark scan needs; the
+    vocabulary projection `body_only` blanks those on top of this.
+    """
+    lines = text.splitlines()
+    drop: set[int] = set()
+    for start, end, _label, bucket in metrics.section_units(text):
+        if bucket in (metrics.PREAMBLE_BUCKET, "skip"):
+            drop.update(range(start, end + 1))
+    for pattern in (RE_BIB_ENV, RE_BIBITEM):
+        for match in pattern.finditer(text):
+            first = text[:match.start()].count("\n") + 1
+            drop.update(range(first, first + match.group(0).count("\n") + 1))
+    for match in es.RE_ABSTRACT_ENV.finditer(text):
+        first = text[:match.start()].count("\n") + 1
+        drop.difference_update(
+            range(first, first + match.group(0).count("\n") + 1))
+    return "\n".join("" if n in drop else line
+                     for n, line in enumerate(lines, start=1))
+
+
 def manuscript_terms(text: str) -> dict[str, dict[str, Any]]:
     """Count each candidate term, from prose and from word-rendering macros."""
     macros = macro_terms(text)
-    body = re.sub(r"^\s*\\(?:new|renew|provide)command.*$", "", body_only(text),
+    # `[ \t]*`, not `\s*`: under MULTILINE `^\s*` ran back over the blank lines
+    # above a definition and deleted them, shifting every line number below.
+    body = re.sub(r"^[ \t]*\\(?:new|renew|provide)command.*$", "", body_only(text),
                   flags=re.MULTILINE)
     counts: Counter[str] = Counter()
     lines: dict[str, int] = {}
@@ -415,12 +425,44 @@ def zero_hit_context(text: str) -> dict[str, set[str]]:
     lower: Counter[str] = Counter()
     for sentence in es.sentences(plain):
         words = RE_WORD.findall(sentence)
-        if RE_DEFINING.search(sentence):
-            defined.update(normalize(word) for word in words)
+        defined.update(defined_terms(sentence))
         for word in words[1:]:
             (capitalised if word[0].isupper() else lower)[normalize(word)] += 1
     names = {term for term in capitalised if lower[term] == 0}
     return {"acronym": acronyms, "defined": defined, "name": names}
+
+
+# Where a defining phrase's OBJECT ends: at clause punctuation or at the word
+# that starts the definition's other side. `We define flux using X` defines
+# `flux`, not `X`; before this the whole sentence was exempt.
+RE_DEFINITION_EDGE = re.compile(
+    r"[,;:.()]|\b(?:using|with|by|from|in|for|and|or|to|via|through|that|which|where|"
+    r"when|whose)\b", re.I)
+# Phrases whose object PRECEDES them (`X is defined as Y`, `X is referred to
+# as Y`); `denoted Y` introduces Y and reads forward like `we call`.
+RE_DEFINING_OBJECT_BEFORE = re.compile(
+    r"\b(?:(?:is|are) defined as|defined as|referred to as)\b", re.I)
+
+
+def defined_terms(sentence: str) -> set[str]:
+    """The words a defining sentence defines: the object of each defining phrase.
+
+    A phrase of the `we define X` / `hereafter X` / `which we call X` kind
+    names its object AFTER it, up to the next clause edge; `X is defined as`,
+    `X, denoted Y` name it BEFORE. Only those words earn `defined-here`.
+    """
+    found: set[str] = set()
+    for match in RE_DEFINING.finditer(sentence):
+        if RE_DEFINING_OBJECT_BEFORE.fullmatch(match.group(0)):
+            head = sentence[:match.start()]
+            edges = [m.end() for m in RE_DEFINITION_EDGE.finditer(head)]
+            span = head[edges[-1]:] if edges else head
+        else:
+            tail = sentence[match.end():]
+            edge = RE_DEFINITION_EDGE.search(tail)
+            span = tail[:edge.start()] if edge else tail
+        found.update(normalize(word) for word in RE_WORD.findall(span))
+    return found
 
 
 def native_stem(term: str, table: dict[str, Any]) -> str | None:

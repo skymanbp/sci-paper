@@ -61,10 +61,13 @@ class LengthGateCliTests(unittest.TestCase):
             "The slope is negative for all clusters.",
             "The slope is negative for all clusters. % a very long trailing "
             "comment that adds many source words but zero rendered prose\n"
-            "\\begin{equation}\\label{eq:x}\ny = a x + b + c + d\n\\end{equation}")
-        result = self.run_gate(BEFORE, after, "--tolerance-words", "2")
-        self.assertEqual(result.returncode, 0,
-                         result.stdout + result.stderr)
+            "\\begin{equation}\\label{eq:x}\ny = a x + b + c + d\n\\end{equation}"
+            " with $a$ and $b$ inline")
+        # Tolerance ZERO: the projection's `[MATH]` / `[math]` placeholders once
+        # counted as words, and a tolerance of two was hiding exactly that.
+        result = self.run_gate(BEFORE, after, "--tolerance-words", "0")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("grew by 3 words", result.stdout)   # with, and, inline
 
     def test_json_report_uses_shared_schema(self):
         after = BEFORE.replace("for all clusters", "for all clusters everywhere")
@@ -174,10 +177,47 @@ class LengthGateCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
 
     def test_require_shrink_rejects_nonsense(self):
-        for bad in ("0", "-0.2", "1.5", "lots"):
+        # `100%` and `200%` once parsed as one and two WORDS; `inf` and `1e309`
+        # escaped as an uncaught OverflowError. A percentage is a percentage.
+        for bad in ("0", "-0.2", "1.5", "lots", "100%", "200%", "0%", "inf", "1e309",
+                    "nan", "30%%"):
             result = self.run_gate(BEFORE, BEFORE, "--require-shrink", bad)
             self.assertEqual(result.returncode, 2, bad + result.stderr)
             self.assertIn("--require-shrink", result.stderr)
+
+    def test_a_fraction_of_a_short_document_rounds_up_to_one_word(self):
+        # 10% of the 12-word baseline is 1.2 words: rounding to nearest gave a
+        # requirement of one word, but 10% of a five-word note gave zero and
+        # an unchanged file closed green. The minimum cut rounds UP.
+        after = BEFORE.replace("The estimator uses five filters.",
+                               "The estimator uses filters.")
+        result = self.run_gate(BEFORE, after, "--require-shrink", "10%",
+                               "--format", "json")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)["length_budget"]
+                         ["required_shrink_words"], 2)
+
+    def test_both_versions_are_assembled_from_their_input_children(self):
+        # A root that only says `\input{body}` never changed when its child
+        # shrank: the gate read the root alone while the removal map it closes
+        # was built on the whole paper.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("before", "after"):
+                (root / name).mkdir()
+                (root / name / "main.tex").write_text("\\input{body}\n", encoding="utf-8")
+            (root / "before" / "body.tex").write_text(BEFORE, encoding="utf-8")
+            (root / "after" / "body.tex").write_text(
+                BEFORE.replace("The estimator uses five filters.", "Five filters."),
+                encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(GATE), str(root / "after" / "main.tex"),
+                 "--before", str(root / "before" / "main.tex"),
+                 "--require-shrink", "2", "--format", "json"],
+                text=True, capture_output=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        budget = json.loads(result.stdout)["length_budget"]
+        self.assertEqual((budget["total_before"], budget["total_after"]), (12, 9))
 
     def test_json_report_is_self_describing(self):
         after = BEFORE.replace("for all clusters", "for all clusters everywhere")

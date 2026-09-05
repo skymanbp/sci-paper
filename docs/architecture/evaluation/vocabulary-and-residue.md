@@ -3,8 +3,11 @@
 Part of the evidence record whose hub is [`../EVALUATION.md`](../EVALUATION.md);
 section numbers are global. Everything here was measured on 2026-09-04 against
 the rebuilt `wgl` profile (41,710 passages), the 203 held-out refereed
-ApJ/ApJL/A&A papers of §17 (median 9,793 words; none in any calibration bank),
-the 544 in-sample refereed papers, and the 173 `docval` machine documents of §16.
+ApJ/ApJL/A&A papers of §17 (median 6,944 body prose words, 9,793 counting the
+raw source; none in any calibration bank), the 544 in-sample refereed papers,
+and the 173 `docval` machine documents of §16. Every per-1,000-word rate is per
+body prose word since v0.36.2 — the register projection with placeholders
+dropped — where it was per raw-source word, bibliography and preamble included.
 The private Letter that motivated the work is measured too; nothing from it is
 quoted beyond single words and the two-word phrases its mentor marked.
 
@@ -16,24 +19,24 @@ the opposite instrument: take *every* word of the manuscript, look each one up
 in the corpus, and treat a word with zero hits as a strong mark unless there is a
 reason — the paper defines it, or it names a method the field has not used
 before. `deai_register` now carries that audit as `register-zero:<term>` beside
-the thresholded rule. The only mechanical exemption is a word that is a
-formation of an attested stem (`clamped` from `clamp`, `holdouts` from
-`holdout`), reported ordinary; every other zero-hit word is strong and takes one
-of the §5.2 step-1b dispositions.
+the thresholded rule. The mechanical exemptions, reported ordinary, are a
+formation of an attested stem (`clears` from `clear`), a term the paper defines
+at first use, and a proper name (`benjamini--hochberg`); every other zero-hit
+word is strong and takes one of the §5.2 step-1b dispositions.
 
-**It is exhaustive, and it is not a detector.** Rates per 1,000 body words, and
-the fraction of documents with at least one finding (`eval_findings.py --field
-wgl`, 2026-09-04, re-taken under v0.36.1's float projection):
+**It is exhaustive, and it is not a detector.** Rates per 1,000 body prose
+words, and the fraction of documents with at least one finding
+(`eval_findings.py --field wgl`, 2026-09-04, re-taken under v0.36.2):
 
 | population | n | `register-zero` /1k words | documents flagged | `register` (15-use rule) /1k words |
 |---|---:|---:|---:|---:|
-| held-out refereed | 203 | **2.212** | 100.0% | 0.025 |
-| in-sample refereed (bank members) | 544 | 0.605 | 75.9% | 0.005 |
-| machine, all tiers | 173 | 0.980 | 80.9% | 0.002 |
-| machine `ai_adversarial` | 40 | 1.823 | 92.5% | 0.000 |
-| machine `ai_long` | 29 | 0.954 | 100.0% | 0.003 |
+| held-out refereed | 203 | **3.374** | 100.0% | 0.037 |
+| in-sample refereed (bank members) | 544 | 0.812 | 75.0% | 0.007 |
+| machine, all tiers | 173 | 1.054 | 79.8% | 0.002 |
+| machine `ai_adversarial` | 40 | 2.132 | 92.5% | 0.000 |
+| machine `ai_long` | 29 | 1.043 | 100.0% | 0.003 |
 
-Rank AUC of machine over held-out on the per-1k rate is **0.246**: a refereed
+Rank AUC of machine over held-out on the per-1k rate is **0.174**: a refereed
 paper carries more words the corpus never wrote than a machine draft does,
 which is the same direction §18.4 found for the thresholded rule at every floor
 from 5 to 50. The audit therefore ships as advice with author dispositions and
@@ -42,12 +45,13 @@ bank membership buys — a paper whose own vocabulary is in the denominator
 loses two thirds of its zero-hit words — and is not a leakage estimate, for the
 era reason §17.3 gives.
 
-**What it finds on the Letter.** Fourteen zero-hit words, eleven strong. Three
-are statistics vocabulary the field's corpus does not use (`probit`, `deciles`,
-`exceedance`), several are this plugin's own software vocabulary that had
-leaked into an astronomy manuscript (`unmeasured`, `rescored`, `outranks`), one
-is a coinage the paper needs to define (`resolvability`), and the ordinary hits
-are stem formations (`clamped`, `holdouts`). Every one of those is a decision
+**What it finds on the Letter** (re-measured on the current draft, 2026-09-04).
+Thirteen zero-hit words, ten strong. Three are statistics vocabulary the
+field's corpus does not use (`probit`, `deciles`, `exceedance`), three are this
+plugin's own software vocabulary that had leaked into an astronomy manuscript
+(`unmeasured`, `rescored`, `outranks`), one is a coinage the paper needs to
+define (`resolvability`), and the ordinary hits are stem formations (`clears`,
+`earns`) and a name (`benjamini--hochberg`). Every one of those is a decision
 the author can make in a second, which is the point of listing them all.
 
 **A third projection asymmetry.** Building the audit exposed the third
@@ -67,8 +71,12 @@ point they chose is unchanged. A fourth seam followed in v0.36.1 — floats,
 blanked whole on the corpus side and never on the line-by-line manuscript side,
 so table preambles and caption words read as zero-hit terms — and the same
 papers re-measured at 81 → **57** findings, 0.0247 per 1,000 words, 22.2% of
-documents, AUC 0.392, own-membership 98.2% of 57; the table above is the
-re-taken one.
+documents, AUC 0.392, own-membership 98.2% of 57. v0.36.2 moved the
+denominator, not the findings: the same 57 read **0.0371** per 1,000 body
+prose words (AUC 0.391) and the audit 3.374 (AUC 0.174), because a refereed
+paper's raw source carries a bibliography and a preamble that a single-file
+machine draft does not, so the old rate was diluted on one side only; the
+table above is the re-taken one.
 
 ## 23.2 `L2.collocation`: sentences that join words the field never joins
 
@@ -85,43 +93,48 @@ fraction as evidence only.
 
 **Design.** `deai_collocation.py --calibrate` builds a bank from the two human
 passage banks: unigram document frequency for the 11,286 words at or above
-`COMMON_RATE` (2 × 10⁻⁴), and passage frequency for 541,309 adjacent pairs of
+`COMMON_RATE` (2 × 10⁻⁴), and passage frequency for 530,677 adjacent pairs of
 them. A pair is two words the writer put side by side, so it breaks at
-punctuation, at a `[math]`/`[CITE]` placeholder and at a dash (`yields,
-separate` is two clauses), and a sentence's pairs are judged distinct. The unit
-is the sentence; the feature is the fraction of a sentence's judged pairs the
-bank does not attest; sentences with fewer than four judged pairs abstain. The
-reference is leave-one-out per bucket: at calibration a pair the bank saw in
-exactly one passage is treated as that passage's own, so the reference
-distribution is what a held-out sentence would see. Each flagged pair carries
-λ = df(a)·df(b)/N and e^−λ, so `measurements projected` (λ = 183) reads as a
-stronger absence than `sub-halo abundances` (λ = 0.3).
+punctuation, at a `[math]`/`[CITE]` placeholder, at a dash, at a slash and at
+a digit (`yields, separate` is two clauses; `50/50` and `2 sigma` are not word
+pairs), and a sentence's pairs are judged distinct. The unit is the sentence;
+the feature is the fraction of a sentence's judged pairs the bank does not
+attest; sentences with fewer than four judged pairs abstain. The reference is
+leave-one-out per bucket: at calibration a pair the bank saw in exactly one
+passage is treated as that passage's own, so the reference distribution is
+what a held-out sentence would see. The p90 and p95 gates read the top of a
+percentile plateau, so on a feature this coarse the reference mass at or above
+a gate sits below the nominal 10% and 5%. Each flagged pair carries a
+co-presence weight — the passages in which both its words appear, and the
+chance that a pair of words that common would never have been written — as a
+ranking aid and never a filter, so a pair of two frequent words reads as a
+stronger absence than a pair of two rare ones.
 
 | bucket | n sentences | p50 | p90 (advisory) | p95 (strong) |
 |---|---:|---:|---:|---:|
-| abstract | 90,202 | 0.273 | 0.600 | 0.667 |
-| method | 27,575 | 0.200 | 0.500 | 0.600 |
-| intro | 14,478 | 0.200 | 0.444 | 0.500 |
-| results | 12,602 | 0.200 | 0.500 | 0.571 |
-| data | 12,339 | 0.200 | 0.500 | 0.600 |
-| discussion | 12,336 | 0.200 | 0.500 | 0.571 |
-| conclusion | 8,653 | 0.200 | 0.500 | 0.556 |
+| abstract | 89,392 | 0.250 | 0.588 | 0.667 |
+| method | 27,293 | 0.200 | 0.500 | 0.600 |
+| intro | 14,382 | 0.200 | 0.444 | 0.500 |
+| results | 12,419 | 0.200 | 0.500 | 0.571 |
+| data | 12,054 | 0.200 | 0.500 | 0.600 |
+| discussion | 12,205 | 0.200 | 0.500 | 0.571 |
+| conclusion | 8,571 | 0.200 | 0.500 | 0.556 |
 
 **Transfer and separation** (`eval_findings.py`, findings per 1,000 words and
 documents with at least one):
 
 | population | n | findings /1k words | documents flagged |
 |---|---:|---:|---:|
-| held-out refereed | 203 | 2.031 | 99.0% |
-| in-sample refereed (bank members) | 544 | 0.110 | 39.2% |
-| machine, all tiers | 173 | 3.317 | 100.0% |
-| machine `ai_long` | 29 | 2.651 | 100.0% |
-| machine `ai_adversarial` | 40 | 4.581 | 100.0% |
+| held-out refereed | 203 | 4.700 | 99.0% |
+| in-sample refereed (bank members) | 544 | 0.203 | 43.4% |
+| machine, all tiers | 173 | 4.811 | 100.0% |
+| machine `ai_long` | 29 | 4.534 | 100.0% |
+| machine `ai_adversarial` | 40 | 6.128 | 100.0% |
 
 On the document novel-pair fraction the rank AUC of machine over held-out is
-**0.691** — the axis separates, unlike the two vocabulary rules, and less than
-salience (0.774); both re-taken under v0.36.1's float projection, which moved
-them from 0.688 and 0.770. Two things the table must not be read as. The held-out row
+**0.704** — the axis separates, unlike the two vocabulary rules, and more than
+salience now does (0.572 on body-word density; §17.5 records why that figure
+moved). Two things the table must not be read as. The held-out row
 is an upper bound on the design rate, not the rate itself: the reference is
 leave-one-out over bank passages of one era, and a 2020–2021 paper's pairs drift
 from a 2012–2018 bank for reasons that have nothing to do with how it is
@@ -129,15 +142,16 @@ written (the §17.3 argument). And the in-sample row is the bank-membership
 effect at its largest — a paper's own pairs are attested by itself — so it is
 not a leakage estimate either.
 
-**The Letter.** 27 sentence findings, 20 strong, document novel-pair fraction
-0.628 over 486 judged pairs. Of the eight phrases the mentor marked, two had
-already been rewritten out of the manuscript; of the six present, **five** are
-in flagged sentences (`physical cells` and `controlled grid` among them), and
-the sixth sits below the gate. On the
-shipped examples the axis rises from 3 findings to 6 across the revision,
-because the synthetic paper repeats its own coined parameter and the cohesion
-fix carried nouns into new neighbourhoods — the axis's stated exception at
-work, recorded in [`examples/README.md`](../../../examples/README.md).
+**The Letter** (re-measured on the current draft, 2026-09-04). 29 sentence
+findings, 22 strong, document novel-pair fraction 0.603 over 481 judged pairs.
+On the draft first measured, of the eight phrases the mentor marked two had
+already been rewritten out and **five** of the six present were in flagged
+sentences (`physical cells` and `controlled grid` among them); the current
+draft no longer carries those two phrases, so that check is not reproducible
+on it. On the shipped examples the axis rises from 2 findings to 3 across the
+revision, because the synthetic paper repeats its own coined parameter and the
+cohesion fix carried a noun into a new neighbourhood — the axis's stated
+exception at work, recorded in [`examples/README.md`](../../../examples/README.md).
 
 ## 23.3 Three structure families from the mentor's margin
 
@@ -171,14 +185,16 @@ Four deterministic rules (`deai_residue.py`): self-referential drafting
 history (a family word in a first-person sentence with no citation), edit-meta
 literals, a heading or caption whose object the body never names, and — given
 `--before` or `--git-ref` — a label the edit added and does not earn. A strong
-finding exits 1. The strengths were set on the 203 held-out papers (85,324
-prose sentences), in three passes:
+finding exits 1. The strengths were set on the 203 held-out papers (70,848
+body prose sentences; 85,324 under the raw-source projection the first three
+passes counted), in four passes:
 
 | pass | self-history strong | edit-meta strong | negative-label | documents with a strong finding |
 |---|---:|---:|---:|---:|
 | raw document, first families | 243 | 184 | 78 (strong) | 154 / 203 |
 | body projection, `initially`/`originally` ordinary | 203 | 67 | 74 (ordinary) | 106 / 203 |
-| `used to` dropped, `at first` ordinary | **24 in 20 papers** | **67 in 15 papers** | 74 in 58 papers | **34 / 203 (16.7%)** |
+| `used to` dropped, `at first` ordinary | 24 in 20 papers | 67 in 15 papers | 74 in 58 papers | 34 / 203 (16.7%) |
+| v0.36.2: marks read across lines, `we have added` needs a document object | **24 in 20 papers** | **69 in 8 papers** | 67 in 53 papers | **27 / 203 (13.3%)** |
 
 The first pass was the projection asymmetry again: `\newcommand{\TODO}` in a
 preamble and "Planck Collaboration XXX" in a bibliography are not prose an
@@ -187,30 +203,38 @@ edit left, so the literal and label rules now read `deai_register.body_only`,
 second pass found that `used to` was 174 of 203 remaining strong hits — every
 one the instrumental sense ("the radii used to trace …") — and that
 `initially`, `originally` and `at first` open procedure steps in refereed
-prose. What remains strong fires in 12% of refereed papers; the 67 edit-meta
-hits are all `\textcolor{red}` inside tables, an author's emphasis that the
-disposition `kept` answers in a word. The static negative-label rule fires on
-29% of refereed papers and is ordinary; only the diff rule gates. The Letter
-carries 0 residue findings.
+prose. The fourth came with v0.36.2's cross-line matching: `we have added`
+wrapped at a line break had been invisible, and once seen it fired fourteen
+times, every one a procedure (`we have added uniform Gaussian noise`) or
+another paper's history (`in the revised version of \citet{…}`) — the `used
+to` lesson again — so the phrase is a mark only with a document object (`we
+have added a paragraph`). What remains strong fires in 13% of refereed
+papers; 68 of the 69 edit-meta hits are `\textcolor{red}` inside tables, an
+author's emphasis that the disposition `kept` answers in a word. The static
+negative-label rule fires on 26% of refereed papers and is ordinary; only the
+diff rule gates. The Letter carries 0 residue findings.
 
 ## 23.5 The removal map: what a refereed paper has to remove
 
-`condense_map.py` on the 203 held-out papers (median 7,648 prose words) and the
-173 machine documents, removable words per 1,000 prose words:
+`condense_map.py` on the 203 held-out papers (median 7,174 prose words) and the
+173 machine documents, removable words per 1,000 prose words — candidate mass
+per scan, overlaps included:
 
 | scan | held-out median | held-out p90 |
 |---|---:|---:|
-| `condense-restatement` | 20.95 | 65.20 |
-| `condense-zero-gain` | 12.42 | 29.74 |
-| `condense-dead:*` | 0.43 | 8.15 |
-| `condense-verbose` | 2.53 | 5.55 |
-| `condense-regloss` | 0.00 | 0.00 |
+| `condense-restatement` | 10.01 | 35.04 |
+| `condense-zero-gain` | 8.37 | 23.29 |
+| `condense-dead:*` | 0.49 | 8.21 |
+| `condense-verbose` | 2.65 | 5.78 |
+| `condense-regloss` | 0.00 | 0.50 |
 | `condense-duplicate` | 0.00 | 0.00 |
 
 The default target (restatement plus zero-gain outside the abstract/conclusion
-carve-out) is a median **3.08%** of prose on refereed papers (p90 7.26%), total
-removable 4.08%; on machine documents 1.10% and 1.31%. The map is not a
-detector either (AUC of machine over human on the default target 0.204 — short
+carve-out, each unit counted once since v0.36.2 — a sentence that was both a
+restatement and zero-gain, or a sentence inside a removed paragraph, had been
+counted twice) is a median **1.59%** of prose on refereed papers (p90 4.11%),
+total removable 2.48%; on machine documents 0.20% and 0.29%. The map is not a
+detector either (AUC of machine over human on the default target 0.097 — short
 machine documents restate less) and is not meant as one: it exists because the
 `condense` skill's own sweep removed 1.5% of the shipped sample manuscript by
 reading, and a pass that cuts less than a refereed paper's own median has not

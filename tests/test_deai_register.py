@@ -334,6 +334,64 @@ class BodyProjectionTest(unittest.TestCase):
         self.assertIn("shear", terms)
         self.assertEqual(terms["shear"]["line"], 13)
 
+    # Fifth seam: a citation or reference that wraps at a line boundary. The
+    # corpus side replaces the whole command with a placeholder in one pass;
+    # per-line projection saw `NeverSurname2020}` on the second line as prose.
+    def test_a_citation_wrapped_at_a_line_break_is_not_a_word(self) -> None:
+        document = ("\\section{Methods}\n"
+                    "The convergence is measured \\citep{\n"
+                    "NeverSurname2020} and the mass\\ref{\n"
+                    "OddLabel}map is drawn.\n")
+        terms = register.manuscript_terms(document)
+        self.assertNotIn("neversurname", terms)
+        self.assertNotIn("oddlabel", terms)
+        self.assertNotIn("oddlabelmap", terms)
+        self.assertIn("convergence", terms)
+
+    def test_a_blank_line_above_a_macro_definition_keeps_the_line_numbers(self) -> None:
+        # `^\s*` under MULTILINE ran back over the blank lines above the
+        # definition and deleted them; every line below moved up by two.
+        document = ("\\section{Methods}\n\n\\newcommand{\\q}{word}\n"
+                    "The convergence is measured.\n")
+        self.assertEqual(register.manuscript_terms(document)["convergence"]["line"], 4)
+
+    def test_a_subsection_under_a_skip_section_is_dropped_with_it(self) -> None:
+        document = ("\\section{Methods}\nThe shear catalog is measured.\n"
+                    "\\section{Acknowledgments}\n\\subsection{Special thanks}\n"
+                    + "We thank Helsinki. " * 6 + "\n")
+        self.assertNotIn("helsinki", register.manuscript_terms(document))
+
+    def test_a_spaced_or_short_titled_heading_is_still_a_heading(self) -> None:
+        for heading in ("\\section {Methods}", "\\section[Short]{Methods}"):
+            document = f"\\affiliation{{Roma}}\n{heading}\nThe convergence is measured.\n"
+            terms = register.manuscript_terms(document)
+            self.assertIn("convergence", terms, heading)
+            self.assertNotIn("roma", terms, heading)
+            self.assertNotIn("methods", terms, heading)
+
+
+class DefinitionScopeTest(unittest.TestCase):
+    """A defining sentence exempts the term it defines, not every word in it."""
+
+    def test_the_object_after_a_defining_phrase(self) -> None:
+        self.assertEqual(register.defined_terms("We define flux using quuxification."),
+                         {"flux"})
+        found = register.defined_terms("We call this quantity the saddleness.")
+        self.assertIn("saddleness", found)
+        self.assertNotIn("quuxification", found)
+
+    def test_the_object_before_a_defining_phrase(self) -> None:
+        found = register.defined_terms(
+            "The saddleness is defined as the ratio of quuxification.")
+        self.assertIn("saddleness", found)
+        self.assertNotIn("quuxification", found)
+        self.assertNotIn("ratio", found)
+        self.assertEqual(register.defined_terms(
+            "The depth, denoted zed, is quuxified."), {"zed"})
+
+    def test_a_sentence_that_defines_nothing_exempts_nothing(self) -> None:
+        self.assertEqual(register.defined_terms("The catalog is rescored."), set())
+
 
 class BankResolutionTest(unittest.TestCase):
     """A bank too coarse for the gate must say so, not report `measured`.

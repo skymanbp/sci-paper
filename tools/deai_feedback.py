@@ -25,7 +25,9 @@ DISPOSITIONS = {"pending", "acted", "accepted", "rejected_as_false_positive"}
 # paragraph-unit finding cannot honestly carry high confidence: the cap is
 # structural, applied here rather than trusted to each detector. `None` leaves a
 # finding uncapped (the historical behaviour for every existing caller).
-CALIBRATION_UNITS = {"paragraph", "section", "document"}
+# A sentence is a smaller unit than a paragraph, so the same cap applies.
+CALIBRATION_UNITS = {"sentence", "paragraph", "section", "document"}
+CAPPED_UNITS = {"sentence", "paragraph"}
 PARAGRAPH_CONFIDENCE_CAP = 0.5
 
 _KIND_RANK = {"integrity_blocker": 0, "l0_target": 1, "advisory": 2}
@@ -194,7 +196,7 @@ def make_finding(
         "value": _confidence_value(confidence),
         "basis": "detector default" if confidence is None else "detector estimate",
     }
-    if calibration_unit == "paragraph":
+    if calibration_unit in CAPPED_UNITS:
         # Structural cap: paragraph-unit AI-ness cannot claim more than the cap.
         confidence_obj = dict(confidence_obj)
         current = _confidence_value(confidence_obj.get("value"))

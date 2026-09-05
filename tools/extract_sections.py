@@ -17,6 +17,7 @@ change here changes what those distributions mean and needs a profile rebuild.
 from __future__ import annotations
 
 import re
+import tex_assembly
 import tex_macros
 from collections import defaultdict
 from pathlib import Path
@@ -95,7 +96,7 @@ def classify_section(name: str) -> str:
 
 # Light LaTeX cleaning. Not a full TeX parser; meant to remove enough
 # command/environment noise so word/sentence stats reflect the prose.
-RE_TEX_COMMENT = re.compile(r"(?<!\\)%.*?$", re.MULTILINE)
+RE_TEX_COMMENT = tex_assembly.RE_TEX_COMMENT  # one owner, see tex_assembly
 RE_TEX_DISPLAY_MATH = re.compile(
     r"\\begin\{(equation|align|gather|eqnarray|displaymath|multline)\*?\}.*?\\end\{\1\*?\}",
     re.DOTALL)
@@ -151,12 +152,15 @@ def _math_numerals(match: "re.Match[str]") -> str:
 # 517-document wgl corpus on 2026-08-26. One level covers every form seen there.
 # `\s*` before the brace because LaTeX allows a space after a control word: 9 of
 # 790 downloaded papers use it, and those headers were invisible here until now.
+# An optional short title (`\section[Short]{Long}`) is skipped, not read as the
+# title; without it the whole command was invisible to the splitter.
 RE_SECTION = re.compile(
-    r"\\(section|subsection|chapter)\*?\s*\{((?:[^{}]|\{[^{}]*\})*)\}", re.IGNORECASE)
+    r"\\(section|subsection|chapter)\*?\s*(?:\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})*)\}",
+    re.IGNORECASE)
 # A whole heading command, for callers that REMOVE headings from prose (the
 # banks hold the text under a heading, never its words). One owner.
 RE_HEADING_COMMAND = re.compile(r"\\(?:chapter|section|subsection|subsubsection|paragraph)\*?"
-                                r"(?:\[[^\]]*\])?\{(?:[^{}]|\{[^{}]*\})*\}")
+                                r"\s*(?:\[[^\]]*\])?\s*\{(?:[^{}]|\{[^{}]*\})*\}")
 # Applied to a captured title before it is classified. Without it, markup that
 # survives inside the braces decides the bucket instead of the words do.
 RE_HEADING_TEXORPDF = re.compile(r"\\texorpdfstring\s*\{(.*?)\}\s*\{[^{}]*\}")
@@ -210,6 +214,32 @@ def latex_to_plain(text: str) -> str:
     return text
 
 
+# A projection placeholder (`[math]`, `[MATH]`, `[FIGURE-OR-TABLE]`, `[CITE]`)
+# is not a word: counted, two deleted equations read as two words of prose cut.
+RE_PLACEHOLDER = re.compile(r"^\[[A-Za-z\-]+\]$")
+
+
+def prose_words(text: str) -> list[str]:
+    """The rendered-prose tokens of a LaTeX fragment: the plain projection
+    without its placeholders. One owner for every word count a gate or a rate
+    reports (`length_gate`, `condense_map`, `deai_residue`, `eval_findings`)."""
+    return [token for token in latex_to_plain(text).split()
+            if not RE_PLACEHOLDER.match(token)]
+
+
+def blank_preserving(text: str, *patterns: "re.Pattern[str]") -> str:
+    """`text` with every match of every pattern blanked to spaces, newlines kept.
+
+    Blanking instead of deleting is what lets a finding keep its line number
+    after a region the axis must not see (a float, a comment, a heading) has
+    been removed from its view. One owner: every axis that blanks a span across
+    lines calls this, so no axis can shift a line number on its own.
+    """
+    for pattern in patterns:
+        text = pattern.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), text)
+    return text
+
+
 def latex_to_numeral_text(text: str) -> str:
     """Reduce LaTeX to prose while PRESERVING the numerals inside math.
 
@@ -247,24 +277,10 @@ def latex_to_numeral_text(text: str) -> str:
     return re.sub(r"[ \t]+", " ", text)
 
 
-# A LaTeX *document* root, as opposed to a piece of one. \documentstyle is
-# LaTeX 2.09 and still appears throughout pre-1995 arXiv sources.
-RE_TEX_DOC_MARKER = re.compile(r"\\document(?:class|style)\b|\\begin\{document\}")
-RE_TEX_INCLUDE = re.compile(r"\\(?:include|input)\s*\{?\s*([^}\s\\]+)")
-
-
-def _include_targets(text: str) -> list[str]:
-    """\\include / \\input targets on lines where the call is not commented out.
-
-    Comment-stripping matters: arXiv sources routinely park an alternative
-    build in comments (`% \\includeonly{WeakLens_7}`), and resolving those
-    would splice a chapter into the document twice.
-    """
-    names: list[str] = []
-    for line in text.splitlines():
-        live = RE_TEX_COMMENT.sub("", line)
-        names.extend(RE_TEX_INCLUDE.findall(live))
-    return names
+RE_TEX_DOC_MARKER = tex_assembly.RE_TEX_DOC_MARKER
+RE_TEX_INCLUDE = tex_assembly.RE_TEX_INCLUDE
+_include_targets = tex_assembly.include_targets
+_resolve_include = tex_assembly.resolve_include
 
 
 CLASSIFIED_BUCKETS = frozenset(
@@ -341,58 +357,9 @@ def select_document_roots(tex_files: list[Path],
     return sorted(roots)
 
 
-def read_tex_document(path: Path, _seen: set[Path] | None = None) -> str:
-    """Read a `.tex` root with its \\include / \\input siblings spliced in.
-
-    A LaTeX document is assembled from files; only its root is named. Reading
-    the root alone is as wrong as counting each piece separately -- Bartelmann
-    & Schneider (2001) has 72 words in `WeakLens.tex` and its whole ~40,000
-    word body in the eleven chapter files that root includes.
-
-    A target is resolved against the root's directory first and, failing that,
-    against a sibling with the same stem. The fallback is not cosmetic: arXiv
-    flattens submissions, so `\\input{sections/introduction}` routinely names a
-    file that now sits beside the root. `select_document_roots` has always
-    matched includes by stem, so without the same fallback here it drops those
-    chapters as fragments and nothing splices them back -- which cost four wgl
-    bundles most of their prose, one of them 9,741 of 9,743 words.
-
-    An unresolvable target (`\\input{aa.cls}`) degrades to leaving the call in
-    place rather than failing. `_seen` breaks include cycles. Numeric macros are
-    expanded once here (`tex_macros`): only the root holds definition and use.
-    """
-    top, seen = _seen is None, set() if _seen is None else _seen
-    resolved = path.resolve()
-    if resolved in seen:
-        return ""
-    seen.add(resolved)
-    try:
-        text = path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return ""
-
-    out: list[str] = []
-    for line in text.splitlines(keepends=True):
-        names = _include_targets(line)
-        if not names:
-            out.append(line)
-            continue
-        for name in names:
-            child = _resolve_include(path, name)
-            out.append(read_tex_document(child, seen) if child else line)
-    return tex_macros.expand_numeric("".join(out)) if top else "".join(out)
-
-
-def _resolve_include(root: Path, name: str) -> Path | None:
-    """The file an \\include/\\input target names, or None. Literal path first,
-    then a same-stem sibling (arXiv flattens submission directories)."""
-    literal = root.parent / name
-    if literal.suffix.lower() != ".tex":
-        literal = literal.with_suffix(".tex")
-    if literal.is_file():
-        return literal
-    sibling = root.parent / f"{Path(name).stem}.tex"
-    return sibling if sibling.is_file() else None
+# The include assembler has one owner (`tex_assembly`); re-exported so
+# `es.read_tex_document` keeps resolving for existing callers and tests.
+read_tex_document = tex_assembly.read_tex_document
 
 
 def corpus_documents(corpus_dir: Path) -> list[tuple[str, str]]:

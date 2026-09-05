@@ -58,6 +58,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_discourse  # noqa: E402 -- because of that same sys.path insert
+import deai_reference as reference  # noqa: E402 -- because of that same sys.path insert
 import deai_collocation  # noqa: E402 -- because of that same sys.path insert
 import deai_register  # noqa: E402 -- because of that same sys.path insert
 import eval_findings  # noqa: E402 -- for HELDOUT_DIR, so the name has one owner
@@ -89,17 +90,45 @@ AXES = tuple(axis for _, axes, _ in EMITTERS for axis in axes)
 MIN_PER_CELL = 20   # below this a rate is reported `unmeasured`, never as 0/0
 
 
-def _passages(text: str) -> list[tuple[str, str]]:
-    """(section bucket, passage) pairs from one document."""
-    out = []
-    for bucket, body in es.split_into_sections(text).items():
-        if bucket in ("skip", es.DEFAULT_SECTION_BUCKET):
+def _passages(text: str) -> list[tuple[str, str, int, int]]:
+    """(section bucket, passage, start line, end line) from one document.
+
+    The shared paragraph sweep, so a control passage has the line range the
+    flagged findings carry and the two can be compared by position; cut by
+    `split_into_sections` it had no lines, and the comparison fell back to a
+    text prefix that findings do not carry.
+    """
+    return [(bucket, block.strip(), start, end)
+            for start, end, _label, bucket, block in reference.paragraphs(text)
+            if bucket not in ("skip", es.DEFAULT_SECTION_BUCKET)
+            and len(block.split()) >= 40]
+
+
+def flagged_spans(entries: list[dict]) -> list[tuple[int, int]]:
+    """Line ranges of every finding a document produced, whatever the quota kept."""
+    spans = []
+    for entry in entries:
+        if "error" in entry:
             continue
-        for block in body.split("\n\n"):
-            block = block.strip()
-            if len(block.split()) >= 40:
-                out.append((bucket, block))
-    return out
+        location = entry["finding"].get("location") or {}
+        start = location.get("start_line") or 1
+        spans.append((start, location.get("end_line") or start))
+    return spans
+
+
+def unflagged_passages(passages: list[tuple[str, str, int, int]],
+                       spans: list[tuple[int, int]]) -> list[tuple[str, str, int, int]]:
+    """The passages no finding touches, by line range.
+
+    A control is a passage NO axis flagged, not merely one the quota did not
+    sample, so the document's findings are recomputed in full and excluded
+    by position. The earlier check read `evidence.text`, a key a finding does
+    not carry, so it excluded nothing and a flagged passage could sit among
+    the controls as a miss the axes were then charged with.
+    """
+    return [(bucket, passage, start, end)
+            for bucket, passage, start, end in passages
+            if not any(first <= end and start <= last for first, last in spans)]
 
 
 def _documents(root: Path, *, bundles: bool) -> list[tuple[str, str]]:
@@ -259,14 +288,10 @@ def cmd_sample(args) -> int:
         for name, text in documents:
             if made >= want:
                 break
-            flagged_text = {r["evidence"].get("text", "")[:200] for r in rows
-                            if r["population"] == population and r["flagged"]
-                            and isinstance(r.get("evidence"), dict)}
-            for bucket, passage in _passages(text):
+            spans = flagged_spans(_findings_for(name, text, field_dir))
+            for bucket, passage, start, end in unflagged_passages(_passages(text), spans):
                 if made >= want:
                     break
-                if passage[:200] in flagged_text:
-                    continue      # a flagged passage is not a control for itself
                 rows.append({
                     "id": f"{population}-ctl-{len(rows):04d}",
                     "population": population,

@@ -84,6 +84,39 @@ class EditMetaTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertNotIn("residue-edit-meta", result.stdout)
 
+    def test_a_mark_in_a_heading_or_caption_is_visible(self):
+        # The vocabulary projection blanks headings and floats; a `TODO` a
+        # reader sees in a caption was invisible to the scan that shared it.
+        text = ("\\section{Results TODO}\nClean prose.\n\n"
+                "\\begin{figure}\n\\caption{TODO redo panel b}\n\\end{figure}\n")
+        found = residue.residue_findings(text)
+        marks = [(f["observed"]["mark"], f["location"]["start_line"]) for f in found
+                 if f["rule"] == "residue-edit-meta"]
+        self.assertEqual(marks, [("TODO", 1), ("TODO", 5)])
+        # The preamble stays out: a macro definition is not prose an edit left.
+        found = residue.residue_findings("\\newcommand{\\TODO}{x}\n\\section{Results}\nClean.\n")
+        self.assertEqual([f for f in found if f["rule"] == "residue-edit-meta"], [])
+
+    def test_a_phrase_mark_wrapped_at_a_line_break_is_one_mark(self):
+        text = "\\section{Results}\nAs noted in the revised\nversion, the slope is negative.\n"
+        found = residue.edit_meta_findings(text)
+        self.assertEqual([(f["observed"]["mark"], f["location"]["start_line"]) for f in found],
+                         [("in the revised version", 2)])
+
+    def test_a_procedure_we_have_added_is_not_an_editing_mark(self):
+        # Twelve of twelve `we have added/removed/revised` in the held-out
+        # refereed papers were procedure, and the Planck revised version was
+        # another paper's; only a document object makes the phrase a mark.
+        marks = lambda text: [f["observed"]["mark"] for f in residue.edit_meta_findings(text)]
+        self.assertEqual(marks("\\section{Data}\nWe have added uniform Gaussian noise.\n"), [])
+        self.assertEqual(marks("\\section{Data}\nWe have removed the emission from the core.\n"), [])
+        self.assertEqual(marks("\\section{Data}\nAs reported in the revised version of "
+                               "\\citet{planck}, the bias is small.\n"), [])
+        self.assertEqual(marks("\\section{Data}\nWe have added a paragraph on the bias.\n"),
+                         ["We have added a paragraph"])
+        self.assertEqual(marks("\\section{Data}\nWe have revised the text of Section 2.\n"),
+                         ["We have revised the text"])
+
 
 class NegativeLabelTests(unittest.TestCase):
     def test_a_caption_negating_something_the_body_never_names_is_ordinary(self):
@@ -138,6 +171,22 @@ class NegativeLabelAddedTests(unittest.TestCase):
         text = long_body("\\begin{figure}\\caption{Peak counts without the saddle "
                          "correction.}\\end{figure}")
         self.assertEqual(residue.negative_label_added_findings(text, text), [])
+
+    def test_an_object_the_body_never_had_is_not_a_patched_absence(self):
+        # `correction` alone was in the body; `saddle correction` never was, so
+        # the new caption negates nothing the edit removed.
+        before = long_body("The correction is applied.")
+        after = long_body("The measurement is applied. \\begin{figure}\\caption{"
+                          "Without the saddle correction}\\end{figure}")
+        self.assertEqual(residue.negative_label_added_findings(before, after), [])
+
+    def test_a_negation_the_old_caption_carried_is_not_new_when_the_caption_changes(self):
+        before = long_body("The saddle correction is applied. \\begin{figure}"
+                           "\\caption{Blue points, without the saddle correction.}"
+                           "\\end{figure}")
+        after = long_body("\\begin{figure}\\caption{Red points, without the saddle "
+                          "correction.}\\end{figure}")
+        self.assertEqual(residue.negative_label_added_findings(before, after), [])
 
 
 class CliTests(unittest.TestCase):

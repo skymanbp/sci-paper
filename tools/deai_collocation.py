@@ -23,11 +23,12 @@ to a bank that has not seen it. The document-level novel fraction is reported
 as evidence and never as a percentile, because the reference is built from
 sentences and a document is not one (`deai_reference`'s invariant).
 
-Each novel pair carries its own confidence: under independence the expected
-number of passages writing the pair is lambda = df(a) * df(b) / N, and the
-probability of seeing none is exp(-lambda). A pair of two frequent words that
-the corpus never joins is a decisive absence; a pair of two marginal words is
-not, and the finding says which is which rather than ranking on it.
+Each novel pair carries its own weight: under independence the expected number
+of passages holding BOTH words is lambda = df(a) * df(b) / N, and exp(-lambda)
+the chance that none does. That is co-presence, not adjacency (the bank knows
+which passages contain a word, not where), so it orders the pairs a finding
+shows -- two frequent words the corpus never joins first, two marginal words
+last -- and it gates nothing; the gate is the sentence's novel fraction.
 
 Nothing here is an authorship claim. A novel pair may be the paper's own
 coinage, and the action text says so: a coined term keeps its pair and needs
@@ -99,9 +100,11 @@ load_baseline = reference.baseline_loader(BASELINE_FILENAME)
 
 
 # A pair is two words the writer put side by side. Punctuation, a bracketed
-# placeholder (`[math]`, `[CITE]`) or a dash between them means they were not:
-# `yields, separate` is two clauses, not a collocation.
-RE_PAIR_BREAK = re.compile(r"[,;:()\"“”]|\[[^\]]*\]|--|—|–")
+# placeholder (`[math]`, `[CITE]`), a dash, a slash, a sentence-internal full
+# stop or a number between them means they were not: `yields, separate` is two
+# clauses, `alpha/beta` two alternatives, `alpha 500 beta` two neighbours of a
+# quantity, not a collocation. The bank is built with the same rule.
+RE_PAIR_BREAK = re.compile(r"[,;:()\"“”./]|\d+|\[[^\]]*\]|--|—|–")
 
 
 def content_pairs(sentence: str) -> list[tuple[str, str]]:
@@ -143,7 +146,14 @@ def judge_sentence(sentence: str, bank: dict[str, Any], *, own_passage: bool = F
 
 
 def expected_cooccurrence(pair: tuple[str, str], bank: dict[str, Any]) -> float:
-    """lambda = df(a) df(b) / N: passages expected to write the pair by chance."""
+    """lambda = df(a) df(b) / N: passages expected to hold BOTH words by chance.
+
+    Co-presence in a passage, not adjacency: the bank records which passages
+    contain a word, not where, so this is the independence expectation for the
+    two words sharing a passage and e^-lambda the chance no passage does. It
+    orders the pairs a finding shows (a decisive absence first) and never
+    gates; the gate is the sentence's novel fraction against the reference.
+    """
     unigram = bank["unigram_df"]
     return int(unigram[pair[0]]) * int(unigram[pair[1]]) / max(1, int(bank["n_passages"]))
 
@@ -199,9 +209,9 @@ def _weighed(novel: list[tuple[str, str]], bank: dict[str, Any]) -> list[dict[st
     for pair in novel:
         lam = expected_cooccurrence(pair, bank)
         weighed.append({"pair": f"{pair[0]} {pair[1]}",
-                        "expected_passages": round(lam, 2),
-                        "p_absent_by_chance": float(f"{math.exp(-lam):.2e}")})
-    weighed.sort(key=lambda item: -item["expected_passages"])
+                        "expected_copresent_passages": round(lam, 2),
+                        "p_copresence_absent": float(f"{math.exp(-lam):.2e}")})
+    weighed.sort(key=lambda item: -item["expected_copresent_passages"])
     return weighed
 
 
@@ -215,8 +225,8 @@ def _sentence_finding(sentence: str, verdict: dict[str, Any], percentile: float,
     n_passages = int(bank["n_passages"])
     pairs = _weighed(verdict["novel"], bank)
     excerpt = " ".join(sentence.split())
-    frame = dict(kind="advisory", layer="L2", scope="paragraph",
-                 calibration_unit="paragraph", detector="deai_collocation",
+    frame = dict(kind="advisory", layer="L2", scope="sentence",
+                 calibration_unit="sentence", detector="deai_collocation",
                  rule=f"collocation-novel:{bucket}", section=bucket, path=path,
                  line=span[0], end_line=span[1],
                  strength="strong" if strong else "ordinary",

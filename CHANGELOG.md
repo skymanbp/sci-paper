@@ -3,6 +3,90 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.36.2 — 2026-09-04
+
+An external review of v0.36.0/v0.36.1 (Codex gpt-6-astra at maximum
+reasoning), every finding verified first-party before it was acted on; the
+record is [`docs/audits/codex-review-2026-09-04.md`](docs/audits/codex-review-2026-09-04.md).
+Fifteen defects, six root causes, and one measurement the fixes reopened.
+
+### The manuscript side never let a subsection inherit its section
+
+`deai_metrics` carried a second section parser beside `extract_sections`: no
+whitespace before the brace, no optional argument, and a subsection whose title
+matched no bucket fell to `unknown` and was silently unmeasured — 344 of the
+540 paragraphs of one held-out Planck paper — while the corpus side has
+inherited since v0.28.0. `section_units` now derives from
+`extract_sections.RE_SECTION` with the same inheritance; a document with no
+heading is one unit, the preamble is none. Measured on the same 203 held-out
+papers in one process: salience 2,753 → **4,473** findings, 0.2776 → **0.4542**
+per scorable paragraph against the 0.2710 design rate (§17.5 records the
+excess as open; the reference banks were bucketed the same way); cohesion
+10.87% → 10.81% and hedging in `intro` 7.89% → 7.80%, unchanged; the mentor
+population's salience 0.2781 → 0.3984.
+
+### One paragraph sweep, one line-preserving blanker
+
+Four tools projected the manuscript line by line where the corpus side
+projects a passage in one pass. `extract_sections.blank_preserving` is the one
+blanker (a match becomes same-length spaces, newlines kept) and
+`deai_reference.paragraphs` the one paragraph sweep; structure, oracle, voice,
+register, residue, metrics and the labeller read them, so a heading, a float
+or a citation split across lines is blanked on both sides.
+
+### Rates per body prose word, and no AUC from two documents
+
+`eval_findings` divided by `text.split()` over raw source — bibliography and
+preamble included, which a single-file machine draft has none of — and an
+axis whose novelty was `NaN` on all but two documents still reported an AUC.
+The denominator is `prose_words(body_only(text))`, placeholders dropped; fewer
+than 20 scorable documents is `unmeasured`. The same findings re-read:
+register 57 findings 0.0247 → **0.0371** per 1,000 (AUC 0.392 → 0.391),
+zero-hit 2.212 → **3.374** (AUC 0.246 → 0.174), collocation AUC 0.691 →
+0.704, salience AUC 0.774 → 0.572 (with the bucketing fix above).
+
+### Assembly is one module, and the gate counts prose
+
+`tex_assembly.py`: an `\input` mid-line keeps the words around it, a second
+call splices again (only a child in the current include stack is a cycle), and
+a `--git-ref` baseline is the document assembled *at the ref* — `length_gate`
+had compared an assembled draft against a bare root. The gate counts prose
+words (no `[math]`/`[FIGURE-OR-TABLE]` placeholders) and reads
+`--require-shrink` as a percentage, a fraction or a word count, rejecting
+`100%`, `0%`, `inf` and `30%%` and rounding a fraction up to one word.
+
+### The removal map counts each unit once
+
+A sentence that was both a restatement and zero-gain, or that sat inside a
+removed paragraph, was budgeted twice; a canonical home may no longer drop a
+negation, a comparative or a number its copy carries; an opener is a
+whole-sentence removal only when at most three of its own content words would
+go. Held-out default target median 3.08% → **1.59%** of prose (§23.5).
+
+### Residue: marks across lines, and the procedural `we have added`
+
+Edit-meta marks are scanned over the visible body as one text, so a phrase
+wrapped at a line break is one mark; once visible, `we have added` fired
+fourteen times on refereed prose, every one a procedure (`we have added
+uniform Gaussian noise`) or another paper's history, so it is a mark only with
+a document object. The diff rule compares whole negated objects and skips a
+negation the old version already carried. Strong residue 34 → **27** of 203
+papers (16.7% → 13.3%; §23.4).
+
+### Register, collocation, labelling, validator
+
+Citations are blanked across lines and macro definitions matched at line
+start; a defined term's scope is its sentence. Collocation pairs break at `/`,
+`.` and digits, the weights are named for what they are (`expected_copresent_passages`,
+`p_copresence_absent`), scope and calibration unit are `sentence`, and the
+bank is rebuilt (541,309 → 530,677 pairs). The labeller's control sample
+excludes any passage a finding touches by line span. `validate_plugin` gains an
+eleventh check: no tracked file past the 750-line budget. Standard and skill
+text corrected where they had drifted from the code (zero-hit exemptions,
+the paper-agent example, the modifier-stack definition, the restatement
+rule). 491 tests in 24 files; §23, §17.5, §19.4, §21 and both README
+limitation tables re-taken.
+
 ## v0.36.1 — 2026-09-04
 
 The first run of v0.36.0 on a manuscript with AASTeX tables: three tool
@@ -82,9 +166,9 @@ machine text at AUC 0.688.
 
 ### Three structure families from the mentor's margin
 
-Paper-as-agent subjects ("This paper presents"), wh-cleft openers ("What
-matters is") and modifier stacks (three-plus tokens before a head noun with
-two hyphenated compounds) join `deai_structure`'s auxiliary class: named on
+Paper-as-agent subjects ("This Letter asks whether"), wh-cleft openers ("What
+matters is") and modifier stacks (a three-plus-token noun phrase, head
+included, with two hyphenated compounds) join `deai_structure`'s auxiliary class: named on
 the sentence, never in `template_score`, with per-bucket human fractions in
 the recalibrated baseline (stacks 2.5–15.9%, paper-agent 0.13–1.00%, wh-cleft
 0.00–0.23%).
@@ -626,122 +710,9 @@ detectors spelled out separately.
   (~325 ms above the floor). The first re-run was discarded — it read a 295 ms
   interpreter floor because it was competing with the session that started it.
 
-## v0.32.0 — 2026-08-26
-
-Asked what was still open, the audit found two more places where the calibration
-side and the detection side were not reading the same text — and one of them let
-the **held-out evaluation set be collected as calibration input**.
-
-### A four-name allowlist against 46 citation commands
-
-`RE_TEX_CITE` matched `cite|citep|citet|citealt` and required the brace to
-follow the command name directly. The corpus carries **46 distinct cite-command
-names over 75,566 uses**, and an unmatched one falls through to
-`RE_TEX_SIMPLE_CMD`, whose job is to substitute a command's argument as text.
-So the bibliography key became a word: `\citep[e.g.][]{Smith2020}` → `Smith2020`.
-
-**8,835 leaking occurrences across 565 of 1,490 `.tex` files** — 8,100
-optional-argument forms, plus `\citealp`, `\citeyear`, `\citeauthor`,
-`\citenum`, `\citeyearpar`.
-
-Matched now **by shape, not by name**, in three behaviours, because three exist:
-a citation renders a mark, a declaration (`\nocite`, `\setcitestyle`) renders
-nothing, and `\citetext` wraps prose the author wrote. A name allowlist is the
-wrong instrument — the tail is per-paper local macros (`\citeg`, `\citejap`,
-`\putcite`, one paper each). Verified exhaustively: 46 names × 5 written forms
-× both projections.
-
-### Seven per cent of the digits the salience axis read were citation years
-
-A bibliography key ends in a year, and `latex_to_numeral_text` keeps numerals so
-`deai_salience` can measure how a passage distributes its quantities. Over the
-203 held-out papers, digits **396,814 → 369,056 (−27,758, −7.00%)**. This is a
-correctness fix to a *shipped, `measured`* axis, larger in relative terms than
-the register effect that led to it. Control re-run, not assumed: **0 of 2,759**
-salience findings on those papers start on a bibliography line.
-
-### The held-out set could be collected as calibration input
-
-`corpus_documents` walks with `rglob` and filtered nothing, and both
-`deai_anchoring --calibrate` and `deai_docstructure --calibrate` take a
-`--corpus-dir` that the documentation points at the field root:
-
-| `--corpus-dir` | before | after |
-|---|---:|---:|
-| `style-corpus/wgl` | **717** | 517 |
-| `style-corpus/wgl/fulltext-arxiv` | 500 | 500 |
-| `style-corpus/wgl/fulltext-heldout` | 200 | 200 |
-
-The shipped baseline was 517 — built before the held-out set existed. Re-running
-the documented command today would have absorbed all 200 evaluation papers, with
-no error and nothing in the output but a count nobody was checking. The existing
-held-out test pinned `extract_style`'s source tuple, which this path never
-consults; the guard now lives in the collector, so every caller inherits it.
-
-### The register operating point, derived rather than estimated
-
-`MIN_MANUSCRIPT_USES = 5` was an estimate. Swept 5 → 50 against the 203 held-out
-papers and 173 machine documents, **rank AUC stays below 0.5 at every setting**:
-the axis fires more on refereed prose than on machine prose everywhere on the
-curve, and tightening silences the machine side faster. No setting makes it a
-detector, so the roadmap item is answered by refuting its premise. Cut at **15**,
-the first point where a referee-grade paper is not flagged more often than not.
-
-| | v0.31.0 | v0.32.0 |
-|---|---:|---:|
-| held-out register findings | 887 | **198** |
-| per 1,000 words | 0.3842 | **0.0858** |
-| documents flagged | 87.19% | **44.83%** |
-| rank AUC vs machine text | 0.1479 | **0.2856** |
-| paired leakage suppressed | 86.25% of 887 | **94.44% of 198** |
-| salience gates | | *unchanged* |
-
-`machine:ALL` register is byte-identical across the citation fix (63 findings,
-0.0917, 0.2428): those documents carry no LaTeX citations, so the fix cannot
-touch them. The sweep and the evaluator are separate programs and agree to four
-decimals on the flag rate at the chosen point.
-
-### A format variant is not a domain
-
-`wgl-letter` reported `degraded` since v0.30.1. Enlarging it is impractical
-(ApJL is 24 papers in 5,364 arXiv records) and wrong: register measures *domain*
-vocabulary and a letter is a *format*. On 36 letter-format documents the
-706-passage letter bank produced **262 findings the field bank did not** — `sne`,
-`bao`, `pantheon`, `posteriors`, and `letter` itself — against **2** the other
-way. A `<field>-<variant>` profile now judges against `<field>` and names the
-borrowed bank in `reference.borrowed_from`. Its corpus grew 706 → 1,574 passages,
-still 6.4× coarser than the gate, so the fallback stays active.
-
-### Citation placement: unblocked, measured, not shipped
-
-The projection fix unblocked de-AI frontier rank 6. Whole-document rank AUC is
-0.906 on cited-sentence fraction, but section-matched it is 0.616–0.866
-(strongest in `method`: human 0.1652 n=155 vs machine 0.3671 n=149),
-length-matched within that section 0.835, and the **human-vs-human null is
-0.553**. It survives every control and is the strongest model-free discriminator
-in the record — and it is not shipped, because all 173 machine documents come
-from one generation process and one bank cannot separate "AI cites more" from
-"these prompts made it cite more".
-
-### Also
-
-- Broadening the citation pattern reclassified **1,028 of 79,904** held-out
-  sentences (1.29%) from unanchored to anchored and **0** the other way; the
-  anchoring baseline was rebuilt from the corrected 517-document population.
-- `corpus_cos` ablation withdrawn rather than deferred: `confound_audit` bins on
-  record metadata the feature cache does not carry, so a cache-only ablation
-  computes a different statistic from the three recorded retrains, and its only
-  consumer is a `degraded` audit-only classifier with no shipped operating point.
-- Three register fixtures hard-coded 5 or 6 repetitions and would have gone
-  silently green-to-red at the new floor; they now derive the count from
-  `MIN_MANUSCRIPT_USES`.
-- `REFERENCE_DIR` and the collector's held-out rule now share one literal.
-
-328 tests across 17 files; validator 9/9.
-
 ---
 
 Older entries: [CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)
-(v0.27.1-v0.31.0), [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)
+(v0.27.1-v0.32.0), [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)
 (v0.22.0-v0.27.0) and
 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0).

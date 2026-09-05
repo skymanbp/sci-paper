@@ -159,7 +159,7 @@ degraded` rather than being silenced. `wgl` (2.4e-5) is unaffected. Since
 v0.32.0 such a profile also borrows its field's bank rather than only declaring
 itself coarse ([§18.5](projection-and-operating-point.md)).
 
-### 17.5 Salience: calibration transfers, essentially exactly
+### 17.5 Salience: calibration transferred exactly — on the paragraphs it measured
 
 `ADVISORY_PERCENTILE` is 0.90 over three features, and `salience_findings`
 emits one finding per over-recital passage led by its most extreme feature. If
@@ -167,14 +167,28 @@ the three gates were independent, the per-passage rate would be
 1 − 0.9³ = **0.2710**. Measured on the held-out set: **2,690 findings over
 9,946 eligible passages = 0.2705**.
 
-Agreement to three decimals on papers the baseline never saw is the strongest
-calibration-transfer evidence in this record, and it also implies the three
-features are close to independent out of sample. The 0.966 document flag rate
-carries no defect signal: at 0.27 per passage, a paper with ~49 eligible
-passages flags with probability ~1 by construction. Density is the statistic;
-document flag rate is not. Leakage is small here too — 1.165 vs 1.053 per
-1,000 words, a factor of 1.11 against register's 3.7 — and the axis
-discriminates machine text at AUC **0.770**.
+Agreement to three decimals on papers the baseline never saw read as the
+strongest calibration-transfer evidence in this record, and as evidence that
+the three features are close to independent out of sample. The 0.966 document
+flag rate carries no defect signal: at 0.27 per passage, a paper with ~49
+eligible passages flags with probability ~1 by construction. Density is the
+statistic; document flag rate is not. Leakage is small here too — 1.165 vs
+1.053 per 1,000 words, a factor of 1.11 against register's 3.7 — and the axis
+discriminated machine text at AUC **0.770**.
+
+**Re-taken under v0.36.2 (2026-09-04).** The manuscript side had bucketed
+every subsection whose title matched no bucket as `unknown` and measured
+nothing under it — 344 of the 540 paragraphs of one Planck parameters paper —
+while the corpus side had always let a subsection inherit its parent. With
+both sides inheriting, the same 203 papers give **4,473 findings over 9,849
+scorable paragraphs = 0.4542** per passage (2,753 over 9,918 under the old
+bucketing in the same process), and the rank AUC against machine text on
+body-word density is **0.572** (the 0.770 also carried a raw-source
+denominator, bibliography and preamble included, that diluted the refereed
+side only). The gate transfers at the design rate on the paragraphs the old
+projection kept and fires at 1.7× it on the ones it dropped; the reference
+banks were bucketed the same way, so the excess is in the held-out prose or in
+how the banks sample it, not in a projection seam, and it is an open item.
 
 ### 17.6 Limits
 
@@ -284,9 +298,11 @@ point by showing AUC stays under 0.5 at every setting on one population; this is
 that refutation reproducing on another. The axis fires *more* on real papers
 than on generated prose, and a second population does not rescue it.
 
-Salience transfers: its 0.9 gate lands at **0.2781** of passages over 996
+Salience transferred: its 0.9 gate landed at **0.2781** of passages over 996
 measured, against **0.2710** expected from three independent gates — the same
-agreement §17 records, on papers from a different two decades.
+agreement §17 recorded, on papers from a different two decades — and moves the
+same way §17.5 does once subsections inherit their parent bucket (v0.36.2):
+**0.3984** over 1,014 scorable paragraphs, 404 findings on the 22 papers.
 
 **What this does not establish.** One field, one advisor, 22 papers. The
 population is small enough that one paper is 4.5 percentage points of the

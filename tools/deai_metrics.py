@@ -4,12 +4,16 @@ The structured API is :func:`distribution_findings`. The legacy
 :func:`distribution_hits` adapter remains for callers that consume
 ``(line, rule, message)`` tuples. Findings are advisory; the standalone CLI
 returns success when measurement completes even when feedback is present.
+
+This module also owns the manuscript-side section sweep every per-bucket axis
+reads (:func:`section_line_ranges`, :func:`section_units`). It parses with the
+corpus splitter's own pattern and inherits buckets the way the corpus splitter
+does, so a manuscript and the bank it is measured against are cut by one rule.
 """
 
 from __future__ import annotations
 
 import json
-import re
 import statistics
 import sys
 from pathlib import Path
@@ -22,9 +26,14 @@ import extract_style as es  # noqa: E402  canonical tokenizer import after path 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
-RE_SECTION_HEADER = re.compile(
-    r"\\(section|subsection|chapter)\*?\{([^}]+)\}", re.IGNORECASE
-)
+# One section parser for both sides of every per-bucket reference. This module
+# kept its own (`\\section\{`), which read neither `\section {X}` nor
+# `\section[S]{X}` while the corpus splitter read both, so a manuscript written
+# either way was measured against no bucket at all.
+RE_SECTION_HEADER = es.RE_SECTION
+PREAMBLE_LABEL = "(preamble)"
+DOCUMENT_LABEL = "(document)"
+PREAMBLE_BUCKET = "preamble"
 
 CONNECTIVE_OPENERS = frozenset({
     "furthermore", "moreover", "additionally", "however", "therefore",
@@ -107,25 +116,56 @@ def load_policy(field_profile_dir: Path | None) -> dict[str, Any] | None:
     return data.get("distribution", data)
 
 
-def section_line_ranges(text: str) -> list[tuple[int, int, str]]:
-    """Return section ranges with one-based inclusive line numbers."""
-    lines = text.splitlines()
-    if not lines:
-        return []
-    headers: list[tuple[int, str]] = []
+def _headings(lines: list[str]) -> list[tuple[int, str, str]]:
+    """(line_no, level, title) for every heading command, in document order."""
+    found = []
     for line_no, line in enumerate(lines, start=1):
         match = RE_SECTION_HEADER.search(line)
         if match:
-            headers.append((line_no, match.group(2).strip()))
-    if not headers:
-        return [(1, len(lines), "(document)")]
-    ranges: list[tuple[int, int, str]] = []
-    if headers[0][0] > 1:
-        ranges.append((1, headers[0][0] - 1, "(preamble)"))
-    for index, (start, name) in enumerate(headers):
-        end = headers[index + 1][0] - 1 if index + 1 < len(headers) else len(lines)
-        ranges.append((start, end, name))
-    return ranges
+            found.append((line_no, match.group(1).lower(), match.group(2).strip()))
+    return found
+
+
+def section_line_ranges(text: str) -> list[tuple[int, int, str]]:
+    """Return section ranges with one-based inclusive line numbers."""
+    return [(start, end, label) for start, end, label, _bucket in section_units(text)]
+
+
+def section_units(text: str) -> list[tuple[int, int, str, str]]:
+    """(start, end, raw_label, bucket) per section, buckets inherited as the corpus does.
+
+    `extract_sections.split_into_sections` gives a subsection the bucket of the
+    section enclosing it when its own title names no role, and keeps a `skip`
+    parent skipped. The manuscript side classified each heading alone, so a
+    topic-titled subsection under Methods was measured against no bucket and a
+    `\\subsection` under Acknowledgments reached the vocabulary axes as prose.
+    A document with no heading at all is one `(document)` unit of bucket
+    `unknown` -- still a unit, so the axes that need no bucket (residue, the
+    removal map) measure it instead of measuring nothing.
+    """
+    lines = text.splitlines()
+    if not lines:
+        return []
+    headings = _headings(lines)
+    if not headings:
+        return [(1, len(lines), DOCUMENT_LABEL, es.DEFAULT_SECTION_BUCKET)]
+    units: list[tuple[int, int, str, str]] = []
+    if headings[0][0] > 1:
+        units.append((1, headings[0][0] - 1, PREAMBLE_LABEL, PREAMBLE_BUCKET))
+    parent = es.DEFAULT_SECTION_BUCKET
+    for index, (start, level, name) in enumerate(headings):
+        end = headings[index + 1][0] - 1 if index + 1 < len(headings) else len(lines)
+        bucket = es.classify_section(name)
+        if not es.clean_heading(name):
+            bucket = parent
+        elif level in ("section", "chapter"):
+            parent = bucket
+        elif parent == "skip":
+            bucket = "skip"
+        elif bucket == es.DEFAULT_SECTION_BUCKET:
+            bucket = parent
+        units.append((start, end, name, bucket))
+    return units
 
 
 def paragraph_line_ranges(text: str, start_line: int = 1
@@ -148,15 +188,6 @@ def paragraph_line_ranges(text: str, start_line: int = 1
         ranges.append((paragraph_start, start_line + len(lines) - 1,
                        "\n".join(buffer)))
     return ranges
-
-
-def _bucket_for(raw_label: str) -> str:
-    # classify_section itself never raises on a str; the guard covers a
-    # non-string label from a malformed \section capture upstream.
-    try:
-        return es.classify_section(raw_label)
-    except (AttributeError, TypeError):
-        return "unknown"
 
 
 def _sentence_lengths(plain: str) -> list[int]:
@@ -198,10 +229,12 @@ def distribution_findings(text: str, field_profile_dir: Path | None,
     findings: list[dict[str, Any]] = []
     lines = text.splitlines()
 
-    for start, end, raw_label in section_line_ranges(text):
-        segment = "\n".join(lines[start - 1:end])
+    for start, end, raw_label, bucket in section_units(text):
+        if bucket in (PREAMBLE_BUCKET, "skip"):
+            continue
+        segment = es.blank_preserving("\n".join(lines[start - 1:end]),
+                                      es.RE_HEADING_COMMAND, es.RE_TEX_ENV_FIGURE_TABLE)
         plain = es.latex_to_plain(segment)
-        bucket = _bucket_for(raw_label)
         ref_cv = reference["cv"].get(bucket, reference["pooled_cv"])
 
         lengths = _sentence_lengths(plain)

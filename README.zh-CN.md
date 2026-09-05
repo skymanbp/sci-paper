@@ -2,20 +2,20 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.36.1-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.36.2-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-465%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-491%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**12 个 skill · 38 个工具 · 465 个测试 · 一份规范 · 零作者身份判决。**
+**12 个 skill · 39 个工具 · 491 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
-[Skills](#skills12-个) · [Tools](#tools38-个) ·
+[Skills](#skills12-个) · [Tools](#tools39-个) ·
 [已知限制](#现状已知限制与路线图) ·
 [规范正文](docs/SCIPAPER_STANDARD.md) · [文档索引](docs/README.md)
 
@@ -426,11 +426,11 @@ LaTeX include 组装而成。标准库的每一行都重测了：解释器地板
 | `length_gate.py` | 212 ms | 标准库 |
 | `+ --oracle`（GPT-2-large token surprisal） | 33.8 s（2026-08-27） | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 37.2 s（2026-08-27） | `scikit-learn` + `sentence-transformers` |
-| `validate_plugin.py` —— **10/10 通过** | 0.42 s | 标准库 |
-| 完整测试套件 —— **465 通过**，23 个文件（3 次取中位数，落在 51.0 – 62.3 s） | 52.2 s | 标准库 |
+| `validate_plugin.py` —— **11/11 通过** | 0.42 s | 标准库 |
+| 完整测试套件 —— **491 通过**，24 个文件（3 次取中位数，落在 51.0 – 62.3 s） | 52.2 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上约花 1.0 s**，
-且不需要任何可选依赖——其中 0.6 s 是加载 541,309 个词对的 collocation 库，
+且不需要任何可选依赖——其中 0.6 s 是加载 530,677 个词对的 collocation 库，
 `--no-collocation` 能把它降回约 0.4 s。两条模型驱动的轴比完整的 model-free 通道贵
 30–35 倍，并且是显式 opt-in 的 flag —— lint 一篇论文不该需要一块 GPU。CI 每次推到
 main 的 push 与每个 PR 都跑 validator + 套件，Python 3.11，Ubuntu。
@@ -500,7 +500,7 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 每个 skill 具体做什么见[十二个 skill 按层](#十二个-skill-按层)。
 调用方式 `/sci-paper:<name> draft.tex --field wgl`；`calibrate` 最先跑，每个 field 一次。
 
-## Tools（38 个）
+## Tools（39 个）
 
 每条 finding 统一走 `sci-paper.feedback.v1` 契约；语料/训练类条目产出的是
 artifact。`layer` 列是该工具服务的轴 —— `core` 契约与闸门，`build` 语料与
@@ -541,6 +541,7 @@ profile 构建，`eval` 可复现的证据。逐工具细节见 [tools/README.md
 | `tools/cli_common.py` | build | 共享的命令行前置：UTF-8 stdout，以及每个 field 感知工具都要的 `--field` / `--profile-root` 选项。不持有任何策略。 |
 | `tools/extract_style.py` | build | 抽取词表、句子统计、转折词、描述性 dossier 和按 section 分类的范例库。 |
 | `tools/extract_sections.py` | build | 源文本投影与分节层：section 词表与分类器、两条命名 LaTeX 投影、PDF 标题启发式。section 桶是 profile 里每一条按 section 参照分布的键，所以改这里就要重建 profile。 |
+| `tools/tex_assembly.py` | build | 从根文件装配整篇 LaTeX 文档：`\input`/`\include` 子文件原位拼接（行中调用保留前后文字，重复调用再拼一次，循环即停），既可读文件系统也可读 git ref，所以 `--git-ref` 基线就是该 ref 下装配好的文档。注释与 include 模式的唯一所有者。 |
 | `tools/tex_macros.py` | build | 在装配好的文档根上一次性展开纯数值 `\newcommand` 宏，使作者写成宏的测量量能被计数数字的投影看见。保守策略：符号宏与带参数宏一律不动。 |
 | `tools/retrieve_exemplars.py` | build | 按 section 与主题检索范例段落，走 embedding 或显式 fallback。 |
 | `tools/fetch_arxiv_abstracts.py` | build | 抓取带日期的摘要语料用于受控评估与训练，可限定子领域 query set 与指定的 refereed 期刊；也可抓单个作者的完整 LaTeX 源（`--author` + `--author-is` + `--max-authors`）。触发限流时**停止抓取并 exit 2**，而不是把被截断的语料当作完整的写下去。 |
@@ -624,7 +625,7 @@ style-profile/<field>/                  生成的证据（gitignore）
 | 语料参照 | **用户提供、分 tier、gitignore** | 风格是相对领域而言的。通用先验正是被替换掉的那个东西。 |
 | 可选模型 | `transformers`+`torch`、`scikit-learn`、`sentence-transformers` | 严格 opt-in flag。缺失只降级一条轴，从不让整次运行失败。 |
 | 分发 | **Claude Code 插件**（`.claude-plugin/plugin.json`） | skill 放在 `skills/<name>/SKILL.md`，命名空间 `/sci-paper:<name>`。 |
-| 契约执行 | `tools/validate_plugin.py` + GitHub Actions | 9 项检查覆盖 manifest、注册表、文档权威、记录数字、import、CLI 入口、退出语义、测试、CI 接线。漂移让 CI 挂掉，而不是慢慢堆积。 |
+| 契约执行 | `tools/validate_plugin.py` + GitHub Actions | 11 项检查覆盖 manifest、注册表、文档权威、记录数字、import、CLI 入口、退出语义、测试、CI 接线。漂移让 CI 挂掉，而不是慢慢堆积。 |
 
 ---
 
@@ -639,8 +640,8 @@ sci-paper/
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md（hub）+ evaluation/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
 ├── skills/<name>/SKILL.md   12 个 skill
-├── tools/                   38 个产品工具 + 仓库 validator
-├── tests/                   23 个测试文件、465 个测试
+├── tools/                   39 个产品工具 + 仓库 validator
+├── tests/                   24 个测试文件、491 个测试
 ├── style-corpus/<field>/    用户提供的只读语料（gitignore）
 ├── style-profile/<field>/   生成与标定的证据（gitignore）
 ├── ACKNOWLEDGMENTS.md       改编来源的致谢与采纳边界
@@ -650,8 +651,8 @@ sci-paper/
 
 ## 开发与发布
 
-`python tools/validate_plugin.py` 跑 10 项契约检查，
-`python -m unittest discover -s tests -v` 跑 465 个测试；发布前两者都必须通过。
+`python tools/validate_plugin.py` 跑 11 项契约检查，
+`python -m unittest discover -s tests -v` 跑 491 个测试；发布前两者都必须通过。
 Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权威边界与索引完整性、
 记录的测试规模与真实发现的一致性、过期契约标记、产品注册表、Python 语法、
 运行时 import、CLI 入口、schema 字段、linter 退出语义、Tier B 行为、测试与 CI 接线 ——
@@ -662,7 +663,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 ## 现状、已知限制与路线图
 
-当前版本：**v0.36.1**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
+当前版本：**v0.36.2**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
 
 **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.8 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层与 residue 轴、`calibration_unit` 置信度封顶、§5.2 去 AI 化
@@ -682,10 +683,10 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` —— 现在是有*测量依据*的。burstiness 在对抗文本上符号反转（AUC 0.181），signposting 低于随机（0.247），根本写不出一个操作点。 |
 | **重训不保证行为等价** | 重建 profile 会重拟 L3。排序保持 ρ 0.846、分诊重合 0.654，但旧的分诊清单不会一字不差复现。 |
 | **语料有四分之一从未被用上** | 匹配不到任何 section 桶的标题是被丢弃，而不是被猜进某个桶：`wgl` 里 9,178 个标题中有 **2,334 个（25.4%）**，`wgl-letter` 里 148 个中有 42 个。剩下的多是主题标题（"Matter power spectrum"）；"Measurements" 与 "Background" 因真歧义被拒绝加入。 |
-| **register 在已发表文字上照样开火** | 在它从没见过的 203 篇留出 ApJ/ApJL/A&A 已发表论文上实测：v0.36.0 修掉标题投影、v0.36.1 修掉浮动体投影后**每千词 0.0247 条**（之前是 0.0858），22.2% 的文档命中，对机器文本的秩 AUC **0.392** —— 它在人类论文上仍比在 AI 草稿上更爱开火。剩下 57 条 flag 里，98.2% 只要论文自己在库里就会消失。把用词门槛从 5 扫到 50，AUC **处处低于 0.5**：没有任何设置能把它变成检测器，它就是一条建议，切在「一篇够格送审的论文不会过半被点名」的第一个点上。这个结论已在第二个群体上复现 —— 按作者而非期刊取样的 22 篇导师论文（1996–2015），AUC **0.328**（[§21](docs/architecture/evaluation/held-out-labels.md)）。 |
-| **建议质量仍未被标注** | 出处只能回答「它是否在已发表文字上开火」，回答不了「这条建议对不对」。salience 的门迁移得几乎精确（逐 passage 0.2775，期望 0.2710）；而在 v0.32.0 之前，它在 LaTeX 上读到的数字有 7.00% 是引用年份；建议本身的精确率与召回率仍需 `tools/label_findings.py`。 |
+| **register 在已发表文字上照样开火** | 在它从没见过的 203 篇留出 ApJ/ApJL/A&A 已发表论文上实测：v0.36.0 修掉标题投影、v0.36.1 修掉浮动体投影后**每千正文词 0.0371 条**（同样这 57 条在 v0.36.2 之前按原始源码分母读作 0.0247，两次修复之前是 0.0858），22.2% 的文档命中，对机器文本的秩 AUC **0.391** —— 它在人类论文上仍比在 AI 草稿上更爱开火。剩下 57 条 flag 里，98.2% 只要论文自己在库里就会消失。把用词门槛从 5 扫到 50，AUC **处处低于 0.5**：没有任何设置能把它变成检测器，它就是一条建议，切在「一篇够格送审的论文不会过半被点名」的第一个点上。这个结论已在第二个群体上复现 —— 按作者而非期刊取样的 22 篇导师论文（1996–2015），AUC **0.328**（[§21](docs/architecture/evaluation/held-out-labels.md)）。 |
+| **建议质量仍未被标注** | 出处只能回答「它是否在已发表文字上开火」，回答不了「这条建议对不对」。salience 的门曾迁移得几乎精确（逐 passage 0.2775，期望 0.2710），但那是在手稿侧把匹配不到桶的 subsection 整段丢进 `unknown` 不测的前提下；v0.36.2 让 subsection 继承父级桶之后，同一批论文逐 passage 开火 0.454，超出设计率的部分是待解项（§17.5）；而在 v0.32.0 之前，它在 LaTeX 上读到的数字有 7.00% 是引用年份；建议本身的精确率与召回率仍需 `tools/label_findings.py`。 |
 | **hedging 只对引言说话** | 认知情态轴发布时被收窄到只管 `intro` —— 在 203 篇留出的已审稿论文上，它的 p10 门在 `intro` 上开火率是 7.89%，而其他桶是 15–27% —— 那是审稿人已经接受的文字，且至少有一套生成流程落到随机以下。cohesion 不需要这条限制（七个桶 6.6–14.6%）。 |
-| **两条词汇审计是建议，且要加载词对库** | 零命中审计列出语料从未写过的每一个词，而已发表论文里这种词反而比机器草稿多（每千词 2.21 个，203 篇留出论文篇篇都有，秩 AUC 0.246）；collocation 轴每次运行都要加载 541,309 个词对的库，model-free 那一行延迟上升的 0.6 s 就是它。两者都不是检测器；`--no-collocation` 可以跳过词对库（[§23](docs/architecture/evaluation/vocabulary-and-residue.md)）。 |
+| **两条词汇审计是建议，且要加载词对库** | 零命中审计列出语料从未写过的每一个词，而已发表论文里这种词反而比机器草稿多（每千正文词 3.37 个，203 篇留出论文篇篇都有，秩 AUC 0.174）；collocation 轴每次运行都要加载 530,677 个词对的库，model-free 那一行延迟上升的 0.6 s 就是它。两者都不是检测器；`--no-collocation` 可以跳过词对库（[§23](docs/architecture/evaluation/vocabulary-and-residue.md)）。 |
 | **全新 clone 什么都测不出来** | 全部 profile 制品都 gitignore。在你用自己的论文建出 profile 之前，每条语料参照的轴都是 `unmeasured`。 |
 
 ### 路线图

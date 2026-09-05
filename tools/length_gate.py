@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
-import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
@@ -33,6 +33,7 @@ sys.path.insert(0, str(TOOLS_DIR))
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_metrics  # noqa: E402  section segmentation
 import extract_style as es  # noqa: E402  LaTeX-to-prose cleaning
+import tex_assembly  # noqa: E402  one include assembler for file and git baselines
 
 FRONT_MATTER = "(front matter)"
 # Heading commands are stripped before counting: the budget measures body
@@ -42,7 +43,10 @@ HEADING_PATTERN = es.RE_HEADING_COMMAND
 
 
 def prose_word_count(tex: str) -> int:
-    return len(es.latex_to_plain(HEADING_PATTERN.sub("", tex)).split())
+    # `prose_words`, not `latex_to_plain(...).split()`: the projection's
+    # `[math]` / `[FIGURE-OR-TABLE]` placeholders counted as words, so two
+    # deleted equations read as a two-word cut of prose.
+    return len(es.prose_words(HEADING_PATTERN.sub("", tex)))
 
 
 def section_word_counts(text: str) -> dict[str, int]:
@@ -61,21 +65,8 @@ def section_word_counts(text: str) -> dict[str, int]:
 
 
 def read_git_version(after: Path, ref: str) -> str:
-    # errors="replace" on both calls: a baseline with stray non-UTF-8 bytes
-    # must degrade to lossy words, not escape as an uncaught decode traceback.
-    directory = after.resolve().parent
-    top = subprocess.run(["git", "-C", str(directory), "rev-parse", "--show-toplevel"],
-                         text=True, capture_output=True, encoding="utf-8",
-                         errors="replace")
-    if top.returncode != 0:
-        raise ValueError(f"not inside a git repository: {top.stderr.strip()}")
-    relative = after.resolve().relative_to(Path(top.stdout.strip())).as_posix()
-    shown = subprocess.run(["git", "-C", str(directory), "show", f"{ref}:{relative}"],
-                           text=True, capture_output=True, encoding="utf-8",
-                           errors="replace")
-    if shown.returncode != 0:
-        raise ValueError(f"git show {ref}:{relative} failed: {shown.stderr.strip()}")
-    return shown.stdout
+    r"""The assembled document at `ref`: root and every \input child (`tex_assembly`)."""
+    return tex_assembly.read_git_document(after, ref)
 
 
 def parse_allowances(entries: list[str]) -> dict[str, str]:
@@ -197,28 +188,34 @@ def parse_required_shrink(raw: str | None) -> float | int | None:
     """
     if raw is None:
         return None
-    text = raw.strip().rstrip("%")
+    text = raw.strip()
+    # Three spellings, each with its own range, told apart by their FORM and
+    # never by the size of the number: `100%` read as one word, `200%` as two,
+    # and `inf` escaped as an uncaught OverflowError when the form was inferred.
+    percent = text.endswith("%")
+    number = text[:-1] if percent else text     # exactly one sign: `30%%` is not 30%
+    fraction = percent or "." in number or "e" in number.lower()
     try:
-        value = float(text)
+        value = float(number) if fraction else int(number)
     except ValueError as error:
-        raise ValueError(f"--require-shrink expects a fraction or a word count, "
-                         f"got {raw!r}") from error
-    if raw.strip().endswith("%"):
+        raise ValueError(f"--require-shrink expects a percentage (`30%`), a "
+                         f"fraction in (0, 1) or a word count, got {raw!r}") from error
+    if percent:
         value /= 100.0
-    if value <= 0:
-        raise ValueError("--require-shrink must be positive")
-    if value < 1 or "." in text:
-        if value >= 1:
-            raise ValueError("--require-shrink fraction must be below 1")
-        return value
-    return int(value)
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError("--require-shrink must be a finite positive number")
+    if fraction and value >= 1:
+        raise ValueError("--require-shrink fraction must be below 1 (or 100%)")
+    return value
 
 
 def required_shrink_words(shrink: float | int | None, total_before: int) -> int | None:
+    """A fraction of the baseline rounds UP: a 10% cut of five words is one
+    word, not the zero words that rounding to nearest made of it."""
     if shrink is None:
         return None
     if isinstance(shrink, float):
-        return int(round(shrink * total_before))
+        return math.ceil(shrink * total_before)
     return shrink
 
 
@@ -280,11 +277,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[length_gate] {error}", file=sys.stderr)
         return 2
     try:
+        # Both versions are ASSEMBLED documents (root plus every `\input`
+        # child, from the file system or from the git ref): a gate that read
+        # the root alone never saw a child shrink, while the removal map it
+        # closes was built on the whole paper.
         if args.git_ref is not None:
             before_text = read_git_version(args.after, args.git_ref)
         else:
-            before_text = args.before.read_text(encoding="utf-8", errors="replace")
-        after_text = args.after.read_text(encoding="utf-8", errors="replace")
+            before_text = tex_assembly.read_tex_document(args.before)
+        after_text = tex_assembly.read_tex_document(args.after)
         allowances = parse_allowances(args.allow)
         findings, summary = gate_findings(
             before_text, after_text, args.after,

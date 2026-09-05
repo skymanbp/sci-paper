@@ -33,7 +33,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_reference as reference  # noqa: E402 because sibling tools are importable only after the sys.path insert above
-import deai_metrics as dm  # noqa: E402  resolves only after the sys.path insert above
 import extract_style as es  # noqa: E402  same reason
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -199,53 +198,48 @@ def uid_findings(
         return []
     model_name = model_name or baseline.get("model", DEFAULT_MODEL)
     findings: list[dict] = []
-    lines = text.splitlines()
-    for start, end, raw_label in dm.section_line_ranges(text):
-        bucket = dm._bucket_for(raw_label)
-        segment = "\n".join(lines[start - 1:end])
-        for paragraph_start, paragraph_end, block in dm.paragraph_line_ranges(
-                segment, start):
-            plain = es.latex_to_plain(block)
-            values = uid_features(token_surprisals(plain, model_name))
-            if values is None:
+    for paragraph_start, paragraph_end, raw_label, bucket, block in reference.paragraphs(text):
+        plain = es.latex_to_plain(block)
+        values = uid_features(token_surprisals(plain, model_name))
+        if values is None:
+            continue
+        for key, label in (("global_uid", "surprisal variance"),
+                           ("local_uid", "token-to-token jumps")):
+            reference = _ref_for(baseline, bucket, key)
+            mean, stdev = reference["mean"], reference["stdev"]
+            if stdev <= 0:
                 continue
-            for key, label in (("global_uid", "surprisal variance"),
-                               ("local_uid", "token-to-token jumps")):
-                reference = _ref_for(baseline, bucket, key)
-                mean, stdev = reference["mean"], reference["stdev"]
-                if stdev <= 0:
-                    continue
-                z_score = (values[key] - mean) / stdev
-                if z_score >= -FLAG_Z:
-                    continue
-                findings.append(feedback.make_finding(
-                    kind="advisory", layer="L1", rule=f"uid-low:{bucket}",
-                    scope="paragraph", line=paragraph_start, end_line=paragraph_end,
-                    # Declared because this detector emits at paragraph scale and
-                    # a single paragraph is near-unjudgeable (perceptual AUC
-                    # 0.444). Without it these findings shipped at confidence 1.0
-                    # and outranked their capped siblings -- deai_oracle was the
-                    # one paragraph-scope detector that never declared its unit.
-                    calibration_unit="paragraph",
-                    section=raw_label, path=path, detector="deai_oracle",
-                    detector_version=model_name,
-                    calibration_asset=BASELINE_NAME,
-                    measurement_status="degraded", strength="ordinary",
-                    observed={key: values[key], "z_score": z_score,
-                              "token_count_minimum": MIN_TOKENS},
-                    reference={"mean": mean, "stdev": stdev,
-                               "section_bucket": bucket, "model": model_name,
-                               "operating_point_z": -FLAG_Z,
-                               "provenance": BASELINE_NAME},
-                    normalized_distance=(-FLAG_Z) - z_score,
-                    confidence={"value": min(1.0, reference.get("n", 0) / 30.0),
-                                "basis": f"reference n={reference.get('n', 0)}"},
-                    message=(f"Paragraph {label} is {values[key]:.2f} versus "
-                             f"reference {mean:.2f}±{stdev:.2f} (z={z_score:+.1f})."),
-                    action="Add source-backed specificity or vary phrasing only where the scientific argument permits.",
-                    evidence=[key, round(values[key], 8), round(z_score, 8)],
-                ))
-                break
+            z_score = (values[key] - mean) / stdev
+            if z_score >= -FLAG_Z:
+                continue
+            findings.append(feedback.make_finding(
+                kind="advisory", layer="L1", rule=f"uid-low:{bucket}",
+                scope="paragraph", line=paragraph_start, end_line=paragraph_end,
+                # Declared because this detector emits at paragraph scale and
+                # a single paragraph is near-unjudgeable (perceptual AUC
+                # 0.444). Without it these findings shipped at confidence 1.0
+                # and outranked their capped siblings -- deai_oracle was the
+                # one paragraph-scope detector that never declared its unit.
+                calibration_unit="paragraph",
+                section=raw_label, path=path, detector="deai_oracle",
+                detector_version=model_name,
+                calibration_asset=BASELINE_NAME,
+                measurement_status="degraded", strength="ordinary",
+                observed={key: values[key], "z_score": z_score,
+                          "token_count_minimum": MIN_TOKENS},
+                reference={"mean": mean, "stdev": stdev,
+                           "section_bucket": bucket, "model": model_name,
+                           "operating_point_z": -FLAG_Z,
+                           "provenance": BASELINE_NAME},
+                normalized_distance=(-FLAG_Z) - z_score,
+                confidence={"value": min(1.0, reference.get("n", 0) / 30.0),
+                            "basis": f"reference n={reference.get('n', 0)}"},
+                message=(f"Paragraph {label} is {values[key]:.2f} versus "
+                         f"reference {mean:.2f}±{stdev:.2f} (z={z_score:+.1f})."),
+                action="Add source-backed specificity or vary phrasing only where the scientific argument permits.",
+                evidence=[key, round(values[key], 8), round(z_score, 8)],
+            ))
+            break
     return findings
 
 

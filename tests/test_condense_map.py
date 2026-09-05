@@ -110,14 +110,71 @@ class MapTests(unittest.TestCase):
         self.assertEqual(finding["observed"]["canonical_section"], "intro")
         self.assertGreaterEqual(finding["observed"]["jaccard"], cm.DUPLICATE_JACCARD)
 
-    def test_the_budget_totals_the_map(self):
+    def test_the_budget_counts_each_unit_once(self):
         budget = cm.condense_budget(DOCUMENT, self.findings)
         totals = budget["removable_by_rule"]
-        self.assertEqual(budget["removable_total"], sum(totals.values()))
+        # Per-rule totals are candidate mass; the deduplicated total is smaller
+        # by exactly the discussion sentence, which the restatement scan names
+        # and the duplicate scan removes with its whole paragraph.
+        (inside,) = [f for f in self.by_rule["condense-restatement"]
+                     if f["location"]["section"] == "discussion"]
+        self.assertEqual(budget["removable_total"],
+                         sum(totals.values()) - inside["observed"]["removable_words"])
         self.assertEqual(budget["default_target_words"],
                          totals["condense-restatement"] + totals["condense-zero-gain"])
         self.assertGreater(budget["removable_fraction"], 0.0)
         self.assertEqual(budget["n_entries"], len(self.findings))
+
+
+class BudgetUnionTests(unittest.TestCase):
+    ROADMAP = ("In this section we describe precise galaxy cluster signal maps "
+               "calibrated against independent external measurements.")
+
+    def test_overlapping_scans_cannot_exceed_the_document(self):
+        # Three copies of one roadmap sentence: the restatement and zero-gain
+        # scans both name copies two and three, and the sum of both (75 words)
+        # exceeded the 46-word document. A sentence is removed once.
+        text = "\\section{Methods}\n" + "\n\n".join([self.ROADMAP] * 3)
+        findings = cm.condense_map(text)
+        budget = cm.condense_budget(text, findings)
+        self.assertLessEqual(budget["default_target_words"], budget["prose_words"])
+        self.assertEqual(budget["removable_total"], budget["default_target_words"])
+        self.assertGreater(sum(budget["removable_by_rule"].values()),
+                           budget["removable_total"])
+
+    def test_a_negated_or_renumbered_sentence_is_not_a_restatement(self):
+        claim = ("The calibrated galaxy cluster mass signal measurement across "
+                 "independent radial apertures is significant.")
+        for variant in (claim.replace("is significant", "is not significant"),
+                        claim.replace("independent", "five independent")):
+            findings = cm.condense_map(f"\\section{{Methods}}\n{claim}\n\n{variant}\n")
+            self.assertEqual([f for f in findings if f["rule"] == "condense-restatement"],
+                             [], variant)
+        # The same sentence restated verbatim still is one.
+        findings = cm.condense_map(f"\\section{{Methods}}\n{claim}\n\n{claim}\n")
+        self.assertEqual(len([f for f in findings if f["rule"] == "condense-restatement"]), 1)
+
+    def test_a_claim_opening_with_a_cue_budgets_only_the_cue(self):
+        findings = cm.condense_map(
+            "\\section{Methods}\nIn this paper we measure a galaxy mass of five units.\n")
+        (finding,) = findings
+        self.assertFalse(finding["observed"]["whole_sentence"])
+        self.assertEqual(finding["observed"]["removable_words"], 3)
+
+    def test_a_whole_roadmap_sentence_in_the_conclusion_is_carved_out(self):
+        text = ("\\section{Results}\nWe describe the filter.\n"
+                "\\section{Conclusion}\nIn this section we describe the filter.\n")
+        findings = cm.condense_map(text)
+        (finding,) = [f for f in findings if f["rule"] == "condense-zero-gain"]
+        self.assertTrue(finding["observed"]["whole_sentence"])
+        self.assertTrue(finding["observed"]["genre_carve_out"])
+        self.assertEqual(cm.condense_budget(text, findings)["default_target_words"], 0)
+
+    def test_a_document_without_sections_is_still_mapped(self):
+        findings = cm.condense_map("Note that the filter is fixed. In this section we "
+                                   "describe the filter.\n")
+        self.assertEqual(sorted(f["observed"]["cue"] for f in findings),
+                         ["in this section", "note that"])
 
 
 class CarveOutTests(unittest.TestCase):

@@ -130,7 +130,10 @@ def score_document(text: str, field_dir: Path, path: str) -> dict[str, float]:
     novelty = (deai_collocation.document_novelty(text, bank) if bank
                else {"novel_fraction": None, "judged_pairs": 0})
     return {
-        "n_words": float(len(text.split())),
+        # Body prose words (the register projection, placeholders dropped):
+        # the "per 1,000 body words" the record publishes was `text.split()`
+        # over raw source, preamble and bibliography included.
+        "n_words": float(len(es.prose_words(deai_register.body_only(text)))),
         "n_salience_units": float(units),
         "L0.register": float(len(register) - len(zero)),
         "L0.register-zero": float(len(zero)),
@@ -293,10 +296,24 @@ def build_report(field: str, populations: dict[str, list[dict[str, float]]],
         for label, rows in populations.items()
     }
     if len(heldout) >= MIN_DOCUMENTS and len(machine) >= MIN_DOCUMENTS:
-        discrimination = {
-            axis: {"auc_machine_over_heldout":
-                   rank_auc(_density(heldout, axis), _density(machine, axis))}
-            for axis in AXES}
+        # The floor is applied to the documents an axis can SCORE, after the
+        # unscorable ones (NaN: no judged pairs) are dropped, and the counts
+        # are published beside the AUC. Applied before the drop, two rows a
+        # side once reported an AUC of 1.0 over twenty-row populations.
+        discrimination = {}
+        for axis in AXES:
+            scored_heldout = _density(heldout, axis)
+            scored_machine = _density(machine, axis)
+            if min(len(scored_heldout), len(scored_machine)) < MIN_DOCUMENTS:
+                discrimination[axis] = {
+                    "status": "unmeasured",
+                    "why": (f"scorable heldout n={len(scored_heldout)}, machine "
+                            f"n={len(scored_machine)}; both need >= {MIN_DOCUMENTS}")}
+                continue
+            discrimination[axis] = {
+                "auc_machine_over_heldout": rank_auc(scored_heldout, scored_machine),
+                "n_heldout_scored": len(scored_heldout),
+                "n_machine_scored": len(scored_machine)}
     else:
         discrimination = {
             "status": "unmeasured",
@@ -349,9 +366,10 @@ def render(report: dict) -> str:
         lines.append(f"discrimination: unmeasured ({discrimination['why']})")
     else:
         for axis, entry in discrimination.items():
-            auc = entry["auc_machine_over_heldout"]
-            shown = f"{auc:.3f}" if auc is not None else "unmeasured"
-            basis = "document novel-pair fraction" if axis in DOCUMENT_SCORES else "per 1k words"
+            auc = entry.get("auc_machine_over_heldout")
+            shown = (f"{auc:.3f} (n={entry['n_heldout_scored']}/{entry['n_machine_scored']})"
+                     if auc is not None else f"unmeasured ({entry.get('why', '')})")
+            basis = "document novel-pair fraction" if axis in DOCUMENT_SCORES else "per 1k body words"
             lines.append(f"AUC machine over held-out published  {axis:24s} {shown}"
                          f"  ({basis})")
     transfer = report["salience_gate_transfer"]

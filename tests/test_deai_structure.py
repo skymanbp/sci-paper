@@ -96,6 +96,20 @@ class AuxiliaryFamilyTests(unittest.TestCase):
         values = structure.paragraph_structure(text)
         self.assertEqual(values["wh_cleft_count"], 0)
 
+    def test_the_gap_below_a_heading_does_not_decide_a_family(self):
+        # One newline or two between the heading and the paragraph: the same
+        # paragraph. Left in place the heading fused with the opener (`Methods
+        # What it can conclude is`) and the family went unreported.
+        paragraph = ("What it can conclude is limited by the noise of the map, "
+                     "which the aperture mass filter carries into every peak count "
+                     "and every configuration of the calibrated grid we adopt here.")
+        counts = []
+        for gap in ("\n", "\n\n"):
+            findings = structure.structure_findings("\\section{Methods}" + gap + paragraph, None)
+            counts.append(sum(f["observed"]["wh_cleft_count"] for f in findings
+                              if f["rule"].startswith("structure-auxiliary")))
+        self.assertEqual(counts, [1, 1])
+
     def test_modifier_stack_detected(self):
         stacks = structure.modifier_stacks(
             "We adopt a per-map empirical B-mode null for every configuration.")

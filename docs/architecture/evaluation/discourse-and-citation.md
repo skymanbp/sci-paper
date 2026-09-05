@@ -146,9 +146,15 @@ whether those papers are defective. 203 papers:
 | abstract | 6.58% | (abstains) |
 | **all** | **10.87%** | 19.67% |
 
-Cohesion transfers across every bucket — 10.87% against a 10% design point, the
-same quality of transfer `deai_salience` shows (§17.5: 0.2775 measured against a
-0.2710 expectation). Hedging transfers **only in `intro`**. Everywhere else it
+Re-taken under v0.36.2, with subsections inheriting their parent bucket on the
+manuscript side (§17.5): cohesion **10.81%** over 7,865 paragraphs (intro 7.91,
+method 10.11, results 9.95, discussion 11.60, conclusion 10.03, data 14.61,
+abstract 6.58) and hedging in `intro` 7.80% over 205 sections — the transfer
+holds on the paragraphs the old bucketing dropped, where salience's did not.
+
+Cohesion transfers across every bucket — 10.87% against a 10% design point, a
+quality of transfer `deai_salience` showed only on the paragraphs its old
+bucketing measured (§17.5). Hedging transfers **only in `intro`**. Everywhere else it
 fires at two to three times its nominal rate on prose a referee accepted, which
 means the reference does not describe the held-out population there.
 
