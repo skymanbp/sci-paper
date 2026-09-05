@@ -139,12 +139,18 @@ RE_TEX_THIN_COMMA = re.compile(r"\{\s*,\s*\}")
 
 
 def _math_numerals(match: "re.Match[str]") -> str:
-    """Reduce one math span to its bare numerals and operators."""
+    """Reduce one math span to its bare numerals and operators, on one line.
+
+    Old-style `$$ ... $$` display math is matched by the inline pattern from
+    its second dollar, so a span can run across a blank line; kept, that
+    blank line would be a paragraph break the plain view (`[math]`) does not
+    have, and the two views could not be paired paragraph by paragraph.
+    """
     body = RE_TEX_THIN_COMMA.sub(",", match.group(0))
     body = RE_TEX_MATH_CMD.sub(" ", body)
     for token in ("{", "}", "$"):
         body = body.replace(token, " ")
-    return " " + body + " "
+    return " " + " ".join(body.split()) + " "
 
 # The title group allows ONE level of nested braces: written `[^}]+` it stopped
 # at the first inner `}`, so `\section{Results\label{sec:res}}` yielded the title
@@ -194,24 +200,34 @@ RE_ABSTRACT_ENV = re.compile(
     r"\\begin\{abstract\}(.*?)\\end\{abstract\}", re.DOTALL | re.IGNORECASE)
 
 
-def latex_to_plain(text: str) -> str:
+def _project(text: str, *, inline, display: str, figure: str, cite: str) -> str:
+    """The one reduction both projections run; they differ only in what a
+    math span, a float and a citation become. One pattern order is what lets
+    `paired_paragraphs` pair the two views: the same substitutions leave the
+    same blank lines in the same places."""
     text = RE_TEX_COMMENT.sub("", text)
-    text = RE_TEX_DISPLAY_MATH.sub(" [MATH] ", text)
-    text = RE_TEX_INLINE_MATH.sub(" [math] ", text)
-    text = RE_TEX_ENV_FIGURE_TABLE.sub(" [FIGURE-OR-TABLE] ", text)
+    text = RE_TEX_DISPLAY_MATH.sub(display, text)
+    text = RE_TEX_INLINE_MATH.sub(inline, text)
+    text = RE_TEX_ENV_FIGURE_TABLE.sub(figure, text)
     text = RE_TEX_CITE_SILENT.sub(" ", text)
     text = RE_TEX_CITE_TEXT.sub(" ", text)
-    text = RE_TEX_CITE.sub(" [CITE] ", text)
+    text = RE_TEX_CITE.sub(cite, text)
     text = RE_TEX_LABEL_REF.sub("", text)
     text = RE_TEX_INCLUDEGRAPHICS.sub("", text)
-    # Drop \begin{X} / \end{X} markers BEFORE the generic command stripper,
-    # so we don't end up substituting in the env name as bare text.
+    # \begin{X}/\end{X} go BEFORE the generic command stripper, or its
+    # group(3) substitutes the env name as bare text.
     text = RE_TEX_BEGIN_END.sub("", text)
-    # Replace simple commands of form \cmd{arg} with their arg
     text = RE_TEX_SIMPLE_CMD.sub(lambda m: m.group(3) or "", text)
     text = RE_TEX_BRACES.sub("", text)
-    text = RE_TEX_TILDE.sub(" ", text)
-    return text
+    return RE_TEX_TILDE.sub(" ", text)
+
+
+PLAIN_PLACEHOLDERS = {"display": " [MATH] ", "figure": " [FIGURE-OR-TABLE] ",
+                      "cite": " [CITE] "}
+
+
+def latex_to_plain(text: str) -> str:
+    return _project(text, inline=" [math] ", **PLAIN_PLACEHOLDERS)
 
 
 # A projection placeholder (`[math]`, `[MATH]`, `[FIGURE-OR-TABLE]`, `[CITE]`)
@@ -261,20 +277,8 @@ def latex_to_numeral_text(text: str) -> str:
     volume formula as a reported result would make every derivation look like a
     recital of measurements.
     """
-    text = RE_TEX_COMMENT.sub("", text)
-    text = RE_TEX_DISPLAY_MATH.sub(" ", text)
-    text = RE_TEX_INLINE_MATH.sub(_math_numerals, text)
-    text = RE_TEX_ENV_FIGURE_TABLE.sub(" ", text)
-    text = RE_TEX_CITE_SILENT.sub(" ", text)
-    text = RE_TEX_CITE_TEXT.sub(" ", text)
-    text = RE_TEX_CITE.sub(" ", text)
-    text = RE_TEX_LABEL_REF.sub("", text)
-    text = RE_TEX_INCLUDEGRAPHICS.sub("", text)
-    text = RE_TEX_BEGIN_END.sub("", text)
-    text = RE_TEX_SIMPLE_CMD.sub(lambda m: m.group(3) or "", text)
-    text = RE_TEX_BRACES.sub("", text)
-    text = RE_TEX_TILDE.sub(" ", text)
-    return re.sub(r"[ \t]+", " ", text)
+    return re.sub(r"[ \t]+", " ", _project(text, inline=_math_numerals,
+                                           display=" ", figure=" ", cite=" "))
 
 
 RE_TEX_DOC_MARKER = tex_assembly.RE_TEX_DOC_MARKER

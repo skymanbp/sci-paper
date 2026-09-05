@@ -12,6 +12,7 @@ and zero `results` ones.
 
 from __future__ import annotations
 
+import json
 import sys
 import pathlib
 import tempfile
@@ -174,6 +175,37 @@ class LatexProjectionTests(unittest.TestCase):
         for projection in (es.latex_to_plain, es.latex_to_numeral_text):
             with self.subTest(projection=projection.__name__):
                 self.assertNotIn("42", projection(source))
+
+    def test_the_bank_row_carries_both_projections_of_one_paragraph(self):
+        # The salience reference is calibrated on the bank, and the bank held
+        # only the `[math]` projection: on held-out papers the p90 gate fired
+        # at 0.45 per passage against a 0.27 design rate because every inline
+        # quantity was a numeral on the manuscript side and none on the bank's.
+        filler = "The estimator is linear in the shear and so is its noise. " * 6
+        body = ("\\documentclass{article}\n\\begin{document}\n"
+                "\\section{Results}\n"
+                "Opening paragraph that the bank keeps as its own row. " * 4
+                + "\n\n" + filler + self.SOURCE + "\n\n"
+                "\\begin{equation}\nB = 7\n\\end{equation}\n\n"
+                + filler + "\n\\end{document}\n")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "paper.tex"
+            root.write_text(body, encoding="utf-8")
+            analysis = es.analyse_paper(root)
+            analysis["tier"] = "tier-1-top"
+            analysis["source_path"] = "paper.tex"
+            es.write_exemplar_bank([(1.0, analysis)], Path(tmp))
+            rows = [json.loads(line) for line in
+                    (Path(tmp) / "exemplar_paragraphs.jsonl").read_text(
+                        encoding="utf-8").splitlines()]
+        measured = [r for r in rows if "0.81" in r["numeral_text"]]
+        self.assertEqual(len(measured), 1)
+        self.assertNotIn("0.81", measured[0]["text"])
+        self.assertIn("[math]", measured[0]["text"])
+        # The rows after a displayed equation still pair with their own text.
+        for row in rows:
+            self.assertEqual(es.words(row["text"])[:5],
+                             es.words(row["numeral_text"])[:5])
 
 
 if __name__ == "__main__":

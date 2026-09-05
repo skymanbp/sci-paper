@@ -21,7 +21,7 @@ gitignored — so on a fresh clone both files report `unmeasured` for the
 corpus-referenced axes instead of the numbers below. Build one first with
 `python tools/build_profile.py --field <field>` and the `--calibrate` commands
 in `style-profile/README.md`. The figures here were produced against the `wgl`
-profile on 2026-08-27 and will move with the corpus.
+profile on 2026-09-04 (v0.36.3) and will move with the corpus.
 
 ## What it reports
 
@@ -29,8 +29,8 @@ profile on 2026-08-27 and will move with the corpus.
 |---|---:|---:|
 | L0 targets | 1 | **0** |
 | integrity blockers | 0 | 0 |
-| total advisories | 20 | 18 |
-| strong advisories | 8 | 8 |
+| total advisories | 20 | **15** |
+| strong advisories | 7 | **5** |
 | document-scale findings | 8 | **6** |
 
 Per rule:
@@ -43,7 +43,7 @@ Per rule:
 | `document-uniformity` | 6 | **5** | |
 | `document-role-decoupling` | 1 | **0** | |
 | `structure-template` | 1 | 2 | announced enumeration gone, two announced counts remain |
-| `salience-recital` | 4 | **6** | **rose — see below** |
+| `salience-recital` | 4 | **3** | fell, and the two strong ones changed kind — see below |
 | `collocation-novel` | 2 | **3** | rose for the same reason, and for one of its own — see below |
 
 ## Nothing was deleted to make a finding go away
@@ -74,16 +74,19 @@ or changing the claim.
 
 ## The interesting result: two axes pulling against each other
 
-`salience-recital` went **up**, from 4 findings to 6, as a direct consequence
-of fixing cohesion.
+`salience-recital` went from 4 findings to 3, and the two that stay strong
+are no longer runs. Before, the results and method passages each carried a
+run of 5 numeral-bearing sentences in 5; after, the longest run is 1 of 3
+and 2 of 3, and what leads both findings is *density* — 3.3 and 4.3 numerals
+per sentence, p96 and p99 of the human results and method passages.
 
-Half of the increase is that restatement: a passage that had no numerals now
-carries the headline pair, which is what makes it a recital candidate at all.
-The other half is structural. The cohesion axis asks each sentence to reuse a
-content word from the sentence before it. In a results paragraph, the word available to carry forward is
-usually the one the numbers are about — here, `bias`. Repeating it pulls the
-subject into sentences that also carry a numeral, which is exactly what
-`salience-recital` counts: the fraction of sentences bearing numerals, and the
+That density is the revision's own doing. The cohesion axis asks each
+sentence to reuse a content word from the sentence before it. In a results
+paragraph, the word available to carry forward is usually the one the numbers
+are about — here, `bias`. Repeating it pulls the subject into sentences that
+also carry a numeral, and restating the headline pair where the discussion
+needs it puts numerals into a passage that had none; both are exactly what
+`salience-recital` counts, the fraction of sentences bearing numerals and the
 longest uninterrupted run of them.
 
 So in a number-dense passage the two axes want opposite things, and no rewrite
@@ -93,6 +96,13 @@ and which one to act on is a judgement about what the passage is *for* — and
 the author makes it, not the tool. Neither axis emits a blocker, neither
 produces a score, and nothing in the pipeline resolves the tension on the
 author's behalf.
+
+The count itself moved with the reference. The figures first published here
+(2026-08-27) read the revision at **6** recital findings, because the bank
+then held only the `[math]` projection of its passages: a human results
+paragraph that writes its numbers inside math looked numeral-free, so any
+density looked like recital. v0.36.3 calibrates on the numeral projection of
+each passage (EVALUATION §17.5), and the same revision reads 3.
 
 ## The part that barely moved, and why
 

@@ -29,7 +29,7 @@ boilerplate.
 ### 19.1 The two axes measure at different units, because one of them has to
 
 Hedging has **no paragraph-scale lower tail at all**. Calibrated per paragraph
-over the 27,917-paragraph `wgl` bank, the tenth percentile is exactly 0.000
+over the 27,851-paragraph `wgl` bank, the tenth percentile is exactly 0.000
 markers per 1,000 words in every one of the seven section buckets: more than a
 tenth of real human paragraphs contain no hedge, because a 40-word paragraph
 that hedges nowhere is entirely ordinary. A gate there is one no passage can
@@ -43,16 +43,16 @@ document and a bucket joined back together — six of the seven buckets separate
 | bucket | hedging p10, section unit (markers / 1,000 words) |
 |---|---:|
 | discussion | 3.350 |
-| results | 2.853 |
+| results | 3.008 |
 | method | 2.172 |
 | intro | 1.986 |
 | conclusion | 1.647 |
-| data | 1.055 |
+| data | 1.034 |
 | abstract | **0.000** — abstains |
 
 `abstract` stays flat because an abstract *is* one passage; regrouping cannot
 make it coarser. Cohesion needs no such treatment: at paragraph unit its p10
-runs 0.037 (`conclusion`) to 0.057 (`abstract`, `data`) and resolves everywhere.
+runs 0.037 (`conclusion`) to 0.057 (`abstract`) and resolves everywhere.
 
 So the two axes carry **two artifacts at two units**, and each records its own
 `unit` field, because two references built from the same corpus at different
@@ -60,8 +60,13 @@ granularities are both valid and are not comparable:
 
 | artifact | unit | bucket sizes |
 |---|---|---|
-| `cohesion_baseline.json` | paragraph | abstract 13,967 · method 6,903 · intro 3,252 · results 3,183 · data 2,992 · discussion 2,932 · conclusion 1,975 |
-| `hedging_baseline.json` | section | abstract 10,404 · intro 502 · method 438 · conclusion 382 · discussion 327 · results 316 · data 299 |
+| `cohesion_baseline.json` | paragraph | abstract 13,967 · method 6,886 · intro 3,228 · results 3,211 · data 2,989 · discussion 2,926 · conclusion 1,980 |
+| `hedging_baseline.json` | section | abstract 10,404 · intro 502 · method 438 · conclusion 383 · discussion 327 · results 317 · data 299 |
+
+Sizes and gates are the v0.36.3 profile rebuild (2026-09-04); the 2026-08-27
+build read method 6,903 · intro 3,252 · results 3,183 · data 2,992 ·
+discussion 2,932 · conclusion 1,975 at paragraph unit, and the `results` and
+`data` hedging gates were 2.853 and 1.055.
 
 ### 19.2 Both floors were measured, not chosen
 
@@ -150,7 +155,11 @@ Re-taken under v0.36.2, with subsections inheriting their parent bucket on the
 manuscript side (§17.5): cohesion **10.81%** over 7,865 paragraphs (intro 7.91,
 method 10.11, results 9.95, discussion 11.60, conclusion 10.03, data 14.61,
 abstract 6.58) and hedging in `intro` 7.80% over 205 sections — the transfer
-holds on the paragraphs the old bucketing dropped, where salience's did not.
+holds on the paragraphs the old bucketing dropped, where salience's did not
+until its reference was calibrated on the numeral projection (§17.5). On the
+v0.36.3 profile rebuild the same sweep reads cohesion **10.78%** (848 of
+7,865; `data` 14.46, every other bucket unchanged to two decimals) and hedging
+in `intro` 7.80% again.
 
 Cohesion transfers across every bucket — 10.87% against a 10% design point, a
 quality of transfer `deai_salience` showed only on the paragraphs its old

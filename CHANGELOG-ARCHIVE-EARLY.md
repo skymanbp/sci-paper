@@ -6,6 +6,7 @@ The earliest history of the plugin, from the first release through v0.21.0
 is edited; the history is verbatim.
 
 - Current releases: [CHANGELOG.md](CHANGELOG.md)
+- **v0.33.0 through v0.34.0**: [CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)
 - **v0.27.1 through v0.32.0**: [CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)
 - **v0.22.0 through v0.27.0**: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)
 

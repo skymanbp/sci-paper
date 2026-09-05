@@ -50,6 +50,7 @@ from extract_sections import (  # noqa: F401 -- re-export, unused here by design
     _classify_pdf_heading, _include_targets, _math_numerals, _resolve_include,
     _rejoin_pdf_paragraphs, blank_preserving, classify_section, clean_heading,
     corpus_documents, extract_pdf_text, latex_to_numeral_text, latex_to_plain,
+    PLAIN_PLACEHOLDERS, _project,
     prose_words,
     read_tex_document, select_document_roots, split_into_sections,
     split_pdf_into_sections,
@@ -143,7 +144,7 @@ def words(text: str) -> list[str]:
 
 
 def paragraph_initial_words(text: str) -> list[str]:
-    paras = re.split(r"\n\s*\n", text)
+    paras = RE_PARAGRAPH_BREAK.split(text)
     out = []
     for p in paras:
         p = p.strip()
@@ -248,8 +249,12 @@ def analyse_paper(path: Path) -> dict | None:
 
     by_section = {}
     for sec, sec_raw in sections.items():
-        # PDFs are already plain text; only .tex needs latex_to_plain.
-        sec_plain = latex_to_plain(sec_raw) if is_tex else sec_raw
+        # PDFs are already plain text; only .tex needs latex_to_plain, and a
+        # PDF paragraph is its own numeral view.
+        if is_tex:
+            sec_plain, sec_numeral = paired_paragraphs(sec_raw)
+        else:
+            sec_plain, sec_numeral = sec_raw, RE_PARAGRAPH_BREAK.split(sec_raw)
         sents = sentences(sec_plain)
         sent_lens = [len(words(s)) for s in sents if len(words(s)) > 0]
         by_section[sec] = {
@@ -263,6 +268,14 @@ def analyse_paper(path: Path) -> dict | None:
             # Numbers/citations stripped to placeholders; safe to chunk by
             # paragraph and ship as style anchors.
             "plain_text": sec_plain,
+            # Each paragraph of `plain_text` under the numeral-preserving
+            # projection (None when the two views could not be paired), so
+            # the salience reference is built from the text the manuscript
+            # side measures. Calibrated on `plain_text`, the reference saw
+            # `[math]` where a manuscript shows `0.81`, and the p90 gate
+            # fired at 0.45 per passage on held-out papers against a 0.27
+            # design rate (held-out-labels.md §17.5).
+            "numeral_paragraphs": sec_numeral,
         }
 
     return {
@@ -366,6 +379,42 @@ def aggregate_transitions(per_paper: list[tuple[float, dict]]) -> dict:
     }
 
 
+# A paragraph boundary in projected text. One owner: the bank writer, the
+# paired projection and the opener statistics must cut at the same places.
+RE_PARAGRAPH_BREAK = re.compile(r"\n\s*\n")
+_RE_PLAIN_PLACEHOLDER_TOKEN = re.compile(r"\[(?:MATH|math|FIGURE-OR-TABLE|CITE)\]")
+
+
+def _math_numerals_slotted(match: "re.Match[str]") -> str:
+    """`_math_numerals`, except a span with nothing left in it keeps a slot:
+    `$\\vec{\\nabla}$` alone on a line is a `[math]` paragraph in the plain
+    view and would be a swallowed blank line in the numeral one."""
+    reduced = _math_numerals(match)
+    return reduced if reduced.strip() else " [math] "
+
+
+def paired_paragraphs(text: str) -> tuple[str, list[str] | None]:
+    """`latex_to_plain(text)` and, per paragraph of it, the numeral projection.
+
+    The bank stores the plain paragraph and the salience axis calibrates on
+    the numeral one, so they must be the same paragraph. Splitting each
+    projection on blank lines does not pair them: a paragraph that is only a
+    displayed equation is `[MATH]` in one and whitespace in the other, and
+    the splitter swallows the whitespace and shifts every later index. So the
+    numeral view is projected WITH the plain placeholders, split on the same
+    boundaries, and stripped of them after. None for the list when the two
+    views still disagree: the caller writes no pairing rather than a wrong one.
+    """
+    plain = latex_to_plain(text)
+    slotted = _project(text, inline=_math_numerals_slotted, **PLAIN_PLACEHOLDERS)
+    plain_paragraphs = RE_PARAGRAPH_BREAK.split(plain)
+    numeral_paragraphs = RE_PARAGRAPH_BREAK.split(slotted)
+    if len(numeral_paragraphs) != len(plain_paragraphs):
+        return plain, None
+    return plain, [re.sub(r"[ \t]+", " ", _RE_PLAIN_PLACEHOLDER_TOKEN.sub(" ", p))
+                   for p in numeral_paragraphs]
+
+
 # Exemplar paragraph filters. Paragraphs outside this band are skipped:
 # below the floor they're noise (lone "where ..." lines, captions, fragments);
 # above the ceiling they're often bibliography blobs or merged sections.
@@ -377,13 +426,19 @@ def write_exemplar_bank(per_paper: list[tuple[float, dict]],
                         profile_dir: Path) -> int:
     """Emit one JSONL row per qualifying paragraph in `exemplar_paragraphs.jsonl`.
 
-    Each row: {id, section, tier, source, n_words, text}.
+    Each row: {id, section, tier, source, n_words, text, numeral_text}.
     Section is the normalized bucket from classify_section();
     rows in the 'unknown' bucket and rows whose paragraphs are pure
     placeholders are excluded. Returns the number of rows written.
+
+    `numeral_text` is the same paragraph under `latex_to_numeral_text`, paired
+    by `paired_paragraphs`. A section it could not pair is reported and
+    written without the field, which the salience calibration reads as "fall
+    back to `text`" rather than as a paragraph from elsewhere in the paper.
     """
     out_path = profile_dir / "exemplar_paragraphs.jsonl"
     n_written = 0
+    unaligned: list[str] = []
     with out_path.open("w", encoding="utf-8") as f:
         for _weight, paper in per_paper:
             tier = paper.get("tier", "?")
@@ -394,7 +449,10 @@ def write_exemplar_bank(per_paper: list[tuple[float, dict]],
                 plain = st.get("plain_text", "")
                 if not plain:
                     continue
-                paragraphs = re.split(r"\n\s*\n", plain)
+                paragraphs = RE_PARAGRAPH_BREAK.split(plain)
+                numeral = st.get("numeral_paragraphs") or []
+                if not numeral:
+                    unaligned.append(f"{source}:{sec}")
                 for idx, para in enumerate(paragraphs):
                     para = para.strip()
                     if not para:
@@ -412,8 +470,14 @@ def write_exemplar_bank(per_paper: list[tuple[float, dict]],
                         "n_words": n_w,
                         "text": para,
                     }
+                    if numeral:
+                        rec["numeral_text"] = numeral[idx].strip()
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                     n_written += 1
+    if unaligned:
+        print(f"[extract_style] WARNING: {len(unaligned)} section(s) written "
+              f"without numeral_text (projections disagree on paragraph "
+              f"count): {', '.join(unaligned[:5])}", file=sys.stderr)
     return n_written
 
 

@@ -202,9 +202,25 @@ def sections(text: str) -> list[tuple[int, int, str, str]]:
         body = without_headings("\n".join(
             line for number, line in enumerate(lines[start - 1:end], start)
             if number not in consumed))
-        if body.strip():
+        if has_prose(body):
             found.append((start, end, bucket, body))
     return found
+
+
+def has_prose(block: str) -> bool:
+    """Whether a block projects to anything at all: prose, or a placeholder
+    standing for math, a float or a citation.
+
+    Blanking keeps a heading's line, and the `\\label{}` that shared it stays
+    behind with a run of spaces; a `% SCOPE:` comment block never had prose.
+    The corpus side drops both before it splits paragraphs, so a unit made of
+    them here was measured against a reference that holds none: GPT-2 read
+    forty-eight spaces as more tokens than the UID minimum and scored four of
+    the Letter's heading lines as paragraphs of near-zero surprisal variance.
+    A display-equation-only paragraph projects to `[MATH]` and stays a unit,
+    as it is a row on the corpus side.
+    """
+    return bool(es.latex_to_plain(block).strip())
 
 
 def paragraphs(text: str) -> list[tuple[int, int, str, str, str]]:
@@ -224,7 +240,7 @@ def paragraphs(text: str) -> list[tuple[int, int, str, str, str]]:
     for section_start, section_end, raw_label, bucket in _labelled_sections(text):
         segment = without_headings("\n".join(lines[section_start - 1:section_end]))
         for start, end, block in metrics.paragraph_line_ranges(segment, section_start):
-            if start in consumed or not block.strip():
+            if start in consumed or not has_prose(block):
                 continue
             found.append((start, end, raw_label, bucket, block))
     return found
@@ -253,12 +269,21 @@ def passage_banks(field_profile_dir: Path) -> list[tuple[str, Path, str | None]]
     ]
 
 
-def _bank_records(sources: Iterable[tuple[str, Path, str | None]]):
+def _bank_records(sources: Iterable[tuple[str, Path, str | None]], *,
+                  text_key: str = "text"):
     """(label, bucket, text) for every readable record in every bank present.
 
     `sources` is (label, path, forced_bucket): a bank whose records all belong
     to one bucket names it, because an abstract-only bank has no `section` key
     to read.
+
+    `text_key` names the projection the axis measures. The exemplar bank
+    stores each paragraph twice, as `text` (math spans reduced to `[math]`)
+    and as `numeral_text` (math numerals kept); an axis that counts numerals
+    on the manuscript must calibrate on the second, or its reference holds
+    fewer numerals than any manuscript it reads. A record without the key
+    falls back to `text`: the abstract bank stores its LaTeX source, which
+    the axis projects itself.
     """
     for label, bank, forced_bucket in sources:
         if not bank.exists():
@@ -270,10 +295,12 @@ def _bank_records(sources: Iterable[tuple[str, Path, str | None]]):
                 except json.JSONDecodeError:
                     continue
                 yield (label, forced_bucket or record.get("section") or "unknown",
-                       record.get("text", ""), record.get("source"))
+                       record.get(text_key) or record.get("text", ""),
+                       record.get("source"))
 
 
-def _section_records(sources: Iterable[tuple[str, Path, str | None]]):
+def _section_records(sources: Iterable[tuple[str, Path, str | None]], *,
+                     text_key: str = "text"):
     """The same records regrouped so one whole section is one unit.
 
     The banks store paragraphs, so a section-unit reference has to be assembled
@@ -284,7 +311,7 @@ def _section_records(sources: Iterable[tuple[str, Path, str | None]]):
     """
     grouped: dict[tuple[str, str], list[str]] = {}
     labels: dict[tuple[str, str], str] = {}
-    for label, bucket, text, source in _bank_records(sources):
+    for label, bucket, text, source in _bank_records(sources, text_key=text_key):
         if not source:
             continue
         key = (source, bucket)
@@ -297,7 +324,7 @@ def _section_records(sources: Iterable[tuple[str, Path, str | None]]):
 def calibrate(field_profile_dir: Path, filename: str, features: Iterable[str],
               extract: Callable[[str], dict[str, Any] | None],
               sources: Iterable[tuple[str, Path, str | None]], *,
-              unit: str = "paragraph") -> dict[str, Any]:
+              unit: str = "paragraph", text_key: str = "text") -> dict[str, Any]:
     """Build a per-bucket reference at one granularity from the field's banks.
 
     `unit` is written into every bucket of the artifact, because it is the fact
@@ -306,12 +333,15 @@ def calibrate(field_profile_dir: Path, filename: str, features: Iterable[str],
     are not comparable, and a detector reading the wrong one would compare a
     value against a distribution that could not have produced it.
 
+    `text_key` is the same invariant on the other axis: the reference must be
+    built from the projection the detector measures (see `_bank_records`).
+
     A record `extract` cannot measure is skipped rather than contributing a
     zero, which would pull every quantile toward a value no passage ever had.
     """
     names = tuple(features)
-    stream = (_section_records(sources) if unit == "section"
-              else _bank_records(sources))
+    stream = (_section_records(sources, text_key=text_key) if unit == "section"
+              else _bank_records(sources, text_key=text_key))
     collected: dict[str, dict[str, list[float]]] = {}
     contributing: dict[str, list[str]] = {}
     for label, bucket, text, _source in stream:

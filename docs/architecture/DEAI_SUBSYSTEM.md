@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.36.2)
+# De-AI subsystem architecture (current as of v0.36.3)
 
 ## 1. Purpose
 
@@ -191,7 +191,12 @@ LaTeX projection. `latex_to_plain` replaces every math span with `[math]`, which
 is right for lexical and shape statistics and zeroes every numeral signal on
 `.tex` input; the numeral-preserving projection shares the same pattern set and
 differs only in what happens inside an inline math span. Displayed equations are
-dropped by both.
+dropped by both. The reference is built from the same projection: every bank
+row carries `numeral_text` beside `text`, paired paragraph by paragraph by
+`extract_style.paired_paragraphs`, and the calibration reads that field. Until
+v0.36.3 it read `text`, so the reference held no numeral inside math while the
+manuscript did, and the p90 gate fired at 0.45 per held-out passage against a
+0.27 bound (EVALUATION §17.5).
 
 ### L2: collocation
 
@@ -425,18 +430,21 @@ CI also runs the unit and CLI test suite. A release additionally requires an
 independent code review, a clean-checkout verification, release metadata updates,
 and successful tag/push/release operations.
 
-## 11. Evidence still required (open items; heading written at v0.14.0)
+## 11. Evidence the record states (the v0.14.0 open items, each closed)
 
 The implementation can ship with explicit unavailable axes, but it must not imply
-that missing evidence exists. Before release, the evaluation record must state the
-status of:
+that missing evidence exists. v0.14.0 listed five statuses the evaluation record
+had to state before release; each now has a section that states it, and none is
+open:
 
 1. a real introduction rewrite with before/after structural findings and protected
-   invariant verification;
+   invariant verification — EVALUATION §11 and §13;
 2. learned-model audits for mathematics, jargon, section, length, and source-paper
-   confounds;
-3. complete-document calibration, or an explicit `unmeasured` document axis if a
-   verified corpus is unavailable;
-4. UID and learned-model operating points, including degraded status when not
-   calibrated;
-5. author labels and editorial dispositions that remain external human inputs.
+   confounds — §7;
+3. complete-document calibration — §9, measured over 507 complete papers;
+4. UID and learned-model operating points — both `degraded` by measurement, §6
+   and §7, with the refutations that keep them so in
+   [`DISPOSITIONS.md`](DISPOSITIONS.md);
+5. author labels and editorial dispositions — external human inputs by design;
+   the labelling harness ships (`tools/label_findings.py`) and running it is the
+   author's act, not a repository item ([`DISPOSITIONS.md`](DISPOSITIONS.md)).

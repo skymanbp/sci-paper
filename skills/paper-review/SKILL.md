@@ -176,7 +176,10 @@ coverage、intro promise、results/discussion/conclusion closure、图表首次�
 
 ### F. Citation existence and relevance
 
-- 每个 bibliography item 的作者、年份、标题和唯一标识从 DOI/arXiv/出版页核验。
+- 每个 bibliography item 的作者、年份、标题和唯一标识从 DOI/arXiv/出版页核验。机械半边由
+  `python tools/verify_references.py <bib> --tex <target>` 完成（CrossRef / DataCite / arXiv
+  可解析性，第一作者、年份、标题、期刊、卷页比对，`\cite` key 与条目互查）；`--orchestrated`
+  时读父级给出的报告。相关性仍需逐条读原文。
 - 每个 citation 在当前句中确实支持所述 claim；查不到则标明访问缺口。
 - fabricated、misused 或 claim-critical unverified citation 是 `integrity_blocker`。
 - 边缘但可能更好的引用通常是 advisory，不自动阻塞。

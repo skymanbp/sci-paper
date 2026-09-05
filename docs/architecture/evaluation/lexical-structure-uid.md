@@ -37,17 +37,22 @@ These tests are in
 ## 5. Sentence-structure reference evidence
 
 `style-profile/wgl/structure_baseline.json`
-contains 27,907 paragraph observations across seven section buckets — `method` 9,512,
-`results` 3,958, `data` 3,908, `intro` 3,840, `discussion` 3,647, `conclusion` 2,609,
+contains 27,841 paragraph observations across seven section buckets — `method` 9,478,
+`results` 3,978, `data` 3,894, `intro` 3,812, `discussion` 3,635, `conclusion` 2,611,
 `abstract` 433. The file records reference fractions for announced enumeration, ordinal
 runs, tricolon-like setup/list patterns, anaphora, balanced closers, and aggregate
 templating.
 
-Counts are post-2026-08-26 and reflect four rounds of corpus-layer fixes plus the
-500-paper breadth corpus (EVALUATION §2). The third round is the heading-coverage
-work in limit 5 below, which added 2,946 paragraphs (25,005 -> 27,951); the fourth is
-v0.32.0's citation projection fix, which removed 44 (27,951 -> 27,907) because a
-paragraph made only of leaked bibliography keys is no longer a paragraph of prose.
+Counts are post-2026-09-04 (v0.36.3) and reflect five rounds of corpus-layer fixes
+plus the 500-paper breadth corpus (EVALUATION §2). The third round is the
+heading-coverage work in limit 5 below, which added 2,946 paragraphs (25,005 -> 27,951);
+the fourth is v0.32.0's citation projection fix, which removed 44 (27,951 -> 27,907)
+because a paragraph made only of leaked bibliography keys is no longer a paragraph of
+prose; the fifth is the v0.36.3 profile rebuild on the v0.36.0–v0.36.2 corpus-side
+fixes (heading whitespace and `\texorpdfstring`, floats and citations blanked across
+lines, one assembly reader), which re-cut 66 bank rows (27,907 -> 27,841): 207 rows
+gone, 131 added and 478 re-paragraphed, across 48 of the 516 papers with bank
+rows.
 The v0.27.1 file read 593 observations with
 `results` at 26, under its 30-passage floor; the v0.27.0 file read 1,942 with `method`
 at 1,671, but `method` was then `DEFAULT_SECTION_BUCKET` and absorbed every unnamed
@@ -93,22 +98,22 @@ Interpretation limits:
 
 ## 6. UID reference evidence
 
-`style-profile/wgl/uid_baseline.json` records **27,917** paragraphs that met its
+`style-profile/wgl/uid_baseline.json` records **27,851** paragraphs that met its
 25-token requirement. It stores pooled and section-level means, standard deviations,
 and counts for global UID, local UID, and mean surprisal under GPT-2-large. Pooled
-global UID is **3.303 ± 0.437**; local UID 3.416 ± 0.472; mean surprisal 3.561 ± 0.534.
+global UID is **3.303 ± 0.420**; local UID 3.417 ± 0.445; mean surprisal 3.563 ± 0.524.
 
 | bucket | n | global UID |
 |---|---:|---|
-| method | 9,519 | 3.31 ± 0.45 |
-| results | 3,959 | 3.28 ± 0.26 |
-| data | 3,909 | 3.36 ± 0.58 |
-| intro | 3,840 | 3.26 ± 0.41 |
-| discussion | 3,648 | 3.29 ± 0.37 |
-| conclusion | 2,609 | 3.33 ± 0.47 |
+| method | 9,485 | 3.31 ± 0.45 |
+| results | 3,979 | 3.28 ± 0.26 |
+| data | 3,895 | 3.36 ± 0.51 |
+| intro | 3,812 | 3.26 ± 0.41 |
+| discussion | 3,636 | 3.29 ± 0.37 |
+| conclusion | 2,611 | 3.33 ± 0.43 |
 | abstract | 433 | 3.23 ± 0.49 |
 
-Counts are post-2026-08-26 (fourth rebuild). Neither the 593-paragraph / 3.383 ± 0.680
+Counts are post-2026-09-05 (fifth rebuild, on the 27,851-row bank). Neither the 593-paragraph / 3.383 ± 0.680
 nor the 1,942-paragraph / 3.329 ± 0.391 predecessor is comparable: the first was blind
 to the breadth corpus, and the second labelled most of its paragraphs `method` by
 default and split them from PDF line fragments, so both its size and its section keys

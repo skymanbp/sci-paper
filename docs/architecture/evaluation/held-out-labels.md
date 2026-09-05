@@ -187,8 +187,35 @@ body-word density is **0.572** (the 0.770 also carried a raw-source
 denominator, bibliography and preamble included, that diluted the refereed
 side only). The gate transfers at the design rate on the paragraphs the old
 projection kept and fires at 1.7× it on the ones it dropped; the reference
-banks were bucketed the same way, so the excess is in the held-out prose or in
-how the banks sample it, not in a projection seam, and it is an open item.
+banks were bucketed the same way, so the excess was not in the bucketing.
+
+**Closed under v0.36.3 (2026-09-04): it was a projection seam, on the
+reference side.** The bank stored each paragraph once, as `latex_to_plain`
+text, in which `$\sigma_8 = 0.81$` is `[math]` and carries no numeral; the
+manuscript side reads `latex_to_numeral_text`, which keeps the `0.81`. The
+reference was therefore calibrated on passages with fewer numerals than any
+`.tex` manuscript shows it: the p50 of `numerals_per_sentence` read 0.000 in
+four of the six body buckets (`data` 0.167, `results` 0.100) and reads
+0.25–0.75 in all six now. The diagnosis was first-party: the same
+150 in-sample papers, whose own rows are in the bank, fire at 0.349 per
+passage under the manuscript projection and 0.135 under the bank's. The fix
+is one field: `extract_style.paired_paragraphs` projects each section both
+ways with the plain placeholders kept as slot markers (a paragraph that is
+only a displayed equation is `[MATH]` in one view and a swallowed blank line
+in the other, so splitting each view alone misaligns 1,326 sections), every
+bank row carries `numeral_text` beside `text` (27,831 of 27,851 rows; the 20
+rows of one paper whose `\be … \ee` display macros defeat the pairing fall
+back to `text`), and `deai_salience.calibrate` reads that field through
+`deai_reference.calibrate(text_key=…)`. The rebuilt reference moves every body
+bucket's p90 `max_recital_run_frac` from 0.25–0.40 to 0.40–0.67 and leaves
+`abstract` at 0.500, because the abstract bank already stored LaTeX source.
+Re-measured on the same 203 papers in the same process: **2,003 findings over
+9,849 scorable paragraphs = 0.2034** per passage — under the 0.2710 union
+bound, as three correlated gates must land, and 0.13 on the 545 in-sample
+papers whose rows the reference contains — with per-bucket rates method
+0.230, discussion 0.242, data 0.242, results 0.287, intro 0.279, conclusion
+0.233, abstract 0.342 (26 of 76). Rank AUC against machine text on body-word
+density rises to **0.663**. Nothing about the salience gate is open.
 
 ### 17.6 Limits
 
@@ -302,7 +329,11 @@ Salience transferred: its 0.9 gate landed at **0.2781** of passages over 996
 measured, against **0.2710** expected from three independent gates — the same
 agreement §17 recorded, on papers from a different two decades — and moves the
 same way §17.5 does once subsections inherit their parent bucket (v0.36.2):
-**0.3984** over 1,014 scorable paragraphs, 404 findings on the 22 papers.
+**0.3984** over 1,014 scorable paragraphs, 404 findings on the 22 papers —
+and back the same way once the reference is calibrated on the numeral
+projection (v0.36.3): **0.1943**, 197 findings over the same 1,014, with
+salience's rank AUC 0.567 and register's **0.412** (5 findings) on the
+rebuilt profile, register still below 0.5.
 
 **What this does not establish.** One field, one advisor, 22 papers. The
 population is small enough that one paper is 4.5 percentage points of the

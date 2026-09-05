@@ -159,6 +159,25 @@ class TestFindingsAndCalibration(unittest.TestCase):
             self.assertLessEqual(finding["confidence"]["value"],
                                  salience.feedback.PARAGRAPH_CONFIDENCE_CAP)
 
+    def test_calibration_reads_the_numeral_projection_of_the_bank(self):
+        # A bank row stores the passage twice. Read on `text`, every reference
+        # passage below carries zero numerals and the p90 of the run fraction
+        # is 0; read on `numeral_text` the reference has the spread the
+        # manuscript side will be compared against.
+        lengths = [0] * 10 + [1] * 10 + [2] * 10 + [3] * 9 + [8]
+        rows = [{"section": "abstract",
+                 "text": es.latex_to_plain(synthetic_passage(run)),
+                 "numeral_text": synthetic_passage(run)} for run in lengths]
+        with fixture.temp_profile(rows) as profile:
+            p90 = salience.calibrate(profile)["abstract"]["percentiles"][
+                "max_recital_run_frac"]["0.9"]
+        self.assertGreater(p90, 0.0)
+        with fixture.temp_profile([{k: v for k, v in row.items()
+                                    if k != "numeral_text"} for row in rows]) as profile:
+            fallback = salience.calibrate(profile)["abstract"]["percentiles"][
+                "max_recital_run_frac"]["0.9"]
+        self.assertEqual(fallback, 0.0)
+
     def test_a_typical_passage_is_not_flagged(self):
         with tempfile.TemporaryDirectory(prefix="salience-") as raw:
             profile = Path(raw)
@@ -212,7 +231,17 @@ class TestLocalReference(unittest.TestCase):
                          "measured")
 
     def test_recital_heavy_abstract_is_flagged(self):
-        document = "\\begin{abstract}\n" + RECITAL_HEAVY + "\n\\end{abstract}\n"
+        # Six numeral sentences of eight. The four-of-eight passage the
+        # fixture tests use sits at P(X <= x) = 0.90 of real abstracts once
+        # the reference counts the numerals inside their math (v0.36.3), which
+        # is the gate itself, not above it; a smoke check must not ride the
+        # edge of the distribution it is checking.
+        heavier = RECITAL_HEAVY.replace(
+            "The criterion transfers to unseen mass ratios. ",
+            "The criterion transfers to $3$ of $4$ unseen mass ratios. ").replace(
+            "The detection step selects on the depth of the inter-peak dip. ",
+            "The detection step selects on the depth of the inter-peak dip at $2$ pixels. ")
+        document = "\\begin{abstract}\n" + heavier + "\n\\end{abstract}\n"
         rules = {f["rule"] for f in salience.salience_findings(document, self.PROFILE)}
         self.assertIn("salience-recital:abstract", rules)
 

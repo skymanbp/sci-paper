@@ -185,24 +185,32 @@ Displayed equations are dropped by both, because their digits are the constants
 of a definition — counting the 3 in a volume formula as a reported quantity made
 every derivation paragraph read as a recital of measurements. The LaTeX
 thousands form `14{,}850{,}000` collapses to one numeral rather than three.
-`latex_to_plain` is untouched, so no existing calibration asset moves.
+`latex_to_plain` is untouched, so no existing calibration asset moved then.
+One did later, and in the other direction: the bank stored only the
+`latex_to_plain` text, so the salience reference was calibrated on paragraphs
+with no numeral inside math while the manuscript side counted them, and the
+p90 gate fired at 0.45 per held-out passage against the 0.27 union bound. Since
+v0.36.3 every bank row carries `numeral_text`, the same paragraph under this
+projection, and the calibration reads it; the record of the asymmetry and its
+closure is §17.5 in [held-out-labels.md](held-out-labels.md).
 
 ### 14.2 Salience reference and operating points
 
 Calibrated per section bucket at one shared unit (a passage) on the reference
-and measurement sides, from the field's own banks:
+and measurement sides, from the field's own banks, on the numeral projection
+of each passage since v0.36.3:
 
-| Bucket | n (current) | v0.27.1 | 2026-08-17 | Sources |
-|---|---:|---:|---:|---|
-| abstract | **13,971** | 13,438 | 13,438 | `human_abstracts_extra.jsonl`, `exemplar_paragraphs.jsonl` |
-| method | **6,959** | 130 | 1,303 | `exemplar_paragraphs.jsonl` |
-| data | **3,016** | 102 | — | `exemplar_paragraphs.jsonl` — bucket added 2026-08-25 |
-| intro | **3,264** | 94 | 88 | `exemplar_paragraphs.jsonl` |
-| discussion | **2,958** | 93 | 78 | `exemplar_paragraphs.jsonl` |
-| results | **3,206** | 26 | 10 | `exemplar_paragraphs.jsonl` — clears the floor by 85× |
-| conclusion | **1,994** | 39 | 41 | `exemplar_paragraphs.jsonl` |
+| Bucket | n (v0.36.3) | 2026-08-25 | v0.27.1 | 2026-08-17 | Sources |
+|---|---:|---:|---:|---:|---|
+| abstract | **13,971** | 13,971 | 13,438 | 13,438 | `human_abstracts_extra.jsonl`, `exemplar_paragraphs.jsonl` |
+| method | **6,967** | 6,959 | 130 | 1,303 | `exemplar_paragraphs.jsonl` |
+| data | **3,020** | 3,016 | 102 | — | `exemplar_paragraphs.jsonl` — bucket added 2026-08-25 |
+| intro | **3,239** | 3,264 | 94 | 88 | `exemplar_paragraphs.jsonl` |
+| discussion | **2,954** | 2,958 | 93 | 78 | `exemplar_paragraphs.jsonl` |
+| results | **3,240** | 3,206 | 26 | 10 | `exemplar_paragraphs.jsonl` — clears the floor by 85× |
+| conclusion | **1,999** | 1,994 | 39 | 41 | `exemplar_paragraphs.jsonl` |
 
-Counts are post-rebuild (2026-08-25), and `method` is the headline: **it was never a
+The 2026-08-25 column is the rebuild that made `method` a reference, and `method` is the headline: **it was never a
 1,303-passage reference.** `method` had no pattern of its own — it was
 `DEFAULT_SECTION_BUCKET`, so it absorbed every heading the classifier could not name,
 and 92% of it was residue. Three sources fed it, all measured: `.tex` corpus files

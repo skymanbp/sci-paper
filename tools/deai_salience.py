@@ -48,6 +48,8 @@ MIN_SENTENCES = 3
 # degraded: the percentile of a 12-passage reference is not an operating point.
 MIN_REFERENCE_N = reference.MIN_REFERENCE_N
 BASELINE_FILENAME = "salience_baseline.json"
+# The bank field holding each paragraph under the numeral-preserving projection.
+BANK_TEXT_KEY = "numeral_text"
 FEATURES = ("max_recital_run_frac", "recital_frac", "numerals_per_sentence")
 ADVISORY_PERCENTILE = 0.90
 STRONG_PERCENTILE = 0.95
@@ -200,10 +202,19 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
     the same thing on both sides. Mixing a paragraph reference with a
     whole-section measurement would compare a run length against a distribution
     that could not produce it.
+
+    They also share one projection. The bank's `text` is the `[math]`
+    reduction, in which `$\\sigma_8 = 0.81$` carries no numeral; the
+    manuscript side keeps that numeral. Calibrated on `text`, the reference
+    under-counted every inline quantity and the p90 gate fired at 0.45 per
+    passage on held-out refereed papers against the 0.27 design rate; the
+    same papers' own bank rows fired at 0.35 under this projection and 0.13
+    under the bank's. `numeral_text` is the bank's copy of the projection
+    this detector reads.
     """
     return reference.calibrate(
         field_profile_dir, BASELINE_FILENAME, FEATURES, salience_features,
-        reference.passage_banks(field_profile_dir))
+        reference.passage_banks(field_profile_dir), text_key=BANK_TEXT_KEY)
 
 
 def _written(result: dict[str, Any], field_profile_dir: Path) -> str:

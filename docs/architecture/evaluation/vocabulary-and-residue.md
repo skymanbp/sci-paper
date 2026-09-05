@@ -146,9 +146,10 @@ not a leakage estimate either.
 findings, 22 strong, document novel-pair fraction 0.603 over 481 judged pairs.
 On the draft first measured, of the eight phrases the mentor marked two had
 already been rewritten out and **five** of the six present were in flagged
-sentences (`physical cells` and `controlled grid` among them); the current
-draft no longer carries those two phrases, so that check is not reproducible
-on it. On the shipped examples the axis rises from 2 findings to 3 across the
+sentences (`physical cells` and `controlled grid` among them). The current
+draft carries neither phrase, so the mentor-phrase check is closed on the
+draft it was made on rather than repeatable: the phrases it would test are
+gone, which is the outcome the check exists to produce. On the shipped examples the axis rises from 2 findings to 3 across the
 revision, because the synthetic paper repeats its own coined parameter and the
 cohesion fix carried a noun into a new neighbourhood — the axis's stated
 exception at work, recorded in [`examples/README.md`](../../../examples/README.md).

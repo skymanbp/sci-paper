@@ -112,6 +112,11 @@ current versions/paths in `paper-baseline.md`. This provides policy, not a child
 Launch a worktree agent with a self-contained prompt:
 
 - cold-read the current target and all sources;
+- read the reference report the parent produced for this round with
+  `python tools/verify_references.py <bib> --tex <target> --format json --output
+  <round>/references.json` (an unresolvable identifier or a cited key with no entry is an
+  integrity blocker; unmeasured entries stay visible) and judge relevance, which no
+  registry measures, for every entry;
 - invoke `/sci-paper:paper-review <target> --orchestrated --field <field>`;
 - do not spawn any child agent (M.2 escalation runs in-process);
 - return the complete typed report, including A–R coverage (dimension E narrative-spine

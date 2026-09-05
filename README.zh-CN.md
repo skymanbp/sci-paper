@@ -2,20 +2,20 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.36.2-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.36.3-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-491%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-516%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**12 个 skill · 39 个工具 · 491 个测试 · 一份规范 · 零作者身份判决。**
+**12 个 skill · 40 个工具 · 516 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
-[Skills](#skills12-个) · [Tools](#tools39-个) ·
+[Skills](#skills12-个) · [Tools](#tools40-个) ·
 [已知限制](#现状已知限制与路线图) ·
 [规范正文](docs/SCIPAPER_STANDARD.md) · [文档索引](docs/README.md)
 
@@ -224,6 +224,10 @@ demo 1 是 **2026-08-26** 在 v0.32.0、`wgl` 参照 profile 上重跑的；demo
 
 剩下这条是**另一个层次的意见**：机械 tell 已经没了，工具转而给出编辑判断 ——
 一个段落该带多少数字，之后论证才该接手 —— 参照的是 3,206 个人类 Results 段。
+这是 v0.32.0 时的读数：当时参照只存了 `[math]` 投影，人类一侧数学里的数字一个都没算；
+按 v0.36.3 的参照（算上了）重读，同样三个值落在 3,240 个人类 Results 段的 p39、p56、p68，
+低于 p90 门，arm C 会报 `advisories=0`。三个 arm 的全文没有留存，所以上面的计数
+就按它本来的样子——一份带日期的记录——保留。
 
 | | A：原始生成 | B：词表去 AI | C：sci-paper |
 |---|---:|---:|---:|
@@ -382,31 +386,31 @@ AUC 是长度公平的：每份文档只跟**自己那个长度层**的人类论
 ### 为什么没有单一分数：L3 的混淆
 
 学习型段落尺度模型效果不错 —— 而它**依然**以 `degraded` 发布，理由是测出来的。
-2026-08-26 用 44,576 条记录重训。
+2026-09-05 用 44,636 条记录重训。
 来源：[§7](docs/architecture/evaluation/learned-model.md)。
 
 | 指标 | 值 | 95% 切分区间 | 上一版语料 |
 |---|---:|---|---:|
-| 分组切分 AUC（20 次切分，整篇论文留出） | **0.9502** | 0.9428 – 0.9588 | 0.9320 |
-| 匹配层 AUC（section × 长度 × 数学 × 领域词） | **0.9303** | 0.9173 – 0.9499 | 0.9236 |
-| 平衡准确率 | **0.8736** | 0.8630 – 0.8897 | 0.8509 |
-| 作者 hard-set、**真实 provenance** | 0.934 | 0.838 – 0.998 | 0.937 |
-| 假阳率 —— 通用公开 AI 文本 | 0.053 | 0.030 – 0.068 | 0.086 |
-| 假阳率 —— **领域主题 AI 文本** | **0.285** | 0.209 – 0.344 | 0.318 |
-| 假阳率 —— **领域术语密集 AI 文本** | **0.410** | 0.271 – 0.534 | 0.417 |
+| 分组切分 AUC（20 次切分，整篇论文留出） | **0.9487** | 0.9409 – 0.9583 | 0.9320 |
+| 匹配层 AUC（section × 长度 × 数学 × 领域词） | **0.9262** | 0.9063 – 0.9494 | 0.9236 |
+| 平衡准确率 | **0.8704** | 0.8588 – 0.8881 | 0.8445 |
+| 作者 hard-set、**真实 provenance** | 0.938 | 0.846 – 0.998 | 0.937 |
+| 假阳率 —— 通用公开 AI 文本 | 0.055 | 0.026 – 0.076 | 0.086 |
+| 假阳率 —— **领域主题 AI 文本** | **0.295** | 0.230 – 0.356 | 0.318 |
+| 假阳率 —— **领域术语密集 AI 文本** | **0.421** | 0.236 – 0.543 | 0.417 |
 
-0.95 的 AUC 头条数字，和 28–39% 的领域主题假阳率，是同一个模型。学习型分数有一
+0.95 的 AUC 头条数字，和 30–42% 的领域主题假阳率，是同一个模型。学习型分数有一
 部分测的是*领域 register*，所以它恰恰在"去 AI 必须抓住的那个分布"上不可靠。
-**把语料放大 2.6 倍并没有修好它** —— 术语密集档 0.417 → 0.410，落在切分区间内 ——
-两次在规模差异极大的语料上的重训，现在一致指向：这个混淆属于特征集，不属于某一份
+**把语料放大 2.6 倍、再重建 profile 都没有修好它** —— 领域主题档 0.318 → 0.285 → 0.280 → 0.295，
+每一步都落在单次重训自身的切分区间内 —— 四次重训现在一致指向：这个混淆属于特征集，不属于某一份
 训练语料。这就是 L3 只做分诊、在段落尺度封顶 0.5 置信度、永远不是作者身份判决的
 原因。文档级 surprisal 路径也测了（0.757），比 model-free 流形（0.881）更弱，
 且对它毫无增益。
 
-重训**不保证行为等价，也不宣称等价**：同一批 1,845 个段落经两个 bundle 打分，
-degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**，被推到人前复核的
-三个段落平均重合 **0.654**。schema、特征、`degraded` 姿态都没变，也没有凭空引入
-阈值 —— 但重跑一份旧的分诊清单，不会一字不差地复现。
+重训**不保证行为等价，也不宣称等价**：同一批 1,808 个段落经最近两个 bundle 打分，
+degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.991**，被推到人前复核的
+三个段落平均重合 **0.889**（此前语料放大 2.6 倍那次是 0.846 与 0.654）。schema、
+特征、`degraded` 姿态都没变，也没有凭空引入阈值。
 
 ### 延迟与仓库健康度
 
@@ -415,7 +419,8 @@ degraded 模式真正消费的那个**排序**保持在 Spearman **ρ = 0.846**�
 LaTeX include 组装而成。标准库的每一行都重测了：解释器地板从 98 ms 走到 75 ms，所以
 更早的表里没有一行还能直接比。两条模型驱动的行**没有**重测：整个测量期间另一个进程
 把 GPU 占到 100%，在那种条件下量出来的数字描述的是争抢而不是这条轴——它们仍是
-2026-08-27 的值。
+2026-08-27 的值。验证器与套件两行是 2026-09-05 重测的（当天地板 59 ms）：验证器要拉起
+11 个 CLI 入口子进程、每个 0.14–0.30 s，所以前一天记的 0.42 s 在这棵树上复现不出来。
 
 | 通道 | 中位墙钟 | 依赖 |
 |---|---:|---|
@@ -426,8 +431,8 @@ LaTeX include 组装而成。标准库的每一行都重测了：解释器地板
 | `length_gate.py` | 212 ms | 标准库 |
 | `+ --oracle`（GPT-2-large token surprisal） | 33.8 s（2026-08-27） | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 37.2 s（2026-08-27） | `scikit-learn` + `sentence-transformers` |
-| `validate_plugin.py` —— **11/11 通过** | 0.42 s | 标准库 |
-| 完整测试套件 —— **491 通过**，24 个文件（3 次取中位数，落在 51.0 – 62.3 s） | 52.2 s | 标准库 |
+| `validate_plugin.py` —— **11/11 通过** | 2.24 s | 标准库 |
+| 完整测试套件 —— **516 通过**，27 个文件（3 次取中位数，落在 50.3 – 51.9 s） | 51.0 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上约花 1.0 s**，
 且不需要任何可选依赖——其中 0.6 s 是加载 530,677 个词对的 collocation 库，
@@ -500,7 +505,7 @@ python tools/ai_ism_lint.py draft.tex --field wgl \
 每个 skill 具体做什么见[十二个 skill 按层](#十二个-skill-按层)。
 调用方式 `/sci-paper:<name> draft.tex --field wgl`；`calibrate` 最先跑，每个 field 一次。
 
-## Tools（39 个）
+## Tools（40 个）
 
 每条 finding 统一走 `sci-paper.feedback.v1` 契约；语料/训练类条目产出的是
 artifact。`layer` 列是该工具服务的轴 —— `core` 契约与闸门，`build` 语料与
@@ -511,6 +516,7 @@ profile 构建，`eval` 可复现的证据。逐工具细节见 [tools/README.md
 | `tools/deai_feedback.py` | core | 实现 `sci-paper.feedback.v1`：稳定 ID、后果类别、measurement state、disposition、排序、汇总、渲染。纯标准库。 |
 | `tools/ai_ism_lint.py` | core | 统一 CLI。把 L0 与全部 advisory 轴聚合成一份排序过的 text/JSON 报告。退出码 `0` = 无 L0 target，`1` = 有 L0 target，`2` = 输入非法或执行失败。 |
 | `tools/length_gate.py` | core | 按 section 的散文长度预算增量门（规范 §5.3）。两个版本之间存在无理由净增长、或净删减未达 `--require-shrink` 目标则 exit 1；`--allow` 记录理由。 |
+| `tools/verify_references.py` | core | 把 bibliography 逐条对到其标识符所指的登记库（CrossRef、DataCite、arXiv）：DOI / arXiv 号在任何登记库都解析不到、或正文引用了没有条目的 key，是 integrity blocker；第一作者、年份、标题与记录不符是 strong advisory；期刊、卷、页差异是 ordinary。网络没答复的条目保持 `unmeasured`。有 blocker 则 exit 1。 |
 | `tools/condense_map.py` | core | `/sci-paper:condense` 背后的可删图：复述（带 canonical home）、零信息句、死 figure/table/label/macro/缩写、冗长构式、重复符号释义、跨节重复段——每条带可释放词数，汇总成删减目标。它自己不删任何东西。 |
 | `tools/deai_residue.py` | core | 编辑留下的痕迹：第一人称的研究旅程、编辑元文本、正文兑现不了的标题或 caption，以及加 `--before` 后本次编辑新增的标签。有 strong finding 则 exit 1。 |
 | `tools/rewrite_reward.py` | core | **先过**科学保真硬门再对改写候选排序。丢掉*或凭空加上*受保护不变量 → `-inf`。 |
@@ -589,14 +595,14 @@ style-profile/<field>/                  生成的证据（gitignore）
 
 | 制品 | 规模 |
 |---|---|
-| `exemplar_paragraphs.jsonl` | **27,917** 个按 section 分类的段落，来自 19 篇精选 + 500 篇参照论文 |
-| `register_lexicon.json` | 41,710 个 passage · 53,414 个词条 |
-| `uid_baseline.json` | 27,917 段（GPT-2-large）· 合并 global UID 3.303 ± 0.437 |
-| `structure_baseline.json` | method 9,512 · results 3,958 · data 3,908 · intro 3,840 · discussion 3,647 · conclusion 2,609 · abstract 433 |
-| `salience_baseline.json` | abstract 13,971 · method 6,959 · intro 3,264 · results 3,206 · data 3,016 · discussion 2,958 · conclusion 1,994 |
+| `exemplar_paragraphs.jsonl` | **27,851** 个按 section 分类的段落，来自 19 篇精选 + 500 篇参照论文 |
+| `register_lexicon.json` | 41,644 个 passage · 53,367 个词条 |
+| `uid_baseline.json` | 27,851 段（GPT-2-large）· 合并 global UID 3.303 ± 0.420 |
+| `structure_baseline.json` | method 9,478 · results 3,978 · data 3,894 · intro 3,812 · discussion 3,635 · conclusion 2,611 · abstract 433 |
+| `salience_baseline.json` | abstract 13,971 · method 6,967 · results 3,240 · intro 3,239 · data 3,020 · discussion 2,954 · conclusion 1,999 |
 | `docstructure_baseline.json` | 507 篇完整文档 · conformal α 0.05 · 长度分层 [46, 75] |
 | `anchoring_baseline.json` | 517 篇文档 · 六个 section 类全部高于 30 篇下限 |
-| `voice_model.joblib` | 44,576 条记录 · 14 个特征 · **无操作点**，`degraded` |
+| `voice_model.joblib` | 44,636 条记录 · 14 个特征 · **无操作点**，`degraded` |
 
 每个桶都过了 30 passage 下限，没有一个是"仅排序" —— 这在 2026-08-25 之前并不成立：
 当时 `results` 只有 26，而那被误诊为语料量不足。语料内容是**只读、受版权保护的输入**，
@@ -640,8 +646,8 @@ sci-paper/
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md（hub）+ evaluation/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
 ├── skills/<name>/SKILL.md   12 个 skill
-├── tools/                   39 个产品工具 + 仓库 validator
-├── tests/                   24 个测试文件、491 个测试
+├── tools/                   40 个产品工具 + 仓库 validator
+├── tests/                   27 个测试文件、516 个测试
 ├── style-corpus/<field>/    用户提供的只读语料（gitignore）
 ├── style-profile/<field>/   生成与标定的证据（gitignore）
 ├── ACKNOWLEDGMENTS.md       改编来源的致谢与采纳边界
@@ -652,7 +658,7 @@ sci-paper/
 ## 开发与发布
 
 `python tools/validate_plugin.py` 跑 11 项契约检查，
-`python -m unittest discover -s tests -v` 跑 491 个测试；发布前两者都必须通过。
+`python -m unittest discover -s tests -v` 跑 516 个测试；发布前两者都必须通过。
 Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权威边界与索引完整性、
 记录的测试规模与真实发现的一致性、过期契约标记、产品注册表、Python 语法、
 运行时 import、CLI 入口、schema 字段、linter 退出语义、Tier B 行为、测试与 CI 接线 ——
@@ -663,7 +669,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 
 ## 现状、已知限制与路线图
 
-当前版本：**v0.36.2**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
+当前版本：**v0.36.3**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)（v0.33.0–v0.34.0）、[CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)（v0.27.1–v0.32.0）、[CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
 
 **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.8 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层与 residue 轴、`calibration_unit` 置信度封顶、§5.2 去 AI 化
@@ -684,7 +690,7 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 | **重训不保证行为等价** | 重建 profile 会重拟 L3。排序保持 ρ 0.846、分诊重合 0.654，但旧的分诊清单不会一字不差复现。 |
 | **语料有四分之一从未被用上** | 匹配不到任何 section 桶的标题是被丢弃，而不是被猜进某个桶：`wgl` 里 9,178 个标题中有 **2,334 个（25.4%）**，`wgl-letter` 里 148 个中有 42 个。剩下的多是主题标题（"Matter power spectrum"）；"Measurements" 与 "Background" 因真歧义被拒绝加入。 |
 | **register 在已发表文字上照样开火** | 在它从没见过的 203 篇留出 ApJ/ApJL/A&A 已发表论文上实测：v0.36.0 修掉标题投影、v0.36.1 修掉浮动体投影后**每千正文词 0.0371 条**（同样这 57 条在 v0.36.2 之前按原始源码分母读作 0.0247，两次修复之前是 0.0858），22.2% 的文档命中，对机器文本的秩 AUC **0.391** —— 它在人类论文上仍比在 AI 草稿上更爱开火。剩下 57 条 flag 里，98.2% 只要论文自己在库里就会消失。把用词门槛从 5 扫到 50，AUC **处处低于 0.5**：没有任何设置能把它变成检测器，它就是一条建议，切在「一篇够格送审的论文不会过半被点名」的第一个点上。这个结论已在第二个群体上复现 —— 按作者而非期刊取样的 22 篇导师论文（1996–2015），AUC **0.328**（[§21](docs/architecture/evaluation/held-out-labels.md)）。 |
-| **建议质量仍未被标注** | 出处只能回答「它是否在已发表文字上开火」，回答不了「这条建议对不对」。salience 的门曾迁移得几乎精确（逐 passage 0.2775，期望 0.2710），但那是在手稿侧把匹配不到桶的 subsection 整段丢进 `unknown` 不测的前提下；v0.36.2 让 subsection 继承父级桶之后，同一批论文逐 passage 开火 0.454，超出设计率的部分是待解项（§17.5）；而在 v0.32.0 之前，它在 LaTeX 上读到的数字有 7.00% 是引用年份；建议本身的精确率与召回率仍需 `tools/label_findings.py`。 |
+| **建议质量仍未被标注** | 出处只能回答「它是否在已发表文字上开火」，回答不了「这条建议对不对」。salience 的 p90 门在 203 篇留出已审稿论文上逐 passage 开火 **0.203**，低于三门并集上界 0.271（[§17.5](docs/architecture/evaluation/held-out-labels.md)）；v0.36.2 时读作 0.454，原因是语料库只存了 `[math]` 投影，参照里数学内一个数字都没有，而每篇手稿都有 —— v0.36.3 给每个段落并排存下数字投影后关闭。v0.32.0 之前它在 LaTeX 上读到的数字有 7.00% 是引用年份；建议本身的精确率与召回率仍需 `tools/label_findings.py`，跑不跑是作者自己的事。 |
 | **hedging 只对引言说话** | 认知情态轴发布时被收窄到只管 `intro` —— 在 203 篇留出的已审稿论文上，它的 p10 门在 `intro` 上开火率是 7.89%，而其他桶是 15–27% —— 那是审稿人已经接受的文字，且至少有一套生成流程落到随机以下。cohesion 不需要这条限制（七个桶 6.6–14.6%）。 |
 | **两条词汇审计是建议，且要加载词对库** | 零命中审计列出语料从未写过的每一个词，而已发表论文里这种词反而比机器草稿多（每千正文词 3.37 个，203 篇留出论文篇篇都有，秩 AUC 0.174）；collocation 轴每次运行都要加载 530,677 个词对的库，model-free 那一行延迟上升的 0.6 s 就是它。两者都不是检测器；`--no-collocation` 可以跳过词对库（[§23](docs/architecture/evaluation/vocabulary-and-residue.md)）。 |
 | **全新 clone 什么都测不出来** | 全部 profile 制品都 gitignore。在你用自己的论文建出 profile 之前，每条语料参照的轴都是 `unmeasured`。 |

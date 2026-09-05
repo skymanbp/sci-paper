@@ -6,6 +6,7 @@ live changelog passed the repository's 750-line budget. Nothing here is edited; 
 history is verbatim.
 
 - Current releases: [CHANGELOG.md](CHANGELOG.md)
+- **v0.33.0 through v0.34.0**: [CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)
 - **v0.22.0 through v0.27.0**: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)
 - **v0.21.0 and earlier**: [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)
 

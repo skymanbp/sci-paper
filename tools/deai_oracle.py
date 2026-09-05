@@ -45,39 +45,67 @@ DEFAULT_MODEL = "gpt2-large"
 MIN_TOKENS = 25          # UID is unstable on very short spans
 FLAG_Z = 1.3             # degraded compatibility heuristic, not calibrated policy
 
-_MODEL_CACHE: dict[str, tuple] = {}
+_MODEL_CACHE: dict[tuple[str, str], tuple] = {}
 
 
-def _get_model(model_name: str):
-    """Load (tokenizer, model, device); cached. Imports torch lazily so the
-    rest of the plugin never pays for it."""
-    if model_name in _MODEL_CACHE:
-        return _MODEL_CACHE[model_name]
+def _get_model(model_name: str, device: str | None = None):
+    """Load (tokenizer, model, device); cached per (model, device). Imports
+    torch lazily so the rest of the plugin never pays for it."""
     import torch
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    key = (model_name, device)
+    if key in _MODEL_CACHE:
+        return _MODEL_CACHE[key]
     from transformers import AutoModelForCausalLM, AutoTokenizer
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     tok = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(model_name).to(device).eval()
-    _MODEL_CACHE[model_name] = (tok, model, device)
+    _MODEL_CACHE[key] = (tok, model, device)
     return tok, model, device
 
 
-def token_surprisals(text: str, model_name: str = DEFAULT_MODEL) -> list[float]:
-    """Per-token surprisal (-log p, natural log) of `text` under the LM.
-    Empty list if fewer than 2 tokens."""
+_GPU_FAILURES = 0
+_GPU_FAILURE_LIMIT = 3
+
+
+def _surprisals(ids, model):
     import torch
-    tok, model, device = _get_model(model_name)
-    ids = tok(text, return_tensors="pt", truncation=True,
-              max_length=model.config.max_position_embeddings)["input_ids"].to(device)
-    if ids.shape[1] < 2:
-        return []
     with torch.no_grad():
         logits = model(ids).logits  # [1, T, V]
     # logits[:, i] predicts token i+1 -> surprisal of token i+1.
     logp = torch.log_softmax(logits[:, :-1, :].float(), dim=-1)
     targets = ids[:, 1:]
-    surp = -logp.gather(-1, targets.unsqueeze(-1)).squeeze(-1)  # [1, T-1]
-    return surp.squeeze(0).cpu().tolist()
+    return -logp.gather(-1, targets.unsqueeze(-1)).squeeze(-1)  # [1, T-1]
+
+
+def token_surprisals(text: str, model_name: str = DEFAULT_MODEL) -> list[float]:
+    """Per-token surprisal (-log p, natural log) of `text` under the LM.
+    Empty list if fewer than 2 tokens."""
+    global _GPU_FAILURES
+    import torch
+    tok, model, device = _get_model(model_name)
+    ids = tok(text, return_tensors="pt", truncation=True,
+              max_length=model.config.max_position_embeddings)["input_ids"]
+    if ids.shape[1] < 2:
+        return []
+    if device == "cuda" and _GPU_FAILURES < _GPU_FAILURE_LIMIT:
+        try:
+            return _surprisals(ids.to(device), model).squeeze(0).cpu().tolist()
+        except (torch.cuda.OutOfMemoryError,
+                getattr(torch, "AcceleratorError", RuntimeError)) as exc:
+            # The GPU is a shared device: another process can take its memory
+            # in the middle of an hour-long calibration, and a kernel-level
+            # failure can leave the CUDA context unusable.  The paragraph is
+            # scored on a CPU instance instead of aborting the run, because
+            # the surprisal arithmetic does not depend on the device; after
+            # _GPU_FAILURE_LIMIT failures the run stays on the CPU rather
+            # than probing a broken context once per paragraph.
+            _GPU_FAILURES += 1
+            print(f"[deai_oracle] GPU scoring failed ({type(exc).__name__}: "
+                  f"{str(exc).splitlines()[0]}); scoring on the CPU "
+                  f"(failure {_GPU_FAILURES}/{_GPU_FAILURE_LIMIT})",
+                  file=sys.stderr)
+    _tok, model_cpu, _dev = _get_model(model_name, device="cpu")
+    return _surprisals(ids, model_cpu).squeeze(0).tolist()
 
 
 def uid_features(surp: list[float]) -> dict | None:
@@ -112,6 +140,8 @@ def calibrate(field_profile_dir: Path, model_name: str = DEFAULT_MODEL) -> dict:
             if feats is None:
                 continue
             n_used += 1
+            if n_used % 2000 == 0:
+                print(f"[deai_oracle] {n_used} paragraphs scored", file=sys.stderr)
             b = by_bucket.setdefault(bucket, {k: [] for k in FEATURES})
             for key in FEATURES:
                 b[key].append(feats[key])
@@ -205,8 +235,12 @@ def uid_findings(
             continue
         for key, label in (("global_uid", "surprisal variance"),
                            ("local_uid", "token-to-token jumps")):
-            reference = _ref_for(baseline, bucket, key)
-            mean, stdev = reference["mean"], reference["stdev"]
+            # `ref`, not `reference`: that name is the deai_reference module
+            # whose paragraph sweep this loop iterates, and a local of the
+            # same name made the sweep itself unbound (UnboundLocalError,
+            # reported as an unmeasured axis) from v0.36.2 to v0.36.3.
+            ref = _ref_for(baseline, bucket, key)
+            mean, stdev = ref["mean"], ref["stdev"]
             if stdev <= 0:
                 continue
             z_score = (values[key] - mean) / stdev
@@ -232,8 +266,8 @@ def uid_findings(
                            "operating_point_z": -FLAG_Z,
                            "provenance": BASELINE_NAME},
                 normalized_distance=(-FLAG_Z) - z_score,
-                confidence={"value": min(1.0, reference.get("n", 0) / 30.0),
-                            "basis": f"reference n={reference.get('n', 0)}"},
+                confidence={"value": min(1.0, ref.get("n", 0) / 30.0),
+                            "basis": f"reference n={ref.get('n', 0)}"},
                 message=(f"Paragraph {label} is {values[key]:.2f} versus "
                          f"reference {mean:.2f}±{stdev:.2f} (z={z_score:+.1f})."),
                 action="Add source-backed specificity or vary phrasing only where the scientific argument permits.",
