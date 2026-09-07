@@ -746,5 +746,5 @@ source rights and are **not** covered by this repository license.
 
 ---
 
-<sub>**Keywords:** Claude Code plugin · Claude Code skills · agent skills · scientific writing · academic writing · paper review · peer review · manuscript preparation · AI text detection · AI-generated text detector · humanizer · de-AI · AI detector for research papers · LaTeX · arXiv · astrophysics · weak gravitational lensing · cosmology · ApJ · MNRAS · PRD · JCAP · NSF proposal · NIH Specific Aims · research writing assistant · corpus-driven style · conformal prediction · split
+<sub>**Keywords:** Claude Code plugin · Claude Code skills · agent skills · scientific writing · academic writing · paper review · peer review · manuscript preparation · de-AI · LaTeX · arXiv · astrophysics · weak gravitational lensing · cosmology · ApJ · MNRAS · PRD · JCAP · NSF proposal · NIH Specific Aims · research writing assistant · corpus-driven style · conformal prediction · split
 conformal · uniform information density · reproducibility · scientific integrity · LLM tooling · research automation.</sub>

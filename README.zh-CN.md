@@ -734,8 +734,7 @@ sci-paper 改编了两个 MIT 项目的材料 ——
 ---
 
 <sub>**关键词：** Claude Code 插件 · Claude Code skills · agent skills · 科研写作 ·
-学术写作 · 论文审查 · 同行评审 · 稿件准备 · AI 文本检测 · AI 生成文本检测器 ·
-humanizer · 去 AI 化 · 降 AI 味 · 论文降重 · LaTeX · arXiv · 天体物理 · 弱引力透镜 ·
-宇宙学 · ApJ · MNRAS · PRD · JCAP · NSF 申请书 · NIH Specific Aims · 科研写作助手 ·
-语料驱动风格 · conformal prediction · 保形预测 · 均匀信息密度 · 可复现性 ·
-科学诚信 · LLM 工具链 · 科研自动化。</sub>
+学术写作 · 论文审查 · 同行评审 · 稿件准备 · 去 AI 化 · 降 AI 味 · LaTeX · arXiv ·
+天体物理 · 弱引力透镜 · 宇宙学 · ApJ · MNRAS · PRD · JCAP · NSF 申请书 ·
+NIH Specific Aims · 科研写作助手 · 语料驱动风格 · conformal prediction · 保形预测 ·
+均匀信息密度 · 可复现性 · 科学诚信 · LLM 工具链 · 科研自动化。</sub>

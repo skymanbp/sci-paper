@@ -30,10 +30,7 @@
         "paper-review",
         "peer-review",
         "manuscript",
-        "ai-text-detection",
-        "ai-generated-text",
         "de-ai",
-        "humanizer",
         "latex",
         "arxiv",
         "astrophysics",
@@ -53,7 +50,6 @@
         "research",
         "scientific-writing",
         "paper-review",
-        "ai-detection",
         "latex"
       ]
     }
