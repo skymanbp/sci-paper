@@ -81,7 +81,7 @@ object with the same ID. A composite calls primitives; it never restates their c
 
 | It will not | Because |
 |---|---|
-| Output an authorship verdict or an "% AI" score | The learned axis is **field-similarity triage**, capped at 0.5 confidence at paragraph scale. Its false-positive rate on field-topic AI prose is 28–39% ([why](#why-there-is-no-single-score-the-l3-confound)). |
+| Output an authorship verdict or an "% AI" score | The learned axis is **field-similarity triage**, capped at 0.5 confidence at paragraph scale. Its false-positive rate on field-topic AI prose is 30–42% ([why](#why-there-is-no-single-score-the-l3-confound)). |
 | Emit a universal paper-level PASS/FAIL | Terminal state is *disposition-complete*, not "zero advisories". |
 | Convert a missing baseline into zero findings | Unavailable axes report `unmeasured` / `degraded` with the reason. |
 | Optimise prose to evade detectors | Rewrite ranking optimises faithful scientific prose. Fidelity is a hard gate, not a weight. |
@@ -708,7 +708,7 @@ de-AI standard.
 | Limitation | Current state |
 |---|---|
 | **No learned-model operating point** | L3 ships `degraded`. The document-level surprisal path was *measured* not to provide one (0.757 vs the model-free manifold's 0.881). |
-| **Field-topic false positives** | 28–39% on field-topic and jargon-dense AI prose. **Closed by decision:** three retrains across a 2.6× bank range agree the confound is in the feature set, so no field-topic-robust operating point is obtainable from it. |
+| **Field-topic false positives** | 30–42% on field-topic and jargon-dense AI prose. **Closed by decision:** four retrains across a 2.6× bank range agree the confound is in the feature set, so no field-topic-robust operating point is obtainable from it. |
 | **Short-document tail power, and it is a seed draw** | Manifold 5%-tail power on short natural-AI documents averages **0.170 ± 0.110** over 12 seeds against a 0.933 length-fair ranking; per-tier spread reaches 0.18, wider than several differences the record once read as improvements. Three fixes were built and all three fail: distance normalisation (rejected), finer stratification, and an explicit estimator-noise covariance. `tools/eval_docscale.py` re-runs the table instead of quoting it. |
 | **Long-form generation is not caught** | At α = 0.05, manifold tail power on long-form AI is **0.000** — stable across 2 metrics × 4 calibration splits × 12 seeds. Rank AUC is 0.729, so the signal exists and the operating point cannot reach it. |
 | **Cooperative-layer tools** | `deai_provenance` and `deai_personal` are honestly `unmeasured` until the author supplies their own draft history or ≥ 3 prior papers. |
