@@ -143,6 +143,11 @@ Axes and tools:
   sentence's adjacent content-word pairs that no corpus passage attests, against
   a per-section leave-one-out reference. A pair the field writes by chance would
   have been seen; a pair it never wrote is a coinage or a figure of speech, and
+  the glossary reading (`deai_collocation --glossary`, or `ai_ism_lint --glossary`)
+  lists every such pair the manuscript uses twice or more with its first-use line:
+  a coinage that recurs is the manuscript's own term and is walked once, given
+  its definition at first use or replaced by the field's word, never left to a
+  reader who does not know the project; and
   the action names the relation it compresses. Advisory; a term this paper
   defines keeps its pair.
 - **L2 salience hierarchy** (`deai_salience`) — whether a passage ranks the

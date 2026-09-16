@@ -1,4 +1,4 @@
-"""Field-collocation feedback for scientific prose (L2): word pairs the field never writes.
+"""Field-collocation feedback (L2): word pairs the field never writes; --glossary lists the recurring ones.
 
 `deai_register` asks whether a WORD belongs to the field. This axis asks
 whether two words that each belong to the field have ever been put next to
@@ -286,6 +286,103 @@ def collocation_findings(text: str, field_profile_dir: Path | None,
     return findings
 
 
+# ---- the glossary reading (document scope) ----------------------------------
+GLOSSARY_MIN_USES = 2
+GLOSSARY_RULE = "collocation-glossary"
+# A definition cue in the first-use sentence: the term is introduced there.
+RE_GLOSS_CUE = re.compile(
+    r"\b(?:we call|called|which we call|define[sd]? as|defined|denote[sd]?|"
+    r"that is|which is|i\.e\.|namely|meaning)\b|\(|, the |, that |, those ",
+    re.IGNORECASE)
+GLOSSARY_ACTION = (
+    "A pair the field never joins that this manuscript uses more than once is "
+    "most likely its own term, not a slip: the advisor's 'this is jargon and "
+    "won't make sense to an astronomer' lands on exactly these. If it is the "
+    "manuscript's term, give it its definition (or a plain gloss) where it is "
+    "first used, or replace it by the field's own word; if it is ordinary "
+    "phrasing that the corpus happens to lack, leave it.")
+
+
+def _line_of_pair(block: str, start: int, pair: tuple[str, str]) -> int:
+    """Line of the pair's first appearance in the raw unit, else the unit's start.
+
+    The pair words are normalized stems (a possessive 's is stripped by
+    `register.normalize`), so each is matched with any suffix and the first
+    may carry its 's; the fallback keeps the finding anchored to the unit
+    when a macro or a line break sits between the words in the source.
+    """
+    hit = re.search(rf"\b{re.escape(pair[0])}(?:'s)?\w*\s+{re.escape(pair[1])}\w*", block, re.IGNORECASE)
+    return start + block[:hit.start()].count("\n") if hit else start
+
+
+def glossary_findings(text: str, field_profile_dir: Path | None,
+                      path: str | Path | None = None) -> list[dict[str, Any]]:
+    """Recurring unattested pairs, read as the manuscript's own terms.
+
+    The sentence gate of `collocation_findings` asks whether ONE sentence
+    stumbles. This reading aggregates every judged sentence of the document
+    and lists the pairs the field never joins that the manuscript uses at
+    least GLOSSARY_MIN_USES times: a coinage recurs, a figure of speech does
+    not. Each candidate carries its uses, the sections it appears in, its
+    first-use line (the pair's first appearance in the raw unit, else the unit's
+    start) and whether that sentence carries a definition cue, so the
+    author can add the definition at first use or choose the field's word.
+    No sentence-level gate and no percentile: this is a list to walk, not a
+    verdict, and it is off by default in the unified linter.
+    """
+    bank = load_bank(field_profile_dir)
+    if bank is None:
+        return []
+    seen: dict[str, dict[str, Any]] = {}
+    for start, _end, bucket, block in reference.units(text):
+        for sentence in es.sentences(es.latex_to_plain(block)):
+            excerpt = " ".join(sentence.split())
+            for pair in _judged(dict.fromkeys(content_pairs(sentence)), bank):
+                if _attestations(pair, bank) != 0:
+                    continue
+                key = f"{pair[0]} {pair[1]}"
+                item = seen.get(key)
+                if item is None:
+                    item = seen[key] = {
+                        "pair": key, "uses": 0, "sections": [],
+                        "first_line": _line_of_pair(block, start, pair),
+                        "first_section": bucket,
+                        "first_sentence": excerpt[:160],
+                        "glossed_at_first_use": bool(RE_GLOSS_CUE.search(excerpt)),
+                        "expected_copresent_passages": round(
+                            expected_cooccurrence(pair, bank), 2)}
+                item["uses"] += 1
+                if bucket not in item["sections"]:
+                    item["sections"].append(bucket)
+    n_passages = int(bank["n_passages"])
+    findings: list[dict[str, Any]] = []
+    for key, item in sorted(seen.items(), key=lambda kv: (-kv[1]["uses"], kv[0])):
+        if item["uses"] < GLOSSARY_MIN_USES:
+            continue
+        cue = ("a definition cue in that sentence" if item["glossed_at_first_use"]
+               else "no definition cue in that sentence")
+        message = (f"'{key}' is joined {item['uses']} times in the manuscript "
+                   f"({', '.join(item['sections'])}) and in none of the field's "
+                   f"{n_passages:,} passages; first use at line {item['first_line']}, {cue}.")
+        findings.append(feedback.make_finding(
+            kind="advisory", layer="L2", scope="document",
+            calibration_unit="document", detector="deai_collocation",
+            rule=f"{GLOSSARY_RULE}:{item['first_section']}",
+            section=item["first_section"], path=path, line=item["first_line"],
+            strength="ordinary", measurement_status="measured",
+            message=message, action=GLOSSARY_ACTION,
+            confidence={"value": min(1.0, item["uses"] / 4.0),
+                        "basis": f"{item['uses']} uses; a term recurs, a phrasing does not"},
+            normalized_distance=0.0,
+            evidence=[key, item["uses"], item["first_line"]],
+            observed=item,
+            reference=feedback.reference_block(
+                field_profile_dir, bucket=item["first_section"], n=n_passages,
+                provenance=BANK_FILENAME, unit="document",
+                min_uses=GLOSSARY_MIN_USES)))
+    return findings
+
+
 def _passages(field_profile_dir: Path) -> Iterable[tuple[str, str]]:
     """(bucket, text) for every human passage the field's banks hold."""
     for _label, bucket, text, _source in reference._bank_records(
@@ -357,10 +454,20 @@ def _report(text: str, field_dir: Path | None, path: str | Path) -> dict[str, An
     return feedback.build_report(path=path, findings=findings, axes=[status])
 
 
+def _glossary_report(text: str, field_dir: Path | None, path: str | Path) -> dict[str, Any]:
+    findings = glossary_findings(text, field_dir, path)
+    status = collocation_axis_status(field_dir, text)
+    return feedback.build_report(path=path, findings=findings, axes=[status])
+
+
 def main(argv: list[str] | None = None) -> int:
-    return cli_common.axis_main(__doc__, argv, tool="deai_collocation",
+    args = list(sys.argv[1:] if argv is None else argv)
+    glossary = "--glossary" in args
+    args = [arg for arg in args if arg != "--glossary"]
+    return cli_common.axis_main(__doc__, args, tool="deai_collocation",
                                 calibrate=calibrate, summary=_written,
-                                report=_report, render=feedback.render_text)
+                                report=_glossary_report if glossary else _report,
+                                render=feedback.render_text)
 
 
 if __name__ == "__main__":

@@ -184,5 +184,88 @@ class CliTests(unittest.TestCase):
             self.assertIn("collocation-novel:method", result.stdout)
 
 
+class GlossaryTests(unittest.TestCase):
+    # `shear threshold` and `catalog noise`: every word common in the bank
+    # (SHARED holds them all), neither pair ever adjacent in it.
+    RECURRING = ("\\section{Methods}\nThe shear threshold sets the floor. "
+                 "The shear threshold is measured again. The catalog noise is read once.\n")
+    DEFINED = ("\\section{Methods}\nThe shear threshold, which we call the floor, sets "
+               "the map. The shear threshold is measured again.\n")
+
+    def test_a_pair_used_twice_is_a_candidate_and_a_pair_used_once_is_not(self):
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            findings = collocation.glossary_findings(self.RECURRING, profile)
+            by_pair = {f["observed"]["pair"]: f for f in findings}
+            self.assertIn("shear threshold", by_pair)
+            self.assertNotIn("catalog noise", by_pair)
+            finding = by_pair["shear threshold"]
+            self.assertEqual((finding["kind"], finding["layer"], finding["rule"]),
+                             ("advisory", "L2", "collocation-glossary:method"))
+            self.assertEqual((finding["scope"], finding["calibration_unit"]),
+                             ("document", "document"))
+            self.assertEqual(finding["observed"]["uses"], 2)
+            self.assertFalse(finding["observed"]["glossed_at_first_use"])
+            self.assertIn("first use", finding["recommended_action"])
+
+    def test_the_line_is_the_pair_s_first_appearance_in_the_source(self):
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            (finding,) = collocation.glossary_findings(self.RECURRING, profile)
+            # line 1 is the heading; the pair first appears on line 2
+            self.assertEqual(finding["location"]["start_line"], 2)
+
+    def test_a_definition_cue_at_first_use_is_recorded(self):
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            (finding,) = collocation.glossary_findings(self.DEFINED, profile)
+            self.assertTrue(finding["observed"]["glossed_at_first_use"])
+
+    def test_no_bank_lists_nothing_and_the_cli_mode_lists_the_candidates(self):
+        with tempfile.TemporaryDirectory(prefix="colloc-") as raw:
+            self.assertEqual(collocation.glossary_findings(self.RECURRING, Path(raw)), [])
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            target = profile / "draft.tex"
+            target.write_text(self.RECURRING, encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(TOOLS / "deai_collocation.py"), str(target),
+                 "--field", profile.name, "--profile-root", str(profile.parent),
+                 "--glossary"],
+                text=True, capture_output=True, encoding="utf-8")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("collocation-glossary:method", result.stdout)
+            self.assertIn("'shear threshold' is joined 2 times", result.stdout)
+            self.assertNotIn("collocation-novel", result.stdout)
+
+    def test_a_possessive_first_word_still_finds_its_line(self):
+        # register.normalize strips the 's; the source keeps it, and the line
+        # must still be the pair's own, not the unit's first line.
+        text = ("\\section{Methods}\nA sentence first.\nThe shear's threshold sets the "
+                "floor. The shear threshold is measured again.\n")
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            (finding,) = collocation.glossary_findings(text, profile)
+            self.assertEqual(finding["location"]["start_line"], 3)
+
+    def test_the_unified_linter_lists_the_candidates_and_the_axis_on_request(self):
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            target = profile / "draft.tex"
+            target.write_text(self.RECURRING, encoding="utf-8")
+            base = [sys.executable, str(TOOLS / "ai_ism_lint.py"), str(target),
+                    "--field", profile.name, "--profile-root", str(profile.parent),
+                    "--format", "json"]
+            plain = json.loads(subprocess.run(base, text=True, capture_output=True,
+                                              encoding="utf-8").stdout)
+            self.assertFalse([f for f in plain["findings"]
+                              if f["rule"].startswith("collocation-glossary")])
+            on = json.loads(subprocess.run(base + ["--glossary", "--no-collocation"], text=True,
+                                           capture_output=True, encoding="utf-8").stdout)
+            rules = [f["rule"] for f in on["findings"]]
+            self.assertIn("collocation-glossary:method", rules)
+            self.assertIn("L2.collocation", [a["axis"] for a in on["axes"]])
+
+
 if __name__ == "__main__":
     unittest.main()

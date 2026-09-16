@@ -194,7 +194,7 @@ sentence, the fraction of adjacent common-word pairs no passage of the field's
 corpus attests, against a leave-one-out reference per section. A pair it never
 wrote is a coinage or a figure of speech ("physical cells"), weighted by the
 co-presence of its words (a ranking aid, never a filter); the action names the relation it compresses.
-Advisory; a defined term keeps its pair, and no claim is changed to dissolve one.
+Advisory; a defined term keeps its pair, and no claim is changed to dissolve one. The same bank read document-wide (`--glossary`) lists the unattested pairs a manuscript uses twice or more, the terms it coined, with the line of first use and whether that sentence defines them.
 
 A **blind perceptual panel** — independent cold-read judges who score AI-feel
 and must name concrete tells with quotes across document versions — is a
@@ -500,7 +500,7 @@ confound-free self-checks.
    words the field does not join, write the relation out: a modifier standing
    in for a procedure names the procedure, a figurative verb becomes what was
    done, an abbreviating noun pair is written out once. A coined term keeps its
-   pair and gets its definition; the claim never changes to dissolve a pair.
+   pair and gets its definition; the claim never changes to dissolve a pair. The glossary reading lists the coined terms that recur; each is defined where it first appears or replaced by the field's word.
 
 4. **L2 document structure (the keystone).** If the dispersion manifold or
    role-coupling flags over-uniformity, apply `deai_partition` merge/split

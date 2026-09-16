@@ -366,7 +366,8 @@ def collect_feedback(path: Path, field_profile_dir: Path | None, *,
                      document_structure: bool = True, oracle: bool = False,
                      voice: bool = False, register: bool = True,
                      salience: bool = True, discourse: bool = True,
-                     collocation: bool = True, residue: bool = True
+                     collocation: bool = True, residue: bool = True,
+                     glossary: bool = False
                      ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     text = document_source(path)
     findings, axes = lexical_findings(
@@ -377,6 +378,13 @@ def collect_feedback(path: Path, field_profile_dir: Path | None, *,
     if collocation:
         findings.extend(deai_collocation.collocation_findings(text, field_profile_dir, path))
         axes.append(deai_collocation.collocation_axis_status(field_profile_dir, text))
+    if glossary:
+        # the glossary reading of the same bank: recurring unattested pairs as
+        # the manuscript's own terms (off by default so the counts do not move);
+        # its axis entry rides along when the sentence axis did not add it
+        findings.extend(deai_collocation.glossary_findings(text, field_profile_dir, path))
+        if not collocation:
+            axes.append(deai_collocation.collocation_axis_status(field_profile_dir, text))
     if residue:
         findings.extend(deai_residue.residue_findings(text, path))
         axes.append(deai_residue.residue_axis_status(text))
@@ -427,7 +435,7 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
          output: Path | None = None, top: int | None = None,
          register: bool = True, salience: bool = True,
          discourse: bool = True, collocation: bool = True,
-         residue: bool = True) -> int:
+         residue: bool = True, glossary: bool = False) -> int:
     del summary  # retained as a compatibility option; reports always include totals
     if not path.exists():
         print(f"[ai_ism_lint] file not found: {path}", file=sys.stderr)
@@ -438,7 +446,8 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
             ai_threshold=ai_threshold, distribution=distribution,
             structure=structure, document_structure=document_structure,
             oracle=oracle, voice=voice, register=register, salience=salience,
-            discourse=discourse, collocation=collocation, residue=residue)
+            discourse=discourse, collocation=collocation, residue=residue,
+            glossary=glossary)
         report = feedback.build_report(path=path, findings=findings, axes=axes, top=top)
         rendered = (feedback.dump_report(report)
                     if output_format == "json" else feedback.render_text(report) + "\n")
@@ -486,6 +495,9 @@ def main(argv: list[str] | None = None) -> int:
                         default=True)
     parser.add_argument("--residue", action=argparse.BooleanOptionalAction,
                         default=True)
+    parser.add_argument("--glossary", action="store_true",
+                        help="also list the recurring unattested word pairs as "
+                             "glossary candidates (deai_collocation --glossary)")
     parser.add_argument("--oracle", action="store_true")
     parser.add_argument("--voice", action="store_true")
     parser.add_argument("--format", choices=("text", "json"), default="text")
@@ -506,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
         voice=args.voice, output_format=args.format, output=args.output,
         top=args.top, register=args.register, salience=args.salience,
         discourse=args.discourse, collocation=args.collocation,
-        residue=args.residue,
+        residue=args.residue, glossary=args.glossary,
     )
 
 

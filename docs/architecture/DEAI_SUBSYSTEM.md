@@ -1,4 +1,4 @@
-# De-AI subsystem architecture (current as of v0.37.1)
+# De-AI subsystem architecture (current as of v0.38.0)
 
 ## 1. Purpose
 
@@ -216,6 +216,14 @@ co-occurrence λ = df(a)·df(b)/N and e^−λ, so a reader can see that `measure
 projected` (λ = 183) is a stronger absence than `sub-halo abundances` (λ = 0.3).
 A document-level novel-pair fraction is reported as evidence and used by
 `eval_findings`; it is not a percentile, because the reference is per sentence.
+
+The same bank has a second, document-scope reading (`--glossary`, v0.38.0):
+every unattested pair the manuscript uses twice or more, with its uses, the
+sections it appears in, the line of its first appearance in the source and
+whether that sentence carries a definition cue. A pair that recurs is the
+manuscript's own term, and a reader who does not know the project needs its
+definition at first use or the field's word instead; the reading is off in
+the unified linter by default and never gates.
 
 ### L2: discourse texture (cohesion, hedging)
 

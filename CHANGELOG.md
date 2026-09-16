@@ -3,6 +3,32 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.38.0 — 2026-09-16
+
+### The recurring unattested pair is the manuscript's own term
+
+The collocation axis judged one sentence at a time: does it join words the
+field never joins? The author's mentor read the same manuscript with a
+different question, "this is jargon and won't make sense to an astronomer",
+and the sentences the axis had flagged were not where the jargon was. The
+jargon was in the pairs the manuscript kept using, `detector settings` nine
+times, `noiseless map` six, `keeps minimum` five, none of them in any of the
+field's 41,644 passages and most of them undefined where they first appear.
+A pair that recurs is a term; a pair that occurs once is a figure of speech
+or a slip. `deai_collocation --glossary` (and `ai_ism_lint --glossary`, off by
+default so no count moves) reads the same bank document-wide and lists every
+unattested pair used twice or more with its uses, the sections it appears in,
+the line of its first appearance in the source, and whether that sentence
+carries a definition cue (`we call`, `defined as`, a parenthesis, an
+appositive). It is a list to walk, not a verdict: the action is to define the
+term at first use or replace it by the field's word, and to leave ordinary
+phrasing the corpus happens to lack. On the Letter the reading reduced the
+252 distinct unattested pairs of the sentence gate to 42 candidates, 16 of
+them already defined where they first appear. The sentence gate is
+unchanged: on the same manuscript the default run reports the same 86
+findings before and after (set difference zero). Six tests read the mode, one of them the unified linter's flag.
+529 tests in 27 files.
+
 ## v0.37.1 — 2026-09-05
 
 ### An absence is deleted before it is rewritten
