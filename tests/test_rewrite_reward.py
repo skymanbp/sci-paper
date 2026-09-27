@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-import sys
+import io
+import re
+import tempfile
 import unittest
+from collections import Counter
+from contextlib import ExitStack, redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 
@@ -91,7 +96,7 @@ class InvariantTokenizationTests(unittest.TestCase):
 
     def test_list_comma_is_not_part_of_the_number(self):
         self.assertEqual(
-            rewrite_reward._numbers("We analyze 1200, 2400, and 4800 sources."),
+            set(rewrite_reward._numbers("We analyze 1200, 2400, and 4800 sources.")),
             {"1200", "2400", "4800"})
 
     def test_thousands_separator_stays_inside_the_number(self):
@@ -141,6 +146,46 @@ class InvariantTokenizationTests(unittest.TestCase):
         self.assertIn("4800", result["missing"]["numbers"])
 
 
+class AdjacentSuffixTests(unittest.TestCase):
+    """An English suffix glued onto the digits is not a unit (`3rd`, `1990s`, `5x`)."""
+
+    def test_suffixes_glued_to_digits_are_not_units(self):
+        for text in ("the 3rd run", "the 1990s", "a 5x gain", "the 21st", "the 2nd", "the 4th"):
+            with self.subTest(text=text):
+                self.assertEqual(rewrite_reward._units(text), set())
+
+    def test_typeset_seconds_stay_a_unit(self):
+        self.assertEqual(rewrite_reward._units(r"5\,s"), {"s"})
+        self.assertEqual(rewrite_reward._units("5 s"), {"s"})
+
+    def test_rephrasing_around_a_decade_stays_eligible(self):
+        result = rewrite_reward.fidelity_eligibility("during the 1990s", "in the 1990s")
+        self.assertTrue(result["eligible"], (result["missing"], result["invented"]))
+
+
+class AcronymTests(unittest.TestCase):
+    """A hyphen is part of an acronym only where an acronym continues after it."""
+
+    def test_trailing_hyphen_is_not_part_of_an_acronym(self):
+        self.assertEqual(rewrite_reward._acronyms("a CDM-like model"), {"CDM"})
+        self.assertEqual(rewrite_reward._acronyms("X-RAY data, paper II, HST-ACS and HST"),
+                         {"X-RAY", "II", "HST-ACS", "HST"})
+
+    def test_hyphenating_the_acronym_stays_eligible(self):
+        result = rewrite_reward.fidelity_eligibility("a CDM model", "a CDM-like model")
+        self.assertTrue(result["eligible"], (result["missing"], result["invented"]))
+
+    def test_projection_placeholders_are_not_acronyms(self):
+        text = r"\citep{Smith2024} \begin{equation}y=x\end{equation} \begin{figure}z\end{figure}"
+        self.assertEqual(rewrite_reward._acronyms(text), set())
+
+    def test_removing_an_empty_float_is_not_an_acronym_loss(self):
+        reference = "We show the fit.\n\\begin{figure}\n\\centering\n\\end{figure}\nIt converges."
+        candidate = "We show the fit. It converges."
+        result = rewrite_reward.fidelity_eligibility(candidate, reference)
+        self.assertTrue(result["eligible"], (result["missing"], result["invented"]))
+
+
 class DisplayMathFidelityTests(unittest.TestCase):
     """Numbers inside a displayed equation are protected.
 
@@ -187,6 +232,18 @@ class DisplayMathFidelityTests(unittest.TestCase):
         self.assertTrue(result["eligible"],
                         (result["missing"], result["invented"]))
 
+    def test_inline_math_numerals_are_collected_too(self):
+        # Inline and display forms are read symmetrically; see _numbers.
+        self.assertIn("0.5", rewrite_reward._numbers("at $z=0.5$"))
+
+    def test_moving_an_equation_between_display_and_inline_is_not_a_change(self):
+        inline = (self.REFERENCE.replace("\n\\begin{equation}\n", " $")
+                  .replace("\n\\end{equation}\n", "$ "))
+        for candidate, reference in ((inline, self.REFERENCE), (self.REFERENCE, inline)):
+            with self.subTest(candidate=candidate[:24]):
+                result = rewrite_reward.fidelity_eligibility(candidate, reference)
+                self.assertTrue(result["eligible"], (result["missing"], result["invented"]))
+
     def test_commented_out_equation_is_not_an_invariant(self):
         # Both projections strip comments first; reading the raw span without
         # doing so made a dead commented-out equation a hard invariant, so
@@ -197,7 +254,7 @@ class DisplayMathFidelityTests(unittest.TestCase):
                      "% \\end{equation}\n"
                      "The sample has 43 clusters.")
         candidate = "We adopt the fiducial cosmology. The sample has 43 clusters."
-        self.assertEqual(rewrite_reward._numbers(reference), {"43"})
+        self.assertEqual(set(rewrite_reward._numbers(reference)), {"43"})
         result = rewrite_reward.fidelity_eligibility(candidate, reference)
         self.assertTrue(result["eligible"],
                         (result["missing"], result["invented"]))
@@ -262,19 +319,170 @@ class SpacedUnitTests(unittest.TestCase):
                                 (result["missing"], result["invented"]))
 
 
+class FormattingMacroAndRmUnitTests(unittest.TestCase):
+    """`\\ldots`/`\\dots` and the natbib variants are formatting; `{\\rm Mpc}` is a unit."""
+
+    def test_dots_and_natbib_variants_are_not_semantic_macros(self):
+        self.assertEqual(
+            rewrite_reward._macros(r"a \ldots b \dots \citeyearpar{k} \citetext{see} \Nconfig"),
+            {"nconfig"})
+        result = rewrite_reward.fidelity_eligibility("with 43 sources ...",
+                                                     r"with 43 sources \ldots")
+        self.assertTrue(result["eligible"], (result["missing"], result["invented"]))
+
+    def test_rm_unit_is_protected_in_both_forms(self):
+        for text in (r"5\,{\rm Mpc}", r"5 {\rm Mpc}", r"5{\rm\,Mpc}"):
+            with self.subTest(text=text):
+                self.assertEqual(rewrite_reward._units(text), {r"\mathrm{mpc}"})
+        # Only a vocabulary unit: `{\rm ...}` wraps far more than units.
+        self.assertEqual(rewrite_reward._units(r"5 {\rm foo}"), set())
+
+    def test_modernising_rm_is_not_a_unit_change_but_kpc_is(self):
+        reference = r"The scale is 5\,{\rm Mpc}."
+        modern = rewrite_reward.fidelity_eligibility(r"The scale is 5\,\mathrm{Mpc}.", reference)
+        self.assertTrue(modern["eligible"], (modern["missing"], modern["invented"]))
+        result = rewrite_reward.fidelity_eligibility(r"The scale is 5\,{\rm kpc}.", reference)
+        self.assertFalse(result["eligible"])
+        self.assertIn(r"\mathrm{mpc}", result["missing"]["units"])
+
+
+class MultiplicityTests(unittest.TestCase):
+    """Numbers and markers are bags: a dropped second occurrence is a loss,
+    and a token still present with the wrong count is reported as such."""
+
+    REFERENCE = "The bias is not significant and the trend is not real."
+
+    def test_dropped_second_negation_is_ineligible(self):
+        result = rewrite_reward.fidelity_eligibility(
+            "The bias is not significant and the trend is real.", self.REFERENCE)
+        self.assertFalse(result["eligible"])
+        self.assertEqual(result["missing"]["negation"], ["not"])
+        self.assertEqual(result["count_mismatches"], {"negation": {"not": (2, 1)}})
+
+    def test_both_negations_dropped_lists_each_occurrence(self):
+        result = rewrite_reward.fidelity_eligibility(
+            "The bias is significant and the trend is real.", self.REFERENCE)
+        self.assertEqual(result["missing"]["negation"], ["not", "not"])
+        self.assertEqual(result["count_mismatches"], {})
+
+    def test_repeated_number_replaced_by_another_is_ineligible(self):
+        # Sets saw {43, 512} on both sides and passed this.
+        result = rewrite_reward.fidelity_eligibility(
+            "We find 43 here and 512 there among 512.",
+            "We find 43 here and 43 there among 512.")
+        self.assertFalse(result["eligible"])
+        self.assertEqual(result["missing"]["numbers"], ["43"])
+        self.assertEqual(result["invented"]["numbers"], ["512"])
+
+    def test_added_second_causal_marker_is_invention(self):
+        reference = "The bias shrinks because the sample grows; the scatter falls."
+        candidate = reference[:-1] + " because of it."
+        result = rewrite_reward.fidelity_eligibility(candidate, reference)
+        self.assertEqual(result["invented"]["causal_direction"], ["because"])
+
+    def test_repeated_citations_and_units_stay_sets(self):
+        reference = r"At 5 Mpc \citep{Doe2025} and again at 5 Mpc \citep{Doe2025}."
+        candidate = r"At 5 Mpc \citep{Doe2025}, and again at 5 Mpc."
+        result = rewrite_reward.fidelity_eligibility(candidate, reference)
+        self.assertTrue(result["eligible"], (result["missing"], result["invented"]))
+
+
 class MainExitContractTests(unittest.TestCase):
-    """Exit 1 means "no candidate eligible"; a crash must not borrow it."""
+    """Exit 0/1 by eligibility, 2 for invalid input and crashes; a missing
+    optional model, profile or embedder is none of these (unmeasured, weight 0)."""
+
+    REFERENCE = "The sample of 43 clusters has a bias of 0.5--1.2 dex.\n"
+    FAITHFUL = "For 43 clusters the bias spans 0.5 to 1.2 dex.\n"
+    UNFAITHFUL = "The bias spans 0.5 to 1.2 dex.\n"
+
+    def run_cli(self, candidate=FAITHFUL, *, fields=(), field=None, bundle=None,
+                reference=REFERENCE, embedder=True, cosine=None, rank=None):
+        out, err = io.StringIO(), io.StringIO()
+        with ExitStack() as stack:
+            root = Path(stack.enter_context(tempfile.TemporaryDirectory()))
+            profiles = root / "profiles"
+            profiles.mkdir()
+            for name in fields:
+                (profiles / name).mkdir()
+                if bundle is not None:
+                    (profiles / name / "voice_model.joblib").write_bytes(bundle)
+            if reference is not None:
+                (root / "ref.txt").write_text(reference, encoding="utf-8")
+            (root / "cand.txt").write_text(candidate, encoding="utf-8")
+            argv = ["--profile-root", str(profiles), "--reference", str(root / "ref.txt"),
+                    "--candidates", str(root / "cand.txt")]
+            if field:
+                argv += ["--field", field]
+            stack.enter_context(mock.patch.object(rewrite_reward.df, "embedder_available",
+                                                  return_value=embedder))
+            stack.enter_context(mock.patch.object(rewrite_reward, "_cosine",
+                                                  **(cosine or {"return_value": 0.9})))
+            if rank is not None:
+                stack.enter_context(mock.patch.object(rewrite_reward, "rank", **rank))
+            stack.enter_context(redirect_stdout(out))
+            stack.enter_context(redirect_stderr(err))
+            status = rewrite_reward.main(argv)
+        return status, out.getvalue(), err.getvalue()
+
+    def test_crash_inside_rank_is_execution_failure(self):
+        status, _out, err = self.run_cli(rank={"side_effect": RuntimeError("boom")})
+        self.assertEqual(status, 2)
+        self.assertIn("execution failed: RuntimeError: boom", err)
 
     def test_unreadable_input_is_execution_failure(self):
-        import io
-        from contextlib import redirect_stderr, redirect_stdout
-        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-            status = rewrite_reward.main([
-                "--field", "no-such-field",
-                "--reference", "no_such_reference.tex",
-                "--candidates", "no_such_candidate.tex",
-            ])
+        status, _out, err = self.run_cli(reference=None)
         self.assertEqual(status, 2)
+        self.assertIn("execution failed: FileNotFoundError", err)
+
+    def test_no_eligible_candidate_is_exit_1_even_without_a_profile(self):
+        status, out, err = self.run_cli(self.UNFAITHFUL)
+        self.assertEqual(status, 1)
+        self.assertIn("missing: {'numbers': ['43']}", out)
+        self.assertIn("no field profile", err)
+        self.assertIn("regenerate tighter", err)
+
+    def test_eligible_candidate_is_exit_0(self):
+        status, out, _err = self.run_cli()
+        self.assertEqual(status, 0)
+        self.assertIn("[best] candidate 0", out)
+
+    def test_missing_voice_model_is_unmeasured_not_exit_2(self):
+        status, out, err = self.run_cli(fields=("wgl",), field="wgl")
+        self.assertEqual(status, 0)
+        self.assertRegex(err, r"no voice_model\.joblib in \S*wgl: learned field-similarity "
+                              r"score unmeasured, weight 0")
+        # voice column `-`, fidelity 0.900, combined = 0.3 * 0.9 with no voice term.
+        self.assertRegex(out, re.compile(r"^ +1 +0 +0\.270 +- +0\.900 ", re.M))
+
+    def test_single_field_is_auto_detected(self):
+        status, _out, err = self.run_cli(fields=("wgl",))
+        self.assertEqual(status, 0)
+        self.assertRegex(err, r"no voice_model\.joblib in \S*wgl")
+
+    def test_several_fields_run_without_a_profile(self):
+        status, _out, err = self.run_cli(fields=("a", "b"))
+        self.assertEqual(status, 0)
+        self.assertIn("several field profiles present", err)
+        self.assertIn("no field profile", err)
+
+    def test_unusable_bundle_is_named_as_present(self):
+        status, _out, err = self.run_cli(fields=("wgl",), bundle=b"not a joblib bundle")
+        self.assertEqual(status, 0)
+        self.assertIn("voice_model.joblib is present but unusable", err)
+        self.assertNotIn("no voice_model.joblib", err)
+
+    def test_missing_embedder_is_unmeasured_not_a_crash(self):
+        status, out, err = self.run_cli(embedder=False,
+                                        cosine={"side_effect": AssertionError("embedder used")})
+        self.assertEqual(status, 0)
+        self.assertIn("semantic fidelity unmeasured, weight 0", err)
+        self.assertRegex(out, re.compile(r"^ +1 +0 +0\.000 +- +- ", re.M))
+
+    def test_count_mismatch_is_reported_with_both_counts(self):
+        _status, out, _err = self.run_cli(
+            "The bias is not significant and the trend is real.",
+            reference="The bias is not significant and the trend is not real.")
+        self.assertIn("count mismatch: negation 'not': 2 in reference, 1 in candidate", out)
 
 
 class LengthBudgetTests(unittest.TestCase):
@@ -314,21 +522,16 @@ class LengthBudgetTests(unittest.TestCase):
 class RankLengthGateIntegrationTests(unittest.TestCase):
     """Protect the length gate's integration into rank(): -inf for over-budget
     candidates, --allow-growth lift, and the fidelity floor on the bonus.
-    Heavy dependencies (embedder, voice model, centroid) are mocked out."""
+    Heavy dependencies (embedder, voice model) are mocked out."""
 
     ORIGINAL = "The estimator is stable across the five smoothing scales."
     REFERENCE = "claim: estimator stable across five smoothing scales"
 
     def rank_with_mocks(self, candidates, fidelity, **kwargs):
-        from unittest import mock
-        with mock.patch.object(rewrite_reward.df, "corpus_centroid",
+        with mock.patch.object(rewrite_reward.dv, "load_voice_model",
                                return_value=None), \
-             mock.patch.object(rewrite_reward.dv, "voice_score",
-                               return_value=0.0), \
-             mock.patch.object(rewrite_reward.dv, "load_voice_model",
-                               return_value=None), \
-             mock.patch.object(rewrite_reward.dv, "bundle_measured",
-                               return_value=False), \
+             mock.patch.object(rewrite_reward.df, "embedder_available",
+                               return_value=True), \
              mock.patch.object(rewrite_reward, "_cosine",
                                return_value=fidelity), \
              mock.patch.object(rewrite_reward, "_l0_target_count",
@@ -358,6 +561,26 @@ class RankLengthGateIntegrationTests(unittest.TestCase):
         bonus_low = low["combined"] - 0.3 * 0.2
         self.assertGreater(bonus_high, 0.0)
         self.assertEqual(bonus_low, 0.0)
+
+
+class UnmeasuredTermTests(unittest.TestCase):
+    """A term that cannot be measured is None at weight 0, never a nominal 0.0."""
+
+    def test_floor_is_not_applied_to_an_unmeasured_fidelity(self):
+        self.assertEqual(rewrite_reward._advisory_reduction(2, 0, None), 1.0)
+        self.assertEqual(rewrite_reward._advisory_reduction(2, 0, 0.1), 0.0)
+
+    def test_rank_without_bundle_or_embedder_keeps_the_gate(self):
+        with mock.patch.object(rewrite_reward.df, "embedder_available", return_value=False), \
+             mock.patch.object(rewrite_reward, "_cosine", side_effect=AssertionError):
+            ranked = rewrite_reward.rank(["We find 43 sources.", "We find sources."],
+                                         "We find 43 sources.", None)
+        (best, result), (_worst, rejected) = ranked
+        self.assertEqual(best, 0)
+        self.assertIsNone(result["fidelity"])
+        self.assertIsNone(result["voice"])
+        self.assertEqual(result["combined"], 0.0)
+        self.assertEqual(rejected["combined"], float("-inf"))
 
 
 class AdvisoryReductionTests(unittest.TestCase):
@@ -410,7 +633,9 @@ class HyphenatedRangeTests(unittest.TestCase):
     reported as MISSING "-1.2" while INVENTING "1.2", then hard-rejected at
     combined = -inf. Every hyphenated range in a reference did this, which is
     most of them. Third occurrence of one root cause -- a separator absorbed
-    into the token -- after the Oxford comma and the spaced unit.
+    into the token -- after the Oxford comma and the spaced unit. The LaTeX
+    en-dash `--` was the fourth: its second hyphen follows a hyphen, not a
+    digit, so the digit/dot rule alone still read it as a sign.
     """
 
     def numbers(self, text):
@@ -425,6 +650,10 @@ class HyphenatedRangeTests(unittest.TestCase):
         ]:
             with self.subTest(text=text):
                 self.assertEqual(self.numbers(text), want)
+
+    def test_latex_dashes_are_separators_too(self):
+        self.assertEqual(self.numbers("seeing 0.5--1.2 arcsec"), {"0.5", "1.2"})
+        self.assertEqual(self.numbers("5---10 per field"), {"5", "10"})
 
     def test_genuine_negatives_are_still_signed(self):
         self.assertEqual(self.numbers("a bias of -0.06 dex"), {"-0.06"})
@@ -441,10 +670,12 @@ class HyphenatedRangeTests(unittest.TestCase):
         self.assertEqual(self.numbers("1,234 sources"), {"1,234"})
 
     def test_a_range_rewritten_as_prose_is_eligible(self):
-        reference = "The grid spans 12 seeing values from 0.5-1.2 arcsec."
-        candidate = "The grid samples 12 seeing values between 0.5 and 1.2 arcsec."
-        result = rewrite_reward.fidelity_eligibility(candidate, reference)
-        self.assertTrue(result["eligible"], result["missing"])
+        for dash in ("-", "--"):
+            reference = f"The grid spans 12 seeing values from 0.5{dash}1.2 arcsec."
+            candidate = "The grid samples 12 seeing values between 0.5 and 1.2 arcsec."
+            with self.subTest(dash=dash):
+                result = rewrite_reward.fidelity_eligibility(candidate, reference)
+                self.assertTrue(result["eligible"], result["missing"])
 
     def test_a_range_endpoint_actually_dropped_is_still_caught(self):
         reference = "The grid spans 12 seeing values from 0.5-1.2 arcsec."
@@ -452,6 +683,30 @@ class HyphenatedRangeTests(unittest.TestCase):
         result = rewrite_reward.fidelity_eligibility(candidate, reference)
         self.assertFalse(result["eligible"])
         self.assertIn("1.2", result["missing"]["numbers"])
+
+
+class SignedAndIdentifierNumeralTests(unittest.TestCase):
+    """Corrections (2), (3), (5) and (6) of the numeral record."""
+
+    def test_unicode_minus_is_a_sign_and_folds_to_ascii(self):
+        self.assertEqual(rewrite_reward._numbers("a bias of \u22120.06 dex"),
+                         Counter({"-0.06": 1}))
+        reference = "a bias of \u22120.06 dex"
+        self.assertFalse(rewrite_reward.fidelity_eligibility("a bias of 0.06 dex",
+                                                             reference)["eligible"])
+        self.assertTrue(rewrite_reward.fidelity_eligibility("a bias of -0.06 dex",
+                                                            reference)["eligible"])
+
+    def test_exponent_belongs_to_the_number(self):
+        self.assertEqual(set(rewrite_reward._numbers("a rate of 1.5e-3 per year")), {"1.5e-3"})
+        self.assertFalse(rewrite_reward.fidelity_eligibility("1.5e+3", "1.5e-3")["eligible"])
+
+    def test_a_token_does_not_start_inside_an_identifier(self):
+        self.assertEqual(rewrite_reward._numbers("M200 and z0.5"), Counter())
+        self.assertEqual(rewrite_reward._units("M200c"), set())
+
+    def test_leading_dot_decimal_is_one_number(self):
+        self.assertEqual(set(rewrite_reward._numbers("a bias of .06 dex")), {".06"})
 
 
 if __name__ == "__main__":
