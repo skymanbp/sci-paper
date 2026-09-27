@@ -4,14 +4,19 @@ Every registry call is replaced by a canned `fetch`, so the suite never
 touches the network; the live behaviour it stands in for was taken on the
 two manuscripts' bibliographies on 2026-09-05 (CrossRef title/subtitle
 split, the print/online year seam, `&amp;` against `\\&`, DataCite fallback
-for a Zenodo DOI).
+for a Zenodo DOI). The one test that reaches below `fetch` replaces
+`urllib.request.urlopen` for the same reason.
 """
 
 from __future__ import annotations
 
+import contextlib
+import http.client
+import io
 import json
 import tempfile
 import unittest
+import urllib.request
 from pathlib import Path
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
@@ -110,6 +115,24 @@ class ParseBibTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             vr.parse_bib("@article{broken,\n title = {never closed\n")
 
+    def test_string_macros_hash_concatenation_and_escaped_quotes(self):
+        bib = ('@string{apj = "The Astrophysical Journal"}\n'
+               '@STRING(apjl = apj # " Letters")\n'
+               r'@article{k, journal = apjl, title = "M{\"u}ller and the \"quoted\" word",'
+               '\n  doi = "10.1093/" # {mnras/1}, year = 2001, Bdsk-Url-1 = {x},}')
+        fields = vr.parse_bib(bib)[0]["fields"]
+        self.assertEqual(fields["journal"], "The Astrophysical Journal Letters")
+        self.assertEqual(fields["title"], r'M{\"u}ller and the \"quoted\" word')
+        self.assertEqual((fields["doi"], fields["year"], fields["bdsk-url-1"]),
+                         ("10.1093/mnras/1", "2001", "x"))
+
+    def test_text_the_grammar_cannot_place_is_a_value_error_not_a_dropped_field(self):
+        for text in ("@article{k, title = {x} junk, doi = {10.1/x}}",
+                     "@article{k, title = }",
+                     '@article{k, title = "never closed}'):
+            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "entry 'k'"):
+                vr.parse_bib(text)
+
 
 class NormalizationTests(unittest.TestCase):
     """Table-driven: each row is (function, input, expected)."""
@@ -119,6 +142,8 @@ class NormalizationTests(unittest.TestCase):
         (vr.normalize, "Émile Düsseldorf &amp; co", "emiledusseldorfco"),
         (vr.first_author_family, "van Waerbeke, Ludovic and Mellier, Y.", "vanwaerbeke"),
         (vr.first_author_family, "Peter Schneider and Y. Mellier", "schneider"),
+        (vr.first_author_family, "Fan, Zuhui AND Shan, Huanyuan", "fan"),
+        (vr.first_author_family, "Peter Schneider\nand Y. Mellier", "schneider"),
         (vr.first_author_family, "", ""),
         (vr.first_page, "1408--1420", "1408"),
         (vr.first_page, "1408–1420", "1408"),
@@ -139,9 +164,29 @@ class NormalizationTests(unittest.TestCase):
                                        "fan2010": "arxiv:1006.5121", "ho2020": None,
                                        "code2025": "doi:10.5281/zenodo.1234567"})
 
+    def test_a_doi_carried_only_in_the_url_field_is_an_identifier(self):
+        rows = (({"url": "https://doi.org/10.1093/mnras%2F283.3.837"}, "doi:10.1093/mnras/283.3.837"),
+                ({"url": "http://dx.doi.org/10.5281/zenodo.1"}, "doi:10.5281/zenodo.1"),
+                ({"doi": "10.1/a", "url": "https://doi.org/10.1/b"}, "doi:10.1/a"),
+                ({"url": "https://arxiv.org/abs/1006.5121"}, "arxiv:1006.5121"),
+                ({"url": "https://example.org/10.1093/x"}, None))
+        for fields, expected in rows:
+            with self.subTest(fields=fields):
+                self.assertEqual(vr.entry_identifier(fields), expected)
+
     def test_cite_keys_with_optional_arguments_and_lists(self):
         text = r"\citep[e.g.,][]{a, b}\citet{c}\Citealt*{d} \cite {e}"
         self.assertEqual(vr.cite_keys(text), {"a", "b", "c", "d", "e"})
+
+    def test_cite_keys_of_natbib_and_biblatex_commands(self):
+        text = (r"\parencite{a}\Textcite[p.~3]{b}\autocite*{c}\smartcite{d}\footcite{e}"
+                r"\nocite{f}\cites{g,h}[pre][post]{i}\supercite{j}\fullcite{k}"
+                r"\citetext{priv.\ comm.}\citealias{l} {\bf not a key}\citeauthor{m}")
+        self.assertEqual(vr.cite_keys(text), set("abcdefghijklm"))
+
+    def test_cite_lines_skip_comments_and_report_the_citing_line(self):
+        text = "\\cite{a}\n% \\cite{ghost}\nsee \\citep{b} \\% \\cite{c}\n\\nocite{*}"
+        self.assertEqual(vr.cite_lines(text), {"a": 1, "b": 3, "c": 3, "*": 4})
 
 
 class CompareTests(unittest.TestCase):
@@ -167,6 +212,27 @@ class CompareTests(unittest.TestCase):
 
     def test_missing_fields_on_either_side_are_not_compared(self):
         self.assertEqual(vr.compare({"author": "Schneider, P."}, {"first_author": "", "title": ""}), [])
+
+    def test_short_family_names_no_longer_pass_as_substrings(self):
+        rows = (("Li, X.", "Lin", False), ("Ma, C.", "Mandelbaum", False),
+                ("He, S.", "Heymans", False), ("de Jong, R.", "de Vries", False),
+                ("van Waerbeke, L.", "Waerbeke", True), ("Smith-Jones, A.", "Smith", True),
+                ("Fan, Z.", "Fan", True))
+        for entry, record, agree in rows:
+            with self.subTest(entry=entry, record=record):
+                issues = vr.compare({"author": entry}, {"first_author": record})
+                self.assertEqual([i["field"] for i in issues], [] if agree else ["first_author"])
+
+    def test_record_shapes_outside_the_contract_do_not_raise(self):
+        for message in ({"issued": {"date-parts": [[]]}}, {"issued": {"date-parts": [[None]]}},
+                        {"issued": {}}, {"issued": None, "title": [], "author": [], "subtitle": None}):
+            with self.subTest(message=message):
+                record = vr._crossref_record(message)
+                self.assertEqual((record["year"], record["title"], record["first_author"]),
+                                 (None, "", ""))
+        datacite = vr._datacite_record({"creators": [], "titles": [], "container": None})
+        self.assertEqual((datacite["first_author"], datacite["title"], datacite["journal"]),
+                         ("", "", ""))
 
 
 class VerifyTests(unittest.TestCase):
@@ -232,6 +298,45 @@ class VerifyTests(unittest.TestCase):
         failed = next(f for f in report["findings"] if f["rule"] == "reference-lookup-failed")
         self.assertEqual(failed["measurement_status"], "unmeasured")
 
+    def test_http_client_errors_are_a_registry_outage_not_a_traceback(self):
+        def urlopen(request, timeout=30):
+            raise http.client.IncompleteRead(b"")
+        real = urllib.request.urlopen
+        urllib.request.urlopen = urlopen
+        try:
+            with self.assertRaises(vr.RegistryUnavailable):
+                vr.fetch(vr.CROSSREF + "10.1093/x")
+        finally:
+            urllib.request.urlopen = real
+
+    def test_an_unreadable_registry_answer_leaves_the_entry_unmeasured(self):
+        fetch = self.registries(**{vr.CROSSREF + "10.1093": (200, b'{"no": "message"}'),
+                                   vr.ARXIV: (200, b"<feed><entry>not xml")})
+        code, report = self.run_verify(fetch)
+        self.assertEqual(code, 0)
+        states = report["reference_states"]
+        self.assertEqual((states["schneider1996"], states["fan2010"]), ("unmeasured", "unmeasured"))
+        self.assertEqual(report["axes"][0]["status"], "degraded")
+
+    def test_any_other_failure_exits_two_rather_than_reading_as_a_verdict(self):
+        def fetch(url, timeout=30):
+            raise RuntimeError("boom")
+        with tempfile.TemporaryDirectory() as raw:
+            bib, cache = Path(raw) / "refs.bib", Path(raw) / "cache.json"
+            bib.write_text(BIB, encoding="utf-8")
+            cache.write_text("[]", encoding="utf-8")
+            real, vr.fetch = vr.fetch, fetch
+            stderr = io.StringIO()
+            try:
+                with contextlib.redirect_stderr(stderr):
+                    crashed = vr.main([str(bib), "--pause", "0"])
+                    bad_cache = vr.main([str(bib), "--pause", "0", "--cache", str(cache)])
+            finally:
+                vr.fetch = real
+        self.assertEqual((crashed, bad_cache), (2, 2))
+        self.assertIn("execution failed: RuntimeError: boom", stderr.getvalue())
+        self.assertIn("execution failed: ValueError: cache", stderr.getvalue())
+
     def test_tex_cross_check_finds_missing_entries_and_uncited_ones(self):
         tex = r"\cite{schneider1996,ghost2001} \citep[see][]{fan2010}"
         code, report = self.run_verify(self.registries(), tex=tex)
@@ -242,6 +347,24 @@ class VerifyTests(unittest.TestCase):
         uncited = sorted(f["observed"]["key"] for f in report["findings"]
                          if f["rule"] == "reference-uncited")
         self.assertEqual(uncited, ["code2025", "ho2020"])
+
+    def test_a_cite_inside_a_comment_is_text_and_a_missing_key_names_its_line(self):
+        tex = ("intro\n\\cite{schneider1996,fan2010}\n% \\cite{ghost}\n"
+               "\\citep{code2025} and \\cite{phantom}\n")
+        code, report = self.run_verify(self.registries(), tex=tex)
+        self.assertEqual(code, 1)
+        missing = [(f["observed"]["key"], f["location"]["start_line"])
+                   for f in report["findings"] if f["rule"] == "reference-missing-entry"]
+        self.assertEqual(missing, [("phantom", 4)])
+        uncited = [f["observed"]["key"] for f in report["findings"]
+                   if f["rule"] == "reference-uncited"]
+        self.assertEqual(uncited, ["ho2020"])
+
+    def test_nocite_star_cites_every_entry(self):
+        code, report = self.run_verify(self.registries(), tex=r"\nocite{*}")
+        rules = {f["rule"] for f in report["findings"]}
+        self.assertEqual(code, 0)
+        self.assertFalse(rules & {"reference-uncited", "reference-missing-entry"})
 
     def test_cache_is_written_and_then_spares_the_registries(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -255,6 +378,27 @@ class VerifyTests(unittest.TestCase):
             code, report = self.run_verify(second, cache=cache)
             self.assertEqual((second.calls, code), ([], 0))
             self.assertEqual(report["reference_states"]["code2025"], "verified")
+
+    def test_a_registry_miss_is_not_cached_and_a_cached_record_says_so(self):
+        zenodo = "10.5281/zenodo.1234567"
+        with tempfile.TemporaryDirectory() as raw:
+            cache = Path(raw) / "cache.json"
+            # A `null` an earlier version wrote for a miss, and a non-record.
+            cache.write_text(json.dumps({"doi:" + zenodo: None, "bogus": 1}), encoding="utf-8")
+            first = self.registries(**{vr.DATACITE + "10.5281": (404, b"")})
+            code, report = self.run_verify(first, cache=cache)
+            self.assertEqual(code, 1)
+            self.assertIn(vr.DATACITE + zenodo, first.calls)
+            saved = json.loads(cache.read_text(encoding="utf-8"))
+            self.assertEqual(sorted(saved), ["arxiv:1006.5121", "doi:10.1093/mnras/283.3.837"])
+            year = next(f for f in report["findings"] if f["rule"] == "reference-metadata-mismatch:year")
+            self.assertFalse(year["observed"]["cached"])
+            second = self.registries()
+            code, report = self.run_verify(second, cache=cache)
+            self.assertEqual((code, report["reference_states"]["code2025"]), (0, "verified"))
+            self.assertEqual(second.calls, [vr.CROSSREF + zenodo, vr.DATACITE + zenodo])
+            year = next(f for f in report["findings"] if f["rule"] == "reference-metadata-mismatch:year")
+            self.assertTrue(year["observed"]["cached"])
 
     def test_missing_files_are_configuration_failures(self):
         self.assertEqual(vr.main(["no-such.bib"]), 2)

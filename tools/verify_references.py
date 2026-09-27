@@ -1,23 +1,30 @@
 """Verify a BibTeX bibliography against the records its identifiers resolve to.
 
-Every entry that carries a DOI is resolved through CrossRef (DataCite as the
-fallback for the DOI prefixes CrossRef does not register) and its author,
-year, title, journal, volume and first page are compared with the fetched
-record; an entry with only an arXiv identifier is resolved through the arXiv
-API. The comparison is the mechanical half of paper-review dimension F
-(citation existence): a DOI that resolves nowhere is an `integrity_blocker`
-and a first author, year or title that disagrees with the record is a strong
-advisory, both under `sci-paper.feedback.v1`. Journal, volume and page
-disagreements are ordinary advisories, since abbreviations and article
-numbers vary by house style. An entry the network could not answer for is
-reported as unmeasured, never as clean, and the axis is `degraded`.
+Every entry that carries a DOI (in its `doi` field or as a doi.org `url`) is
+resolved through CrossRef (DataCite as the fallback for the DOI prefixes
+CrossRef does not register) and its author, year, title, journal, volume and
+first page are compared with the fetched record; an entry with only an arXiv
+identifier is resolved through the arXiv API. The comparison is the
+mechanical half of paper-review dimension F (citation existence): a DOI that
+resolves nowhere is an `integrity_blocker` and a first author, year or title
+that disagrees with the record is a strong advisory, both under
+`sci-paper.feedback.v1`. Journal, volume and page disagreements are ordinary
+advisories, since abbreviations and article numbers vary by house style. An
+entry the network could not answer for, or answered in a shape the record
+readers do not expect, is reported as unmeasured, never as clean, and the
+axis is `degraded`.
 
-With `--tex`, the assembled document's `\\cite` keys are cross-checked: a key
+With `--tex`, the assembled document's citation keys are cross-checked: a key
 with no bibliography entry is a blocker, an entry no sentence cites is an
-ordinary advisory. Exit status follows the linter's narrow contract: 0 means
-no blocker, 1 means a blocker is present, 2 means invalid input or execution
-failure. `--cache` keeps fetched records in a JSON file so a repeated review
-round does not re-query the registries.
+ordinary advisory. The citing commands of LaTeX, natbib and biblatex are
+recognised (`\\cite`, `\\citep`, `\\parencite`, `\\cites{a}{b}`, ...), a
+`\\nocite{*}` cites every entry, and a citation inside a `%` comment is text.
+Exit status follows the linter's narrow contract: 0 means no blocker, 1 means
+a blocker is present, 2 means invalid input or execution failure. `--cache`
+keeps fetched records in a JSON file so a repeated review round does not
+re-query the registries; a registry miss is never cached, so an identifier
+the registries are late to index is asked again next round, and a finding
+built from a cached record says so (`observed.cached`).
 """
 
 from __future__ import annotations
@@ -25,6 +32,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import html
+import http.client
 import json
 import re
 import sys
@@ -40,7 +48,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_feedback as feedback  # noqa: E402  shared finding contract
-import tex_assembly  # noqa: E402  the assembled document for --tex
+import tex_assembly  # noqa: E402  the assembled document and comment pattern for --tex
 
 USER_AGENT = "sci-paper-verify-references/1.0"
 CROSSREF = "https://api.crossref.org/works/"
@@ -55,9 +63,29 @@ YEAR_SEAM = 1
 # Anchored at line start: an `@article{` inside a `%` comment line is text.
 RE_ENTRY_HEAD = re.compile(r"^[ \t]*@(\w+)\s*([{(])\s*([^,\s]+)\s*,",
                            re.IGNORECASE | re.MULTILINE)
-RE_FIELD_HEAD = re.compile(r"\s*,?\s*(\w+)\s*=\s*")
-RE_BARE_VALUE = re.compile(r"[^,}]*")
-RE_CITE = re.compile(r"\\[cC]ite[a-zA-Z*]*(?:\[[^\]]*\]){0,2}\s*\{([^}]+)\}")
+RE_STRING_HEAD = re.compile(r"^[ \t]*@string\s*([{(])", re.IGNORECASE | re.MULTILINE)
+# A field name is any run BibTeX allows (BibDesk writes `Bdsk-Url-1`), a bare
+# value a number or a `@string` name; whitespace and commas between fields
+# are skipped, `#` joins the pieces of one value, and a value must be
+# followed by a comma or the end of the entry.
+RE_FIELD_SKIP = re.compile(r"[\s,]*")
+RE_FIELD_HEAD = re.compile(r"""([^\s"#%'(),={}]+)\s*=\s*""")
+RE_BARE_VALUE = re.compile(r"""[^\s,#{}"]+""")
+RE_CONCAT = re.compile(r"\s*#\s*")
+RE_FIELD_END = re.compile(r"\s*(?=,|\Z)")
+# The citing commands of LaTeX, natbib and biblatex: an optional biblatex
+# prefix, `cite`, a suffix (`p`, `t`, `alt`, `author`; `s` marks the
+# multicite forms), an optional star, up to two [pre][post] notes, then the
+# key group. Case-insensitive for the sentence-initial `\Citep`, `\Textcite`.
+RE_CITE = re.compile(
+    r"\\(?P<prefix>no|paren|text|auto|smart|foot|super|full|footfull)?"
+    r"cite(?P<suffix>[a-z]*)\*?(?:\s*\[[^\]]*\]){0,2}\s*\{(?P<keys>[^}]*)\}",
+    re.IGNORECASE)
+# A multicite command (`\cites{a}{b}`, `\parencites[p]{a}[q]{b}`) carries
+# one key group per citation; the tail is consumed group by group.
+RE_CITE_GROUP = re.compile(r"\s*(?:\[[^\]]*\]\s*){0,2}\{([^}]*)\}")
+MULTICITE_SUFFIXES = ("s", "texts")
+RE_AUTHOR_SEP = re.compile(r"\s+and\s+", re.IGNORECASE)
 RE_ACCENT = re.compile(r"\\[`'^\"~=.uvHtcdbk]\s*\{?\\?([A-Za-z])\}?")
 RE_LATEX_CMD = re.compile(r"\\[A-Za-z]+")
 RE_ARXIV_ID = re.compile(r"(\d{4}\.\d{4,5}|[a-z\-]+(?:\.[A-Z]{2})?/\d{7})(?:v\d+)?")
@@ -83,29 +111,92 @@ def _group_end(text: str, start: int, close: str) -> int:
     raise ValueError(f"unbalanced entry from offset {start}")
 
 
-def _parse_fields(body: str) -> dict[str, str]:
+def _quoted_end(body: str, start: int) -> int:
+    """Index just past the `"` closing the quoted value opening at `start`.
+
+    Braces nest inside a quoted value, and a `"` inside them or escaped as
+    `\\"` does not close it: `"M{\\"u}ller"` and `"a \\"quoted\\" word"` are
+    one value each. Stopping at the first `"` cut such a value short and
+    silently dropped every field after it, DOI included.
+    """
+    depth = 0
+    for index in range(start + 1, len(body)):
+        char = body[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+        elif char == '"' and depth == 0 and body[index - 1] != "\\":
+            return index + 1
+    raise ValueError(f"unterminated quoted value from offset {start}")
+
+
+def _value_piece(body: str, position: int, strings: dict[str, str]) -> tuple[str, int]:
+    """(text, end) of one value piece: a braced or quoted group, a number,
+    or a macro name expanded from the `@string` definitions read so far (an
+    undefined name stays as written, so the comparison shows it)."""
+    if position < len(body) and body[position] == "{":
+        end = _group_end(body, position, "}")
+        return body[position + 1:end - 1], end
+    if position < len(body) and body[position] == '"':
+        end = _quoted_end(body, position)
+        return body[position + 1:end - 1], end
+    bare = RE_BARE_VALUE.match(body, position)
+    if not bare:
+        raise ValueError(f"missing field value at offset {position}")
+    return strings.get(bare.group().lower(), bare.group()), bare.end()
+
+
+def _parse_fields(body: str, strings: dict[str, str] | None = None) -> dict[str, str]:
+    """`name = value` pairs of an entry body, whitespace collapsed.
+
+    A value is one or more pieces joined with `#`; each piece is a braced or
+    quoted group, a number, or a `@string` name. Text the grammar cannot
+    place raises ValueError: BibTeX itself skips the rest of such an entry,
+    and dropping the fields silently once turned a DOI-bearing entry into a
+    "no identifier" advisory.
+    """
+    strings = strings if strings is not None else {}
     fields: dict[str, str] = {}
-    position = 0
-    while True:
+    position = RE_FIELD_SKIP.match(body).end()
+    while position < len(body):
         head = RE_FIELD_HEAD.match(body, position)
-        if not head or head.end() >= len(body):
-            return fields
+        if not head:
+            raise ValueError(f"unreadable field at offset {position}: "
+                             f"{body[position:position + 40].strip()!r}")
         name, position = head.group(1).lower(), head.end()
-        if body[position] == "{":
-            end = _group_end(body, position, "}")
-            value = body[position + 1:end - 1]
-        elif body[position] == '"':
-            end = body.index('"', position + 1) + 1
-            value = body[position + 1:end - 1]
-        else:
-            end = RE_BARE_VALUE.match(body, position).end()
-            value = body[position:end]
-        fields[name] = " ".join(value.split())
-        position = end
+        pieces = []
+        while True:
+            piece, position = _value_piece(body, position, strings)
+            pieces.append(piece)
+            concat = RE_CONCAT.match(body, position)
+            if not concat:
+                break
+            position = concat.end()
+        fields[name] = " ".join("".join(pieces).split())
+        end = RE_FIELD_END.match(body, position)
+        if not end:
+            raise ValueError(f"expected ',' or the end of the entry at offset {position}: "
+                             f"{body[position:position + 40].strip()!r}")
+        position = RE_FIELD_SKIP.match(body, end.end()).end()
+    return fields
+
+
+def parse_strings(text: str) -> dict[str, str]:
+    """`@string{name = value}` definitions, names lowercased, in file order;
+    a definition may use the ones before it (`apjl = apj # " Letters"`)."""
+    strings: dict[str, str] = {}
+    for head in RE_STRING_HEAD.finditer(text):
+        close = "}" if head.group(1) == "{" else ")"
+        end = _group_end(text, head.start(1), close)
+        strings.update(_parse_fields(text[head.end():end - 1], strings))
+    return strings
 
 
 def parse_bib(text: str) -> list[dict[str, Any]]:
-    """Every `@type{key, field = value, ...}` entry; comments and @string skipped."""
+    """Every `@type{key, field = value, ...}` entry, `@string` names expanded
+    in its values; `@comment` and `@preamble` blocks are skipped."""
+    strings = parse_strings(text)
     entries = []
     for head in RE_ENTRY_HEAD.finditer(text):
         kind = head.group(1).lower()
@@ -113,9 +204,12 @@ def parse_bib(text: str) -> list[dict[str, Any]]:
             continue
         close = "}" if head.group(2) == "{" else ")"
         end = _group_end(text, head.start(2), close)
-        entries.append({"key": head.group(3), "type": kind,
-                        "line": text[:head.start()].count("\n") + 1,
-                        "fields": _parse_fields(text[head.end():end - 1])})
+        key, line = head.group(3), text[:head.start()].count("\n") + 1
+        try:
+            fields = _parse_fields(text[head.end():end - 1], strings)
+        except ValueError as error:
+            raise ValueError(f"entry {key!r} (line {line}): {error}") from error
+        entries.append({"key": key, "type": kind, "line": line, "fields": fields})
     return entries
 
 
@@ -123,24 +217,55 @@ def parse_bib(text: str) -> list[dict[str, Any]]:
 # Normalisation
 # ---------------------------------------------------------------------------
 
-def normalize(text: str | None) -> str:
-    """Lowercase alphanumerics only, LaTeX accents and braces removed."""
+def _fold(text: str | None) -> str:
+    """Lowercase text with LaTeX accents, commands, braces and combining
+    marks removed; separators are kept so a name still splits into parts."""
     if not text:
         return ""
     # CrossRef serves `&amp;` where a bibliography writes `\&`; both are "&".
     text = RE_ACCENT.sub(r"\1", html.unescape(str(text)))
     text = RE_LATEX_CMD.sub(" ", text).replace("{", "").replace("}", "")
     text = unicodedata.normalize("NFKD", text)
-    text = "".join(char for char in text if not unicodedata.combining(char))
-    return re.sub(r"[^a-z0-9]+", "", text.lower())
+    return "".join(char for char in text if not unicodedata.combining(char)).lower()
+
+
+def normalize(text: str | None) -> str:
+    """Lowercase alphanumerics only, LaTeX accents and braces removed."""
+    return re.sub(r"[^a-z0-9]+", "", _fold(text))
+
+
+def _name_tokens(text: str | None) -> set[str]:
+    """The parts of a family name at least four letters long: particles
+    (`van`, `de`) are shared by unrelated names and count for nothing."""
+    return {token for token in re.split(r"[^a-z0-9]+", _fold(text)) if len(token) >= 4}
+
+
+def same_family(entry: str | None, record: str | None) -> bool:
+    """Whether two family names agree: equal once normalized, or sharing a
+    part of four or more letters (`van Waerbeke` / `Waerbeke`, `Smith-Jones`
+    / `Smith`). A bare substring test let `Li` pass for `Lin` and `Ma` for
+    `Mandelbaum`, so a wrong first author on a short name went unreported.
+    """
+    return (normalize(entry) == normalize(record)
+            or bool(_name_tokens(entry) & _name_tokens(record)))
+
+
+def first_author(authors: str) -> str:
+    """The first name of a BibTeX author list, split on ` and ` in any case."""
+    return RE_AUTHOR_SEP.split(authors)[0].strip()
+
+
+def family_name(author: str) -> str:
+    """The family part as written: before the comma of `Family, Given`,
+    else the last word of `Given Family`."""
+    if "," in author:
+        return author.split(",")[0].strip()
+    tokens = author.split()
+    return tokens[-1] if tokens else ""
 
 
 def first_author_family(authors: str) -> str:
-    first = authors.split(" and ")[0].strip()
-    if "," in first:
-        return normalize(first.split(",")[0])
-    tokens = first.split()
-    return normalize(tokens[-1]) if tokens else ""
+    return normalize(family_name(first_author(authors)))
 
 
 def _journal_name(name: str | None) -> str:
@@ -167,11 +292,16 @@ def arxiv_id(fields: dict[str, str]) -> str | None:
 # ---------------------------------------------------------------------------
 
 class RegistryUnavailable(RuntimeError):
-    """A registry could not be reached or answered outside 200/404."""
+    """A registry could not be reached, answered outside 200/404, or served
+    a body the record readers cannot use; the entry stays unmeasured."""
 
 
 def fetch(url: str, timeout: int = 30) -> tuple[int, bytes]:
-    """(HTTP status, body). 404 is an answer, not an error; the rest raise."""
+    """(HTTP status, body). 404 is an answer, not an error; the rest raise.
+
+    Known gap (audit F22): no retry or back-off on 429/5xx, and no `mailto:`
+    in the User-Agent for CrossRef's polite pool.
+    """
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT,
                                                    "Accept": "application/json"})
     try:
@@ -181,40 +311,75 @@ def fetch(url: str, timeout: int = 30) -> tuple[int, bytes]:
         if error.code == 404:
             return 404, b""
         raise RegistryUnavailable(f"HTTP {error.code} from {url.split('?')[0]}") from error
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+    except (http.client.HTTPException, OSError) as error:
+        # URLError and TimeoutError are OSError subclasses; IncompleteRead,
+        # BadStatusLine and RemoteDisconnected are HTTPException and are not.
         raise RegistryUnavailable(f"{error} ({url.split('?')[0]})") from error
 
 
+def _first(value: Any, default: Any = "") -> Any:
+    """The first element of a list-valued registry field, the value itself
+    when the registry served a scalar, `default` when it served nothing.
+    CrossRef's `issued.date-parts` arrives as `[[]]` or `[[null]]` for an
+    undated work, and indexing it blindly was an IndexError traceback."""
+    if isinstance(value, list):
+        return value[0] if value else default
+    return default if value is None else value
+
+
+def _answer(body: bytes, *keys: str) -> dict[str, Any]:
+    """The object at `keys` in a JSON registry answer. Any other shape -- a
+    body that is not JSON, a missing key, a record that is not an object --
+    is an answer outside the contract and leaves the entry unmeasured."""
+    try:
+        value: Any = json.loads(body.decode("utf-8"))
+        for key in keys:
+            value = value[key]
+    except (ValueError, LookupError, TypeError) as error:
+        raise RegistryUnavailable(
+            f"unreadable registry answer: {type(error).__name__}: {error}") from error
+    if not isinstance(value, dict):
+        raise RegistryUnavailable("unreadable registry answer: the record is not an object")
+    return value
+
+
 def _crossref_record(message: dict[str, Any]) -> dict[str, Any]:
-    authors = message.get("author") or []
-    issued = (message.get("issued") or {}).get("date-parts") or [[None]]
+    author = _first(message.get("author"), {})
+    author = author if isinstance(author, dict) else {}
+    issued = message.get("issued")
+    date_parts = issued.get("date-parts") if isinstance(issued, dict) else None
+    subtitle = message.get("subtitle") or []
     return {
         "source": "crossref",
-        "first_author": (authors[0].get("family") or authors[0].get("name", "")) if authors else "",
-        "year": issued[0][0],
+        "first_author": author.get("family") or author.get("name") or "",
+        "year": _first(_first(date_parts, []), None),
         # CrossRef splits "GaBoDS: the Garching-Bonn Deep Survey. IX. A sample
         # of ..." into title and subtitle; a bibliography carries both as one.
-        "title": " ".join((message.get("title") or [""])[:1]
-                          + (message.get("subtitle") or [])),
-        "journal": (message.get("container-title") or [""])[0],
-        "journal_short": (message.get("short-container-title") or [""])[0],
-        "volume": message.get("volume", ""),
+        "title": " ".join(str(part) for part in [_first(message.get("title"))]
+                          + (subtitle if isinstance(subtitle, list) else [subtitle])),
+        "journal": str(_first(message.get("container-title"))),
+        "journal_short": str(_first(message.get("short-container-title"))),
+        "volume": message.get("volume") or "",
         "page": message.get("page") or message.get("article-number") or "",
     }
 
 
 def _datacite_record(attributes: dict[str, Any]) -> dict[str, Any]:
-    creators = attributes.get("creators") or [{}]
-    container = attributes.get("container") or {}
+    creator = _first(attributes.get("creators"), {})
+    creator = creator if isinstance(creator, dict) else {}
+    title = _first(attributes.get("titles"), {})
+    container = attributes.get("container")
+    container = container if isinstance(container, dict) else {}
     return {
         "source": "datacite",
-        "first_author": creators[0].get("familyName") or creators[0].get("name", "").split(",")[0],
+        "first_author": (creator.get("familyName")
+                         or str(creator.get("name") or "").split(",")[0]),
         "year": attributes.get("publicationYear"),
-        "title": (attributes.get("titles") or [{}])[0].get("title", ""),
-        "journal": container.get("title", ""),
+        "title": (title.get("title") or "") if isinstance(title, dict) else str(title),
+        "journal": container.get("title") or "",
         "journal_short": "",
-        "volume": container.get("volume", ""),
-        "page": container.get("firstPage", ""),
+        "volume": container.get("volume") or "",
+        "page": container.get("firstPage") or "",
     }
 
 
@@ -222,10 +387,10 @@ def resolve_doi(doi: str) -> dict[str, Any] | None:
     """The record a DOI resolves to, or None when neither registry knows it."""
     status, body = fetch(CROSSREF + urllib.parse.quote(doi, safe="/"))
     if status == 200:
-        return _crossref_record(json.loads(body.decode("utf-8"))["message"])
+        return _crossref_record(_answer(body, "message"))
     status, body = fetch(DATACITE + urllib.parse.quote(doi, safe="/"))
     if status == 200:
-        return _datacite_record(json.loads(body.decode("utf-8"))["data"]["attributes"])
+        return _datacite_record(_answer(body, "data", "attributes"))
     return None
 
 
@@ -233,7 +398,10 @@ def resolve_arxiv(identifier: str) -> dict[str, Any] | None:
     status, body = fetch(ARXIV + urllib.parse.quote(identifier))
     if status != 200:
         return None
-    entry = ET.fromstring(body.decode("utf-8", "replace")).find(f"{ATOM}entry")
+    try:
+        entry = ET.fromstring(body.decode("utf-8", "replace")).find(f"{ATOM}entry")
+    except ET.ParseError as error:
+        raise RegistryUnavailable(f"unreadable arXiv answer: {error}") from error
     # An unknown identifier still returns a feed, with one entry that has no id.
     if entry is None or entry.findtext(f"{ATOM}id") is None:
         return None
@@ -260,15 +428,15 @@ def compare(fields: dict[str, str], record: dict[str, Any]) -> list[dict[str, An
     compared: silence is not agreement, and the caller reports what it saw.
     """
     issues: list[dict[str, Any]] = []
-    author = first_author_family(fields.get("author", ""))
-    record_author = normalize(record.get("first_author"))
-    if author and record_author and author != record_author \
-            and author not in record_author and record_author not in author:
-        issues.append({"field": "first_author", "entry": fields["author"].split(" and ")[0],
+    author = first_author(fields.get("author", ""))
+    family, record_family = family_name(author), str(record.get("first_author") or "")
+    if normalize(family) and normalize(record_family) \
+            and not same_family(family, record_family):
+        issues.append({"field": "first_author", "entry": author,
                        "record": record.get("first_author"), "strength": "strong"})
-    year = fields.get("year", "")
-    if year.isdigit() and record.get("year"):
-        gap = abs(int(year) - int(record["year"]))
+    year, record_year = fields.get("year", ""), str(record.get("year") or "")
+    if year.isdigit() and record_year.isdigit():
+        gap = abs(int(year) - int(record_year))
         if gap:
             issues.append({"field": "year", "entry": year, "record": record["year"],
                            "strength": "strong" if gap > YEAR_SEAM else "ordinary"})
@@ -319,17 +487,27 @@ def _finding(*, path: Path, key: str, line: int, rule: str, kind: str, strength:
 
 
 def entry_identifier(fields: dict[str, str]) -> str | None:
-    """`doi:<doi>`, else `arxiv:<id>`, else None."""
-    doi = RE_DOI_URL.sub("", fields.get("doi", "").strip())
-    if doi:
-        return "doi:" + doi
+    """`doi:<doi>` from the `doi` field or a doi.org `url`, else `arxiv:<id>`,
+    else None. A DOI that lives only in the `url` field (`https://doi.org/...`,
+    as several exporters write it) is an identifier all the same."""
+    for name in ("doi", "url"):
+        value = fields.get(name, "").strip()
+        if value and (name == "doi" or RE_DOI_URL.match(value)):
+            doi = RE_DOI_URL.sub("", value)
+            if doi:
+                return "doi:" + (urllib.parse.unquote(doi) if name == "url" else doi)
     arxiv = arxiv_id(fields)
     return ("arxiv:" + arxiv) if arxiv else None
 
 
 def verify_entry(entry: dict[str, Any], path: Path, cache: dict[str, Any],
                  pause: float) -> tuple[list[dict[str, Any]], str]:
-    """(findings, state); state is verified / unresolved / unmeasured / no_identifier."""
+    """(findings, state); state is verified / unresolved / unmeasured / no_identifier.
+
+    `cache` maps identifiers to fetched records and is updated in place. A
+    miss (None) is never stored: a DOI the registries are late to index
+    would otherwise stay a blocker in every later round without a query.
+    """
     fields, key, line = entry["fields"], entry["key"], entry["line"]
     identifier = entry_identifier(fields)
     if identifier is None:
@@ -340,9 +518,9 @@ def verify_entry(entry: dict[str, Any], path: Path, cache: dict[str, Any],
                     "so no registry can confirm it.",
             action="Add the DOI or arXiv identifier, or verify the entry against the "
                    "publisher page by hand and record that in the review.")], "no_identifier"
-    if identifier in cache:
-        record = cache[identifier]
-    else:
+    record, cached = cache.get(identifier), True
+    if record is None:
+        cached = False
         scheme, _, value = identifier.partition(":")
         try:
             record = resolve_doi(value) if scheme == "doi" else resolve_arxiv(value)
@@ -351,10 +529,11 @@ def verify_entry(entry: dict[str, Any], path: Path, cache: dict[str, Any],
                 path=path, key=key, line=line, rule="reference-lookup-failed",
                 kind="advisory", strength="ordinary", status="unmeasured",
                 observed={"identifier": identifier, "error": str(error)},
-                message=f"Entry {key!r}: the registry did not answer ({error}).",
+                message=f"Entry {key!r}: the registry gave no usable answer ({error}).",
                 action="Re-run when the network allows; the entry is unverified, "
                        "not clean.")], "unmeasured"
-        cache[identifier] = record
+        if record is not None:
+            cache[identifier] = record
         if pause:
             time.sleep(pause)
     if record is None:
@@ -373,7 +552,8 @@ def verify_entry(entry: dict[str, Any], path: Path, cache: dict[str, Any],
             path=path, key=key, line=line,
             rule=f"reference-metadata-mismatch:{issue['field']}", kind="advisory",
             strength=issue["strength"],
-            observed={"identifier": identifier, "record_source": record["source"], **issue},
+            observed={"identifier": identifier, "record_source": record["source"],
+                      "cached": cached, **issue},
             message=(f"Entry {key!r}: {issue['field']} reads {issue['entry']!r} "
                      f"but the {record['source']} record says {issue['record']!r}."),
             action=("Correct the entry from the record, or confirm the identifier "
@@ -384,29 +564,64 @@ def verify_entry(entry: dict[str, Any], path: Path, cache: dict[str, Any],
     return findings, "verified"
 
 
+def cite_lines(text: str) -> dict[str, int]:
+    """Each cited key with the first line citing it, `%` comments removed.
+
+    A citation inside a comment is text (the pattern is the one
+    `tex_assembly` strips before resolving includes), and natbib's
+    `\\citetext{...}` holds prose, not keys. Lines count in the text given:
+    the assembled document, whose numbering is the root file's own until the
+    first spliced `\\input`. `\\nocite{*}` yields the key `*`; `cross_check`
+    reads it as citing every entry.
+    """
+    lines: dict[str, int] = {}
+    text = tex_assembly.RE_TEX_COMMENT.sub("", text)
+    for match in RE_CITE.finditer(text):
+        suffix = match.group("suffix").lower()
+        if suffix == "text" and not match.group("prefix"):
+            continue
+        groups, end = [match.group("keys")], match.end()
+        if suffix in MULTICITE_SUFFIXES:
+            while (more := RE_CITE_GROUP.match(text, end)) is not None:
+                groups.append(more.group(1))
+                end = more.end()
+        line = text.count("\n", 0, match.start()) + 1
+        for key in (key.strip() for group in groups for key in group.split(",")):
+            if key:
+                lines.setdefault(key, line)
+    return lines
+
+
 def cite_keys(text: str) -> set[str]:
-    return {key.strip() for match in RE_CITE.finditer(text)
-            for key in match.group(1).split(",") if key.strip()}
+    return set(cite_lines(text))
 
 
 def cross_check(entries: list[dict[str, Any]], tex_text: str, bib_path: Path,
                 tex_path: Path) -> list[dict[str, Any]]:
-    """Keys the document cites without an entry, and entries nothing cites."""
+    """Keys the document cites without an entry, and entries nothing cites.
+
+    A missing-entry finding points at the line of the citing command; an
+    uncited-entry finding points at the entry in the bibliography.
+    """
     known = {entry["key"]: entry for entry in entries}
-    cited = cite_keys(tex_text)
+    cited = cite_lines(tex_text)
+    everything = cited.pop("*", None)  # \nocite{*}: every entry is cited
+    if everything is not None:
+        for key in known:
+            cited.setdefault(key, everything)
     findings = [_finding(
-        path=tex_path, key=key, line=1, rule="reference-missing-entry",
+        path=tex_path, key=key, line=cited[key], rule="reference-missing-entry",
         kind="integrity_blocker", strength="strong",
         observed={"bibliography": bib_path.name},
         message=f"\\cite{{{key}}} has no entry in {bib_path.name}.",
         action="Add the entry or fix the key; the build prints [?] for it.")
-        for key in sorted(cited - known.keys())]
+        for key in sorted(cited.keys() - known.keys())]
     findings.extend(_finding(
         path=bib_path, key=key, line=known[key]["line"], rule="reference-uncited",
         kind="advisory", strength="ordinary", observed={"bibliography": bib_path.name},
         message=f"Entry {key!r} is cited nowhere in the assembled document.",
         action="Remove the dead entry unless the bibliography is shared across papers.")
-        for key in sorted(known.keys() - cited))
+        for key in sorted(known.keys() - cited.keys()))
     return findings
 
 
@@ -427,19 +642,31 @@ def build_parser() -> argparse.ArgumentParser:
     parser = cli_common.base_parser(__doc__)
     parser.add_argument("bib", type=Path, help="the .bib file to verify")
     parser.add_argument("--tex", type=Path, default=None,
-                        help="document root; its assembled \\cite keys are cross-checked")
+                        help="document root; its assembled citation keys are cross-checked")
     parser.add_argument("--cache", type=Path, default=None,
-                        help="JSON file of fetched records, read and updated")
+                        help="JSON file of fetched records, read and updated; "
+                             "a registry miss is not kept")
     parser.add_argument("--pause", type=float, default=0.2,
                         help="seconds between registry requests (default 0.2)")
     return cli_common.report_options(parser)
 
 
+def load_cache(path: Path | None) -> dict[str, Any]:
+    """The records a previous round fetched, keyed by identifier. Only
+    records are kept: a `null` an earlier version wrote for a registry miss,
+    or anything else that is not a record, is re-queried rather than trusted."""
+    if path is None or not path.is_file():
+        return {}
+    loaded = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise ValueError(f"cache {path} is not a JSON object")
+    return {key: value for key, value in loaded.items()
+            if isinstance(value, dict) and "source" in value}
+
+
 def verify(args: argparse.Namespace) -> dict[str, Any]:
     entries = parse_bib(args.bib.read_text(encoding="utf-8"))
-    cache: dict[str, Any] = {}
-    if args.cache is not None and args.cache.is_file():
-        cache = json.loads(args.cache.read_text(encoding="utf-8"))
+    cache = load_cache(args.cache)
     findings: list[dict[str, Any]] = []
     states: dict[str, str] = {}
     for entry in entries:
@@ -470,9 +697,15 @@ def main(argv: list[str] | None = None) -> int:
             return 2
     try:
         report = verify(args)
-    except (OSError, ValueError, json.JSONDecodeError, UnicodeDecodeError,
-            ET.ParseError) as error:
-        print(f"[verify_references] execution failed: {error}", file=sys.stderr)
+    except Exception as error:
+        # Deliberately broad, as in ai_ism_lint: exit 1 is reserved for "a
+        # blocker is present", and an uncaught traceback also exits 1, so a
+        # crash -- an unreadable .bib or cache, a registry answer the record
+        # readers do not expect, an HTTP-layer error a narrow tuple missed --
+        # would read as a blocker verdict. KeyboardInterrupt and SystemExit
+        # are BaseException and still propagate.
+        print(f"[verify_references] execution failed: {type(error).__name__}: {error}",
+              file=sys.stderr)
         return 2
     cli_common.emit_report(report, args, render=render, tool="verify_references")
     return 1 if any(f["kind"] == "integrity_blocker" for f in report["findings"]) else 0
