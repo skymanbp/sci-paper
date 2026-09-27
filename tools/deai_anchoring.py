@@ -19,7 +19,10 @@ averaged, never counted twice - the same anti-pseudoreplication rule as the
 document baseline). Detection is a low-tail conformal p per class with a
 Bonferroni share alpha/k (k = classes measured in the document), so the
 DOCUMENT-level false-flag rate stays <= alpha for exchangeable human papers.
-Below the per-class minimum the class is honestly omitted.
+Below the per-class minimum the class is honestly omitted. A conformal p is
+never smaller than 1/(n+1), so a class whose n cannot reach its share
+alpha/k can never flag: such a class is skipped and the axis reported
+`degraded`, never `measured` with nothing to say.
 
 Usage:
   python tools/deai_anchoring.py --field wgl --calibrate --corpus-dir style-corpus/wgl
@@ -28,8 +31,8 @@ Usage:
 
 from __future__ import annotations
 
-import argparse
 import json
+import math
 import re
 import statistics
 import sys
@@ -56,6 +59,12 @@ _CITE_RE = es.RE_TEX_CITE
 _NUMBER_RE = re.compile(r"\d")
 _COMPARISON_MARKERS = (" than ", "compared to", "compared with",
                        "relative to", "in contrast", "versus ")
+# The reference list, blanked before the sentence scan (see `document_anchoring`).
+# `deai_reference` blanks headings and floats and holds no bibliography
+# pattern; this one is local so that module stays untouched.
+_BIBLIOGRAPHY_RE = re.compile(
+    r"\\begin\{thebibliography\}.*?\\end\{thebibliography\}"
+    r"|\\bibliography(?:style)?\s*\{[^}]*\}", re.DOTALL)
 
 # section-title keyword -> class; first match wins, unmatched -> "other"
 SECTION_CLASSES = (
@@ -103,14 +112,31 @@ def section_anchor_rate(section_source: str) -> tuple[float, int] | None:
 
 
 def document_anchoring(text: str) -> dict[str, Any]:
-    """Per-class anchor rates for one document (one value per class)."""
+    """Per-class anchor rates for one document (one value per class).
+
+    The sweep is the one every per-bucket axis reads
+    (`deai_metrics.section_units`): the preamble and every `skip` unit
+    (acknowledgements, appendices, the reference list) are dropped, and in
+    each remaining unit the headings and floats are blanked by
+    `deai_reference.without_headings` and the bibliography by the local
+    pattern above, line count preserved. Until 2026-09-27 the sentence scan
+    ran on the raw LaTeX of `section_line_ranges`: a heading fused with the
+    first sentence below it, and a `thebibliography` block under the last
+    section glued to its final sentence and anchored it with every year in
+    the reference list (a Conclusions rate of 0.0 read as 0.2). An anchoring
+    baseline built before the change must be rebuilt: its rates were measured
+    on the raw text. The class still comes from the raw section title,
+    through this module's own keyword table.
+    """
     lines = text.splitlines()
     per_class: dict[str, list[float]] = {}
     section_rows = []
-    for start, end, label in metrics.section_line_ranges(text):
-        if label == "(preamble)":
+    for start, end, label, bucket in metrics.section_units(text):
+        if bucket in (metrics.PREAMBLE_BUCKET, "skip"):
             continue
-        segment = "\n".join(lines[start - 1:end])
+        segment = es.blank_preserving(
+            reference.without_headings("\n".join(lines[start - 1:end])),
+            _BIBLIOGRAPHY_RE)
         measured = section_anchor_rate(segment)
         if measured is None:
             continue
@@ -127,9 +153,22 @@ def document_anchoring(text: str) -> dict[str, Any]:
             "sections": section_rows}
 
 
+def min_class_documents_for_share(alpha: float, n_classes: int) -> int:
+    """The smallest class n whose conformal floor 1/(n+1) fits alpha/k."""
+    return max(0, math.ceil(n_classes / alpha - 1))
+
+
 def calibrate(documents: Iterable[tuple[str, str] | Path],
               field_profile_dir: Path) -> dict[str, Any]:
-    """Fit the section-class conditional human anchoring reference."""
+    """Fit the section-class conditional human anchoring reference.
+
+    `underpowered_classes` lists every retained class whose n is below the
+    floor for the Bonferroni share when a document measures ALL retained
+    classes (the worst case, k = the number of classes in this baseline):
+    such a class can never produce a finding, and detection reports the axis
+    `degraded` whenever a document measures one. The CLI prints the list as a
+    warning; MIN_CLASS_DOCUMENTS alone (30) supports only k = 1 at alpha 0.05.
+    """
     class_values: dict[str, list[float]] = {}
     n_documents = 0
     for item in documents:
@@ -162,12 +201,43 @@ def calibrate(documents: Iterable[tuple[str, str] | Path],
             "n": len(values),
             "median": statistics.median(values),
         }
+    floor = min_class_documents_for_share(ANCHORING_ALPHA, len(baseline["classes"]))
+    baseline["min_class_documents_for_share"] = floor
+    baseline["underpowered_classes"] = {
+        cls: entry["n"] for cls, entry in baseline["classes"].items()
+        if entry["n"] < floor}
     output = field_profile_dir / BASELINE_NAME
     output.write_text(json.dumps(baseline, indent=2), encoding="utf-8")
     return baseline
 
 
 load_baseline = reference.baseline_loader(BASELINE_NAME)
+
+
+def class_tests(baseline: dict[str, Any], result: dict[str, Any]
+                ) -> dict[str, Any]:
+    """Which of a document's classes the baseline can test, and at what alpha.
+
+    `measured` are the document's classes that have a reference; the
+    Bonferroni share is alpha over their count. A class whose reference is
+    too small for that share -- its conformal floor 1/(n+1) exceeds alpha/k,
+    so no observed rate could ever flag it -- goes to `underpowered` and is
+    not tested. The share is NOT re-spread over the remaining classes: testing
+    fewer classes at the same per-class alpha keeps the document-level rate
+    at or below alpha, and re-spreading would make which classes are tested
+    depend on the order they were dropped in. With n = 30 per class (the
+    retention minimum) and two classes measured, 1/31 = 0.032 > 0.025: every
+    finding was impossible and the axis still said `measured`.
+    """
+    alpha = float(baseline.get("alpha", ANCHORING_ALPHA))
+    references = baseline.get("classes", {})
+    measured = [cls for cls in result["classes"] if references.get(cls)]
+    class_alpha = alpha / len(measured) if measured else alpha
+    underpowered = [cls for cls in measured
+                    if 1.0 / (int(references[cls]["n"]) + 1) > class_alpha]
+    return {"alpha": alpha, "class_alpha": class_alpha, "measured": measured,
+            "underpowered": underpowered,
+            "testable": [cls for cls in measured if cls not in underpowered]}
 
 
 def anchoring_axis_status(text: str, field_profile_dir: Path | None
@@ -177,10 +247,26 @@ def anchoring_axis_status(text: str, field_profile_dir: Path | None
         return feedback.axis_status("L2.claim_anchoring", "unmeasured",
                                     reason="no section long enough to measure",
                                     detector="deai_anchoring")
-    if load_baseline(field_profile_dir) is None:
+    baseline = load_baseline(field_profile_dir)
+    if baseline is None:
         return feedback.axis_status("L2.claim_anchoring", "unmeasured",
                                     reason=f"{BASELINE_NAME} is unavailable",
                                     detector="deai_anchoring")
+    tests = class_tests(baseline, result)
+    if not tests["measured"]:
+        return feedback.axis_status(
+            "L2.claim_anchoring", "unmeasured",
+            reason="no measured section class has a calibrated reference",
+            detector="deai_anchoring")
+    if tests["underpowered"]:
+        n_classes = len(tests["measured"])
+        return feedback.axis_status(
+            "L2.claim_anchoring", "degraded",
+            reason=(f"class(es) {', '.join(tests['underpowered'])} hold too few "
+                    f"calibration papers for the Bonferroni share alpha/"
+                    f"{n_classes} = {tests['class_alpha']:.4f} (the conformal p "
+                    "cannot go below 1/(n+1)); they were skipped, not tested"),
+            detector="deai_anchoring")
     return feedback.axis_status("L2.claim_anchoring", "measured",
                                 detector="deai_anchoring")
 
@@ -191,22 +277,17 @@ def anchoring_findings(text: str, field_profile_dir: Path | None,
     result = document_anchoring(text)
     if baseline is None or result["status"] != "measured":
         return []
-    alpha = float(baseline.get("alpha", ANCHORING_ALPHA))
     # Bonferroni share: a document measures up to k classes; testing each at
     # alpha would give a document-level union false-flag rate near k*alpha
     # (measured 0.170 at alpha=0.05 before this correction), so each class
     # tests at alpha/k and the document-level rate stays <= alpha.
-    measured_classes = [cls for cls in result["classes"]
-                        if baseline.get("classes", {}).get(cls)]
-    if not measured_classes:
-        return []
-    class_alpha = alpha / len(measured_classes)
+    tests = class_tests(baseline, result)
+    alpha, class_alpha = tests["alpha"], tests["class_alpha"]
     findings = []
-    for cls, observed in result["classes"].items():
-        reference = baseline.get("classes", {}).get(cls)
-        if not reference:
-            continue
-        values = reference["values"]
+    for cls in tests["testable"]:
+        observed = result["classes"][cls]
+        class_reference = baseline["classes"][cls]
+        values = class_reference["values"]
         # low-tail conformal p: rank of the observed rate among human rates
         p_value = (1 + sum(v <= observed for v in values)) / (len(values) + 1)
         if p_value > class_alpha:
@@ -231,19 +312,19 @@ def anchoring_findings(text: str, field_profile_dir: Path | None,
             reference={"operating_point": "conformal low tail, Bonferroni",
                        "alpha_document": alpha,
                        "alpha_class": class_alpha,
-                       "n_classes_tested": len(measured_classes),
-                       "n_calibration": reference["n"],
-                       "human_median": reference["median"],
+                       "n_classes_tested": len(tests["measured"]),
+                       "n_calibration": class_reference["n"],
+                       "human_median": class_reference["median"],
                        "provenance": BASELINE_NAME},
             normalized_distance=class_alpha - p_value,
-            confidence={"value": min(1.0, reference["n"] / 100.0),
-                        "basis": (f"conformal p against {reference['n']} human "
-                                  f"papers' {cls}-class anchor rates; "
+            confidence={"value": min(1.0, class_reference["n"] / 100.0),
+                        "basis": (f"conformal p against {class_reference['n']} "
+                                  f"human papers' {cls}-class anchor rates; "
                                   f"P(false flag) <= {alpha:g} finite-sample")},
             message=(f"Only {observed:.0%} of {cls} sentences carry a "
                      f"checkable anchor (a number, citation, internal "
                      f"reference, equation, or comparison); the human median "
-                     f"for {cls} sections is {reference['median']:.0%} and "
+                     f"for {cls} sections is {class_reference['median']:.0%} and "
                      f"this document sits below the human low tail "
                      f"(conformal p = {p_value:.4f}). Unanchored claims read "
                      f"as unfalsifiable generality. This is a measured "
@@ -268,24 +349,42 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--calibrate", action="store_true")
     parser.add_argument("--corpus-dir", type=Path)
     args = parser.parse_args(argv)
-    field_dir = args.profile_root / args.field
     if args.calibrate:
         if args.corpus_dir is None or not args.corpus_dir.exists():
             print("[deai_anchoring] --calibrate requires --corpus-dir",
                   file=sys.stderr)
             return 2
+        # The baseline is written INTO the profile, so calibration needs a
+        # field that exists; the read path below runs without one.
         try:
-            baseline = calibrate(_paper_documents(args.corpus_dir), field_dir)
+            field = cli_common.resolve_field(
+                args.field, args.profile_root, tool="deai_anchoring",
+                empty_hint="--calibrate needs an existing style-profile/<field>/ directory.")
+        except SystemExit as error:
+            print(error, file=sys.stderr)
+            return 2
+        try:
+            baseline = calibrate(_paper_documents(args.corpus_dir),
+                                 args.profile_root / field)
         except ValueError as error:
             print(f"[deai_anchoring] {error}", file=sys.stderr)
             return 2
         classes = {cls: ref["n"] for cls, ref in baseline["classes"].items()}
         print(f"[deai_anchoring] baseline written from "
               f"{baseline['n_documents']} documents; classes {classes}")
+        if baseline["underpowered_classes"]:
+            print(f"[deai_anchoring] warning: classes "
+                  f"{baseline['underpowered_classes']} hold fewer than "
+                  f"{baseline['min_class_documents_for_share']} documents, the "
+                  f"floor for the Bonferroni share alpha/{len(classes)} at alpha "
+                  f"{baseline['alpha']:g}; a document measuring them will report "
+                  "the axis degraded and those classes cannot flag",
+                  file=sys.stderr)
         return 0
     if args.file is None or not args.file.exists():
         print(f"[deai_anchoring] file not found: {args.file}", file=sys.stderr)
         return 2
+    field_dir = cli_common.optional_field_dir(args, tool="deai_anchoring")
     text = args.file.read_text(encoding="utf-8", errors="replace")
     report = feedback.build_report(
         path=args.file,
