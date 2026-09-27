@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import statistics
 import tempfile
 import unittest
 from pathlib import Path
@@ -172,6 +173,28 @@ class FixedBlockTests(unittest.TestCase):
         self.assertEqual([op["block"] for op in partition._merge_candidates([section], 0.0)], [2])
         self.assertEqual([b["lines"] for b in section["blocks"] if not b.get("landmark")],
                          [(start, end) for start, end, _ in ds.shape_units(text)[0]["blocks"]])
+
+    def test_landmarks_do_not_move_the_cohesion_floor(self):
+        # The floor is the median overlap of adjacent paragraphs. Counted as
+        # blocks, every heading and float added near-zero pairs that pulled it
+        # down (the pre-merge review of audit B22).
+        figure = "\\begin{figure}\n\\caption{A map of the field.}\n\\end{figure}\n\n"
+
+        def document(between: str) -> str:
+            return ("\\section{Introduction}\n\n" + LENSING_A + "\n\n" + LENSING_B + "\n\n"
+                    "\\section{Methods}\n\n" + LENSING_A + "\n\n" + between + UNRELATED
+                    + "\n\n" + LENSING_B + "\n\n"
+                    "\\section{Results}\n\n" + LENSING_B + "\n\n" + LENSING_A + "\n")
+        pairs = [(LENSING_A, LENSING_B), (LENSING_A, UNRELATED),
+                 (UNRELATED, LENSING_B), (LENSING_B, LENSING_A)]
+        expected = statistics.median(partition._overlap(a, b) for a, b in pairs)
+        # six paragraphs reach the manifold (UNRELATED is under MIN_WORDS);
+        # p inside the band, so the plan stops before its first step
+        operating = fake_operating_point(p_by_n={6: 0.5}, distance_by_n={6: 1.0})
+        with mock.patch.object(ds, "manifold_operating_point", operating):
+            floors = [partition.suggest(document(between), {"dispersion_manifold": {}},
+                                        1)["cohesion_floor"] for between in ("", figure)]
+        self.assertEqual(floors, [expected, expected])
 
 
 def fake_operating_point(p_by_n: dict, distance_by_n: dict):

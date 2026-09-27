@@ -243,7 +243,7 @@ paragraphs). Held-out register reads 56 findings, 0.0364 per 1,000 body words,
 87.5% of which would vanish had the paper been in its own bank. The worked
 example reads 22 advisories before the revision and 17 after.
 
-The suite is 801 tests in 32 files (v0.38.0: 529 in 27); the validator runs
+The suite is 802 tests in 32 files (v0.38.0: 529 in 27); the validator runs
 11 checks and passes. v0.35.0–v0.35.1 moved to `CHANGELOG-ARCHIVE-v0.35.md`; this
 file had reached 806 lines.
 

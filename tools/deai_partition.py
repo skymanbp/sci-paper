@@ -254,9 +254,13 @@ def suggest(text: str, baseline: dict, max_ops: int) -> dict:
     if start is None:
         return {"status": "unmeasured",
                 "reason": "document or manifold not measurable", "plan": []}
-    # self-normalized cohesion reference: median adjacent-pair overlap
-    adjacent = [_overlap(s["blocks"][i]["text"], s["blocks"][i + 1]["text"])
-                for s in sections for i in range(len(s["blocks"]) - 1)]
+    # self-normalized cohesion reference: the median overlap of adjacent
+    # paragraphs, over the prose blocks alone. A landmark is no paragraph;
+    # counted, every heading and float added near-zero pairs that pulled the
+    # floor down, admitting more merges and fewer splits.
+    prose = [[b["text"] for b in s["blocks"] if not b.get("landmark")] for s in sections]
+    adjacent = [_overlap(first, second)
+                for texts in prose for first, second in zip(texts, texts[1:])]
     if not adjacent:
         return {"status": "unmeasured",
                 "reason": "no adjacent paragraph pairs", "plan": []}
