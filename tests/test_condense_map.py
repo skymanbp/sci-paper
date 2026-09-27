@@ -147,9 +147,12 @@ class BudgetUnionTests(unittest.TestCase):
                  "independent radial apertures is significant.")
         for variant in (claim.replace("is significant", "is not significant"),
                         claim.replace("independent", "five independent")):
-            findings = cm.condense_map(f"\\section{{Methods}}\n{claim}\n\n{variant}\n")
-            self.assertEqual([f for f in findings if f["rule"] == "condense-restatement"],
-                             [], variant)
+            # In either order: a copy that DROPS the negation was still a
+            # restatement, and deleting it left the negated home standing.
+            for first, second in ((claim, variant), (variant, claim)):
+                findings = cm.condense_map(f"\\section{{Methods}}\n{first}\n\n{second}\n")
+                self.assertEqual([f for f in findings if f["rule"] == "condense-restatement"],
+                                 [], (first, second))
         # The same sentence restated verbatim still is one.
         findings = cm.condense_map(f"\\section{{Methods}}\n{claim}\n\n{claim}\n")
         self.assertEqual(len([f for f in findings if f["rule"] == "condense-restatement"]), 1)
@@ -178,6 +181,25 @@ class BudgetUnionTests(unittest.TestCase):
 
 
 class CarveOutTests(unittest.TestCase):
+    def test_an_abstract_before_the_body_is_the_carved_out_side(self):
+        # With only the copy's bucket consulted, every abstract claim made the
+        # BODY sentence the removable restatement and named the abstract as
+        # its canonical home -- the inversion of the skill's rule.
+        text = f"\\begin{{abstract}}\n{CLAIM}\n\\end{{abstract}}\n\\section{{Results}}\n{RESTATED}\n"
+        findings = cm.condense_map(text)
+        (finding,) = [f for f in findings if f["rule"] == "condense-restatement"]
+        self.assertTrue(finding["observed"]["genre_carve_out"])
+        self.assertEqual(cm.condense_budget(text, findings)["default_target_words"], 0)
+        # A body sentence restating another BODY sentence stays a target even
+        # when the abstract said it first.
+        text = (f"\\begin{{abstract}}\n{CLAIM}\n\\end{{abstract}}\n"
+                f"\\section{{Methods}}\n{CLAIM}\n\\section{{Results}}\n{RESTATED}\n")
+        findings = cm.condense_map(text)
+        targeted = [f for f in findings if f["rule"] == "condense-restatement"
+                    and not f["observed"]["genre_carve_out"]]
+        self.assertEqual([f["location"]["section"] for f in targeted], ["results"])
+        self.assertGreater(cm.condense_budget(text, findings)["default_target_words"], 0)
+
     def test_a_conclusion_restatement_is_reported_but_not_targeted(self):
         text = f"\\section{{Results}}\n{CLAIM}\n\\section{{Conclusion}}\n{RESTATED}\n"
         findings = cm.condense_map(text)
@@ -191,6 +213,47 @@ class CarveOutTests(unittest.TestCase):
         text = "\\section{Methods}\nIn this section we describe the filter.\n"
         cues = [f["observed"]["cue"] for f in cm.condense_map(text)]
         self.assertEqual(cues, ["in this section"])
+
+
+class GateAgreementTests(unittest.TestCase):
+    """The map's words are the gate's words, or its target cannot be met."""
+
+    SENTENCE = ("The calibrated aperture mass filter recovers the injected cluster "
+                "signal at $\\nu = 3$ for every configuration \\citep{Ref} in the "
+                "grid of $N = 20$ fields.")
+
+    def test_removable_words_exclude_projection_placeholders(self):
+        import length_gate as lg
+        text = f"\\section{{Results}}\n{self.SENTENCE}\n\n{self.SENTENCE}\n"
+        (finding,) = [f for f in cm.condense_map(text) if f["rule"] == "condense-restatement"]
+        self.assertEqual(finding["observed"]["removable_words"],
+                         lg.prose_word_count(self.SENTENCE))
+
+    def test_the_budget_denominator_excludes_heading_words(self):
+        import length_gate as lg
+        text = "\\section{A Long Heading Here}\nOne two three.\n\\section{Another}\nFour five.\n"
+        budget = cm.condense_budget(text, cm.condense_map(text))
+        self.assertEqual(budget["prose_words"], sum(lg.section_word_counts(text).values()))
+
+    def test_a_parenthesised_word_is_not_an_acronym(self):
+        text = ("\\section{Methods}\nWe adopt a normal (Gaussian) prior and the Dark "
+                "Energy Survey (DES) catalog.\n")
+        acronyms = [f["observed"]["excerpt"] for f in cm.condense_map(text)
+                    if f["rule"] == "condense-dead:acronym"]
+        self.assertEqual(acronyms, ["DES"])
+
+    def test_any_ref_command_keeps_a_float_alive_and_starred_captions_count(self):
+        text = ("\\section{R}\nSee \\subref{fig:a}.\n"
+                "\\begin{figure}\\caption*{\\textbf{\\emph{Two}} words here now}\\label{fig:a}\\end{figure}\n"
+                "\\begin{figure}\\caption*{\\textbf{\\emph{Two}} words here now}\\label{fig:b}\\end{figure}\n")
+        dead = [(f["observed"]["labels"], f["observed"]["removable_words"])
+                for f in cm.condense_map(text) if f["rule"] == "condense-dead:figure"]
+        self.assertEqual(dead, [(["fig:b"], 4)])
+
+    def test_a_case_folded_verbose_match_cannot_crash_the_scan(self):
+        # `İn order to` matches under re.I but lower-cases to a key the table
+        # does not hold; the lookup was a KeyError and the tool exited 1.
+        cm.condense_map("\\section{Methods}\n\u0130n order to test, we ran it.\n")
 
 
 class CliTests(unittest.TestCase):

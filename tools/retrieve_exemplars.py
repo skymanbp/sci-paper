@@ -167,8 +167,11 @@ def _retrieve_st(records, jsonl_path, profile_dir, model_name, section, topic,
 
 def _retrieve_fallback(records, section, topic, k, tiers):
     """Keyword-overlap fallback when sentence-transformers is unavailable.
-    Strictly worse than ST retrieval; use only as a last resort."""
-    topic_kws = {w.lower() for w in topic.split() if len(w) > 3}
+    Strictly worse than ST retrieval; use only as a last resort. An empty
+    topic ranks by the section name, as the `--topic` help promises and the
+    embedding path does; scored on the empty string it returned the first k
+    rows of the bank at score 0."""
+    topic_kws = {w.lower() for w in (topic or section).split() if len(w) > 3}
     scored = []
     for rec in records:
         if not _wanted(rec, section, tiers):

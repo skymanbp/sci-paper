@@ -17,6 +17,7 @@ from typing import Any
 
 TOOLS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOOLS_DIR))
+import cli_common  # noqa: E402  shared CLI preamble and field listing
 import deai_docstructure  # noqa: E402  sibling tool import after path setup
 import extract_sections as es  # noqa: E402  document assembly and projections
 import deai_feedback as feedback  # noqa: E402  shared finding contract
@@ -28,21 +29,35 @@ import deai_residue  # noqa: E402  edit-residue detector
 import deai_salience  # noqa: E402  salience-hierarchy detector
 import deai_structure  # noqa: E402  sentence-construction detector
 
-REPO_ROOT = TOOLS_DIR.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 EM_DASH_PATTERN = re.compile(r"—|---|\\textemdash")
+# A line that is nothing but dashes is a Markdown rule or front-matter fence.
+RULE_LINE_PATTERN = re.compile(r"\s*-{3,}\s*")
+# The canonical Tier A list (skills/paper/SKILL.md). `paved` and `showcased`
+# were in the skill's table and grep but not here, so "paved the way" -- the
+# commonest form of the idiom -- passed the linter and failed the review grep.
 TIER_A_PATTERN = re.compile(
     r"(?i)\b(?:delves?|delving|delved|leverages|leveraging|leveraged|"
-    r"paves?|paving|sheds?|shedding|showcases?|showcasing|utiliz(?:ing|es)|"
-    r"seamless(?:ly)?|holistic(?:ally)?|comprehensively|crucially|"
+    r"paves?|paved|paving|sheds?|shedding|showcases?|showcased|showcasing|"
+    r"utiliz(?:ing|es)|seamless(?:ly)?|holistic(?:ally)?|comprehensively|crucially|"
     r"underscor(?:e|es|ed|ing)|tapestry|testament|pivotal|realms?)\b"
 )
+# An opener is judged where a SENTENCE starts: at the start of a line that
+# begins a sentence (see `_sentence_starts_line`) or after terminal
+# punctuation inside the line. Anchored to the physical line it depended on
+# how the author wrapped the source: `It is worth noting` after a period in
+# the middle of a line was missed, while a hard-wrapped continuation that
+# happened to start with `in recent years` was a target.
 TIER_A_OPENER_PATTERN = re.compile(
-    r"(?i)^\s*(?:recent advances in|despite significant progress|"
+    r"(?i)(?:^\s*|(?<=[.!?])\s+)(?:recent advances in|despite significant progress|"
     r"with the advent of|in recent years|it is worth noting)"
 )
+# A PARAGRAPH-initial connector, so the pattern runs on a paragraph's first
+# prose line only and wants the capital: with `(?i)^\s*` on every physical
+# line, one-sentence-per-line LaTeX turned every sentence-initial `Notably,`
+# (Tier B, inside its cap) into an L0 target, and joining the same sentences
+# onto one line made the target disappear.
 TIER_A_PARAGRAPH_CONNECTOR_PATTERN = re.compile(
-    r"(?i)^\s*(Importantly|Interestingly|Notably|Crucially),"
+    r"^\s*(Importantly|Interestingly|Notably|Crucially),"
 )
 TIER_B_PATTERN = re.compile(
     r"(?i)\b(?:furthermore|moreover|additionally|robust(?:ly)?|comprehensive|"
@@ -51,7 +66,8 @@ TIER_B_PATTERN = re.compile(
 )
 STUBBORN_REPLACE_PATTERN = re.compile(
     r"(?i)\b(?:in order to|aim to|facilitate|serves as)\b")
-THREE_PARALLEL_PATTERN = re.compile(r"(?i)not only.+but also.+(?:and|furthermore|moreover)")
+THREE_PARALLEL_PATTERN = re.compile(
+    r"(?i)\bnot only\b.+\bbut also\b.+\b(?:and|furthermore|moreover)\b")
 # Participial tail that fakes analytic depth ("..., highlighting X").
 # Curated verb set adopted 2026-07-16 from the academic-humanizer catalog
 # (MIT); kept narrow to avoid flagging legitimate participial clauses.
@@ -64,23 +80,33 @@ ING_TAIL_PATTERN = re.compile(
 # User style rule 2026-07-16; caption tags ("Left: ...") and list
 # specifications are legitimate, so this stays an advisory.
 COLON_ELABORATION_PATTERN = re.compile(r"(?:[A-Za-z0-9]|\})(?:: )[a-z$\\]")
-# The two 2026-07-16 rules above/below match rendered prose only: unescaped
-# LaTeX comments (full-line or trailing) are stripped before matching.
-# Comments conventionally carry "Label: description" tags and note-style
-# participial phrases that are not rendered. Older rules keep their
-# long-standing raw-line behavior.
-TRAILING_COMMENT_PATTERN = re.compile(r"(?<!\\)%.*$")
+# Every rule reads the comment-blanked source `document_source` hands it; the
+# per-line comment stripper two rules once carried is gone with it (on a
+# Markdown input it treated `%` as a comment). Command ARGUMENTS that are not
+# prose are blanked too, at equal length so offsets hold: `\ref{sec:realm}`,
+# `\label{...}`, `\cite{delve-2020}` and `\url{...}` each put an L0 target
+# into a document whose prose had none.
+ARGUMENT_SPAN_PATTERNS = (
+    es.RE_TEX_LABEL_REF, es.RE_TEX_CITE, es.RE_TEX_CITE_SILENT,
+    re.compile(r"\\(?:url|href|path)\s*\{[^{}]*\}"),
+)
+# A Markdown front-matter block (`---` fences) is metadata, not prose.
+FRONT_MATTER_PATTERN = re.compile(r"\A---\n.*?\n---[ \t]*(?:\n|\Z)", re.DOTALL)
 TIER_B_CAP = 1
 
 
-def list_fields(profile_root: Path) -> list[str]:
-    if not profile_root.exists():
-        return []
-    return sorted(path.name for path in profile_root.iterdir()
-                  if path.is_dir() and not path.name.startswith("."))
+list_fields = cli_common.list_fields
 
 
 def resolve_field(arg_field: str | None, profile_root: Path) -> str | None:
+    """The field to lint against, or None to run the L0 pass alone.
+
+    Kept apart from `cli_common.resolve_field` on purpose: the linter must
+    still run with no profile, so an explicit field that does not exist
+    returns None (the caller turns it into exit 2) and several fields with
+    none named return None with one stderr line -- silently, every calibrated
+    axis read `unmeasured` and nothing said why.
+    """
     fields = list_fields(profile_root)
     if arg_field:
         if arg_field not in fields:
@@ -88,19 +114,26 @@ def resolve_field(arg_field: str | None, profile_root: Path) -> str | None:
                   file=sys.stderr)
             return None
         return arg_field
+    if len(fields) > 1:
+        print(f"[ai_ism_lint] several field profiles present ({fields}); pass "
+              "--field=<name> to use one. Running the profile-free axes only.",
+              file=sys.stderr)
     return fields[0] if len(fields) == 1 else None
 
 
 def load_corpus_blacklist(field_profile_dir: Path | None) -> set[str]:
+    """`llm_words_absent_from_corpus` from the field lexicon; empty without one.
+
+    A lexicon that cannot be parsed raises: swallowed, it produced zero
+    corpus-zero advisories under an `L0.lexical: measured` status, while a
+    lexicon of the wrong shape already exited 2 through `lint`'s guard.
+    """
     if field_profile_dir is None:
         return set()
     path = field_profile_dir / "lexicon.json"
     if not path.exists():
         return set()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return set()
+    data = json.loads(path.read_text(encoding="utf-8"))
     return set(data.get("llm_words_absent_from_corpus", []))
 
 
@@ -145,7 +178,11 @@ def _finding(*, path: Path, kind: str, layer: str, rule: str, line: int,
              observed: dict[str, Any] | None = None,
              reference: dict[str, Any] | None = None,
              normalized_distance: float | None = None,
-             measurement_status: str = "measured") -> dict[str, Any]:
+             measurement_status: str = "measured",
+             offset: int | None = None) -> dict[str, Any]:
+    # `offset` (the match column) is part of the evidence identity: two hits
+    # of one rule on one line otherwise shared a `finding_id`.
+    evidence: list[Any] = [rule, excerpt] + ([offset] if offset is not None else [])
     return feedback.make_finding(
         kind=kind, layer=layer, rule=rule, scope="sentence", path=path,
         line=line, section=section, detector=detector, strength=strength,
@@ -153,8 +190,39 @@ def _finding(*, path: Path, kind: str, layer: str, rule: str, line: int,
         reference=reference, normalized_distance=normalized_distance,
         confidence={"value": 1.0, "basis": "deterministic lexical match"},
         measurement_status=measurement_status, message=message, action=action,
-        evidence=[rule, excerpt],
+        evidence=evidence,
     )
+
+
+_SKIPPED_LINE_PATTERN = re.compile(r"\s*\\(?:begin|end|label|vspace|noindent)\b")
+
+
+def _paragraph_first_prose_lines(text: str) -> set[int]:
+    """Line numbers on which a paragraph's prose starts.
+
+    A paragraph block may open with a heading command or an environment
+    marker; the first line that is neither is where its prose -- and a
+    paragraph-initial connector -- can stand.
+    """
+    firsts: set[int] = set()
+    for start, end, block in deai_metrics.paragraph_line_ranges(text):
+        for offset, line in enumerate(block.splitlines()):
+            stripped = line.strip()
+            if (not stripped or es.RE_HEADING_COMMAND.match(stripped)
+                    or _SKIPPED_LINE_PATTERN.match(line)):
+                continue
+            firsts.add(start + offset)
+            break
+    return firsts
+
+
+def _sentence_starts_line(lines: list[str], line_no: int, firsts: set[int]) -> bool:
+    """Whether the start of line `line_no` is the start of a sentence."""
+    if line_no in firsts:
+        return True
+    previous = next((lines[i].strip() for i in range(line_no - 2, -1, -1)
+                     if lines[i].strip()), "")
+    return not previous or previous[-1] in ".!?:}"
 
 
 def lexical_findings(text: str, path: Path,
@@ -168,11 +236,13 @@ def lexical_findings(text: str, path: Path,
     per-word cap become L0 targets.
     """
     lines = text.splitlines()
+    scan_lines = es.blank_preserving(text, *ARGUMENT_SPAN_PATTERNS).splitlines()
     ranges = section_ranges(text)
+    firsts = _paragraph_first_prose_lines(text)
     findings: list[dict[str, Any]] = []
     tier_b: dict[tuple[str, str], list[tuple[int, str]]] = defaultdict(list)
 
-    for line_no, line in enumerate(lines, start=1):
+    for line_no, (line, scan) in enumerate(zip(lines, scan_lines), start=1):
         section = section_for_line(line_no, ranges)
         excerpt = line.strip()
         # Resolved before the Tier A/B scans because one paragraph-initial
@@ -180,28 +250,34 @@ def lexical_findings(text: str, path: Path,
         # TIER_A_PATTERN and this connector list, so without the same span guard
         # the Tier B loop already applies it would be counted twice, while
         # `Notably`/`Importantly`/`Interestingly` (Tier B) are counted once.
-        connector = TIER_A_PARAGRAPH_CONNECTOR_PATTERN.match(line)
-        if EM_DASH_PATTERN.search(line):
-            findings.append(_finding(
-                path=path, kind="l0_target", layer="L0", rule="em-dash",
-                line=line_no, section=section, excerpt=excerpt,
-                strength="target", message="Em-dash punctuation is an L0 rewrite target.",
-                action="Replace with punctuation that matches the sentence relation.",
-            ))
-        for match in TIER_A_PATTERN.finditer(line):
+        connector = (TIER_A_PARAGRAPH_CONNECTOR_PATTERN.match(scan)
+                     if line_no in firsts else None)
+        if not RULE_LINE_PATTERN.fullmatch(scan):
+            for match in EM_DASH_PATTERN.finditer(scan):
+                findings.append(_finding(
+                    path=path, kind="l0_target", layer="L0", rule="em-dash",
+                    line=line_no, section=section, excerpt=excerpt, offset=match.start(),
+                    strength="target", message="Em-dash punctuation is an L0 rewrite target.",
+                    action="Replace with punctuation that matches the sentence relation.",
+                ))
+        for match in TIER_A_PATTERN.finditer(scan):
             if connector and match.start() < connector.end():
                 continue
             word = match.group(0).lower()
             findings.append(_finding(
                 path=path, kind="l0_target", layer="L0", rule=f"tier-a:{word}",
                 line=line_no, section=section, excerpt=excerpt, strength="target",
+                offset=match.start(),
                 message=f"Tier A lexical target {word!r} is present.",
                 action="Rewrite the sentence with a direct field-appropriate expression.",
             ))
-        if TIER_A_OPENER_PATTERN.match(line):
+        for match in TIER_A_OPENER_PATTERN.finditer(scan):
+            if match.start() == 0 and not _sentence_starts_line(lines, line_no, firsts):
+                continue
             findings.append(_finding(
                 path=path, kind="l0_target", layer="L0", rule="tier-a:opener",
                 line=line_no, section=section, excerpt=excerpt, strength="target",
+                offset=match.start(),
                 message="A zero-reference boilerplate opener is present.",
                 action="Open with the specific scientific problem or evidence.",
             ))
@@ -214,38 +290,37 @@ def lexical_findings(text: str, path: Path,
                 message=f"Paragraph-initial connector {word!r} is an L0 target.",
                 action="Remove the roadmap connector and let the argument carry the transition.",
             ))
-        for match in TIER_B_PATTERN.finditer(line):
+        for match in TIER_B_PATTERN.finditer(scan):
             if connector and match.start() < connector.end():
                 continue
             word = match.group(0).lower()
             tier_b[(section, word)].append((line_no, excerpt))
-        for match in STUBBORN_REPLACE_PATTERN.finditer(line):
+        for match in STUBBORN_REPLACE_PATTERN.finditer(scan):
             word = match.group(0).lower()
             findings.append(_finding(
                 path=path, kind="advisory", layer="L0",
                 rule=f"style-substitution:{word}", line=line_no,
-                section=section, excerpt=excerpt,
+                section=section, excerpt=excerpt, offset=match.start(),
                 message=f"The phrase {word!r} is an indirect stylistic construction.",
                 action="Prefer a direct verb when doing so preserves meaning.",
             ))
-        if THREE_PARALLEL_PATTERN.search(line):
+        if THREE_PARALLEL_PATTERN.search(scan):
             findings.append(_finding(
                 path=path, kind="advisory", layer="L2", rule="three-parallel",
                 line=line_no, section=section, excerpt=excerpt,
                 message="The sentence uses a conspicuous three-part parallel frame.",
                 action="Keep the parallelism only if it carries a real logical distinction; otherwise simplify it.",
             ))
-        prose_part = TRAILING_COMMENT_PATTERN.sub("", line)
-        for match in ING_TAIL_PATTERN.finditer(prose_part):
+        for match in ING_TAIL_PATTERN.finditer(scan):
             word = match.group(0).lstrip(", ").lower()
             findings.append(_finding(
                 path=path, kind="advisory", layer="L2", rule=f"ing-tail:{word}",
-                line=line_no, section=section, excerpt=excerpt,
+                line=line_no, section=section, excerpt=excerpt, offset=match.start(),
                 message=(f"A participial tail {word!r} appends interpretation "
                          "instead of stating it as a claim."),
                 action="Promote the tail to its own sentence with a subject and evidence, or delete it.",
             ))
-        if COLON_ELABORATION_PATTERN.search(prose_part):
+        if COLON_ELABORATION_PATTERN.search(scan):
             findings.append(_finding(
                 path=path, kind="advisory", layer="L2", rule="colon-elaboration",
                 line=line_no, section=section, excerpt=excerpt,
@@ -276,12 +351,12 @@ def lexical_findings(text: str, path: Path,
     if blacklist:
         pattern = re.compile(r"\b(" + "|".join(re.escape(word) for word in blacklist)
                              + r")\b", re.IGNORECASE)
-        for line_no, line in enumerate(lines, start=1):
-            for match in pattern.finditer(line):
+        for line_no, (line, scan) in enumerate(zip(lines, scan_lines), start=1):
+            for match in pattern.finditer(scan):
                 word = match.group(1).lower()
                 findings.append(_finding(
                     path=path, kind="advisory", layer="L0",
-                    rule=f"corpus-zero:{word}", line=line_no,
+                    rule=f"corpus-zero:{word}", line=line_no, offset=match.start(),
                     section=section_for_line(line_no, ranges), excerpt=line.strip(),
                     message=f"The field lexicon records zero occurrences of {word!r}.",
                     action="Inspect the corpus evidence and rewrite only if the term is not scientifically necessary.",
@@ -352,10 +427,13 @@ def document_source(path: Path) -> str:
 
     Comment spans are blanked to equal-length runs of spaces rather than
     deleted, so every line number and character offset a finding reports still
-    points where it did.
+    points where it did. An unreadable root raises (a directory named `x.tex`
+    read as an empty document and exited 0, clean), and a Markdown input has
+    its front-matter block blanked the same way.
     """
     if path.suffix.lower() != ".tex":
-        return path.read_text(encoding="utf-8", errors="replace")
+        text = path.read_text(encoding="utf-8", errors="replace")
+        return FRONT_MATTER_PATTERN.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), text)
     return es.RE_TEX_COMMENT.sub(lambda m: " " * len(m.group(0)),
                                  es.read_tex_document(path))
 
@@ -436,7 +514,7 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
          register: bool = True, salience: bool = True,
          discourse: bool = True, collocation: bool = True,
          residue: bool = True, glossary: bool = False) -> int:
-    del summary  # retained as a compatibility option; reports always include totals
+    del summary  # accepted and hidden: totals are always in the report
     if not path.exists():
         print(f"[ai_ism_lint] file not found: {path}", file=sys.stderr)
         return 2
@@ -469,39 +547,22 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    cli_common.utf8_stdout()
+    parser = cli_common.base_parser(__doc__, parents=[cli_common.field_options()])
     parser.add_argument("file", type=Path)
-    parser.add_argument("--field", default=None)
-    parser.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT)
-    parser.add_argument("--summary", action="store_true",
-                        help="compatibility flag; totals are always included")
+    parser.add_argument("--summary", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--ai-classifier", action="store_true")
     parser.add_argument("--ai-threshold", type=float, default=0.7)
-    parser.add_argument("--distribution", action=argparse.BooleanOptionalAction,
-                        default=True)
-    parser.add_argument("--structure", action=argparse.BooleanOptionalAction,
-                        default=True)
-    parser.add_argument("--document-structure", action=argparse.BooleanOptionalAction,
-                        default=True)
-    parser.add_argument("--register", action=argparse.BooleanOptionalAction,
-                        default=True)
-    parser.add_argument("--salience", action=argparse.BooleanOptionalAction,
-                        default=True)
-    parser.add_argument("--discourse", action=argparse.BooleanOptionalAction,
-                        default=True)
-    parser.add_argument("--collocation", action=argparse.BooleanOptionalAction,
-                        default=True)
-    parser.add_argument("--residue", action=argparse.BooleanOptionalAction,
-                        default=True)
+    for axis in ("distribution", "structure", "document-structure", "register",
+                 "salience", "discourse", "collocation", "residue"):
+        parser.add_argument(f"--{axis}", action=argparse.BooleanOptionalAction,
+                            default=True)
     parser.add_argument("--glossary", action="store_true",
                         help="also list the recurring unattested word pairs as "
                              "glossary candidates (deai_collocation --glossary)")
     parser.add_argument("--oracle", action="store_true")
     parser.add_argument("--voice", action="store_true")
-    parser.add_argument("--format", choices=("text", "json"), default="text")
-    parser.add_argument("--output", type=Path)
+    cli_common.report_options(parser)
     parser.add_argument("--top", type=int)
     args = parser.parse_args(argv)
     field = resolve_field(args.field, args.profile_root)

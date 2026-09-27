@@ -32,12 +32,9 @@ SCHEMA = "sci-paper.feedback.v1"
 STANDARD_DOC = "docs/SCIPAPER_STANDARD.md"
 DOCS_INDEX = "docs/README.md"
 SUBSYSTEM_DOC = "docs/architecture/DEAI_SUBSYSTEM.md"
-# The evidence record is a hub plus parts under docs/architecture/evaluation/.
-# EVALUATION_DOC is the hub: it carries the contract, the axis-status table, the
-# section map, and the release boundary, and is what other documents cite.
-# EVALUATION_PARTS_DIR holds the section bodies. Any check that validates a
-# recorded measurement must scan the WHOLE record, not just the hub -- a stale
-# figure hiding in a part file is exactly the drift these checks exist to catch.
+# The evidence record is a hub (EVALUATION_DOC: contract, axis-status table,
+# section map, release boundary) plus the section bodies under
+# EVALUATION_PARTS_DIR; a check of a recorded measurement scans the WHOLE record.
 EVALUATION_DOC = "docs/architecture/EVALUATION.md"
 EVALUATION_PARTS_DIR = "docs/architecture/evaluation"
 DESIGN_NOTES = (
@@ -52,17 +49,7 @@ FORBIDDEN_DOC_COPIES = (
 )
 
 NORMATIVE_SKILLS = {
-    "paper",
-    "physics",
-    "mainline",
-    "logic",
-    "de-ai",
-    "condense",
-    "paper-review",
-    "figure-review",
-    "final-review",
-    "calibrate",
-    "proposal-polish",
+    "paper", "physics", "mainline", "logic", "de-ai", "condense", "paper-review", "figure-review", "final-review", "calibrate", "proposal-polish",
 }
 CORE_IMPORTS = {
     "ai_ism_lint", "condense_map", "deai_collocation", "deai_docstructure",
@@ -148,11 +135,8 @@ def check_manifests() -> str:
     plugin_v = str(plugin["version"])
     require(market.get("metadata", {}).get("version") == plugin_v,
             "marketplace metadata.version does not match plugin.json")
-    inner = next(
-        (item for item in market.get("plugins", [])
-         if item.get("name") == plugin["name"]),
-        None,
-    )
+    inner = next((item for item in market.get("plugins", [])
+                  if item.get("name") == plugin["name"]), None)
     require(inner is not None,
             f"marketplace plugins[] has no entry named {plugin['name']!r}")
     require(inner.get("version") == plugin_v,
@@ -267,6 +251,26 @@ def _broken_page_anchors(path: Path) -> list[str]:
 
 
 RE_SECTION_REF = re.compile(r"\[\s*§\s*(\d+)(?:\.\w+)?\s*\]\(([^)\s#]+\.md)")
+RE_FILE_LINK = re.compile(r"\]\(([^)\s#]+)(?:#[^)]*)?\)")
+
+
+def _broken_file_links(path: Path) -> list[str]:
+    """Relative links whose target file does not exist.
+
+    Two comments in this file deferred to "the file-link check"; there was
+    none, so `[§9](missing.md)` and a moved page passed every check.
+    Fenced and inline code are skipped, and only relative targets are resolved.
+    """
+    text = re.sub(r"```.*?```|`[^`\n]*`", "", read_text(path), flags=re.DOTALL)
+    broken = []
+    for match in RE_FILE_LINK.finditer(text):
+        target = match.group(1)
+        if re.match(r"^[a-z][a-z0-9+.-]*:", target):
+            continue
+        if not (path.parent / target).exists():
+            line = text[: match.start()].count("\n") + 1
+            broken.append(f"{path.relative_to(REPO).as_posix()}:{line} {target}")
+    return broken
 
 
 def _broken_section_references(path: Path) -> list[str]:
@@ -283,7 +287,7 @@ def _broken_section_references(path: Path) -> list[str]:
         number, target = match.group(1), match.group(2)
         resolved = (path.parent / target).resolve()
         if not resolved.exists():
-            continue            # the file-link check owns a missing target
+            continue            # `_broken_file_links` reports a missing target
         body = read_text(resolved)
         if (re.search(rf"(?m)^#{{1,6}}\s+{number}[.\s]", body)
                 or re.search(rf"(?m)^\|\s*\*\*{number}\*\*\s*\|", body)):
@@ -383,11 +387,14 @@ def check_documentation_boundaries() -> str:
                 f"{note} lives under design-notes/ but its header does not "
                 "declare it a design note; a frozen note must not read as "
                 "current status")
-    # File links were checked; in-page #fragments were not, so the README
-    # restructure left five cross-references pointing at headings that had been
-    # renamed or renumbered — including "demo 3" linking to demo 4.
+    # In-page #fragments were once unchecked, so the README restructure left
+    # five cross-references pointing at headings that had been renamed or
+    # renumbered — including "demo 3" linking to demo 4.
     pages = [REPO / "README.md", REPO / "README.zh-CN.md",
              *sorted(DOCS.rglob("*.md"))]
+    dead = [item for page in pages for item in _broken_file_links(page)]
+    require(not dead, "relative links point at files that do not exist: "
+            + "; ".join(dead))
     broken = [item for page in pages for item in _broken_page_anchors(page)]
     require(not broken,
             "in-page anchors point at headings that do not exist: "
@@ -500,7 +507,7 @@ SHAPE_CLAIMS = (
     (re.compile(r"(\d+) skills\b"), ("skills",)),
     (re.compile(r"(\d+) product tools\b"), ("tools",)),
     (re.compile(r"(\d+) files, (\d+) tests\b"), ("files", "tests")),
-    (re.compile(r"(\d+) contract checks\b"), ("checks",)),
+    (re.compile(r"(\d+) (?:contract )?checks\b"), ("checks",)),
     (re.compile(r"the (\d+)-test suite"), ("tests",)),
     (re.compile(r"(\d+) 个 skill\b"), ("skills",)),
     (re.compile(r"(\d+) 个产品工具"), ("tools",)),
@@ -550,7 +557,9 @@ def check_registry_counts() -> str:
     facts = {"skills": len(documents), "tools": len(products),
              "tests": tests, "files": files, "checks": len(CHECKS)}
     wrong, seen = [], 0
-    for name in ("README.md", "README.zh-CN.md"):
+    # tools/README.md too: its validator row said "10 checks" through two
+    # releases that ran eleven, because only the READMEs were read.
+    for name in ("README.md", "README.zh-CN.md", "tools/README.md"):
         text = read_text(REPO / name)
         for pattern, keys in SHAPE_CLAIMS:
             for groups in pattern.findall(text):
@@ -561,7 +570,7 @@ def check_registry_counts() -> str:
                         wrong.append(f"{name} says {value} {key} (repository has {facts[key]})")
     require(not wrong, "; ".join(sorted(set(wrong))))
     return (f"README and manifest registries agree ({len(documents)} skills, "
-            f"{len(products)} tools; {seen} shape claim(s) verified in both READMEs)")
+            f"{len(products)} tools; {seen} shape claim(s) verified across the READMEs)")
 
 
 def check_tools_syntax() -> str:
@@ -589,14 +598,8 @@ def check_runtime_contract() -> str:
     require(feedback.SCHEMA_VERSION == SCHEMA,
             f"deai_feedback schema is {feedback.SCHEMA_VERSION!r}, expected {SCHEMA!r}")
     finding = feedback.make_finding(
-        kind="advisory",
-        layer="L2",
-        rule="validator-smoke",
-        scope="sentence",
-        message="validator smoke finding",
-        action="no action",
-        detector="validate_plugin",
-    )
+        kind="advisory", layer="L2", rule="validator-smoke", scope="sentence",
+        message="validator smoke finding", action="no action", detector="validate_plugin")
     require(REQUIRED_FINDING_FIELDS <= finding.keys(),
             "feedback finding missing fields: "
             f"{sorted(REQUIRED_FINDING_FIELDS - finding.keys())}")
@@ -611,15 +614,9 @@ def check_runtime_contract() -> str:
 
     for name in sorted(CORE_CLIS):
         result = subprocess.run(
-            [sys.executable, str(TOOLS / f"{name}.py"), "--help"],
-            cwd=REPO,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=30,
-            check=False,
-        )
+            [sys.executable, str(TOOLS / f"{name}.py"), "--help"], cwd=REPO,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=30, check=False)
         require(result.returncode == 0,
                 f"tools/{name}.py --help failed ({result.returncode}): {result.stderr.strip()}")
     return f"core imports, schema, and CLI entry points valid ({len(CORE_IMPORTS)} modules)"

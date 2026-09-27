@@ -693,3 +693,7 @@ class CitationProjectionTests(unittest.TestCase):
         source = r"we use \citep[e.g.][]{Tacconi2018} and \citealp{Leroy2013}"
         self.assertNotIn("Tacconi", es.latex_to_numeral_text(source))
         self.assertNotIn("Leroy", es.latex_to_numeral_text(source))
+
+
+if __name__ == "__main__":
+    unittest.main()

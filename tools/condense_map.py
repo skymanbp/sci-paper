@@ -25,8 +25,17 @@ Six scans, all deterministic, all on the document alone (no corpus):
                         their content words (Jaccard)
 
 The abstract and the conclusion restate the paper by convention (the genre
-carve-out of the condense skill). Their restatements are still reported, with
+carve-out of the condense skill). A restatement is carved out when EITHER side
+of the pair sits in one of them: the abstract precedes the body, so with only
+the copy's bucket consulted every abstract claim made the body's own statement
+a restatement whose "canonical home" was the abstract -- the inversion of the
+skill's rule. Carved-out entries are still reported, with
 `observed.genre_carve_out` true, and are left out of `default_target`.
+
+Every word count here is a rendered-prose count (`extract_sections.prose_words`
+and its placeholder rule): the gate that closes on this map's target counts
+the same way, and a target that included `[math]` and `[CITE]` tokens could
+not be met by deleting exactly what the map listed.
 
 Exit status: 0 measured, 2 invalid input. The map does not judge; the skill
 does, entry by entry.
@@ -82,14 +91,22 @@ VERBOSE = {
 RE_VERBOSE = re.compile(r"\b(?:" + "|".join(re.escape(k) for k in VERBOSE) + r")\b", re.I)
 RE_HEDGE_STACK = re.compile(r"\b(?:may|might|could)\s+(?:possibly|potentially|perhaps)\b", re.I)
 RE_TEX_LABEL = re.compile(r"\\label\{([^}]*)\}")
+# A reference is any `\...ref{...}` command, matched by shape the way the
+# citation projection matches `\...cite...`: a four-name allowlist read a
+# figure whose only consumer was `\subref{fig:a}` (or `\vref`, `\fref`,
+# `\zref`) as dead.
 RE_TEX_REF = re.compile(
-    r"\\(?:ref|eqref|cref|Cref|autoref|pageref|labelcref|nameref)\*?\{([^}]*)\}"
+    r"\\[A-Za-z]*ref\*?\{([^}]*)\}"
     r"|\\hyperref\[([^\]]*)\]")
 RE_TEX_FLOAT = re.compile(r"\\begin\{(figure|table)\*?\}(.*?)\\end\{\1\*?\}", re.DOTALL)
-RE_TEX_CAPTION = re.compile(r"\\caption(?:\[[^\]]*\])?\{((?:[^{}]|\{[^{}]*\})*)\}")
+# `\caption*` and two levels of nested braces (`\textbf{\emph{...}}`): either
+# form made the caption invisible and the dead float carry zero words.
+RE_TEX_CAPTION = re.compile(
+    r"\\caption\*?(?:\[[^\]]*\])?\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}")
 RE_TEX_MACRO_DEF = re.compile(
     r"\\(?:newcommand|renewcommand|providecommand|def)\s*\{?\\([A-Za-z]+)\}?")
-RE_ACRONYM = re.compile(r"\(([A-Z][A-Za-z0-9]{1,9})\)")
+# An acronym is at least two capitals or digits; `(Gaussian)` is a parenthesis.
+RE_ACRONYM = re.compile(r"\(([A-Z][A-Z0-9]{1,9})\)")
 RE_REGLOSS = re.compile(
     r"\bwhere\s+\$([^$]+)\$\s+(?:is|denotes|represents|stands for)\b[^.;]*", re.I)
 
@@ -102,7 +119,10 @@ def content_words(sentence: str) -> set[str]:
 # What a bag of content words cannot see and a restatement must not change: a
 # negation, a number (digits or the number words the stopword list drops), a
 # comparison. `is significant` and `is not significant` share every content
-# word; before this the second was a restatement of the first.
+# word; before this the second was a restatement of the first. The sets must
+# be EQUAL: a copy that drops the negation its home carries is as much a
+# different claim as one that adds it, and deleting it would leave the
+# negated version standing for both.
 RE_INVARIANT = re.compile(
     r"\b(?:not|no|never|without|neither|nor|cannot|only|fewer|less|more|larger|"
     r"smaller|higher|lower|greater|above|below|increases?d?|decreases?d?|"
@@ -137,6 +157,11 @@ def _finding(*, rule: str, path: str | Path | None, line: int, end_line: int | N
         measurement_status="measured", evidence=[rule, removable])
 
 
+def _prose_count(plain: str) -> int:
+    """Rendered-prose tokens of a projected string: the gate's rule."""
+    return sum(1 for token in plain.split() if not es.RE_PLACEHOLDER.match(token))
+
+
 def _sentence_records(text: str) -> list[dict[str, Any]]:
     records = []
     for start, end, bucket, block in reference.units(text):
@@ -147,7 +172,7 @@ def _sentence_records(text: str) -> list[dict[str, Any]]:
                                 "unit": f"{start}:{index}",
                                 "text": clean, "words": content_words(clean),
                                 "invariants": invariants(clean),
-                                "n_words": len(clean.split())})
+                                "n_words": _prose_count(clean)})
     return records
 
 
@@ -158,20 +183,31 @@ def restatement_findings(records: list[dict[str, Any]], path=None) -> list[dict[
         words = record["words"]
         if len(words) >= MIN_CONTENT_WORDS:
             union = len(words & seen) / len(words)
-            best_index, best = -1, 0.0
+            # The best earlier sentence OUTSIDE the carve-out buckets is the
+            # canonical home when it covers enough on its own; only when no
+            # body sentence does is the abstract or conclusion the home, and
+            # then the pair is the genre's restatement, not the body's.
+            best_body: tuple[int, float] = (-1, 0.0)
+            best_any: tuple[int, float] = (-1, 0.0)
             for earlier_index in range(index):
-                earlier = records[earlier_index]["words"]
-                if not earlier:
+                earlier = records[earlier_index]
+                if not earlier["words"]:
                     continue
-                coverage = len(words & earlier) / len(words)
-                if coverage > best:
-                    best_index, best = earlier_index, coverage
+                coverage = len(words & earlier["words"]) / len(words)
+                if coverage > best_any[1]:
+                    best_any = (earlier_index, coverage)
+                if (earlier["bucket"] not in CARVE_OUT_BUCKETS
+                        and coverage > best_body[1]):
+                    best_body = (earlier_index, coverage)
+            best_index, best = best_body if best_body[1] >= SINGLE_COVERAGE else best_any
             home = records[best_index] if best_index >= 0 else None
-            # A sentence that adds a negation, a number or a comparison its
-            # home does not carry restates nothing; it is a different claim.
+            # A sentence whose negations, numbers or comparisons differ from
+            # its home's in either direction restates nothing; it is a
+            # different claim.
             if (union >= UNION_COVERAGE and best >= SINGLE_COVERAGE
-                    and record["invariants"] <= home["invariants"]):
-                carve = record["bucket"] in CARVE_OUT_BUCKETS
+                    and record["invariants"] == home["invariants"]):
+                carve = (record["bucket"] in CARVE_OUT_BUCKETS
+                         or home["bucket"] in CARVE_OUT_BUCKETS)
                 findings.append(_finding(
                     rule="condense-restatement", path=path, line=record["line"],
                     end_line=record["end"], section=record["bucket"], scope="sentence",
@@ -290,7 +326,11 @@ def verbose_findings(records: list[dict[str, Any]], path=None) -> list[dict[str,
     for record in records:
         for match in RE_VERBOSE.finditer(record["text"]):
             phrase = match.group(0).lower()
-            shorter = VERBOSE[phrase]
+            # `.get`: a case-insensitive match can lower-case to a key the
+            # table does not hold (`İn order to` -> `i̇n order to`, KeyError).
+            shorter = VERBOSE.get(phrase)
+            if shorter is None:
+                continue
             findings.append(_finding(
                 rule="condense-verbose", path=path, line=record["line"],
                 end_line=record["end"], section=record["bucket"], scope="sentence",
@@ -334,7 +374,7 @@ def duplicate_findings(text: str, path=None) -> list[dict[str, Any]]:
     paragraphs = []
     for start, end, bucket, block in reference.units(text):
         plain = es.latex_to_plain(block)
-        if len(plain.split()) >= DUPLICATE_MIN_WORDS:
+        if _prose_count(plain) >= DUPLICATE_MIN_WORDS:
             paragraphs.append((start, end, bucket, plain, content_words(plain)))
     findings = []
     for j, (start, end, bucket, plain, words) in enumerate(paragraphs):
@@ -348,7 +388,7 @@ def duplicate_findings(text: str, path=None) -> list[dict[str, Any]]:
             carve = bucket in CARVE_OUT_BUCKETS or e_bucket in CARVE_OUT_BUCKETS
             findings.append(_finding(
                 rule="condense-duplicate", path=path, line=start, end_line=end,
-                section=bucket, scope="paragraph", removable=len(plain.split()),
+                section=bucket, scope="paragraph", removable=_prose_count(plain),
                 confidence=round(jaccard, 2), unit=f"{start}:*", whole=True,
                 observed={"excerpt": plain[:160], "canonical_line": e_start,
                           "canonical_section": e_bucket, "jaccard": round(jaccard, 3),
@@ -402,8 +442,10 @@ def removable_words(findings: list[dict[str, Any]]) -> int:
 def condense_budget(text: str, findings: list[dict[str, Any]]) -> dict[str, Any]:
     """`removable_by_rule` is candidate mass per scan (overlaps included, so a
     reader sees what each scan found); `removable_total` and the default
-    target count each unit once."""
-    prose_words = len(es.prose_words(text))
+    target count each unit once. The denominator is the gate's: body prose
+    without heading words, so `default_target_fraction` is a fraction of the
+    number `length_gate` reports."""
+    prose_words = len(es.prose_words(es.RE_HEADING_COMMAND.sub("", text)))
     by_rule: dict[str, int] = {}
     for finding in findings:
         family = finding["rule"].split(":")[0]

@@ -232,6 +232,115 @@ class LinterCliTests(unittest.TestCase):
         self.assertIn("execution failed", result.stderr)
 
 
+def run_lint_file(name: str, text: str, *arguments: str, profile_root: Path | None = None):
+    """Lint `text` written to a file called `name` (the suffix picks the reader)."""
+    with tempfile.TemporaryDirectory() as temporary:
+        draft = Path(temporary) / name
+        draft.write_text(text, encoding="utf-8")
+        command = [sys.executable, str(LINTER), str(draft), "--no-distribution",
+                   "--no-structure", "--no-document-structure"]
+        if profile_root is not None:
+            command.extend(["--profile-root", str(profile_root)])
+        command.extend(arguments)
+        return subprocess.run(command, text=True, capture_output=True, encoding="utf-8")
+
+
+class LexicalRuleTests(unittest.TestCase):
+    """The 2026-09-27 audit's linter findings, each pinned."""
+
+    def test_a_paragraph_initial_connector_is_judged_per_paragraph_not_per_line(self):
+        # One-sentence-per-line LaTeX: a sentence-initial `Notably,` inside a
+        # paragraph is Tier B within its cap, whatever line it starts.
+        inside = run_lint_file("d.tex", "\\section{Results}\nWe ran the swap test.\n"
+                                        "Notably, the covariance is stable.\n")
+        self.assertEqual(inside.returncode, 0, inside.stdout + inside.stderr)
+        joined = run_lint_file("d.tex", "\\section{Results}\nWe ran the swap test. "
+                                        "Notably, the covariance is stable.\n")
+        self.assertEqual(joined.returncode, 0, joined.stdout + joined.stderr)
+        # The paragraph's first prose line, after a heading, is paragraph-initial.
+        first = run_lint_file("d.tex", "\\section{Results}\nNotably, the covariance "
+                                       "is stable.\n\nMore prose.\n")
+        self.assertEqual(first.returncode, 1, first.stdout + first.stderr)
+        self.assertIn("tier-a:paragraph-start:notably", first.stdout)
+
+    def test_an_opener_is_judged_where_a_sentence_starts(self):
+        mid_line = run_lint_file("d.tex", "\\section{Results}\nWe ran the test. It is "
+                                          "worth noting that this holds.\n")
+        self.assertEqual(mid_line.returncode, 1, mid_line.stdout + mid_line.stderr)
+        self.assertIn("tier-a:opener", mid_line.stdout)
+        wrapped = run_lint_file("d.tex", "\\section{Results}\nThe field moved on, and\n"
+                                         "in recent years the estimate settled.\n")
+        self.assertEqual(wrapped.returncode, 0, wrapped.stdout + wrapped.stderr)
+
+    def test_paved_and_showcased_are_tier_a(self):
+        result = run_lint_file("d.tex", "\\section{Results}\nThis paved the way for the "
+                                        "fit and showcased the model.\n")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("tier-a:paved", result.stdout)
+        self.assertIn("tier-a:showcased", result.stdout)
+
+    def test_every_em_dash_on_a_line_is_a_target_with_its_own_id(self):
+        result = run_lint_file("d.tex", "\\section{Results}\nThe catalog---measured "
+                                        "here---is used, so we delve and delve.\n",
+                               "--format", "json")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        findings = json.loads(result.stdout)["findings"]
+        rules = [finding["rule"] for finding in findings]
+        self.assertEqual(rules.count("em-dash"), 2)
+        ids = [finding["finding_id"] for finding in findings]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_command_arguments_are_not_prose(self):
+        result = run_lint_file("d.tex", "\\section{Results}\nSee \\ref{sec:realm}, "
+                                        "\\cite{delve-2020} and \\url{http://x/delve}.\n"
+                                        "\\label{sec:realm}\n")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("L0=0", result.stdout)
+
+    def test_three_parallel_needs_whole_words(self):
+        result = run_lint_file("d.tex", "\\section{Results}\nIt is not only fast but "
+                                        "also stable in Bland.\n")
+        self.assertNotIn("three-parallel", result.stdout)
+
+    def test_an_unreadable_tex_root_is_an_execution_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "dir.tex"
+            directory.mkdir()
+            result = subprocess.run(
+                [sys.executable, str(LINTER), str(directory), "--no-distribution",
+                 "--no-structure", "--no-document-structure"],
+                text=True, capture_output=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_several_fields_without_a_choice_say_so(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            profile_root = Path(temporary)
+            (profile_root / "fieldA").mkdir()
+            (profile_root / "fieldB").mkdir()
+            result = run_lint_file("d.tex", "\\section{Results}\nPlain prose.\n",
+                                   profile_root=profile_root)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("several field profiles", result.stderr)
+
+    def test_an_unparseable_lexicon_is_an_execution_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            profile_root = Path(temporary)
+            (profile_root / "f").mkdir()
+            (profile_root / "f" / "lexicon.json").write_text("{not json", encoding="utf-8")
+            result = run_lint_file("d.tex", "\\section{Results}\nPlain prose.\n",
+                                   "--field", "f", profile_root=profile_root)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_markdown_front_matter_and_rules_are_not_em_dashes(self):
+        result = run_lint_file("d.md", "---\ntitle: x\n---\n\nSome prose here.\n\n---\n"
+                                       "About 50% of the sample: the rest, revealing "
+                                       "the bias.\n")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("L0=0", result.stdout)
+        self.assertIn("colon-elaboration", result.stdout)
+        self.assertIn("ing-tail:revealing", result.stdout)
+
+
 class DocumentAssemblyTests(unittest.TestCase):
     """The lint path must read the same document the corpus path reads.
 

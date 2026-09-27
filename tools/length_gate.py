@@ -16,26 +16,19 @@ the paired findings document the rename for the report.
 
 from __future__ import annotations
 
-import argparse
-import json
 import math
-import re
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
-from typing import Any
-
-TOOLS_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(TOOLS_DIR))
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_metrics  # noqa: E402  section segmentation
 import extract_style as es  # noqa: E402  LaTeX-to-prose cleaning
 import tex_assembly  # noqa: E402  one include assembler for file and git baselines
 
-FRONT_MATTER = "(front matter)"
 # Heading commands are stripped before counting: the budget measures body
 # prose, and a section RENAME must not register as prose growth. The pattern
 # is the shared one (starred forms, optional short title, one nesting level).
@@ -50,17 +43,20 @@ def prose_word_count(tex: str) -> int:
 
 
 def section_word_counts(text: str) -> dict[str, int]:
-    """Rendered-prose word count per section label, plus a front-matter bucket."""
+    """Rendered-prose word count per section label (the preamble is one label).
+
+    Comments are blanked BEFORE the document is segmented: the segmenter reads
+    heading commands wherever they stand, so a commented-out `% \\section{Old
+    draft}` opened a phantom section that no `--allow` key could name, while
+    the removal map (which reads the comment-blanked source) segmented the
+    same file differently. `section_line_ranges` covers every line, so there
+    is no front-matter remainder to count separately.
+    """
+    text = es.blank_preserving(text, es.RE_TEX_COMMENT)
     lines = text.splitlines()
     counts: Counter[str] = Counter()
-    covered: set[int] = set()
     for start, end, label in deai_metrics.section_line_ranges(text):
         counts[label] += prose_word_count("\n".join(lines[start - 1:end]))
-        covered.update(range(start, end + 1))
-    rest = "\n".join(line for number, line in enumerate(lines, start=1)
-                     if number not in covered)
-    if rest.strip():
-        counts[FRONT_MATTER] += prose_word_count(rest)
     return dict(counts)
 
 
@@ -179,12 +175,14 @@ def gate_findings(before_text: str, after_text: str, path: Path,
 
 
 def parse_required_shrink(raw: str | None) -> float | int | None:
-    """`--require-shrink` as a fraction (float in (0, 1)) or a word count (int > 0).
+    """`--require-shrink` as a fraction (float in [0, 1)) or a word count (int >= 0).
 
     The growth gate is one-sided: it stops a condensation pass from growing
     the document and says nothing when the pass removed almost nothing. This
     is the other side, so a "condense" round that shaved four words cannot
-    close green.
+    close green. Zero is accepted and means "no cut required": the condense
+    skill passes the map's `default_target_words` straight through, and a map
+    that lists nothing to cut must not turn the closing gate into exit 2.
     """
     if raw is None:
         return None
@@ -202,8 +200,8 @@ def parse_required_shrink(raw: str | None) -> float | int | None:
                          f"fraction in (0, 1) or a word count, got {raw!r}") from error
     if percent:
         value /= 100.0
-    if not math.isfinite(value) or value <= 0:
-        raise ValueError("--require-shrink must be a finite positive number")
+    if not math.isfinite(value) or value < 0:
+        raise ValueError("--require-shrink must be a finite non-negative number")
     if fraction and value >= 1:
         raise ValueError("--require-shrink fraction must be below 1 (or 100%)")
     return value
@@ -211,11 +209,14 @@ def parse_required_shrink(raw: str | None) -> float | int | None:
 
 def required_shrink_words(shrink: float | int | None, total_before: int) -> int | None:
     """A fraction of the baseline rounds UP: a 10% cut of five words is one
-    word, not the zero words that rounding to nearest made of it."""
+    word, not the zero words that rounding to nearest made of it. The product
+    is rounded to six decimals before the ceiling: `7%` is the float
+    0.07000000000000001, so `ceil(0.07 * 100)` was 8 and a pass that cut
+    exactly the seven words asked for failed the gate."""
     if shrink is None:
         return None
     if isinstance(shrink, float):
-        return math.ceil(shrink * total_before)
+        return math.ceil(round(shrink * total_before, 6))
     return shrink
 
 
@@ -252,17 +253,24 @@ def main(argv: list[str] | None = None) -> int:
                         help="record one justification covering every section")
     parser.add_argument("--require-shrink", default=None, metavar="FRACTION|WORDS",
                         help="exit 1 unless total prose fell by at least this much: "
-                             "a fraction of the baseline in (0, 1), or a word count")
-    parser.add_argument("--format", choices=("text", "json"), default="text")
-    parser.add_argument("--output", type=Path)
+                             "a fraction of the baseline in [0, 1), a percentage, "
+                             "or a word count (0 = no cut required)")
+    cli_common.report_options(parser)
     args = parser.parse_args(argv)
 
-    if not args.after.exists():
+    # `is_file`, not `exists`: a directory named like a document read as an
+    # empty document, which the gate scored as a complete cut (exit 0), and a
+    # mistyped --before read as a zero-word baseline, which it scored as growth
+    # in every section (exit 1). Missing evidence is exit 2, never a verdict.
+    if not args.after.is_file():
         print(f"[length_gate] file not found: {args.after}", file=sys.stderr)
         return 2
     if (args.before is None) == (args.git_ref is None):
         print("[length_gate] provide exactly one of --before or --git-ref",
               file=sys.stderr)
+        return 2
+    if args.before is not None and not args.before.is_file():
+        print(f"[length_gate] baseline not found: {args.before}", file=sys.stderr)
         return 2
     if args.tolerance_words < 0:
         print("[length_gate] --tolerance-words must be >= 0", file=sys.stderr)
@@ -336,7 +344,7 @@ def main(argv: list[str] | None = None) -> int:
             args.output.write_text(rendered, encoding="utf-8")
         else:
             print(rendered, end="")
-    except (OSError, ValueError, json.JSONDecodeError, UnicodeDecodeError) as error:
+    except (OSError, ValueError) as error:
         print(f"[length_gate] execution failed: {error}", file=sys.stderr)
         return 2
     return gate_exit

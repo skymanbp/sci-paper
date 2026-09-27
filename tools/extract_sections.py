@@ -97,8 +97,15 @@ def classify_section(name: str) -> str:
 # Light LaTeX cleaning. Not a full TeX parser; meant to remove enough
 # command/environment noise so word/sentence stats reflect the prose.
 RE_TEX_COMMENT = tex_assembly.RE_TEX_COMMENT  # one owner, see tex_assembly
+# Display mathematics in every form LaTeX writes it: the environments, the
+# `\[ ... \]` shorthand, and old-style `$$ ... $$`. The last two were missing:
+# `\[E=mc^2\]` counted as six words of prose in the length gate and the map,
+# and `$$` was left to the INLINE pattern, which paired its second dollar with
+# the third and swallowed the prose up to the next inline formula in the plain
+# view only, so the two projections no longer made the same substitutions.
 RE_TEX_DISPLAY_MATH = re.compile(
-    r"\\begin\{(equation|align|gather|eqnarray|displaymath|multline)\*?\}.*?\\end\{\1\*?\}",
+    r"\\begin\{(equation|align|gather|eqnarray|displaymath|multline|subequations)\*?\}"
+    r".*?\\end\{\1\*?\}|\\\[.*?\\\]|\$\$.*?\$\$",
     re.DOTALL)
 RE_TEX_INLINE_MATH = re.compile(r"\$[^$]+\$|\\\(.+?\\\)", re.DOTALL)
 RE_TEX_ENV_FIGURE_TABLE = re.compile(  # deluxetable/longtable/tabular are tables too
@@ -141,9 +148,8 @@ RE_TEX_THIN_COMMA = re.compile(r"\{\s*,\s*\}")
 def _math_numerals(match: "re.Match[str]") -> str:
     """Reduce one math span to its bare numerals and operators, on one line.
 
-    Old-style `$$ ... $$` display math is matched by the inline pattern from
-    its second dollar, so a span can run across a blank line; kept, that
-    blank line would be a paragraph break the plain view (`[math]`) does not
+    An inline span can still run across a line break; kept, a blank line
+    inside it would be a paragraph break the plain view (`[math]`) does not
     have, and the two views could not be paired paragraph by paragraph.
     """
     body = RE_TEX_THIN_COMMA.sub(",", match.group(0))

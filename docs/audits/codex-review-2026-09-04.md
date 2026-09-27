@@ -70,54 +70,54 @@ Read-only review of `git diff 9f0b920..edd480c`; session `01a06ebe-b4c5-7802-bfe
 
 以下 `M = "\\section{Methods}\n"`；字符串中的 `\n` 表示实际换行。数值均由当前代码在内存中复现，未修改文件。
 
-1. **major · [tools/condense_map.py:337](D:/Projects/sci-paper/tools/condense_map.py:337) · 删除预算重复计算同一文字。**  
+1. **major · [tools/condense_map.py:337](../../tools/condense_map.py) · 删除预算重复计算同一文字。**
    触发：令 `s = "In this section we describe precise galaxy cluster signal maps calibrated against independent external measurements."`，输入 `M + "\n\n".join([s] * 3)`。实际 `prose_words=46`，默认目标 **75 words**：三个 zero-gain 加两个 restatement 重叠计数。建议：保存可删除字符区间，计算区间并集；分别报告候选质量和确认可删除质量。`tools/condense_map.py:328`、`tools/condense_map.py:343`
 
-2. **major · [tools/condense_map.py:144](D:/Projects/sci-paper/tools/condense_map.py:144) · 相同词袋被当作相同科学声明。**  
+2. **major · [tools/condense_map.py:144](../../tools/condense_map.py) · 相同词袋被当作相同科学声明。**
    触发：在 Methods 中依次写 `The calibrated galaxy cluster mass signal measurement across independent radial apertures is significant.` 和把 `is significant` 改成 `is not significant` 的版本。第二句被判 restatement，计入 14 words 目标；数字变化也不会进入该词集合。建议：先核对 negation、numbers、units、comparisons 等 protected invariants；仅有 lexical overlap 时不能生成整句删除目标。`tools/condense_map.py:97`、`tools/condense_map.py:150`
 
-3. **major · [tools/condense_map.py:173](D:/Projects/sci-paper/tools/condense_map.py:173) · 开头套语被等同于整句无信息，且 zero-gain 没有 genre carve-out。**  
+3. **major · [tools/condense_map.py:173](../../tools/condense_map.py) · 开头套语被等同于整句无信息，且 zero-gain 没有 genre carve-out。**
    触发：`\section{Conclusion}\nIn summary, we measure a galaxy mass of five units.` 被要求删除全部 **10 words**；`M + "In this paper we measure a galaxy mass of five units."` 被计入 **11 words**。建议：默认只预算删除 opener；整句删除须确认无独有声明；对 zero-gain 同样应用 abstract/conclusion carve-out。`tools/condense_map.py:178`、`tools/condense_map.py:183`、`tools/condense_map.py:341`
 
-4. **major · [tools/length_gate.py:200](D:/Projects/sci-paper/tools/length_gate.py:200) · shrink 参数的单位、取整及边界不可靠。**  
+4. **major · [tools/length_gate.py:200](../../tools/length_gate.py) · shrink 参数的单位、取整及边界不可靠。**
    触发：`100% → int(1)`、`200% → int(2)`；5-word 文档的 `10% → 0 words`；无候选时 map 返回目标 `0`，parser 却拒绝；`inf`/`1e309` 抛出未捕获的 `OverflowError`。建议：显式区分 percentage、fraction、word count；验证有限值和范围；最低删减用 `ceil`；允许零词目标完成 dry sweep。`tools/length_gate.py:208`、`tools/length_gate.py:221`、`tools/length_gate.py:277`、`tools/condense_map.py:348`
 
-5. **major · [tools/length_gate.py:45](D:/Projects/sci-paper/tools/length_gate.py:45) · gate 的计数和输入范围不符合“rendered prose”。**  
-   触发：`M + "$a$ $b$"` 被计为 **2 words**；删除两条公式便产生两词“删减”。此外，`main.tex` 只有 `\input{body}` 时，修改 child 不改变 gate 的输入；map 却分析组装后的全文。建议：对两版使用相同的 document assembly 和 prose-only 计数，移除 math/float placeholders；快照必须覆盖整个 include graph 或保存组装后的基线。`tools/extract_sections.py:195`、`tools/length_gate.py:282`、`tools/condense_map.py:380`  
+5. **major · [tools/length_gate.py:45](../../tools/length_gate.py) · gate 的计数和输入范围不符合“rendered prose”。**
+   触发：`M + "$a$ $b$"` 被计为 **2 words**；删除两条公式便产生两词“删减”。此外，`main.tex` 只有 `\input{body}` 时，修改 child 不改变 gate 的输入；map 却分析组装后的全文。建议：对两版使用相同的 document assembly 和 prose-only 计数，移除 math/float placeholders；快照必须覆盖整个 include graph 或保存组装后的基线。`tools/extract_sections.py:195`、`tools/length_gate.py:282`、`tools/condense_map.py:380`
    residue 的 `--git-ref` 同样只读旧版 root，而 after 已组装，diff 比较范围不同。`tools/deai_residue.py:394`、`tools/deai_residue.py:399`
 
-6. **major · [tools/deai_reference.py:210](D:/Projects/sci-paper/tools/deai_reference.py:210) · float 修复仍被“先分段、后投影”绕过。**  
+6. **major · [tools/deai_reference.py:210](../../tools/deai_reference.py) · float 修复仍被“先分段、后投影”绕过。**
    触发：`M + "\\begin{figure}\n\n\\caption{alpha beta gamma delta epsilon.}\n\n\\end{figure}"`。caption 成为独立 prose unit；令这五词 common、四个 pair 未见且 reference 有 spread，即产生 strong collocation finding。语料侧先投影整个 section，会删除该 float。建议：在 section/paragraph/sentence 切分前识别并处理完整环境，保留 source offsets。`tools/deai_collocation.py:260`、`tools/extract_sections.py:197`、`tools/extract_style.py:393`
 
-7. **major · [tools/deai_residue.py:310](D:/Projects/sci-paper/tools/deai_residue.py:310) · 可见编辑标记被 vocabulary projection 吞掉。**  
+7. **major · [tools/deai_residue.py:310](../../tools/deai_residue.py) · 可见编辑标记被 vocabulary projection 吞掉。**
    触发：`\section{Results TODO}\nClean prose.`，或 `\begin{figure}\n\caption{TODO}\n\end{figure}` 放在 Results 下，均没有 residue finding；正文独立 `TODO` 则 strong。建议：residue 的 edit-meta 扫描保留可见 headings、captions、table text；不要复用排除这些内容的词汇投影。另将跨行 `in the revised\nversion` 按规范化空白扫描，当前逐行 regex 漏报。`tools/deai_register.py:344`、`tools/deai_residue.py:204`
 
-8. **major · [tools/deai_residue.py:288](D:/Projects/sci-paper/tools/deai_residue.py:288) · diff rule 检查的是任一消失的词干，不是完整对象。**  
+8. **major · [tools/deai_residue.py:288](../../tools/deai_residue.py) · diff rule 检查的是任一消失的词干，不是完整对象。**
    触发：before 为 `M + "The correction is applied."`；after 为 `M + "The measurement is applied.\n\\caption{Without the saddle correction}"`。得到 strong，虽然 `saddle correction` 从未在 before 出现。另把旧 caption 的 `Blue points` 改成 `Red points`，也会将原有 negation 当成新增。建议：比较 canonical negated object；确认完整对象 before 存在、after 缺失；对象新旧不能由整段 caption 字符串决定。`tools/deai_residue.py:280`、`tools/deai_residue.py:285`
 
-9. **major · [tools/deai_reference.py:162](D:/Projects/sci-paper/tools/deai_reference.py:162) · 无 section 的文档静默漏检。**  
+9. **major · [tools/deai_reference.py:162](../../tools/deai_reference.py) · 无 section 的文档静默漏检。**
    触发：纯文本 `We no longer use this method.`，或前加 `\section {Methods}` / `\section[Short]{Methods}`，self-history 均无 finding；condense 的句子扫描同样为空。原因是 section regex 不接受这些合法形式，随后 `(document)` 被丢弃。建议：共享 section parser；无 heading 时保留 document unit，不能套用 bucket baseline 的轴明确标为 unavailable。`tools/deai_metrics.py:25`、`tools/deai_metrics.py:120`、`tools/condense_map.py:119`
 
-10. **major · [tools/deai_collocation.py:145](D:/Projects/sci-paper/tools/deai_collocation.py:145) · `p_absent_by_chance` 计算了错误事件。**  
+10. **major · [tools/deai_collocation.py:145](../../tools/deai_collocation.py) · `p_absent_by_chance` 计算了错误事件。**
     触发：100 passages 全为 `alpha and omega`，两词 df 均为 100，adjacent pair 从未出现。代码给 `alpha omega` 的 λ=100、absence≈`3.7e-44`，实际上估计的是 passage 内共同出现，未建模有序相邻。建议：采用保留句长和 token boundaries 的 adjacency null；否则将该字段明确降为 co-presence heuristic，不能称为 pair absence probability。`tools/deai_collocation.py:112`、`tools/deai_collocation.py:203`
 
-11. **minor · [tools/deai_register.py:419](D:/Projects/sci-paper/tools/deai_register.py:419) · 定义句给整句所有词自动豁免。**  
+11. **minor · [tools/deai_register.py:419](../../tools/deai_register.py) · 定义句给整句所有词自动豁免。**
     触发：`M + "We define flux using quuxification."` 把 `quuxification` 标为 `defined-here`，即使定义对象只有 `flux`。建议：提取被定义的 noun phrase；无法确定对象时保留 strong 并请求 disposition。`tools/deai_register.py:447`
 
-12. **minor · [tools/deai_reference.py:176](D:/Projects/sci-paper/tools/deai_reference.py:176) · 行号并未保持。**  
-    触发：`M + "\\paragraph{A\nB}\n\nWe no longer use this method."` 实际第 5 行被报为第 4 行；替换 heading 时换行也变成了空格。另 `M + "\n\\newcommand{\\q}{word}\nWe no longer use this method."` 中 register 将第 4 行报成第 2 行；`\s*` 吃掉了前面的空行。建议：任何 blanking 保留换行，并统一保存字符到原文件行号的映射。`tools/deai_register.py:355`  
+12. **minor · [tools/deai_reference.py:176](../../tools/deai_reference.py) · 行号并未保持。**
+    触发：`M + "\\paragraph{A\nB}\n\nWe no longer use this method."` 实际第 5 行被报为第 4 行；替换 heading 时换行也变成了空格。另 `M + "\n\\newcommand{\\q}{word}\nWe no longer use this method."` 中 register 将第 4 行报成第 2 行；`\s*` 吃掉了前面的空行。建议：任何 blanking 保留换行，并统一保存字符到原文件行号的映射。`tools/deai_register.py:355`
     其他定位问题：abstract 使用环境起始行；condense acronym 固定报第 1 行；多句段落的每句共用段落范围。`tools/deai_reference.py:152`、`tools/condense_map.py:241`、`tools/condense_map.py:123`
 
-13. **minor · [tools/extract_sections.py:375](D:/Projects/sci-paper/tools/extract_sections.py:375) · include assembly 有损，新工具继承该问题。**  
+13. **minor · [tools/extract_sections.py:375](../../tools/extract_sections.py) · include assembly 有损，新工具继承该问题。**
     触发：root 为 `Before \input{body} After\n`，child 为 `Child`，组装结果只有 `Child`；连续两次 `\input{body}` 只保留一次。建议：按匹配区间替换，保留前后文字；用 recursion stack 检测环，不能把全部已访问文件当成环；同时返回 child 的 source map。`tools/extract_sections.py:366`、`tools/extract_sections.py:382`
 
-14. **minor · [tools/deai_collocation.py:104](D:/Projects/sci-paper/tools/deai_collocation.py:104) · 非相邻 token 被连成 pair。**  
+14. **minor · [tools/deai_collocation.py:104](../../tools/deai_collocation.py) · 非相邻 token 被连成 pair。**
     触发：`content_pairs("alpha/beta gamma delta epsilon")` 和 `content_pairs("alpha 500 beta gamma delta epsilon")` 均包含 `("alpha","beta")`；`.` 无空白时也如此。建议：先产生带类型和跨度的 tokens；只连接相邻且中间没有 punctuation、number、placeholder 的 word tokens。`tools/deai_collocation.py:111`
 
-15. **minor · [tools/eval_findings.py:295](D:/Projects/sci-paper/tools/eval_findings.py:295) · AUC 的样本量门槛在删除 NaN 前执行。**  
+15. **minor · [tools/eval_findings.py:295](../../tools/eval_findings.py) · AUC 的样本量门槛在删除 NaN 前执行。**
     触发：两组各 20 rows，其中各 19 个 `collocation_novel_fraction=NaN`，余下一组 0、一组 1，仍输出 AUC=1.0。空文档在存在 bank 时也被标为 collocation `measured`。建议：按轴统计有效 documents/eligible sentences，过滤后再应用 floor；零可测内容不能报告 measured。`tools/eval_findings.py:171`、`tools/deai_collocation.py:179`、`tools/deai_collocation.py:192`
 
-16. **minor · [tools/label_findings.py:262](D:/Projects/sci-paper/tools/label_findings.py:262) · flagged passage 会进入 unflagged controls。**  
+16. **minor · [tools/label_findings.py:262](../../tools/label_findings.py) · flagged passage 会进入 unflagged controls。**
     触发：正常 finding 被放入 `evidence`，其中没有顶层 `text`；排除集合于是得到 `""`，同一段不会被排除。建议：用 `source + span/unit_id` 排除全部已命中 unit，而不是读取不存在的字段；控制样本不能仅排除已抽中的部分 findings。`tools/label_findings.py:229`、`tools/label_findings.py:240`、`tools/label_findings.py:268`
 
 ## 3. 投影不对称候选清单
@@ -154,35 +154,35 @@ Read-only review of `git diff 9f0b920..edd480c`; session `01a06ebe-b4c5-7802-bfe
 
 ## 4. 统计方法评估
 
-- **λ 的 N：单位一致，但事件不一致。**  
-  df 是 passage presence，所以 `df_a·df_b/N` 的 N 应是 passage 数，不能直接换成 sentence 数或 paper 数。不过它估计的是独立词的 passage co-presence，未估计有序 adjacency；自配对 `a=a` 更不满足两个独立事件。即便只研究 co-presence，独立 passages 下的零出现概率也是 `(1-p_a p_b)^N`，`e^-λ` 还需 rare-event approximation。当前 bank 记录的是 distinct words/pairs per passage。`tools/deai_collocation.py:145`、`tools/deai_collocation.py:294`  
+- **λ 的 N：单位一致，但事件不一致。**
+  df 是 passage presence，所以 `df_a·df_b/N` 的 N 应是 passage 数，不能直接换成 sentence 数或 paper 数。不过它估计的是独立词的 passage co-presence，未估计有序 adjacency；自配对 `a=a` 更不满足两个独立事件。即便只研究 co-presence，独立 passages 下的零出现概率也是 `(1-p_a p_b)^N`，`e^-λ` 还需 rare-event approximation。当前 bank 记录的是 distinct words/pairs per passage。`tools/deai_collocation.py:145`、`tools/deai_collocation.py:294`
   此概率目前影响 pair evidence 的排序，**不决定 finding gate**；gate 使用 sentence novel fraction percentile。`tools/deai_collocation.py:204`、`tools/deai_collocation.py:270`
 
-- **LOO：pair count 的 passage-level 排除成立，完整 held-out calibration 不成立。**  
+- **LOO：pair count 的 passage-level 排除成立，完整 held-out calibration 不成立。**
   `own_passage=True` 将 pair_df=1 视为未见，正确排除了该 passage 对 pair presence 的一次贡献。但 unigram df、common-word membership、N 未重算；同一 paper 的其他 passages 仍在 bank，source 信息甚至在 `_passages` 被丢弃。应称为“固定词表下的 passage LOO”，不能等同于 document-held-out reference。`tools/deai_collocation.py:136`、`tools/deai_collocation.py:139`、`tools/deai_collocation.py:281`、`tools/deai_collocation.py:320`
 
-- **`MIN_JUDGED=4` 与 distinct-pair：有明确 selection 和离散性影响。**  
+- **`MIN_JUDGED=4` 与 distinct-pair：有明确 selection 和离散性影响。**
   四个 judged types 只能得到 0、¼、½、¾、1；重复同一 pair 不增加有效样本量，长的重复句也可能 abstain。另一方面，document score 又计算所有 pair occurrences，包含不足四对的句子。因此 gate 和 AUC 使用不同统计量；这是代码明确实现的选择，应同时报告 eligible sentence coverage。`tools/deai_collocation.py:135`、`tools/deai_collocation.py:151`、`tools/deai_collocation.py:161`
 
-- **p90/p95 不是固定 10%/5% operating rate。**  
-  代码取 `P(X≤x)` 的 plateau 顶端，再与 .90/.95 比较。构造 `[0]*80 + [.5]*19 + [1]` 时，`.5` 被读为 p98，**20%** 样本都 strong；spread guard 仍通过。`tools/deai_reference.py:90`、`tools/deai_reference.py:124`、`tools/deai_collocation.py:214`  
+- **p90/p95 不是固定 10%/5% operating rate。**
+  代码取 `P(X≤x)` 的 plateau 顶端，再与 .90/.95 比较。构造 `[0]*80 + [.5]*19 + [1]` 时，`.5` 被读为 p98，**20%** 样本都 strong；spread guard 仍通过。`tools/deai_reference.py:90`、`tools/deai_reference.py:124`、`tools/deai_collocation.py:214`
   对现有 bank 只读重算 LOO：method advisory **13.70%**、data **14.68%**、discussion **12.30%**；对应 strong **5.44% / 4.42% / 4.54%**。应保存 empirical tail counts，选择 strict quantile exceedance 或明确 tie policy。计算路径：`tools/deai_collocation.py:318`、`tools/deai_reference.py:77`
 
-- **AUC 与 rates：主表可复现，分母名称有误。**  
-  复现 held-out zero **2.212/1k、100% documents、AUC .246**；collocation **2.031/1k、99.0%、AUC .691**。但 `/1k` 是 `1000·Σfindings/Σraw_words`，不是 per-document median，也不是 body-token rate；zero 的逐文档 rate 中位数实算为 **1.611/1k**。`tools/eval_findings.py:133`、`tools/eval_findings.py:149`  
+- **AUC 与 rates：主表可复现，分母名称有误。**
+  复现 held-out zero **2.212/1k、100% documents、AUC .246**；collocation **2.031/1k、99.0%、AUC .691**。但 `/1k` 是 `1000·Σfindings/Σraw_words`，不是 per-document median，也不是 body-token rate；zero 的逐文档 rate 中位数实算为 **1.611/1k**。`tools/eval_findings.py:133`、`tools/eval_findings.py:149`
   register AUC 按逐文档 finding density 排序；collocation AUC 按 document **token-pair fraction** 排序。这两种口径代码有明确区分，不能把 .691 解释成 sentence gate 的 AUC。`tools/eval_findings.py:85`、`tools/eval_findings.py:166`
 
-- **.855 与 .691 的差别不是同一实验算错。**  
+- **.855 与 .691 的差别不是同一实验算错。**
   §23 明确将 .855 标为 first-1,500-word prototype，当前值是全篇 document fraction。比较还应控制长度、年代和 generation regime，并按 paper/source 做 bootstrap；现有输出只有点估计。`docs/architecture/evaluation/vocabulary-and-residue.md:80`、`tools/eval_findings.py:295`
 
-- **document fraction 不能代替 sentence gate transfer。**  
+- **document fraction 不能代替 sentence gate transfer。**
   一篇论文有很多 eligible sentences，至少一次 finding 的概率自然累积；99% document flag rate 不能直接解释为 sentence false-positive rate。当前 evaluator 没有保存 collocation eligible sentence denominator。`tools/deai_collocation.py:254`、`tools/eval_findings.py:128`
 
-- **residue 的 203 篇是调参集。**  
-  strengths 在这批 papers 上反复修改，不能再把同批 rate 当独立验证；它也没有 edit-history ground truth 来估计 recall。文档承认后一点。`docs/architecture/evaluation/vocabulary-and-residue.md:174`、`docs/architecture/evaluation/vocabulary-and-residue.md:225`  
+- **residue 的 203 篇是调参集。**
+  strengths 在这批 papers 上反复修改，不能再把同批 rate 当独立验证；它也没有 edit-history ground truth 来估计 recall。文档承认后一点。`docs/architecture/evaluation/vocabulary-and-residue.md:174`、`docs/architecture/evaluation/vocabulary-and-residue.md:225`
   §23.4 的 `24 in 20 papers` 对应 **9.85% papers**，不是随后写的 12%。按当前产品入口去注释后，实算 self-history strong **24/20 papers**、edit-meta strong **16/12 papers**，合计 **31/203 papers**；旧调参表应标明版本，不能作为 v0.36.1 当前 rate。`docs/architecture/evaluation/vocabulary-and-residue.md:181`、`docs/architecture/evaluation/vocabulary-and-residue.md:190`、`tools/ai_ism_lint.py:359`、`tools/deai_residue.py:304`
 
-- **labeller 当前不能给出有效 population recall。**  
+- **labeller 当前不能给出有效 population recall。**
   除 control 污染外，`caught` 累加各轴 finding，`missed` 计算 control paragraphs；同一 passage 多轴命中会重复计 TP，抽样 quotas 也没有 inclusion-probability correction。须统一到去重的 passage/unit，并采用概率抽样或完整子集标注。`tools/label_findings.py:217`、`tools/label_findings.py:341`、`tools/label_findings.py:352`
 
 ## 5. 缺失测试
@@ -227,10 +227,10 @@ mirror check 确实比较了两处 **22 个词的集合**；它不验证 strong/
 
 ## 7. 值得做的显著改进
 
-1. **建立保留 source map 的统一 TeX 分解层。**  
+1. **建立保留 source map 的统一 TeX 分解层。**
    输出 prose、heading、caption、math、code、bibliography 等 typed spans；各轴明确选择需要的 spans，再切 sentence/paragraph。这样能同时解决 whole-span 投影、重复 cleaning、bucket inheritance 和行号问题；residue 仍可保留 visible caption 的编辑标记。当前分裂点：`tools/deai_register.py:344`、`tools/deai_reference.py:210`、`tools/extract_sections.py:193`
 
-2. **把评估结果固化为可复算 artifact。**  
+2. **把评估结果固化为可复算 artifact。**
    保存 commit、corpus/profile/projection hashes、raw/body word counts、eligible sentence counts、tie policy、source grouping 与有效 AUC 样本量；文档从 artifact 提取。当前 §23 新表没有进入 published-figure 检查清单，现有 AUC 输出也没有这些有效样本元数据。`tests/test_published_figures.py:315`、`tests/test_published_figures.py:335`、`tools/eval_findings.py:297`
 
 3. **执行 line budget，并按职责拆分临界文件。**

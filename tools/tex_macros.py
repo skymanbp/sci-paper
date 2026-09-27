@@ -21,20 +21,28 @@ Expansion happens once, on the assembled document, because that is the only
 place where a preamble definition and a body use are both in scope. It is
 deliberately conservative: a macro is expanded only when its body is a bare
 numeric literal with no letters and no markup, so `\\newcommand{\\Msun}{M_\\odot}`
-and every macro taking an argument are left exactly as they were.
+and every macro taking an argument are left exactly as they were. A definition
+inside a comment is not a definition: harvested, a commented-out
+`% \\newcommand{\\Nf}{63}` beat the live value that followed it.
 """
 
 from __future__ import annotations
 
 import re
 
+# One owner for the comment pattern: `tex_assembly` and `extract_sections`
+# re-export it, and it lives here because this is the lowest module that needs
+# it (a definition inside a comment must not be harvested).
+RE_TEX_COMMENT = re.compile(r"(?<!\\)%.*?$", re.MULTILINE)
 # `\newcommand{\x}{1}`, `\newcommand\x{1}`, `\renewcommand`, `\providecommand`,
-# and plain-TeX `\def\x{1}`. The optional `[n]` arity is matched so that a
-# macro taking arguments parses as a definition and is then rejected below,
-# rather than being mis-read as a shorter definition that happens to fit.
+# and plain-TeX `\def\x{1}`. The optional `[n]` arity is CAPTURED (group 2) so
+# that a macro taking arguments parses as a definition and is then left alone,
+# rather than being mis-read as a shorter definition that happens to fit: the
+# arity used to be matched and discarded, so `\newcommand{\foo}[1]{42}` was
+# harvested and `\foo{x}` became `42{x}`.
 RE_DEFINITION = re.compile(
     r"\\(?:(?:new|renew|provide)command\s*\*?\s*\{?|def\s*)\\([A-Za-z]+)\}?"
-    r"(?:\[\d+\])?\s*\{([^{}]*)\}"
+    r"(?:\[(\d+)\])?\s*\{([^{}]*)\}"
 )
 # A body that is a number and nothing else. Letters would make it a symbol and
 # a backslash would make it markup; either way expanding it would put text the
@@ -46,9 +54,13 @@ def expand_numeric(text: str) -> str:
     """Replace uses of numeric-literal macros with their numbers.
 
     The definition itself is dropped rather than left in place. Keeping it
-    would double-count: `RE_TEX_SIMPLE_CMD` reduces `\\newcommand{\\Nf}{63}` to
-    its argument `63`, so an unexpanded manuscript already contributes one
+    would double-count: the projections reduce `\\newcommand{\\Nf}{63}` to the
+    stray token `\\Nf63`, so an unexpanded manuscript already contributes one
     stray numeral per definition, attributed to the preamble.
+
+    Definitions are read from a copy with comments blanked (same offsets), so
+    a commented-out definition is neither harvested nor dropped; a definition
+    that takes arguments is left exactly as written.
 
     A use is matched only when the macro name is not a prefix of a longer name
     (`\\Nf` must not fire inside `\\Nfields`), and an immediately following empty
@@ -56,17 +68,21 @@ def expand_numeric(text: str) -> str:
     is consumed with it.
     """
     macros: dict[str, str] = {}
-
-    def _harvest(match: "re.Match[str]") -> str:
-        body = match.group(2).strip()
-        if RE_BARE_NUMBER.match(body):
-            macros[match.group(1)] = body
-            return " "
-        return match.group(0)
-
-    text = RE_DEFINITION.sub(_harvest, text)
+    live = RE_TEX_COMMENT.sub(lambda m: " " * len(m.group(0)), text)
+    pieces: list[str] = []
+    cursor = 0
+    for match in RE_DEFINITION.finditer(live):
+        body = match.group(3).strip()
+        if match.group(2) is not None or not RE_BARE_NUMBER.match(body):
+            continue
+        macros[match.group(1)] = body
+        pieces.append(text[cursor:match.start()])
+        pieces.append(" ")
+        cursor = match.end()
     if not macros:
         return text
+    pieces.append(text[cursor:])
+    text = "".join(pieces)
     # Longest name first so a shorter name cannot claim a prefix of a longer
     # one before the negative lookahead is reached.
     names = "|".join(sorted((re.escape(n) for n in macros),

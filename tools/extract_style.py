@@ -1,22 +1,19 @@
 """Extract descriptive, field-scoped writing evidence from a paper corpus.
 
-The extractor reads standalone ``.tex``, ``.txt``, and ``.pdf`` sources under
-``style-corpus/<field>/tier-*`` and writes descriptive artifacts under
-``style-profile/<field>/``: sentence statistics, paragraph-initial transitions,
-lexical counts, an exemplar JSONL bank, and a compact dossier. PDF ingestion is
-best-effort and requires pymupdf.
+Reads ``.tex``, ``.txt`` and ``.pdf`` sources under ``style-corpus/<field>/tier-*``
+and writes descriptive artifacts under ``style-profile/<field>/``: sentence
+statistics, paragraph-initial transitions, lexical counts, an exemplar JSONL
+bank and a dossier. PDF ingestion needs pymupdf; ``.txt`` sources carry no
+sections, so they feed the statistics under ``unknown`` and never the bank.
 
-This module does not define consequence classes, authorship, or calibrated
-operating points. Its section detection and PDF block segmentation are
-heuristic; unmatched headings fall to ``unknown`` and are dropped rather than
-absorbed into a default bucket. Fix extraction errors in the source or this
-extractor and regenerate rather than hand-editing generated evidence. Normative
-policy lives in ``docs/SCIPAPER_STANDARD.md``.
+This module defines no consequence class, authorship or operating point; its
+section detection is heuristic and an unmatched heading is ``unknown``, never a
+default bucket. Fix extraction in the source or here and regenerate; never
+hand-edit generated evidence. Policy lives in ``docs/SCIPAPER_STANDARD.md``.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import statistics
@@ -35,24 +32,18 @@ import cli_common  # noqa: E402 -- because the sys.path insert above must run fi
 # is hand-written, so `ReExportContractTests` asserts it stays complete --
 # it has caught three additions already.
 from extract_sections import (  # noqa: F401 -- re-export, unused here by design
-    CALIBRATION_FULLTEXT, CLASSIFIED_BUCKETS, _classified_word_count,
-    DEFAULT_SECTION_BUCKET, LIGATURE_TABLE, RE_ABSTRACT_ENV,
-    RE_HEADING_CMD, RE_HEADING_COMMAND, RE_HEADING_DROP_ARG, RE_HEADING_MATH,
-    RE_HEADING_TEXORPDF,
-    RE_PDF_LINE_HEADER, RE_PLACEHOLDER, RE_SECTION, RE_TEX_BEGIN_END, RE_TEX_BRACES,
-    RE_TEX_CITE, RE_TEX_CITE_SILENT, RE_TEX_CITE_TEXT,
-    RE_TEX_COMMENT, RE_TEX_DISPLAY_MATH,
-    RE_TEX_ENV_FIGURE_TABLE, RE_TEX_INCLUDEGRAPHICS, RE_TEX_INLINE_MATH,
-    RE_TEX_DOC_MARKER, RE_TEX_INCLUDE,
-    RE_TEX_LABEL_REF, RE_TEX_MATH_CMD, RE_TEX_SIMPLE_CMD, RE_TEX_THIN_COMMA,
-    RE_TEX_TILDE, RE_SENTENCE_TERMINAL, SECTION_PATTERNS,
+    CALIBRATION_FULLTEXT, CLASSIFIED_BUCKETS, _classified_word_count, DEFAULT_SECTION_BUCKET,
+    LIGATURE_TABLE, RE_ABSTRACT_ENV, RE_HEADING_CMD, RE_HEADING_COMMAND, RE_HEADING_DROP_ARG,
+    RE_HEADING_MATH, RE_HEADING_TEXORPDF, RE_PDF_LINE_HEADER, RE_PLACEHOLDER, RE_SECTION,
+    RE_TEX_BEGIN_END, RE_TEX_BRACES, RE_TEX_CITE, RE_TEX_CITE_SILENT, RE_TEX_CITE_TEXT,
+    RE_TEX_COMMENT, RE_TEX_DISPLAY_MATH, RE_TEX_ENV_FIGURE_TABLE, RE_TEX_INCLUDEGRAPHICS,
+    RE_TEX_INLINE_MATH, RE_TEX_DOC_MARKER, RE_TEX_INCLUDE, RE_TEX_LABEL_REF, RE_TEX_MATH_CMD,
+    RE_TEX_SIMPLE_CMD, RE_TEX_THIN_COMMA, RE_TEX_TILDE, RE_SENTENCE_TERMINAL, SECTION_PATTERNS,
     PDF_HEADING_MIN_LETTER_FRAC, PDF_HEADING_MIN_LETTERS, PDF_HEADING_MIN_WORDS,
     _classify_pdf_heading, _include_targets, _math_numerals, _resolve_include,
-    _rejoin_pdf_paragraphs, blank_preserving, classify_section, clean_heading,
-    corpus_documents, extract_pdf_text, latex_to_numeral_text, latex_to_plain,
-    PLAIN_PLACEHOLDERS, _project,
-    prose_words,
-    read_tex_document, select_document_roots, split_into_sections,
+    _rejoin_pdf_paragraphs, blank_preserving, classify_section, clean_heading, corpus_documents,
+    extract_pdf_text, latex_to_numeral_text, latex_to_plain, PLAIN_PLACEHOLDERS, _project,
+    prose_words, read_tex_document, select_document_roots, split_into_sections,
     split_pdf_into_sections,
 )
 
@@ -60,19 +51,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CORPUS_ROOT = REPO_ROOT / "style-corpus"
 DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 
+# The curated tiers. The weights are RECORDED metadata (they travel with each
+# observation) and are NOT applied: every aggregate pools the tiers equally,
+# as `aggregate_sentence_stats` says. The dict also names which directories
+# are curated; everything else under the field is breadth.
 TIER_WEIGHTS = {"tier-1-top": 0.5, "tier-2-mentor": 0.3, "tier-3-reference": 0.2}
 
-# Breadth corpus, distinct in role from the curated tiers above. The tiers
-# define what the dossier says we *imitate* and carry all weighted aggregate
-# statistics; this directory holds the bulk arXiv full-text pull
-# (fetch_arxiv_abstracts.py --fulltext) and exists so the per-section
-# *reference distributions* have enough observations to be measurable at all.
-# It is unweighted and excluded from every aggregate on purpose: breadth must
-# not restyle the imitation target. Both roles previously shared one file
-# list, which is why `results` sat at 26 observations -- under its own
-# 30-passage floor -- while 500 field papers sat unread on disk.
-# The name is owned by extract_sections, which needs it to tell this directory
-# apart from the held-out `fulltext-*` siblings it must refuse to collect.
+# Breadth corpus: the bulk arXiv full-text pull (fetch_arxiv_abstracts.py
+# --fulltext), gathered so the per-section reference distributions have enough
+# observations, and excluded from the dossier aggregates so breadth cannot
+# restyle the imitation target (with one list, `results` sat at 26 passages
+# while 500 field papers sat unread). The name is owned by extract_sections,
+# which must tell it apart from the held-out `fulltext-*` siblings.
 REFERENCE_DIR = CALIBRATION_FULLTEXT
 
 
@@ -88,44 +78,39 @@ def resolve_field(arg_field: str | None, corpus_root: Path) -> str:
 
 
 
-# Placeholder strings emitted by latex_to_plain; paragraphs starting with
-# these are NOT real prose paragraphs and should be excluded from
-# paragraph-initial-word stats.
-PLACEHOLDER_PARAGRAPH_PREFIXES = (
-    "[MATH]", "[math]", "[CITE]", "[FIGURE-OR-TABLE]",
-)
-PLACEHOLDER_INITIAL_WORDS = {"FIGURE", "MATH", "CITE", "OR"}
+# Placeholder tokens emitted by latex_to_plain. A paragraph that is NOTHING but
+# placeholders is not prose; one that merely STARTS with one (`\citet{X}
+# showed ...`) is, and until 2026-09-27 it was dropped whole from the bank and
+# the opener statistics, so `intro` lost its citation-led paragraphs. Nor are
+# the tokens words: counted, they inflated sentence lengths, the em-dash
+# denominator and the lexicon, and let a 25-word paragraph into the bank.
+_RE_PLAIN_PLACEHOLDER_TOKEN = re.compile(r"\[(?:MATH|math|FIGURE-OR-TABLE|CITE)\]")
+
+
+def without_placeholders(text: str) -> str:  # every placeholder becomes a space
+    return _RE_PLAIN_PLACEHOLDER_TOKEN.sub(" ", text)
 
 # Candidate generated-style terms summarized against the current corpus.
 # This compatibility list is descriptive; normative Tier A/Tier B policy lives
 # in docs/SCIPAPER_STANDARD.md and is not inferred from corpus absence alone.
+# The second block was adopted 2026-07-16 from the academic-humanizer catalog
+# (github.com/AIScientists-Dev/academic-humanizer, MIT); "landscape" is left
+# out because it is a domain term in the astro corpus (detection landscape).
 LLM_TYPICAL_WORDS = {
-    "leverage", "leverages", "leveraging", "leveraged",
-    "utilize", "utilizes", "utilizing", "utilized",
-    "delve", "delves", "delving", "delved",
-    "showcase", "showcases", "showcasing",
-    "shed", "sheds", "shedding",  # "shed light"
-    "pave", "paves", "paving",
-    "seamless", "seamlessly",
-    "comprehensive", "comprehensively",
-    "robust", "robustly",
-    "holistic", "holistically",
-    "moreover", "furthermore", "additionally",
-    "notably", "importantly", "crucially", "interestingly",
-    # Candidates adopted 2026-07-16 from the academic-humanizer catalog
-    # (github.com/AIScientists-Dev/academic-humanizer, MIT); "landscape" is
-    # deliberately excluded because it is a legitimate domain term in the
-    # astro corpus (e.g. detection landscape, energy landscape).
-    "underscore", "underscores", "underscored", "underscoring",
-    "intricate", "tapestry", "testament",
-    "pivotal", "foster", "fosters", "fostering", "fostered",
-    "realm", "realms",
+    "leverage", "leverages", "leveraging", "leveraged", "utilize", "utilizes",
+    "utilizing", "utilized", "delve", "delves", "delving", "delved", "showcase",
+    "showcases", "showcasing", "shed", "sheds", "shedding", "pave", "paves", "paving",
+    "seamless", "seamlessly", "comprehensive", "comprehensively", "robust", "robustly",
+    "holistic", "holistically", "moreover", "furthermore", "additionally", "notably",
+    "importantly", "crucially", "interestingly",
+    "underscore", "underscores", "underscored", "underscoring", "intricate", "tapestry",
+    "testament", "pivotal", "foster", "fosters", "fostering", "fostered", "realm", "realms",
 }
 
 PARAGRAPH_INITIAL_LLM_OPENERS = {
-    "Furthermore", "Moreover", "Additionally", "Notably", "Importantly",
-    "Crucially", "Interestingly", "It is worth", "Recent advances",
-    "Despite significant", "With the advent", "In recent years",
+    "Furthermore", "Moreover", "Additionally", "Notably", "Importantly", "Crucially",
+    "Interestingly", "It is worth", "Recent advances", "Despite significant",
+    "With the advent", "In recent years",
 }
 
 
@@ -139,31 +124,42 @@ def sentences(text: str) -> list[str]:
     return [s for s in RE_SENTENCE_END.split(text) if s.strip()]
 
 
+# A word is a run of letters in any script: the ASCII class split `naïve` into
+# `na` and `ve` and `Poincaré` into `Poincar`, and the fragments entered the
+# lexicon and the word counts, the same class of defect as the PDF ligatures.
+RE_WORD_TOKEN = re.compile(r"[^\W\d_][^\W\d_'\-]*")
+
+
 def words(text: str) -> list[str]:
-    return re.findall(r"[A-Za-z][A-Za-z'\-]*", text)
+    return RE_WORD_TOKEN.findall(text)
+
+
+def _prose_paragraphs(text: str) -> list[str]:
+    """Each paragraph of projected text with its placeholders removed; a
+    paragraph that was only placeholders is dropped."""
+    out = []
+    for p in RE_PARAGRAPH_BREAK.split(text):
+        p = without_placeholders(p).strip()
+        if p:
+            out.append(p)
+    return out
 
 
 def paragraph_initial_words(text: str) -> list[str]:
-    paras = RE_PARAGRAPH_BREAK.split(text)
     out = []
-    for p in paras:
-        p = p.strip()
-        if not p:
-            continue
-        # Skip paragraphs that are nothing but our own placeholders
-        # (figures, tables, equations, citations).
-        if p.startswith(PLACEHOLDER_PARAGRAPH_PREFIXES):
-            continue
-        first_match = re.search(r"[A-Za-z]+", p)
+    for p in _prose_paragraphs(text):
+        first_match = RE_WORD_TOKEN.search(p)
         if first_match:
-            word = first_match.group(0)
-            # Skip the bare placeholder words themselves if they survived
-            # (e.g., paragraph starts with " [FIGURE-OR-TABLE] ..." after
-            # whitespace stripping leaves "[FIGURE-OR-TABLE]" as content).
-            if word in PLACEHOLDER_INITIAL_WORDS:
-                continue
-            out.append(word)
+            out.append(first_match.group(0))
     return out
+
+
+def paragraph_initial_phrases(text: str) -> list[str]:
+    """Multi-word openers a paragraph starts with. `paragraph_initial_words`
+    records one WORD per paragraph, so the phrases read as always absent."""
+    phrases = [p for p in PARAGRAPH_INITIAL_LLM_OPENERS if " " in p]
+    return [phrase for p in _prose_paragraphs(text)
+            for phrase in phrases if p.startswith(phrase)]
 
 
 def count_em_dashes(text: str) -> int:
@@ -255,26 +251,30 @@ def analyse_paper(path: Path) -> dict | None:
             sec_plain, sec_numeral = paired_paragraphs(sec_raw)
         else:
             sec_plain, sec_numeral = sec_raw, RE_PARAGRAPH_BREAK.split(sec_raw)
-        sents = sentences(sec_plain)
+        # Statistics read the prose without its placeholders; the bank keeps
+        # `plain_text` with them, as slot markers the paired view relies on.
+        prose = without_placeholders(sec_plain)
+        sents = sentences(prose)
         sent_lens = [len(words(s)) for s in sents if len(words(s)) > 0]
         by_section[sec] = {
             "n_sentences": len(sents),
             "sentence_lengths": sent_lens,
             "n_words": sum(sent_lens),
-            "em_dash_count": count_em_dashes(sec_plain),
+            # Counted on the comment-stripped source for .tex: the projection
+            # has already deleted `\textemdash`, so counting there missed it.
+            "em_dash_count": count_em_dashes(RE_TEX_COMMENT.sub("", sec_raw)
+                                             if is_tex else sec_plain),
             "paragraph_initial_words": paragraph_initial_words(sec_plain),
-            "word_counter": Counter(w.lower() for w in words(sec_plain)),
+            "paragraph_initial_phrases": paragraph_initial_phrases(sec_plain),
+            "word_counter": Counter(w.lower() for w in words(prose)),
             # Plain prose text retained for exemplar-bank construction.
             # Numbers/citations stripped to placeholders; safe to chunk by
             # paragraph and ship as style anchors.
             "plain_text": sec_plain,
             # Each paragraph of `plain_text` under the numeral-preserving
-            # projection (None when the two views could not be paired), so
-            # the salience reference is built from the text the manuscript
-            # side measures. Calibrated on `plain_text`, the reference saw
-            # `[math]` where a manuscript shows `0.81`, and the p90 gate
-            # fired at 0.45 per passage on held-out papers against a 0.27
-            # design rate (held-out-labels.md §17.5).
+            # projection (None when the views could not be paired), so the
+            # salience reference sees `0.81` where the manuscript does; on
+            # `plain_text` it saw `[math]` (held-out-labels.md §17.5).
             "numeral_paragraphs": sec_numeral,
         }
 
@@ -304,8 +304,6 @@ def aggregate_sentence_stats(per_paper: list[tuple[float, dict]]) -> dict:
     for sec, weighted in bucket.items():
         if not weighted:
             continue
-        # Expand by integer weight approximation for simple stats.
-        # (Proper weighted percentiles would need numpy; stdlib approximation OK for v0.1.)
         flat = [L for _w, L in weighted]
         out[sec] = {
             "n": len(flat),
@@ -342,26 +340,32 @@ def aggregate_em_dashes(per_paper: list[tuple[float, dict]]) -> dict:
 
 def aggregate_transitions(per_paper: list[tuple[float, dict]]) -> dict:
     counter: Counter[str] = Counter()
+    phrases: Counter[str] = Counter()
     for _w, paper in per_paper:
         for sec, st in paper["by_section"].items():
             for w in st["paragraph_initial_words"]:
                 counter[w] += 1
+            for phrase in st.get("paragraph_initial_phrases", ()):
+                phrases[phrase] += 1
 
-    total = sum(counter.values()) or 1
+    n_paragraphs = sum(counter.values())
+    total = n_paragraphs or 1
     used = [(w, c, c / total) for w, c in counter.most_common()]
-    used_set = {w for w, _, _ in used}
+
+    def seen(opener: str) -> int:
+        return phrases.get(opener, 0) if " " in opener else counter.get(opener, 0)
 
     forbidden_present = [
-        (w, counter.get(w, 0))
-        for w in PARAGRAPH_INITIAL_LLM_OPENERS
-        if counter.get(w, 0) > 0
+        (w, seen(w)) for w in PARAGRAPH_INITIAL_LLM_OPENERS if seen(w) > 0
     ]
     forbidden_absent = [
-        w for w in PARAGRAPH_INITIAL_LLM_OPENERS if counter.get(w, 0) == 0
+        w for w in PARAGRAPH_INITIAL_LLM_OPENERS if seen(w) == 0
     ]
 
     return {
-        "n_paragraphs": total,
+        # The real count: `or 1` here made an empty corpus report one
+        # paragraph, and the dossier's "No paragraphs detected" unreachable.
+        "n_paragraphs": n_paragraphs,
         "whitelist_observed": [
             {"word": w, "count": c, "freq": f}
             for w, c, f in used[:30]
@@ -382,7 +386,6 @@ def aggregate_transitions(per_paper: list[tuple[float, dict]]) -> dict:
 # A paragraph boundary in projected text. One owner: the bank writer, the
 # paired projection and the opener statistics must cut at the same places.
 RE_PARAGRAPH_BREAK = re.compile(r"\n\s*\n")
-_RE_PLAIN_PLACEHOLDER_TOKEN = re.compile(r"\[(?:MATH|math|FIGURE-OR-TABLE|CITE)\]")
 
 
 def _math_numerals_slotted(match: "re.Match[str]") -> str:
@@ -397,13 +400,12 @@ def paired_paragraphs(text: str) -> tuple[str, list[str] | None]:
     """`latex_to_plain(text)` and, per paragraph of it, the numeral projection.
 
     The bank stores the plain paragraph and the salience axis calibrates on
-    the numeral one, so they must be the same paragraph. Splitting each
-    projection on blank lines does not pair them: a paragraph that is only a
-    displayed equation is `[MATH]` in one and whitespace in the other, and
-    the splitter swallows the whitespace and shifts every later index. So the
-    numeral view is projected WITH the plain placeholders, split on the same
-    boundaries, and stripped of them after. None for the list when the two
-    views still disagree: the caller writes no pairing rather than a wrong one.
+    the numeral one, so they must be the same paragraph. Split on blank lines
+    alone the views do not pair (an equation-only paragraph is `[MATH]` in one
+    and swallowed whitespace in the other), so the numeral view is projected
+    WITH the plain placeholders as slot markers, split on the same boundaries
+    and stripped after. Both views run one `_project`, so the counts agree by
+    construction; the None branch is a guard, not a live outcome.
     """
     plain = latex_to_plain(text)
     slotted = _project(text, inline=_math_numerals_slotted, **PLAIN_PLACEHOLDERS)
@@ -426,10 +428,12 @@ def write_exemplar_bank(per_paper: list[tuple[float, dict]],
                         profile_dir: Path) -> int:
     """Emit one JSONL row per qualifying paragraph in `exemplar_paragraphs.jsonl`.
 
-    Each row: {id, section, tier, source, n_words, text, numeral_text}.
-    Section is the normalized bucket from classify_section();
-    rows in the 'unknown' bucket and rows whose paragraphs are pure
-    placeholders are excluded. Returns the number of rows written.
+    Each row: {id, section, tier, source, n_words, text, numeral_text}. The
+    id carries the bucket, because a per-bucket index made `paper.tex:p0`
+    the id of two rows. Section is the normalized bucket from
+    classify_section(); rows in the 'unknown' bucket and rows whose
+    paragraphs are pure placeholders are excluded, and `n_words` counts the
+    prose without its placeholders. Returns the number of rows written.
 
     `numeral_text` is the same paragraph under `latex_to_numeral_text`, paired
     by `paired_paragraphs`. A section it could not pair is reported and
@@ -455,15 +459,13 @@ def write_exemplar_bank(per_paper: list[tuple[float, dict]],
                     unaligned.append(f"{source}:{sec}")
                 for idx, para in enumerate(paragraphs):
                     para = para.strip()
-                    if not para:
+                    if not without_placeholders(para).strip():
                         continue
-                    if para.startswith(PLACEHOLDER_PARAGRAPH_PREFIXES):
-                        continue
-                    n_w = len(words(para))
+                    n_w = len(words(without_placeholders(para)))
                     if n_w < EXEMPLAR_MIN_WORDS or n_w > EXEMPLAR_MAX_WORDS:
                         continue
                     rec = {
-                        "id": f"{source}:p{idx}",
+                        "id": f"{source}:{sec}:p{idx}",
                         "section": sec,
                         "tier": tier,
                         "source": source,
@@ -633,7 +635,6 @@ def main(argv: list[str] | None = None) -> int:
     field = resolve_field(args.field, args.corpus_root)
     field_corpus = args.corpus_root / field
     field_profile = args.profile_root / field
-    field_profile.mkdir(parents=True, exist_ok=True)
 
     print(f"[extract_style] field={field!r}")
     print(f"  corpus: {field_corpus}")
@@ -652,6 +653,10 @@ def main(argv: list[str] | None = None) -> int:
     if n_curated < 5:
         print(f"[extract_style] WARNING: only {n_curated} curated corpus files. "
               "Statistics will be noisy; recommended ≥ 8.")
+    # Created only once the corpus is known to hold something: a failed run
+    # left an empty field behind, and every other tool's `resolve_field` then
+    # reported "Multiple fields present".
+    field_profile.mkdir(parents=True, exist_ok=True)
 
     # `per_paper` drives the weighted aggregates and the dossier and holds the
     # curated tiers only; `reference_papers` is the unweighted breadth corpus.
@@ -659,6 +664,7 @@ def main(argv: list[str] | None = None) -> int:
     # every L1/L2 axis measures against, and needs the observations.
     per_paper: list[tuple[float, dict]] = []
     reference_papers: list[tuple[float, dict]] = []
+    skipped = 0
     for source, files in files_by_tier.items():
         weight = TIER_WEIGHTS.get(source, 0.0)
         sink = per_paper if source in TIER_WEIGHTS else reference_papers
@@ -671,7 +677,9 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             if analysis is None:
                 # analyse_paper returns None for files it knows it cannot
-                # handle (e.g., PDF + pymupdf missing); already logged.
+                # handle (e.g., PDF + pymupdf missing); already logged, and
+                # counted so the summary says the profile is built without them.
+                skipped += 1
                 continue
             # Tag tier + a stable, repo-relative source path so the exemplar
             # writer can include both fields per row without rebuilding state.
@@ -725,7 +733,9 @@ def main(argv: list[str] | None = None) -> int:
     n_exemplars = write_exemplar_bank(per_paper + reference_papers, field_profile)
 
     print(f"\n[extract_style] OK. {len(per_paper)} curated + "
-          f"{len(reference_papers)} reference papers for field {field!r}.")
+          f"{len(reference_papers)} reference papers for field {field!r}."
+          + (f" {skipped} source file(s) SKIPPED (pymupdf unavailable): the "
+             "profile does not describe them." if skipped else ""))
     print(f"  → {field_profile}/style_dossier.md")
     print(f"  → {field_profile}/{{sentence_stats,transition_inventory,lexicon}}.json")
     print(f"  → {field_profile}/exemplar_paragraphs.jsonl  ({n_exemplars} paragraphs)")

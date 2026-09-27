@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
+
 ROOT = Path(__file__).resolve().parents[1]
 GATE = ROOT / "tools" / "length_gate.py"
 
@@ -149,7 +151,7 @@ class LengthGateCliTests(unittest.TestCase):
                          result.stdout + result.stderr)
 
     def test_require_shrink_fails_a_pass_that_barely_cut(self):
-        # Nine prose words before; dropping one word is an 11% cut, short of
+        # Twelve prose words before; dropping one word is an 8% cut, short of
         # the 30% required, so the gate must refuse to close green.
         after = BEFORE.replace("The estimator uses five filters.",
                                "The estimator uses filters.")
@@ -179,11 +181,89 @@ class LengthGateCliTests(unittest.TestCase):
     def test_require_shrink_rejects_nonsense(self):
         # `100%` and `200%` once parsed as one and two WORDS; `inf` and `1e309`
         # escaped as an uncaught OverflowError. A percentage is a percentage.
-        for bad in ("0", "-0.2", "1.5", "lots", "100%", "200%", "0%", "inf", "1e309",
+        for bad in ("-0.2", "1.5", "lots", "100%", "200%", "inf", "1e309",
                     "nan", "30%%"):
             result = self.run_gate(BEFORE, BEFORE, "--require-shrink", bad)
             self.assertEqual(result.returncode, 2, bad + result.stderr)
             self.assertIn("--require-shrink", result.stderr)
+
+    def test_a_zero_target_means_no_cut_required(self):
+        # The condense skill passes the map's default_target_words through;
+        # a map with nothing to cut is a target of 0, which used to be exit 2.
+        for zero in ("0", "0%", "0.0"):
+            result = self.run_gate(BEFORE, BEFORE, "--require-shrink", zero,
+                                   "--format", "json")
+            self.assertEqual(result.returncode, 0, zero + result.stderr)
+            self.assertTrue(json.loads(result.stdout)["length_budget"]["shrink_met"])
+
+    def test_a_percentage_is_not_over_demanded_by_a_float_ceiling(self):
+        # ceil(0.07 * 100) was 8: the float 0.07 is slightly above 7/100.
+        import length_gate as lg
+        self.assertEqual(lg.required_shrink_words(lg.parse_required_shrink("7%"), 100), 7)
+        self.assertEqual(lg.required_shrink_words(lg.parse_required_shrink("14%"), 50), 7)
+        self.assertEqual(lg.required_shrink_words(lg.parse_required_shrink("0.07"), 100), 7)
+
+    def test_a_missing_baseline_is_a_configuration_failure_not_growth(self):
+        # A mistyped --before read as a zero-word baseline: every section
+        # "grew" and the gate exited 1 with strong findings from no evidence.
+        with tempfile.TemporaryDirectory() as temporary:
+            after_path = Path(temporary) / "after.tex"
+            after_path.write_text(BEFORE, encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(GATE), str(after_path), "--before",
+                 str(Path(temporary) / "missing.tex")],
+                text=True, capture_output=True, encoding="utf-8")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertNotIn("GROWTH", result.stdout)
+            directory = Path(temporary) / "dir.tex"
+            directory.mkdir()
+            result = subprocess.run(
+                [sys.executable, str(GATE), str(directory), "--before", str(after_path)],
+                text=True, capture_output=True, encoding="utf-8")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_a_commented_out_heading_does_not_open_a_section(self):
+        import length_gate as lg
+        counts = lg.section_word_counts(
+            "\\section{Methods}\nOne two three.\n% \\section{Old draft}\nFour five.\n")
+        self.assertEqual(counts, {"Methods": 5})
+
+    def test_display_math_in_every_form_is_not_prose(self):
+        import length_gate as lg
+        self.assertEqual(lg.prose_word_count(
+            "We have \\[ E = m c^2 \\] here and $$ x = 1 $$ too."), 5)
+
+    def test_a_git_baseline_keeps_a_child_the_working_tree_has_deleted(self):
+        # The most decisive condense move -- deleting a whole \input section
+        # and its call -- was invisible: the child was resolved against the
+        # working tree, where it no longer existed, so it left the baseline.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> None:
+                subprocess.run(["git", "-C", str(root), *arguments], check=True,
+                               capture_output=True, text=True)
+
+            git("init", "-q")
+            git("config", "user.email", "t@example.com")
+            git("config", "user.name", "t")
+            (root / "main.tex").write_text(
+                "\\section{Methods}\nRoot prose here.\n\\input{body}\n", encoding="utf-8")
+            (root / "body.tex").write_text(
+                "Alpha beta gamma delta epsilon zeta eta theta iota kappa.\n",
+                encoding="utf-8")
+            git("add", ".")
+            git("commit", "-q", "-m", "baseline")
+            (root / "body.tex").unlink()
+            (root / "main.tex").write_text("\\section{Methods}\nRoot prose.\n",
+                                           encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(GATE), str(root / "main.tex"), "--git-ref", "HEAD",
+                 "--require-shrink", "5", "--format", "json"],
+                text=True, capture_output=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        budget = json.loads(result.stdout)["length_budget"]
+        self.assertEqual((budget["total_before"], budget["total_after"]), (13, 2))
 
     def test_a_fraction_of_a_short_document_rounds_up_to_one_word(self):
         # 10% of the 12-word baseline is 1.2 words: rounding to nearest gave a

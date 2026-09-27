@@ -126,6 +126,51 @@ class TexDocumentAssemblyTests(unittest.TestCase):
         self.assertEqual(text, "Before CHILD After\nCHILD % \\input{alt}\n")
 
 
+class IncludeResolutionTests(unittest.TestCase):
+    def _bundle(self, tmp: str, files: dict[str, str]) -> pathlib.Path:
+        d = pathlib.Path(tmp)
+        for name, body in files.items():
+            (d / name).parent.mkdir(parents=True, exist_ok=True)
+            (d / name).write_text(body, encoding="utf-8")
+        return d
+
+    def test_a_target_with_a_suffix_is_read_as_written(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = self._bundle(tmp, {"main.tex": r"\input{fig.tikz}" "\n",
+                                   "fig.tikz": "TIKZ\n", "fig.tex": "WRONG FILE\n"})
+            self.assertEqual(assembly.read_tex_document(d / "main.tex"), "TIKZ\n\n")
+
+    def test_a_nested_include_resolves_against_the_document_root(self):
+        # LaTeX resolves every \input against the directory it was started
+        # in; resolved against the child's directory, `sections/table.tex`
+        # shadowed the root-level file the author meant.
+        with tempfile.TemporaryDirectory() as tmp:
+            d = self._bundle(tmp, {
+                "main.tex": r"\input{sections/intro}" "\n",
+                "sections/intro.tex": r"INTRO \input{table}" "\n",
+                "table.tex": "ROOT-LEVEL TABLE",
+                "sections/table.tex": "SECTIONS-LEVEL TABLE",
+            })
+            self.assertIn("ROOT-LEVEL TABLE", assembly.read_tex_document(d / "main.tex"))
+
+    def test_include_commands_with_longer_names_are_not_includes(self):
+        self.assertEqual(assembly.include_targets(
+            "\\includegraphics[width=3cm]{fig1}\n\\includeonly{chap}\n"
+            "\\inputminted{python}{x.py}\n\\input{body}"), ["body"])
+
+    def test_an_unreadable_root_raises_instead_of_reading_as_empty(self):
+        # A directory named `x.tex` and a missing baseline both read as an
+        # empty document: the linter reported it clean and the gate reported
+        # every section as growth. Only a CHILD may degrade.
+        with tempfile.TemporaryDirectory() as tmp:
+            d = pathlib.Path(tmp)
+            (d / "dir.tex").mkdir()
+            with self.assertRaises(OSError):
+                assembly.read_tex_document(d / "dir.tex")
+            with self.assertRaises(OSError):
+                assembly.read_tex_document(d / "missing.tex")
+
+
 class GitBaselineTests(unittest.TestCase):
     """A `--git-ref` baseline is the assembled document AT THE REF, children too."""
 
@@ -151,6 +196,26 @@ class GitBaselineTests(unittest.TestCase):
             self.assertEqual(assembly.read_tex_document(d / "main.tex"), "new\n\n")
             with self.assertRaises(ValueError):
                 assembly.read_git_document(d / "missing.tex", "HEAD")
+
+    def test_a_child_deleted_from_the_working_tree_is_still_in_the_baseline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = pathlib.Path(tmp)
+
+            def git(*args: str) -> None:
+                subprocess.run(["git", "-C", str(d), *args], check=True,
+                               capture_output=True, text=True)
+
+            git("init", "-q")
+            git("config", "user.email", "t@example.com")
+            git("config", "user.name", "t")
+            (d / "main.tex").write_text("\\input{body}\n", encoding="utf-8")
+            (d / "body.tex").write_text("old child prose\n", encoding="utf-8")
+            git("add", ".")
+            git("commit", "-q", "-m", "baseline")
+            (d / "body.tex").unlink()
+            (d / "main.tex").write_text("nothing left\n", encoding="utf-8")
+            self.assertEqual(assembly.read_git_document(d / "main.tex", "HEAD"),
+                             "old child prose\n\n")
 
 
 if __name__ == "__main__":

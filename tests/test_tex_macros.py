@@ -41,6 +41,17 @@ class ExpandNumericTests(unittest.TestCase):
     def test_a_macro_taking_an_argument_is_left_alone(self):
         text = r"\newcommand{\hl}[1]{\textbf{#1}}" "\n" r"\hl{42} rows"
         self.assertEqual(tex_macros.expand_numeric(text), text)
+        # A numeric body does not make an argument-taking macro a constant:
+        # `\foo{x}` became `42{x}` because the arity was matched and ignored.
+        text = r"\newcommand{\foo}[1]{42}" "\n" r"Use \foo{x} here."
+        self.assertEqual(tex_macros.expand_numeric(text), text)
+
+    def test_a_commented_out_definition_is_not_a_definition(self):
+        text = (r"% \newcommand{\Nf}{63}" "\n" r"\newcommand{\Nf}{7}" "\n"
+                r"We use \Nf{} fields.")
+        self.assertIn("We use 7 fields.", tex_macros.expand_numeric(text))
+        alone = r"% \newcommand{\Nf}{63}" "\n" r"We use \Nf{} fields."
+        self.assertEqual(tex_macros.expand_numeric(alone), alone)
 
     def test_a_shorter_name_does_not_fire_inside_a_longer_one(self):
         text = (r"\newcommand{\Nf}{7}" "\n" r"\newcommand{\Nfields}{63}" "\n"
