@@ -20,7 +20,6 @@ overrides auto-detection.
 
 from __future__ import annotations
 
-import argparse
 import subprocess
 import sys
 import time
@@ -30,16 +29,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
-
-
-def list_fields(profile_root: Path) -> list[str]:
-    if not profile_root.exists():
-        return []
-    return sorted(
-        p.name for p in profile_root.iterdir()
-        if p.is_dir() and not p.name.startswith(".")
-    )
 
 
 def run_step(label: str, cmd: list[str]) -> tuple[bool, float]:
@@ -124,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  total: {total:.1f} s")
     print()
 
-    fields = list_fields(args.profile_root)
+    fields = cli_common.list_fields(args.profile_root)
     if fields:
         print(f"Basic profile(s) present: {fields}")
         print("This command did not create calibrated operating points.")

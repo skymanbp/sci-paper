@@ -65,7 +65,7 @@ import deai_reference as reference  # noqa: E402 because the tools directory joi
 import deai_register as register  # noqa: E402 because the tools directory joins sys.path just above
 import extract_sections as sections  # noqa: E402 because the tools directory joins sys.path just above
 import extract_style as es  # noqa: E402 because the tools directory joins sys.path just above
-import length_gate  # noqa: E402 because the tools directory joins sys.path just above
+import tex_assembly  # noqa: E402 because the tools directory joins sys.path just above
 
 # Rule 1. Single source of the word families (see the module docstring).
 # Strength was set on 203 held-out refereed papers, not by intuition. `used to`
@@ -544,8 +544,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("after", type=Path, help="the document to check")
     parser.add_argument("--before", type=Path, help="pre-edit snapshot (enables the diff rule)")
     parser.add_argument("--git-ref", default=None, help="read the pre-edit version from git")
-    parser.add_argument("--format", choices=("text", "json"), default="text")
-    parser.add_argument("--output", type=Path)
+    cli_common.report_options(parser)
     args = parser.parse_args(argv)
     if not args.after.exists():
         print(f"[deai_residue] file not found: {args.after}", file=sys.stderr)
@@ -560,7 +559,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.before is not None:
             before = ai_ism_lint.document_source(args.before)
         elif args.git_ref is not None:
-            before = _blank_comments(length_gate.read_git_version(args.after, args.git_ref))
+            before = _blank_comments(tex_assembly.read_git_document(args.after, args.git_ref))
         else:
             before = None
         if before is not None:

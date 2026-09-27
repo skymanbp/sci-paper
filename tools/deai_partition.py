@@ -58,39 +58,62 @@ def _overlap(a: str, b: str) -> float:
 
 
 def _parse(text: str) -> list[dict]:
-    """Sections as ordered raw paragraph blocks with original line spans.
+    """Sections as ordered paragraph blocks with original line spans.
 
-    The blocks are cut from `deai_docshape.shape_units`, so the preamble and
-    every `skip` unit are absent here exactly as they are absent from the
-    measurement a plan is scored on. A block that starts with a heading
-    command is a fixed landmark: merging or splitting into it would be a
-    nonsense suggestion. Any heading command counts (`\\subsection`,
-    `\\chapter`, ...); until 2026-09-27 only `\\section` did, and a subsection
-    heading was offered as a merge partner.
+    The prose blocks are `deai_docshape.shape_units`' own, headings and floats
+    blanked, so the preamble and every `skip` unit are absent here exactly as
+    they are absent from the measurement a plan is scored on. What the
+    blanking took out between them -- a heading on its own line, a float
+    standing between paragraphs -- stays as a `landmark` block of raw text:
+    fixed and never scored, so no merge is offered across it ("delete the
+    blank line" would not describe one). A prose block whose raw text still
+    starts with a heading command (a heading sharing its line with a `\\label`)
+    is fixed too: merging or splitting into a heading would be a nonsense
+    suggestion. Any heading command counts (`\\subsection`, `\\chapter`, ...);
+    until 2026-09-27 only `\\section` did, and a subsection heading was
+    offered as a merge partner.
     """
+    lines = text.splitlines()
     sections = []
     for unit in ds.shape_units(text):
-        blocks = [{"lines": (p_start, p_end), "text": block,
-                   "fixed": bool(extract_sections.RE_HEADING_COMMAND.match(
-                       block.lstrip()))}
-                  for p_start, p_end, block in unit["blocks"]]
+        blocks, cursor = [], unit["start_line"]
+        for p_start, p_end, block in unit["blocks"]:
+            blocks += _landmark(lines, cursor, p_start - 1)
+            raw = "\n".join(lines[p_start - 1:p_end])
+            blocks.append({"lines": (p_start, p_end), "text": block,
+                           "fixed": bool(extract_sections.RE_HEADING_COMMAND.match(
+                               raw.lstrip()))})
+            cursor = p_end + 1
+        blocks += _landmark(lines, cursor, unit["end_line"])
         if blocks:
             sections.append({"label": unit["label"], "blocks": blocks})
     return sections
 
 
-def _state_statistics(sections: list[dict], baseline: dict) -> dict | None:
-    """Manifold distance (+ conformal p when available) of a partition state.
+def _landmark(lines: list[str], first: int, last: int) -> list[dict]:
+    """The raw text between lines `first` and `last` that no prose block holds,
+    as one fixed, unscored block (none when those lines are blank)."""
+    filled = [number for number in range(first, last + 1) if lines[number - 1].strip()]
+    if not filled:
+        return []
+    return [{"lines": (filled[0], filled[-1]), "fixed": True, "landmark": True,
+             "text": "\n".join(lines[filled[0] - 1:filled[-1]])}]
 
-    The blocks scored are exactly the ones `document_shape` scores, through
-    the shared `measurable_sections` filter (word floor, paragraphs per
-    section, sections per document), so the starting distance printed here
-    is the one `deai_docstructure` reports for the same file. `calibration_basis`
-    names the manifold and calibration set the numbers came from; a state
-    below the document-shape floor, or one the axis cannot score, is None.
+
+def _state_statistics(sections: list[dict], baseline: dict) -> dict | None:
+    """Manifold distance and split-conformal p of a partition state.
+
+    The blocks scored -- every block but the landmarks -- are exactly the ones
+    `document_shape` scores, through the shared `measurable_sections` filter
+    (word floor, paragraphs per section, sections per document), so the
+    starting distance printed here is the one `deai_docstructure` reports for
+    the same file. `calibration_basis` names the manifold and calibration set
+    the numbers came from; a state below the document-shape floor, or one the
+    axis cannot score, is None.
     """
     units = [{"blocks": [(b["lines"][0], b["lines"][1], b["text"])
-                         for b in section["blocks"]]} for section in sections]
+                         for b in section["blocks"] if not b.get("landmark")]}
+             for section in sections]
     kept = ds.measurable_sections(units)
     if len(kept) < ds.MIN_SECTIONS:
         return None
@@ -104,13 +127,9 @@ def _state_statistics(sections: list[dict], baseline: dict) -> dict | None:
     operating = ds.manifold_operating_point(baseline, row, len(vectors))
     if operating is None:
         return None
-    out = {"distance": operating["distance"], "n_paragraphs": len(vectors),
-           "calibration_basis": (operating.get("calibration_basis")
-                                 or operating["operating_point"])}
-    if operating["alpha"] is not None:
-        out["conformal_p"] = operating["p_value"]
-        out["alpha"] = operating["alpha"]
-    return out
+    return {"distance": operating["distance"], "n_paragraphs": len(vectors),
+            "calibration_basis": operating["calibration_basis"],
+            "conformal_p": operating["p_value"], "alpha": operating["alpha"]}
 
 
 def _split_at(block_text: str, cut: int) -> tuple[str, str]:
@@ -217,21 +236,19 @@ def _improves(trial: dict, over: dict) -> bool:
     from the stratum-2 manifold are different quantities
     (`deai_docshape.manifold_operating_point`). Until 2026-09-27 the greedy
     step compared raw distances across that switch, and stopped on p while
-    advancing on distance. A legacy baseline without a conformal block has
-    one pooled manifold, so there its distances are the comparison.
+    advancing on distance.
     """
-    if "conformal_p" in trial and "conformal_p" in over:
-        if trial["conformal_p"] != over["conformal_p"]:
-            return trial["conformal_p"] > over["conformal_p"]
-        return (trial["calibration_basis"] == over["calibration_basis"]
-                and trial["distance"] < over["distance"])
-    if "conformal_p" in trial or "conformal_p" in over:
-        return False  # one scored conformally, one not: no common scale
-    return trial["distance"] < over["distance"]
+    if trial["conformal_p"] != over["conformal_p"]:
+        return trial["conformal_p"] > over["conformal_p"]
+    return (trial["calibration_basis"] == over["calibration_basis"]
+            and trial["distance"] < over["distance"])
 
 
 def suggest(text: str, baseline: dict, max_ops: int) -> dict:
     """Greedy band-seeking plan of admissible merge/split operations."""
+    uncalibrated = ds.uncalibrated_manifold_reason(baseline)
+    if uncalibrated:  # no state is scored against such a baseline, whatever the document
+        return {"status": "unmeasured", "reason": uncalibrated, "plan": []}
     sections = _parse(text)
     start = _state_statistics(sections, baseline)
     if start is None:
@@ -247,8 +264,7 @@ def suggest(text: str, baseline: dict, max_ops: int) -> dict:
     state, current = sections, start
     plan = []
     for _ in range(max_ops):
-        alpha = current.get("alpha")
-        if alpha is not None and current.get("conformal_p", 0.0) > alpha:
+        if current["conformal_p"] > current["alpha"]:
             break  # inside the human band: nothing left to fix
         candidates = (_merge_candidates(state, floor)
                       + _split_candidates(state, floor))
@@ -305,14 +321,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     start, end = result["start"], result["end"]
     print(f"[deai_partition] {args.file}")
-    line = (f"  manifold distance {start['distance']:.3f} "
-            f"({start['calibration_basis']})")
-    if "conformal_p" in start:
-        line += f", conformal p {start['conformal_p']:.4f} (alpha {start['alpha']:g})"
-    print(line)
+    print(f"  manifold distance {start['distance']:.3f} ({start['calibration_basis']}), "
+          f"conformal p {start['conformal_p']:.4f} (alpha {start['alpha']:g})")
     if not result["plan"]:
-        if ("conformal_p" in start and start.get("alpha") is not None
-                and start["conformal_p"] > start["alpha"]):
+        if start["conformal_p"] > start["alpha"]:
             print("  already inside the human band; nothing to fix")
         else:
             print("  no admissible partition operation moves the document "
@@ -321,24 +333,17 @@ def main(argv: list[str] | None = None) -> int:
     for index, step in enumerate(result["plan"], 1):
         print(f"  {index}. {step['description']}")
         extra = (f", p {step['conformal_p_before']:.4f} -> "
-                 f"{step['conformal_p_after']:.4f}"
-                 if step.get("conformal_p_after") is not None else "")
+                 f"{step['conformal_p_after']:.4f}")
         if step["calibration_basis_before"] != step["calibration_basis_after"]:
             extra += (f" [calibration basis {step['calibration_basis_before']} -> "
                       f"{step['calibration_basis_after']}: the two distances "
                       "are not on one scale]")
         print(f"     distance {step['distance_before']:.3f} -> "
               f"{step['distance_after']:.3f}{extra}")
-    verdict = ""
-    if "conformal_p" in end and end.get("alpha") is not None:
-        verdict = (" (inside the human band)"
-                   if end["conformal_p"] > end["alpha"]
-                   else " (still outside the band; apply and re-measure)")
-        print(f"  projected: conformal p {start['conformal_p']:.4f} -> "
-              f"{end['conformal_p']:.4f}{verdict}")
-    else:
-        print(f"  projected: distance {start['distance']:.3f} -> "
-              f"{end['distance']:.3f}")
+    verdict = (" (inside the human band)" if end["conformal_p"] > end["alpha"]
+               else " (still outside the band; apply and re-measure)")
+    print(f"  projected: conformal p {start['conformal_p']:.4f} -> "
+          f"{end['conformal_p']:.4f}{verdict}")
     print("  suggestions only - apply by hand where the argument allows; "
           "merge/split change zero tokens, so fidelity is preserved by "
           "construction.")

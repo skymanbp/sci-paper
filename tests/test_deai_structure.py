@@ -270,5 +270,38 @@ class AuxiliaryWordingTests(unittest.TestCase):
         self.assertNotIn("fraction", message)
 
 
+class CalibrateTests(unittest.TestCase):
+    """`calibrate` turns the exemplar bank into per-bucket fractions (audit B30)."""
+
+    def test_a_tiny_bank_yields_per_bucket_fractions(self):
+        rows = [{"section": "method", "text": TEMPLATED},
+                {"section": "method", "text": PLAIN_PROSE},
+                {"section": "results", "text": ANTITHESIS_HEAVY},
+                {"section": "results", "text": "Too short to be a reference paragraph."}]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "exemplar_paragraphs.jsonl").write_text(
+                "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            baseline = structure.calibrate(root)
+            written = json.loads((root / "structure_baseline.json").read_text(encoding="utf-8"))
+            # the detector reads the written reference back for its bucket
+            finding, = [f for f in structure.structure_findings(
+                "\\section{Methods}\n\n" + TEMPLATED, root)
+                if f["rule"] == "structure-template:method"]
+        self.assertEqual(written, baseline)
+        # the paragraph under MIN_WORDS is not a reference observation
+        self.assertEqual({bucket: entry["n"] for bucket, entry in baseline.items()},
+                         {"method": 2, "results": 1})
+        method, results = baseline["method"], baseline["results"]
+        self.assertEqual((method["templated_frac"], method["tricolon_frac"],
+                          method["modal_frac"], method["auxiliary_frac"]), (0.5, 0.5, 0.5, 0.0))
+        self.assertEqual((results["templated_frac"], results["auxiliary_frac"],
+                          results["antithesis_cluster_frac"]), (0.0, 1.0, 1.0))
+        self.assertEqual((finding["reference"]["templated_fraction"], finding["reference"]["n"],
+                          finding["measurement_status"]), (0.5, 2, "degraded"))
+        with tempfile.TemporaryDirectory() as temporary, self.assertRaises(SystemExit):
+            structure.calibrate(Path(temporary))  # no bank: a stated failure
+
+
 if __name__ == "__main__":
     unittest.main()

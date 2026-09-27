@@ -235,9 +235,10 @@ def class_tests(baseline: dict[str, Any], result: dict[str, Any]
             "testable": [cls for cls in measured if cls not in underpowered]}
 
 
-def anchoring_axis_status(text: str, field_profile_dir: Path | None
-                          ) -> dict[str, Any]:
-    result = document_anchoring(text)
+def anchoring_axis_status(text: str, field_profile_dir: Path | None, *,
+                          result: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The axis status; `result` is `document_anchoring(text)` when the caller has it."""
+    result = document_anchoring(text) if result is None else result
     if result["status"] != "measured":
         return feedback.axis_status("L2.claim_anchoring", "unmeasured",
                                     reason="no section long enough to measure",
@@ -267,9 +268,10 @@ def anchoring_axis_status(text: str, field_profile_dir: Path | None
 
 
 def anchoring_findings(text: str, field_profile_dir: Path | None,
-                       path: str | Path | None = None) -> list[dict[str, Any]]:
+                       path: str | Path | None = None, *,
+                       result: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     baseline = load_baseline(field_profile_dir)
-    result = document_anchoring(text)
+    result = document_anchoring(text) if result is None else result
     if baseline is None or result["status"] != "measured":
         return []
     # Bonferroni share: a document measures up to k classes; testing each at
@@ -381,10 +383,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     field_dir = cli_common.optional_field_dir(args, tool="deai_anchoring")
     text = args.file.read_text(encoding="utf-8", errors="replace")
+    result = document_anchoring(text)  # once: the findings and the status read one measurement
     report = feedback.build_report(
         path=args.file,
-        findings=anchoring_findings(text, field_dir, args.file),
-        axes=[anchoring_axis_status(text, field_dir)],
+        findings=anchoring_findings(text, field_dir, args.file, result=result),
+        axes=[anchoring_axis_status(text, field_dir, result=result)],
     )
     print(feedback.render_text(report))
     return 0

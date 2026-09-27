@@ -14,10 +14,9 @@ guarantee is the split-conformal alpha, not this rate.
 
 A row under `MIN_DOCUMENTS` scored documents reports `unmeasured`, never a
 rate: one document once printed a flag rate and an AUC of its own. Each row
-names the operating point its flags were decided by, because a baseline can
-carry either a split-conformal calibration (flag: p <= its own alpha) or the
-older in-sample percentile threshold (flag: distance above it, alpha none),
-and the two are not read against the same level.
+names the operating point its flags were decided by (a stratum or the pooled
+manifold); every point is split-conformal and flags at p <= its own alpha,
+because a baseline without that calibration scores no document (audit B24).
 
 Run:  python tools/eval_docscale.py --field wgl [--format json]
 """
@@ -112,17 +111,11 @@ def collect(baseline: dict, field: str, profile_root: Path,
 def flagged(point: dict) -> bool:
     """Whether the operating point that scored a document flags it.
 
-    A split-conformal point carries its own `alpha`, and the flag is
-    `p_value <= alpha`. A legacy in-sample percentile point carries
-    `alpha=None`, a `p_value` that is a within-sample percentile, and the
-    `flagged` decision its threshold already made; reading that percentile
-    against the baseline's conformal alpha compared it with a level it was
-    never calibrated to.
+    Every point is split-conformal and carries its own `alpha`; the flag is
+    `p_value <= alpha`. The branch for a legacy in-sample percentile point
+    (no alpha, its threshold's own decision) went with that point in B24.
     """
-    alpha = point.get("alpha")
-    if alpha is not None and point.get("p_value") is not None:
-        return point["p_value"] <= alpha
-    return bool(point.get("flagged", False))
+    return point["p_value"] <= point["alpha"]
 
 
 def operating_point(points: list[dict]) -> str:
@@ -206,10 +199,8 @@ def build_report(field: str, profile_root: Path, corpus_root: Path) -> dict:
             f"the baseline scores none of them: rebuild it with `python "
             f"tools/deai_docstructure.py --calibrate --field {field} "
             f"--corpus-dir style-corpus/{field}`.")
-    # The level every flag in this run was decided at: the points carry it,
-    # and a legacy percentile baseline carries none.
-    alphas = {point.get("alpha")
-              for points in scored.values() for point in points} - {None}
+    # The level every flag in this run was decided at: the points carry it.
+    alphas = {point["alpha"] for points in scored.values() for point in points}
     return {
         "schema": "sci-paper.docscale-eval.v1",
         "field": field,

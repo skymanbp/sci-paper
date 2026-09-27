@@ -44,8 +44,8 @@ from extract_style import REFERENCE_DIR  # noqa: E402 -- same sys.path reason
 from tex_assembly import RE_TEX_DOC_MARKER  # noqa: E402 -- same sys.path reason
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
-API = "http://export.arxiv.org/api/query"
+API = "https://export.arxiv.org/api/query"
+USER_AGENT = "sci-paper-voice/0.14 (corpus builder)"  # one identity for both endpoints
 ATOM = "{http://www.w3.org/2005/Atom}"
 ARXIV = "{http://arxiv.org/schemas/atom}"
 BANK = "human_abstracts_extra.jsonl"  # the abstract bank every downstream reader opens
@@ -182,7 +182,7 @@ def fetch_page(query: str, start: int, n: int, date_lo: str, date_hi: str) -> li
         "search_query": q, "start": start, "max_results": n,
         "sortBy": "submittedDate", "sortOrder": "descending"})
     url = f"{API}?{params}"
-    req = urllib.request.Request(url, headers={"User-Agent": "sci-paper-voice/0.13"})
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     xml = urlopen_backoff(req, timeout=60).decode("utf-8", "replace")
     root = ET.fromstring(xml)
     out = []
@@ -238,7 +238,7 @@ _SECTION_RE = re.compile(r"\\section\*?\s*\{")  # `\section {` is legal; 0707.04
 def _eprint_bytes(arxiv_id: str) -> bytes:
     req = urllib.request.Request(
         EPRINT + urllib.parse.quote(arxiv_id),
-        headers={"User-Agent": "sci-paper-voice/0.14 (corpus builder)"})
+        headers={"User-Agent": USER_AGENT})
     return urlopen_backoff(req, timeout=120)
 
 

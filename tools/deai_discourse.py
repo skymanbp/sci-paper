@@ -18,7 +18,7 @@ in every one of the seven section buckets, because a 40-word paragraph that
 hedges nowhere is entirely ordinary. Calibrating there would have produced a
 gate no passage can fall below, and the axis would have reported a confident
 zero findings forever. Regrouped so one section is one unit, six of the seven
-buckets separate (p10 from 1.05 in `data` to 3.35 in `discussion`); `abstract`
+buckets separate (p10 from 0.82 in `data` to 3.38 in `discussion`); `abstract`
 stays flat at 0.00 and abstains, since an abstract IS one passage. Each artifact
 records its own `unit` so the two can never be read against each other.
 
@@ -29,13 +29,13 @@ axes cannot drift apart on what "unresolvable" means.
 
 Neither is an authorship claim, and the separation evidence is narrower than it
 first looks. Against 203 held-out refereed papers and six independent machine
-generation regimes, exactly one bucket separates for every regime: `intro`, at
-rank AUC 0.676-0.830 for cohesion (human/human null 0.515) and 0.613-0.816 for
-hedging (null 0.460). Everywhere else at least one regime collapses --
-cohesion 0.461 in `discussion`, hedging 0.473 in `results` and 0.376 in
-`conclusion`, all at or below chance -- and `method`'s apparent hedging
-separation (0.603-0.796) sits against a 0.574 human/human null, so most of it is
-not separation at all. EVALUATION section 19 carries the full table.
+generation regimes, one bucket separates on both features for every regime:
+`intro`, at rank AUC 0.677-0.832 for cohesion (human/human null 0.489) and
+0.605-0.811 for hedging (null 0.487); hedging separates in `method` as well,
+0.731-0.898 against a 0.442 null. Elsewhere at least one regime lands at or
+near chance -- cohesion 0.508 in `data`, hedging 0.510 in `results`, 0.421 in
+`discussion` and 0.358 in `conclusion`. EVALUATION section 19 carries the full
+table.
 
 That is why these are advisories against the field's own distribution and not a
 detector. The reference says what this field's prose does; a passage below its
@@ -140,21 +140,25 @@ def hedging_features(block: str) -> dict[str, Any] | None:
 # `buckets` is the second: None means every bucket whose reference resolves, and
 # a tuple restricts the axis to the section genres where its operating point was
 # shown to hold. Hedging is restricted, and two independent measurements over
-# 203 held-out refereed papers put the restriction in the same place:
+# 203 held-out refereed papers put the restriction in the same place (the
+# 2026-09-27 profile, a manuscript section being the paper's whole bucket as on
+# the reference side):
 #
 #            held-out rate at a 10% gate     worst-of-six regime AUC (null)
-#   intro                  7.89%                     0.613  (0.460)
-#   conclusion            15.48%                     0.376  (0.469)
-#   discussion            16.34%                     0.526  (0.475)
-#   results               24.17%                     0.473  (0.520)
-#   data                  22.98%                     0.459  (0.508)
-#   method                26.77%                     0.603  (0.574)
+#   intro                  9.09%                     0.605  (0.487)
+#   method                 9.62%                     0.731  (0.442)
+#   discussion             8.23%                     0.421  (0.472)
+#   data                  12.23%                     0.464  (0.489)
+#   conclusion            13.64%                     0.358  (0.520)
+#   results               14.17%                     0.510  (0.440)
 #
-# Outside `intro` the gate fires at two to three times its nominal rate on prose
-# a referee accepted, and at least one generation regime lands at or below
-# chance. `method` looks respectable until its human-vs-human null is read: 0.574
-# of that 0.603 is not separation. Cohesion needs no such restriction -- it runs
-# 6.58%-14.63% across all seven buckets against the same 10% gate.
+# Only `intro` and `method` pass both: the gate fires near its nominal rate on
+# prose a referee accepted, and every regime sits clear of the human-vs-human
+# null. `discussion` transfers but a regime lands below chance; the other three
+# over-fire. The v0.33.0 measurement, when a manuscript section was one heading
+# span, read `method` at 26.77% against a 0.574 null and restricted the axis to
+# `intro` alone. Cohesion needs no restriction -- it runs 6.76%-14.88% across
+# all seven buckets against the same 10% gate.
 #
 # This was measured on one field. A new field inherits the restriction, and
 # widening it means re-running that measurement, not editing this tuple.
@@ -179,7 +183,7 @@ AXES: dict[str, dict[str, Any]] = {
         "unit": "section",
         "spans": reference.sections,
         "extract": hedging_features,
-        "buckets": ("intro",),
+        "buckets": ("intro", "method"),
         "message": ("{bucket} section states everything flatly: {value:.2f} "
                     "epistemic markers per 1,000 words (p{pct}), against an "
                     "n={n} human {bucket} reference."),

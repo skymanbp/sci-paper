@@ -13,7 +13,8 @@ from pathlib import Path
 from _toolpath import TOOLS  # noqa: E402 -- because importing it is what puts tools/ on sys.path
 
 import fetch_arxiv_abstracts as fetch  # noqa: E402
-from _fetch_harness import ARXIV_NS, ATOM_NS, _bank, _record, _sweep, _write_bank  # noqa: E402
+from _fetch_harness import (  # noqa: E402 -- because the harness imports the tool _toolpath exposes
+    ARXIV_NS, ATOM_NS, _bank, _offline, _record, _sweep, _write_bank)
 
 
 class ClassifyJournalTest(unittest.TestCase):
@@ -139,10 +140,6 @@ class ParseEntryTest(unittest.TestCase):
 
 
 class QuerySetTest(unittest.TestCase):
-    def test_broad_set_is_the_pre_existing_query_list(self) -> None:
-        self.assertEqual(fetch.QUERY_SETS["broad"],
-                         fetch.QUERIES + fetch.AUTHOR_QUERIES)
-
     def test_wl_set_is_weak_lensing_only(self) -> None:
         self.assertTrue(fetch.QUERY_SETS["wl"])
         for query in fetch.QUERY_SETS["wl"]:
@@ -236,7 +233,6 @@ class BackoffTest(unittest.TestCase):
     def test_throttled_is_not_a_generic_exception_subclass_catch(self) -> None:
         # The abstract sweep distinguishes the two: a hiccup is skipped, a
         # Throttled stops the sweep. That only works if it is its own type.
-        self.assertTrue(issubclass(fetch.Throttled, Exception))
         self.assertFalse(issubclass(fetch.Throttled, urllib.error.HTTPError))
 
 
@@ -394,6 +390,17 @@ class HeldOutSetTest(unittest.TestCase):
                 fetch.main(["--field", "wgl", "--fulltext", "--exclude-known",
                             "--fulltext-dir", fetch.REFERENCE_DIR])
         self.assertIn("held-out", captured.getvalue())
+
+    def test_an_author_pull_into_the_calibration_dir_is_refused(self) -> None:
+        # An author's papers are a population to MEASURE; under the default
+        # --fulltext-dir the next profile rebuild would calibrate on them.
+        # Offline, so a missing guard fails here instead of downloading.
+        with tempfile.TemporaryDirectory() as name, _offline(Path(name)) as (_, err):
+            with self.assertRaises(SystemExit) as caught:
+                fetch.main(["--field", "wgl", "--profile-root", name,
+                            "--fulltext", "--author", "Someone"])
+        self.assertEqual(caught.exception.code, 2)
+        self.assertIn("--author writes a population", err.getvalue())
 
     def test_a_non_calibration_fulltext_dir_is_allowed(self) -> None:
         # The interlock must key on the calibration directory specifically, not

@@ -483,8 +483,7 @@ def main(argv: list[str] | None = None) -> int:
     cli_common.utf8_stdout()
     parser = cli_common.base_parser(__doc__)
     parser.add_argument("file", type=Path)
-    parser.add_argument("--format", choices=("text", "json"), default="text")
-    parser.add_argument("--output", type=Path)
+    cli_common.report_options(parser)
     args = parser.parse_args(argv)
     if not args.file.exists():
         print(f"[condense_map] file not found: {args.file}", file=sys.stderr)

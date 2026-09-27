@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -155,6 +156,23 @@ class FixedBlockTests(unittest.TestCase):
             self.assertFalse(section["blocks"][op["block"]]["fixed"])
             self.assertFalse(section["blocks"][op["block"] + 1]["fixed"])
 
+    def test_what_the_blanking_removes_stays_a_fixed_unscored_landmark(self):
+        # The measured blocks no longer carry headings or floats (audit B22).
+        # A heading sharing its line with a \label keeps its block fixed, and a
+        # float between two paragraphs is a landmark: no merge across it, and
+        # the scored blocks are exactly `shape_units`' own.
+        text = ("\\section{Methods}\\label{sec:m}\n" + LENSING_A + "\n\n"
+                "\\begin{figure}\n\\caption{A map.}\n\n\\end{figure}\n\n"
+                + LENSING_B + "\n\n" + LENSING_B + "\n")
+        section, = partition._parse(text)
+        self.assertEqual([(b["lines"], b["fixed"], b.get("landmark", False))
+                          for b in section["blocks"]],
+                         [((1, 2), True, False), ((4, 7), True, True),
+                          ((9, 9), False, False), ((11, 11), False, False)])
+        self.assertEqual([op["block"] for op in partition._merge_candidates([section], 0.0)], [2])
+        self.assertEqual([b["lines"] for b in section["blocks"] if not b.get("landmark")],
+                         [(start, end) for start, end, _ in ds.shape_units(text)[0]["blocks"]])
+
 
 def fake_operating_point(p_by_n: dict, distance_by_n: dict):
     """A stand-in for `manifold_operating_point` keyed by paragraph count,
@@ -183,9 +201,6 @@ class BandComparisonTests(unittest.TestCase):
                               "calibration_basis": "stratum 1 manifold"}
         self.assertTrue(partition._improves(same_basis_closer, worse_p))
         self.assertFalse(partition._improves(other_basis_closer, worse_p))
-        # a legacy baseline (no conformal block) compares pooled distances
-        self.assertTrue(partition._improves({"distance": 1.0, "calibration_basis": "in-sample percentile"},
-                                            {"distance": 2.0, "calibration_basis": "in-sample percentile"}))
 
     def test_plan_prefers_the_higher_p_and_records_the_basis(self):
         text = uniform_document(FOUR_SENTENCES)
@@ -248,6 +263,29 @@ class CliContractTests(unittest.TestCase):
             code, _out, err = self.run_main([str(root / "missing.tex"),
                                              "--profile-root", str(empty)])
             self.assertEqual((code, "file not found" in err), (2, True))
+
+    def test_a_manifold_without_conformal_calibration_names_the_rebuild(self):
+        # It printed "document or manifold not measurable" and exited 0; the
+        # document axis already said why, in words this tool now shares.
+        names = ds.DISPERSION_FEATURE_NAMES
+        rows = [{name: 1.0 + 0.1 * ((index * (k + 2)) % 7) for k, name in enumerate(names)}
+                for index in range(ds.MIN_MANIFOLD_DOCUMENTS)]
+        baseline = {"n_documents": 40, "dispersion_manifold": ds.fit_dispersion_manifold(rows)}
+        text = uniform_document(FOUR_SENTENCES)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "f").mkdir()
+            (root / "f" / ds.BASELINE_NAME).write_text(json.dumps(baseline), encoding="utf-8")
+            draft = root / "draft.tex"
+            draft.write_text(text, encoding="utf-8")
+            code, out, _err = self.run_main([str(draft), "--profile-root", str(root),
+                                             "--field", "f", "--json", str(root / "plan.json")])
+            plan = json.loads((root / "plan.json").read_text(encoding="utf-8"))
+            reason = ds.docstructure_axis_status(text, root / "f")["reason"]
+        self.assertEqual(code, 0)
+        self.assertIn("deai_docstructure --calibrate", reason)
+        self.assertEqual(out, f"[deai_partition] {reason}\n")
+        self.assertEqual((plan["status"], plan["reason"]), ("unmeasured", reason))
 
 
 if __name__ == "__main__":

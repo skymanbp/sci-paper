@@ -32,7 +32,8 @@ import deai_structure  # noqa: E402  sentence-construction detector
 EM_DASH_PATTERN = re.compile(r"—|---|\\textemdash")
 # A line that is nothing but dashes is a Markdown rule or front-matter fence.
 RULE_LINE_PATTERN = re.compile(r"\s*-{3,}\s*")
-# The canonical Tier A list (skills/paper/SKILL.md). `paved` and `showcased`
+# The canonical Tier A list; skills/paper/SKILL.md mirrors it, and the
+# validator holds the mirror to it (`validator_check`). `paved` and `showcased`
 # were in the skill's table and grep but not here, so "paved the way" -- the
 # commonest form of the idiom -- passed the linter and failed the review grep.
 TIER_A_PATTERN = re.compile(
@@ -352,7 +353,7 @@ def lexical_findings(text: str, path: Path,
                 observed={"word": word, "occurrence_in_section": index + 1,
                           "section_count": len(occurrences)},
                 reference={"cap_per_section_per_word": TIER_B_CAP,
-                           "provenance": "skills/paper/SKILL.md"},
+                           "provenance": "docs/SCIPAPER_STANDARD.md"},
                 normalized_distance=float(index + 1 - TIER_B_CAP),
                 message=(f"Tier B word {word!r} exceeds the per-section cap "
                          f"of {TIER_B_CAP}; this is occurrence {index + 1}."),
@@ -428,7 +429,7 @@ def document_source(path: Path) -> str:
     they treat comments". The L0 lexical scan is a third view -- it must see
     `---` and `\\textemdash` as authored, so it cannot use either projection --
     and it was never brought into that guarantee. It read raw file text, and on
-    one manuscript it reported three em-dash targets that were all `% --- lane A:`
+    one manuscript it reported three em-dash targets that were all `% --- ... ---`
     comment rules: 3 of 3 false, with no non-comment line in the document
     carrying an em-dash at all.
 
@@ -494,8 +495,11 @@ def collect_feedback(path: Path, field_profile_dir: Path | None, *,
         findings.extend(deai_structure.structure_findings(text, field_profile_dir, path))
         axes.append(deai_structure.structure_axis_status(field_profile_dir))
     if document_structure:
-        findings.extend(deai_docstructure.document_findings(text, field_profile_dir, path))
-        axes.append(deai_docstructure.docstructure_axis_status(text, field_profile_dir))
+        shape = deai_docstructure.document_shape(text)  # once: findings and status read one measurement
+        findings.extend(deai_docstructure.document_findings(
+            text, field_profile_dir, path, shape=shape))
+        axes.append(deai_docstructure.docstructure_axis_status(
+            text, field_profile_dir, shape=shape))
     if oracle:
         try:
             import deai_oracle
@@ -557,6 +561,100 @@ def lint(path: Path, field_profile_dir: Path | None, summary: bool = False,
         return 2
     return 1 if report["summary"]["by_kind"]["l0_target"] else 0
 
+
+# --- validator hook ----------------------------------------------------------
+
+# skills/paper/SKILL.md mirrors these four patterns for human reading: the Tier
+# A table's word rows, its opener row (the phrases, and the one-word paragraph
+# connectors with their comma), and the Tier B sentence after the pattern's
+# name. The mirror drifted once (`paved`, `showcased`), so the validator reads
+# it in both directions (audit H8).
+MIRRORED = {
+    "TIER_A_PATTERN": TIER_A_PATTERN,
+    "TIER_A_OPENER_PATTERN": TIER_A_OPENER_PATTERN,
+    "TIER_A_PARAGRAPH_CONNECTOR_PATTERN": TIER_A_PARAGRAPH_CONNECTOR_PATTERN,
+    "TIER_B_PATTERN": TIER_B_PATTERN,
+}
+MIRROR_ROW_PATTERN = re.compile(r"^\| (动词类|形容词/副词|名词类|段首套话) \| (.+) \|$",
+                                re.MULTILINE)
+MIRROR_TIER_B_PATTERN = re.compile(r"`TIER_B_PATTERN`([^。]*)")
+BACKTICKED_PATTERN = re.compile(r"`([^`]+)`")
+
+
+def pattern_language(pattern: re.Pattern[str]) -> set[str]:
+    """Every surface form `pattern` accepts: the L0 patterns are finite.
+
+    They are built from literals, alternation, groups and `?`. What frames a
+    form -- `\\b`, `^`, the opener's lookbehind and the whitespace before it --
+    is context and adds nothing to it. Any other construct raises, so a pattern
+    that stops being enumerable fails the check instead of passing it.
+    """
+    from re import _parser  # private module, so imported only where it is walked
+
+    whitespace_run = [(_parser.IN, [(_parser.CATEGORY, _parser.CATEGORY_SPACE)])]
+
+    def language(items) -> set[str]:
+        forms = {""}
+        for op, av in items:
+            if op is _parser.LITERAL:
+                options = {chr(av)}
+            elif op is _parser.SUBPATTERN:
+                options = language(av[-1])
+            elif op is _parser.BRANCH:
+                options = set().union(*map(language, av[1]))
+            elif op is _parser.MAX_REPEAT and av[:2] == (0, 1):
+                options = {""} | language(av[2])
+            elif op in (_parser.AT, _parser.ASSERT) or (
+                    op is _parser.MAX_REPEAT and list(av[2]) == whitespace_run):
+                options = {""}
+            else:
+                raise ValueError(f"{pattern.pattern!r}: cannot enumerate {op} {av!r}")
+            forms = {head + tail for head in forms for tail in options}
+        return forms
+
+    return language(_parser.parse(pattern.pattern))
+
+
+def skill_mirror(skill_text: str) -> dict[str, set[str]]:
+    """The forms skills/paper/SKILL.md lists, keyed by the pattern they mirror."""
+    listed: dict[str, set[str]] = {name: set() for name in MIRRORED}
+    cells = MIRROR_ROW_PATTERN.findall(skill_text) + [
+        ("Tier B", cell) for cell in MIRROR_TIER_B_PATTERN.findall(skill_text)]
+    for row, cell in cells:
+        for span in BACKTICKED_PATTERN.findall(cell):
+            for form in (part.strip() for part in span.split("/")):
+                if row == "Tier B":
+                    listed["TIER_B_PATTERN"].add(form)
+                elif row != "段首套话":
+                    listed["TIER_A_PATTERN"].add(form)
+                elif re.fullmatch(r"\w+,", form):  # a connector: one word and its comma
+                    listed["TIER_A_PARAGRAPH_CONNECTOR_PATTERN"].add(form)
+                else:  # `In recent years,...` names the phrase the opener pattern holds
+                    listed["TIER_A_OPENER_PATTERN"].add(form.rstrip(".,"))
+    return listed
+
+
+def validator_check(repo: Path, require) -> str:
+    """The `validate_plugin` mirror check, run from its skills check.
+
+    Every form the skill lists must be fully matched by its pattern, and every
+    form the pattern accepts must be listed -- compared case-folded where the
+    pattern ignores case.
+    """
+    listed = skill_mirror((repo / "skills" / "paper" / "SKILL.md").read_text("utf-8"))
+    for name, pattern in MIRRORED.items():
+        fold = str.lower if pattern.flags & re.IGNORECASE else str
+        unmatched = sorted(form for form in listed[name] if not pattern.fullmatch(form))
+        unlisted = sorted({fold(form) for form in pattern_language(pattern)}
+                          - {fold(form) for form in listed[name]})
+        require(not unmatched and not unlisted,
+                f"skills/paper/SKILL.md mirror of {name} differs from ai_ism_lint: "
+                f"listed but not matched={unmatched}, matched but not listed={unlisted}")
+    return (f"skills/paper/SKILL.md mirrors the {len(MIRRORED)} L0 patterns both ways "
+            f"({sum(len(forms) for forms in listed.values())} forms)")
+
+
+# --- CLI ---------------------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> int:
     cli_common.utf8_stdout()

@@ -33,6 +33,7 @@ from typing import Any, Iterable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import deai_features as features  # noqa: E402  resolves after the path insert
 import deai_metrics as metrics  # noqa: E402  canonical section/paragraph ranges
+import deai_reference as reference  # noqa: E402  because it resolves only after the path insert
 import deai_structure as structure  # noqa: E402  sentence template features
 import extract_style as es  # noqa: E402  canonical LaTeX cleanup/tokenizer
 
@@ -172,7 +173,7 @@ def _pairwise_similarity(vectors: list[list[float]]) -> float | None:
 
 
 def shape_units(text: str) -> list[dict[str, Any]]:
-    """The prose sections a document is measured on, with their raw blocks.
+    """The prose sections a document is measured on, with their prose blocks.
 
     One dict per unit of `deai_metrics.section_units` whose bucket is prose:
     `{"label", "start_line", "end_line", "blocks": [(start, end, block), ...]}`.
@@ -184,6 +185,13 @@ def shape_units(text: str) -> list[dict[str, Any]]:
     measurements as body prose; a docstructure baseline built before the
     change must be rebuilt, since its every value carried them.
     `deai_partition` cuts its candidate blocks from this same list.
+
+    Headings and floats are blanked first (`deai_reference.without_headings`,
+    as the anchoring sweep does), line count preserved. A heading alone on its
+    line ends a paragraph and a float does not, so a float's lines are cut as
+    lines of the paragraph around it. Until 2026-09-27 the raw text was cut: a
+    heading fused into its section's first block and a float holding a blank
+    line split its paragraph in two, so such a baseline must be rebuilt too.
     """
     lines = text.splitlines()
     units: list[dict[str, Any]] = []
@@ -191,8 +199,14 @@ def shape_units(text: str) -> list[dict[str, Any]]:
         if bucket in (metrics.PREAMBLE_BUCKET, "skip"):
             continue
         segment = "\n".join(lines[start - 1:end])
+        blanked = reference.without_headings(segment).split("\n")
+        cut = es.RE_TEX_ENV_FIGURE_TABLE.sub(  # every float line is prose to the cut
+            lambda m: "\n".join(["float"] * (m.group(0).count("\n") + 1)),
+            es.blank_preserving(segment, es.RE_HEADING_COMMAND))
+        blocks = [(p_start, p_end, "\n".join(blanked[p_start - start:p_end - start + 1]))
+                  for p_start, p_end, _ in metrics.paragraph_line_ranges(cut, start)]
         units.append({"label": label, "start_line": start, "end_line": end,
-                      "blocks": metrics.paragraph_line_ranges(segment, start)})
+                      "blocks": [block for block in blocks if block[2].strip()]})
     return units
 
 
@@ -536,8 +550,10 @@ def manifold_operating_point(baseline: dict, row: dict[str, float],
     baseline carries one (length-aware metric); otherwise scores against the
     pooled manifold with stratum-then-pooled calibration. Distances from
     different manifolds are never mixed in one calibration comparison.
-    Returns None when the axis is unmeasurable (no manifold or missing
-    features).
+    Returns None when the axis is unmeasurable: no manifold, missing
+    features, or no split-conformal calibration. The in-sample percentile
+    fallback for a baseline without a `conformal` block went on 2026-09-27;
+    no calibrate writes one, and `deai_docstructure` reports it degraded.
     """
     pooled = baseline.get("dispersion_manifold")
     conformal = baseline.get("conformal")
@@ -569,18 +585,6 @@ def manifold_operating_point(baseline: dict, row: dict[str, float],
                     "calibration_basis": basis,
                     "n_calibration": len(cal),
                     "n_train": axis.get("n_train")}
-    if pooled:
-        distance = manifold_distance(pooled, row)
-        if distance is None:
-            return None
-        null = pooled["null_distances"]
-        return {"distance": distance,
-                "p_value": 1.0 - (sum(d <= distance for d in null)
-                                  / (len(null) + 1)),
-                "alpha": None,
-                "operating_point": "in-sample percentile",
-                "threshold": pooled["threshold"],
-                "flagged": distance > float(pooled["threshold"])}
     return None
 
 

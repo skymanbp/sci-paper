@@ -228,17 +228,23 @@ def _project(text: str, *, inline, display: str, figure: str, cite: str) -> str:
     return RE_TEX_TILDE.sub(" ", text)
 
 
+# What the plain projection writes for an inline math span, a display, a float
+# and a citation. The one owner of that vocabulary: the placeholder patterns in
+# `extract_style` and `deai_reference` are built from these names, not retyped.
+PLAIN_INLINE = " [math] "
 PLAIN_PLACEHOLDERS = {"display": " [MATH] ", "figure": " [FIGURE-OR-TABLE] ",
                       "cite": " [CITE] "}
 
 
 def latex_to_plain(text: str) -> str:
-    return _project(text, inline=" [math] ", **PLAIN_PLACEHOLDERS)
+    return _project(text, inline=PLAIN_INLINE, **PLAIN_PLACEHOLDERS)
 
 
 # A projection placeholder (`[math]`, `[MATH]`, `[FIGURE-OR-TABLE]`, `[CITE]`)
 # is not a word: counted, two deleted equations read as two words of prose cut.
-RE_PLACEHOLDER = re.compile(r"^\[[A-Za-z\-]+\]$")
+# Matched by the shape every token above has; `RE_PLACEHOLDER` holds a whole token.
+PLACEHOLDER_SHAPE = r"\[[A-Za-z\-]+\]"
+RE_PLACEHOLDER = re.compile(rf"^{PLACEHOLDER_SHAPE}$")
 
 
 def prose_words(text: str) -> list[str]:
@@ -288,9 +294,6 @@ def latex_to_numeral_text(text: str) -> str:
 
 
 RE_TEX_DOC_MARKER = tex_assembly.RE_TEX_DOC_MARKER
-RE_TEX_INCLUDE = tex_assembly.RE_TEX_INCLUDE
-_include_targets = tex_assembly.include_targets
-_resolve_include = tex_assembly.resolve_include
 
 
 CLASSIFIED_BUCKETS = frozenset(
@@ -355,7 +358,7 @@ def select_document_roots(tex_files: list[Path],
         stems = {p.stem: p for p in group}
         included: set[Path] = set()
         for p, t in texts.items():
-            for name in _include_targets(t):
+            for name in tex_assembly.include_targets(t):
                 target = stems.get(Path(name).stem)
                 if target is not None and target != p:
                     included.add(target)
@@ -424,6 +427,21 @@ def corpus_documents(corpus_dir: Path) -> list[tuple[str, str]]:
     for parent, paths in sorted(md.items()):
         documents.append((named(parent, paths[0]), joined(paths)))
     return documents
+
+
+def bundle_documents(root: Path) -> list[tuple[str, str]]:
+    """`(name, text)` per paper in a directory of per-paper bundles (a `--fulltext`
+    pull); the one loader both evaluators read. Unlike `corpus_documents`, each
+    bundle is its own `bundle_root`, so every root directly in it counts: the 200
+    `wgl` held-out bundles yield 203 documents (measured 2026-09-27)."""
+    out: list[tuple[str, str]] = []
+    for bundle in sorted(p for p in root.iterdir() if p.is_dir()):
+        tex = sorted(bundle.rglob("*.tex"))
+        for chosen in select_document_roots(tex, bundle) if tex else []:
+            text = read_tex_document(chosen)
+            if text.strip():
+                out.append((f"{bundle.name}/{chosen.name}", text))
+    return out
 
 
 def split_into_sections(raw_tex: str) -> dict[str, str]:

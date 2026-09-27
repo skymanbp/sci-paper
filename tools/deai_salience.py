@@ -13,7 +13,9 @@ uninterrupted run of numeral-bearing sentences covers a fifth of the passage
 at the median; a draft whose run covers half its sentences is in the top
 decile of recital.
 
-This detector is the only consumer of :func:`extract_style.latex_to_numeral_text`.
+This is the only detector that reads :func:`extract_style.latex_to_numeral_text`;
+`rewrite_reward` also calls it, and the exemplar bank stores each paragraph
+under the same projection (`extract_style.paired_paragraphs`).
 Every other axis reads ``latex_to_plain``, which replaces each math span with
 ``[math]`` and so measures zero numerals on any real `.tex` file. That is the
 right reduction for lexical and sentence-shape statistics and the wrong one

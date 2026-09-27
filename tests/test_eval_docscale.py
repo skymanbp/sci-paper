@@ -11,11 +11,10 @@ import eval_docscale as ed
 
 
 def _points(n: int, *, distance: float = 1.0, p_value: float = 0.5,
-            alpha: float | None = 0.05,
-            operating_point: str = "split-conformal", **extra) -> list[dict]:
+            alpha: float = 0.05, operating_point: str = "split-conformal") -> list[dict]:
     """`n` scored documents as `manifold_operating_point` returns them."""
     return [{"distance": distance, "p_value": p_value, "alpha": alpha,
-             "operating_point": operating_point, "n_paragraphs": 30, **extra}
+             "operating_point": operating_point, "n_paragraphs": 30}
             for _ in range(n)]
 
 
@@ -57,21 +56,12 @@ class RowFloorTests(unittest.TestCase):
 
 
 class OperatingPointTests(unittest.TestCase):
-    """A flag is decided by the operating point that scored the document.
-
-    Reading a legacy in-sample percentile against the baseline's conformal
-    alpha compared a within-sample percentile with a level it was never
-    calibrated to.
-    """
+    """A flag is decided by the operating point that scored the document."""
 
     def test_a_conformal_point_is_flagged_at_its_own_alpha(self) -> None:
         self.assertTrue(ed.flagged({"p_value": 0.04, "alpha": 0.05}))
         self.assertFalse(ed.flagged({"p_value": 0.06, "alpha": 0.05}))
         self.assertTrue(ed.flagged({"p_value": 0.10, "alpha": 0.10}))
-
-    def test_a_legacy_percentile_point_keeps_its_own_decision(self) -> None:
-        self.assertFalse(ed.flagged({"p_value": 0.03, "alpha": None, "flagged": False}))
-        self.assertTrue(ed.flagged({"p_value": 0.50, "alpha": None, "flagged": True}))
 
     def test_each_row_names_its_operating_point(self) -> None:
         rows = ed.summarize({
@@ -85,13 +75,6 @@ class OperatingPointTests(unittest.TestCase):
         rendered = ed.render(RowFloorTests._report(rows))
         self.assertIn("split-conformal, stratum manifold", rendered)
         self.assertIn("alpha=0.05", rendered)
-
-    def test_a_legacy_baseline_reports_no_alpha(self) -> None:
-        rows = ed.summarize({"human": _points(
-            ed.MIN_DOCUMENTS, alpha=None, operating_point="in-sample percentile",
-            flagged=False)})
-        self.assertEqual(rows["human"]["operating_point"], "in-sample percentile")
-        self.assertIn("alpha=-", ed.render(RowFloorTests._report(rows, alpha=None)))
 
 
 class ResolutionTests(unittest.TestCase):

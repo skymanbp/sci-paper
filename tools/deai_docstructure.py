@@ -66,9 +66,27 @@ def baseline_tail_floor(baseline: dict[str, Any]) -> int:
         (baseline.get("role_coupling") or {}).get("low_percentile", ROLE_LOW_PERCENTILE)))
 
 
-def docstructure_axis_status(text: str, field_profile_dir: Path | None
-                            ) -> dict[str, Any]:
-    shape = document_shape(text)
+def uncalibrated_manifold_reason(baseline: dict[str, Any]) -> str | None:
+    """Why the baseline's manifold rule goes unscored, or None when it can be.
+
+    A manifold with no split-conformal calibration predates it. The in-sample
+    percentile fallback that scored one went with audit B24 (no calibrate
+    writes such a baseline), so its rule is left unscored: this axis reports
+    it degraded, and `deai_partition`, which ranks states by that rule, gives
+    the same reason for having no plan.
+    """
+    conformal_manifold = (baseline.get("conformal") or {}).get("manifold") or {}
+    if baseline.get("dispersion_manifold") and not conformal_manifold.get("calibration"):
+        return ("the baseline's dispersion manifold carries no split-conformal "
+                "calibration, so the manifold rule was not scored; rebuild the "
+                "baseline with deai_docstructure --calibrate")
+    return None
+
+
+def docstructure_axis_status(text: str, field_profile_dir: Path | None, *,
+                             shape: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The axis status; `shape` is `document_shape(text)` when the caller has it."""
+    shape = document_shape(text) if shape is None else shape
     if shape["status"] != "measured":
         return feedback.axis_status("L2.document_structure", "unmeasured",
                                     reason=shape["reason"],
@@ -88,13 +106,18 @@ def docstructure_axis_status(text: str, field_profile_dir: Path | None
                     f"tail percentile needs {floor}; its in-sample findings are "
                     "ordinary context"),
             detector="deai_docstructure")
+    uncalibrated = uncalibrated_manifold_reason(baseline)
+    if uncalibrated:
+        return feedback.axis_status("L2.document_structure", "degraded",
+                                    reason=uncalibrated, detector="deai_docstructure")
     return feedback.axis_status("L2.document_structure", "measured",
                                 detector="deai_docstructure")
 
 
 def document_findings(text: str, field_profile_dir: Path | None,
-                      path: str | Path | None = None) -> list[dict[str, Any]]:
-    shape = document_shape(text)
+                      path: str | Path | None = None, *,
+                      shape: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    shape = document_shape(text) if shape is None else shape
     baseline = load_baseline(field_profile_dir)
     if shape["status"] != "measured" or baseline is None:
         return []
@@ -177,49 +200,33 @@ def document_findings(text: str, field_profile_dir: Path | None,
         else:
             per_feature_status = "degraded"
     else:
+        # Split-conformal only: `manifold_operating_point` leaves a manifold
+        # with no conformal block unscored (None), and the axis status says so.
         operating = manifold_operating_point(baseline, flat_row,
                                              shape["n_paragraphs"])
         if operating is not None:
             distance = operating["distance"]
             p_value = operating["p_value"]
-            if operating["alpha"] is not None:
-                alpha = operating["alpha"]
-                cal_basis = operating["calibration_basis"]
-                n_cal = operating["n_calibration"]
-                flagged = p_value <= alpha
-                op_reference = {"operating_point": operating["operating_point"],
-                                "alpha": alpha,
-                                "n_calibration": n_cal,
-                                "calibration_basis": cal_basis,
-                                "n_train": operating.get("n_train"),
-                                "provenance": BASELINE_NAME}
-                op_margin = alpha - p_value
-                op_confidence = {
-                    "value": min(1.0, n_cal / 100.0),
-                    "basis": (f"split-conformal p against {n_cal} held-out "
-                              f"human papers ({cal_basis}); P(false flag) <= "
-                              f"{alpha:g} finite-sample for exchangeable "
-                              "human documents")}
-                op_clause = (f"conformal p = {p_value:.4f} <= alpha {alpha:g} "
-                             f"against {n_cal} held-out human papers "
-                             f"({cal_basis})")
-            else:  # legacy baseline without a conformal block
-                flagged = operating["flagged"]
-                op_reference = {"operating_point": "in-sample percentile",
-                                "n_documents": manifold["n_documents"],
-                                "threshold": manifold["threshold"],
-                                "percentile": manifold["percentile"],
-                                "leave_one_document_out_flag_rate": manifold[
-                                    "leave_one_document_out_flag_rate"],
-                                "provenance": BASELINE_NAME}
-                op_margin = distance - float(manifold["threshold"])
-                op_confidence = {
-                    "value": min(1.0, manifold["n_documents"] / 100.0),
-                    "basis": (f"{manifold['n_documents']} complete reference "
-                              "documents; joint band distance in log "
-                              "dispersion-ratio space")}
-                op_clause = (f"reference {manifold['percentile']:.0%} "
-                             f"threshold {float(manifold['threshold']):.2f}")
+            alpha = operating["alpha"]
+            cal_basis = operating["calibration_basis"]
+            n_cal = operating["n_calibration"]
+            flagged = p_value <= alpha
+            op_reference = {"operating_point": operating["operating_point"],
+                            "alpha": alpha,
+                            "n_calibration": n_cal,
+                            "calibration_basis": cal_basis,
+                            "n_train": operating.get("n_train"),
+                            "provenance": BASELINE_NAME}
+            op_margin = alpha - p_value
+            op_confidence = {
+                "value": min(1.0, n_cal / 100.0),
+                "basis": (f"split-conformal p against {n_cal} held-out "
+                          f"human papers ({cal_basis}); P(false flag) <= "
+                          f"{alpha:g} finite-sample for exchangeable "
+                          "human documents")}
+            op_clause = (f"conformal p = {p_value:.4f} <= alpha {alpha:g} "
+                         f"against {n_cal} held-out human papers "
+                         f"({cal_basis})")
             if flagged:
                 findings.append(feedback.make_finding(
                     kind="advisory", layer="L2",
@@ -479,10 +486,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     field_dir = cli_common.optional_field_dir(args, tool="deai_docstructure")
     text = args.file.read_text(encoding="utf-8", errors="replace")
+    shape = document_shape(text)  # once: the findings and the status read one measurement
     report = feedback.build_report(
         path=args.file,
-        findings=document_findings(text, field_dir, args.file),
-        axes=[docstructure_axis_status(text, field_dir)],
+        findings=document_findings(text, field_dir, args.file, shape=shape),
+        axes=[docstructure_axis_status(text, field_dir, shape=shape)],
     )
     print(feedback.render_text(report))
     return 0

@@ -144,20 +144,13 @@ def _documents(root: Path, *, bundles: bool) -> list[tuple[str, str]]:
     """(name, text) per document, one paper per entry.
 
     An arXiv source bundle ships a dozen `.tex` fragments and is still one
-    paper, so its roots are selected and their includes spliced back in rather
-    than each fragment counting as a document of its own.
+    paper, so a directory of bundles goes through the loader `eval_findings`
+    reads the same population with (`extract_sections.bundle_documents`).
     """
     if not bundles:
         return [(p.name, p.read_text(encoding="utf-8", errors="replace"))
                 for p in sorted(root.rglob("*.tex"))]
-    out: list[tuple[str, str]] = []
-    for bundle in sorted(p for p in root.iterdir() if p.is_dir()):
-        tex = sorted(bundle.rglob("*.tex"))
-        for chosen in es.select_document_roots(tex, bundle) if tex else []:
-            text = es.read_tex_document(chosen)
-            if text.strip():
-                out.append((f"{bundle.name}/{chosen.name}", text))
-    return out
+    return es.bundle_documents(root)
 
 
 def _load_population(root: Path) -> list[tuple[str, str]]:

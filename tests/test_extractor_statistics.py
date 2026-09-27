@@ -5,10 +5,15 @@ Split from test_extract_style.py, which sits at the 750-line budget.
 
 from __future__ import annotations
 
+import io
 import json
 import pathlib
+import sys
 import tempfile
+import types
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from unittest import mock
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 
@@ -62,6 +67,16 @@ class ExtractorStatisticsTests(unittest.TestCase):
         # A citation-led paragraph is prose; a placeholder-only one is not.
         text = "[CITE] showed the effect.\n\n[MATH]\n\n[FIGURE-OR-TABLE] and more."
         self.assertEqual(es.paragraph_initial_words(text), ["showed", "and"])
+
+    def test_every_placeholder_the_projection_writes_is_dropped_by_its_readers(self):
+        # One vocabulary (`PLAIN_INLINE`, `PLAIN_PLACEHOLDERS`); the three
+        # patterns that read it were typed out by hand until audit D23.
+        import deai_reference
+        for token in (es.PLAIN_INLINE, *es.PLAIN_PLACEHOLDERS.values()):
+            with self.subTest(token=token):
+                self.assertRegex(token.strip(), es.RE_PLACEHOLDER)
+                self.assertEqual(es.without_placeholders(token).strip(), "")
+                self.assertEqual(deai_reference.RE_PLACEHOLDER_TOKEN.sub("", token).strip(), "")
 
     def test_words_are_unicode_letters(self):
         self.assertEqual(es.words("naïve Poincaré"), ["naïve", "Poincaré"])
@@ -156,6 +171,84 @@ class EmbeddingCacheTests(unittest.TestCase):
             self.assertEqual(len(calls), 2)
             self.assertEqual(embeddings[:, 0].tolist(), [4.0, 2.0])
 
+
+class DossierTests(unittest.TestCase):
+    """What the dossier says about the corpus behind it (audit D17, D18)."""
+
+    PROSE = ("The sample is small. The method is simple and the result is stable. "
+             "We repeat the measurement twice.\n")
+
+    def _dossier(self, files: dict[str, str]) -> str:
+        """Run the extractor over one curated tier holding `files`; return the dossier."""
+        with tempfile.TemporaryDirectory() as tmp:
+            corpus = pathlib.Path(tmp) / "corpus"
+            tier = corpus / "g" / "tier-1-top"
+            tier.mkdir(parents=True)
+            for name, body in files.items():
+                (tier / name).write_text(body, encoding="utf-8")
+            profile = pathlib.Path(tmp) / "profile"
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                code = es.main(["--field", "g", "--corpus-root", str(corpus),
+                                "--profile-root", str(profile)])
+            self.assertEqual(code, 0)
+            return (profile / "g" / "style_dossier.md").read_text(encoding="utf-8")
+
+    def test_the_no_sections_hint_fires_when_only_unknown_was_measured(self):
+        # `.txt` and sectionless `.tex` fill `unknown`, which reaches the
+        # statistics, so a hint keyed on an empty dict could never fire.
+        unsectioned = self._dossier({"notes.txt": self.PROSE})
+        self.assertIn("No sections detected", unsectioned)
+        self.assertIn("| unknown |", unsectioned)  # the hint adds; the row stays
+        sectioned = self._dossier({"paper.tex": "\\section{Results}\n" + self.PROSE})
+        self.assertNotIn("No sections detected", sectioned)
+
+    def test_the_header_counts_the_files_the_run_skipped(self):
+        # Without pymupdf a standalone PDF is skipped: the run's summary said
+        # so, and the dossier's "Built from N corpus papers" did not.
+        missing = ImportError("pymupdf not installed")
+        with mock.patch.object(es, "extract_pdf_text", side_effect=missing):
+            dossier = self._dossier({"notes.txt": self.PROSE, "scan.pdf": "%PDF-1.4\n"})
+        header = next(line for line in dossier.splitlines() if line.startswith("Built from"))
+        self.assertIn("Built from 1 corpus papers", header)
+        self.assertIn("1 source file(s) SKIPPED (pymupdf unavailable)", header)
+
+
+class PdfPathTests(unittest.TestCase):
+    """The PDF path end to end on a stand-in `pymupdf` (audit D27): only its
+    helpers had tests, never `extract_pdf_text` reading a text layer."""
+
+    def test_ligatures_expand_and_line_fragments_rejoin_into_paragraphs(self):
+        blocks = [(0, 0, 1, 1, "1. Introduction", 0, 0),
+                  (0, 0, 1, 1, "The ﬁrst eﬀect is signiﬁcant, and the", 1, 0),
+                  (0, 0, 1, 1, "inﬂated estimate follows from it.", 2, 0),
+                  (0, 0, 1, 1, "an image block the text layer must drop", 3, 1),
+                  (0, 0, 1, 1, "2. Results", 4, 0),
+                  (0, 0, 1, 1, "The ﬁnal ﬁgure is stable.", 5, 0)]
+
+        class Page:
+            def get_text(self, mode):
+                return blocks if mode == "blocks" else ""
+
+        class Document:
+            closed = False
+
+            def __iter__(self):
+                return iter([Page()])
+
+            def close(self):
+                Document.closed = True
+
+        fake = types.SimpleNamespace(open=lambda path: Document())
+        with mock.patch.dict(sys.modules, {"pymupdf": fake}):
+            analysis = es.analyse_paper(pathlib.Path("paper.pdf"))
+        sections = analysis["by_section"]
+        self.assertEqual(sorted(sections), ["intro", "results"])
+        self.assertEqual(sections["intro"]["plain_text"],
+                         "The first effect is significant, and the inflated "
+                         "estimate follows from it.")
+        self.assertEqual(sections["results"]["plain_text"], "The final figure is stable.")
+        self.assertIn("significant", sections["intro"]["word_counter"])
+        self.assertTrue(Document.closed)
 
 
 if __name__ == "__main__":

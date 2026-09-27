@@ -60,11 +60,6 @@ def section_word_counts(text: str) -> dict[str, int]:
     return dict(counts)
 
 
-def read_git_version(after: Path, ref: str) -> str:
-    r"""The assembled document at `ref`: root and every \input child (`tex_assembly`)."""
-    return tex_assembly.read_git_document(after, ref)
-
-
 def parse_allowances(entries: list[str]) -> dict[str, str]:
     allowances: dict[str, str] = {}
     for entry in entries:
@@ -290,7 +285,7 @@ def main(argv: list[str] | None = None) -> int:
         # the root alone never saw a child shrink, while the removal map it
         # closes was built on the whole paper.
         if args.git_ref is not None:
-            before_text = read_git_version(args.after, args.git_ref)
+            before_text = tex_assembly.read_git_document(args.after, args.git_ref)
         else:
             before_text = tex_assembly.read_tex_document(args.before)
         after_text = tex_assembly.read_tex_document(args.after)

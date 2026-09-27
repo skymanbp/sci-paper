@@ -14,6 +14,7 @@ import tempfile
 import unittest
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
+from _texbundle import write_bundle
 
 import extract_style as es
 import tex_assembly as assembly
@@ -28,16 +29,9 @@ class TexDocumentAssemblyTests(unittest.TestCase):
     paper -- it replaces a twelvefold overcount with a total loss.
     """
 
-    def _bundle(self, tmp: str, files: dict[str, str]) -> pathlib.Path:
-        d = pathlib.Path(tmp) / "bundle"
-        d.mkdir(parents=True, exist_ok=True)
-        for name, body in files.items():
-            (d / name).write_text(body, encoding="utf-8")
-        return d
-
     def test_included_chapters_are_spliced_in(self):
         with tempfile.TemporaryDirectory() as tmp:
-            d = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "main.tex": r"\documentclass{article}" "\n"
                             r"\begin{document}" "\n"
                             r"\include{chap_1}" "\n"
@@ -54,7 +48,7 @@ class TexDocumentAssemblyTests(unittest.TestCase):
         # arXiv sources routinely park an alternative build in comments
         # (`% \includeonly{WeakLens_7}`); resolving those duplicates a chapter.
         with tempfile.TemporaryDirectory() as tmp:
-            d = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "main.tex": r"\documentclass{article}" "\n"
                             r"% \input{alt}" "\n" "kept\n",
                 "alt.tex": "ALTERNATE\n",
@@ -70,7 +64,7 @@ class TexDocumentAssemblyTests(unittest.TestCase):
         # dropped as a fragment and never spliced back -- 2101.09097v3 kept
         # 2 of its 9,743 words that way.
         with tempfile.TemporaryDirectory() as tmp:
-            d = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "article.tex": r"\documentclass{article}" "\n"
                                r"\input{sections/introduction}" "\n"
                                r"\input{sections/forecast.tex}" "\n",
@@ -85,7 +79,7 @@ class TexDocumentAssemblyTests(unittest.TestCase):
         # The bug was an asymmetry, not a missing feature: whatever
         # select_document_roots treats as included must be spliceable.
         with tempfile.TemporaryDirectory() as tmp:
-            d = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "article.tex": r"\documentclass{article}" "\n"
                                r"\input{sections/introduction}" "\n",
                 "introduction.tex": "intro body\n",
@@ -96,7 +90,7 @@ class TexDocumentAssemblyTests(unittest.TestCase):
 
     def test_missing_include_target_leaves_the_call_in_place(self):
         with tempfile.TemporaryDirectory() as tmp:
-            d = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "main.tex": r"\documentclass{article}" "\n"
                             r"\input{aa.cls}" "\n" "body\n",
             })
@@ -105,7 +99,7 @@ class TexDocumentAssemblyTests(unittest.TestCase):
 
     def test_include_cycles_terminate(self):
         with tempfile.TemporaryDirectory() as tmp:
-            d = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "a.tex": r"\documentclass{article}" "\n" r"\input{b}" "\n",
                 "b.tex": r"\input{a}" "\n" "cycle body\n",
             })
@@ -117,7 +111,7 @@ class TexDocumentAssemblyTests(unittest.TestCase):
         # whole line was replaced by the child, and a second `\input{body}`
         # returned nothing because "seen anywhere" was mistaken for a cycle.
         with tempfile.TemporaryDirectory() as tmp:
-            d = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "main.tex": "Before \\input{body} After\n\\input{body} % \\input{alt}\n",
                 "body.tex": "CHILD",
                 "alt.tex": "ALT",
@@ -127,16 +121,9 @@ class TexDocumentAssemblyTests(unittest.TestCase):
 
 
 class IncludeResolutionTests(unittest.TestCase):
-    def _bundle(self, tmp: str, files: dict[str, str]) -> pathlib.Path:
-        d = pathlib.Path(tmp)
-        for name, body in files.items():
-            (d / name).parent.mkdir(parents=True, exist_ok=True)
-            (d / name).write_text(body, encoding="utf-8")
-        return d
-
     def test_a_target_with_a_suffix_is_read_as_written(self):
         with tempfile.TemporaryDirectory() as tmp:
-            d = self._bundle(tmp, {"main.tex": r"\input{fig.tikz}" "\n",
+            d = write_bundle(tmp, {"main.tex": r"\input{fig.tikz}" "\n",
                                    "fig.tikz": "TIKZ\n", "fig.tex": "WRONG FILE\n"})
             self.assertEqual(assembly.read_tex_document(d / "main.tex"), "TIKZ\n\n")
 
@@ -145,7 +132,7 @@ class IncludeResolutionTests(unittest.TestCase):
         # in; resolved against the child's directory, `sections/table.tex`
         # shadowed the root-level file the author meant.
         with tempfile.TemporaryDirectory() as tmp:
-            d = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "main.tex": r"\input{sections/intro}" "\n",
                 "sections/intro.tex": r"INTRO \input{table}" "\n",
                 "table.tex": "ROOT-LEVEL TABLE",

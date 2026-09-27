@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import ast
 import contextlib
+import functools
 import importlib
 import io
 import json
@@ -213,7 +214,9 @@ def check_skills() -> str:
     for token in (SCHEMA, "integrity_blocker", "l0_target", "advisory", "measured",
                   "degraded", "unmeasured", "not_applicable", "rejected_as_false_positive"):
         require(token in standard, f"SCIPAPER_STANDARD.md missing contract token {token!r}")
-    return f"skills and normative standard agree ({len(documents)} skills)"
+    sys.path.insert(0, str(TOOLS))  # not popped: importing ai_ism_lint inserts tools/ itself
+    mirror = importlib.import_module("ai_ism_lint").validator_check(REPO, require)
+    return f"skills and normative standard agree ({len(documents)} skills); {mirror}"
 
 
 RE_HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*$", re.MULTILINE)
@@ -421,8 +424,9 @@ def check_documentation_boundaries() -> str:
             f"{len(skills)} skills named only where shipped; heading order clean)")
 
 
+@functools.lru_cache(maxsize=None)
 def _discovered_test_count() -> tuple[int, int]:
-    """(test count, test-file count) from real unittest discovery."""
+    """(test count, test-file count) from real unittest discovery, run once per process."""
     import unittest
     suite = unittest.defaultTestLoader.discover(str(TESTS), top_level_dir=str(TESTS))
 

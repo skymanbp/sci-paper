@@ -2,7 +2,7 @@
 markdown. Strictly paper-voice prose, NOT documentation.
 
 Source-quality matters MORE than quantity. Empirically (2026-04-28 test
-on D:/Projects/weak-gravitational-lensing/instructions/), feeding the
+on a set of the author's project documentation), feeding the
 classifier compact technical-documentation prose drops CV F1 from 0.88
 to 0.71 because doc-voice and paper-voice are different distributions —
 the model has to span both as "AI-ish" and gets confused.
@@ -24,9 +24,9 @@ blockquotes / inline code / link/image syntax / bold-italic markers) and
 keeps paragraphs that look like prose (30–400 words, ≥ 60% alphabetic,
 < 15% digits to filter out tables-as-prose).
 
-Output is appended to `style-profile/<field>/ai_ism_negatives_extracted.txt`
-(gitignored — content comes from your private project files and shouldn't
-ship with the plugin).
+Output goes to `style-profile/<field>/ai_ism_negatives_extracted.txt`,
+overwritten unless `--append` is given (gitignored — content comes from your
+private project files and shouldn't ship with the plugin).
 
 Run with:
   python tools/extract_md_negatives.py --source-dir <path/to/dir-of-md-files>
@@ -40,16 +40,12 @@ dir wasn't paper-voice and should be removed.
 
 from __future__ import annotations
 
-import argparse
 import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 
 # Strip ordering matters: code fences first (they may contain # / | / -),
 # then headers / blockquotes / tables / lists, then inline syntax.

@@ -30,20 +30,18 @@ import deai_features as df  # noqa: E402  resolves only after the sys.path inser
 
 # Re-exported so `train_voice_model.<name>` keeps resolving for existing
 # callers and tests after the 2026-08-26 split. A contract test asserts this
-# list still covers every public name in both modules.
+# list still covers every public name in both modules and carries no private
+# helper: a test that needs one imports it from its own module.
 from voice_dataset import (  # noqa: E402,F401 -- re-export, unused here by design
     CHECKPOINT_EVERY,
     build_features, build_field_lexicon, embeddings_failed_at_run_time,
     feature_cache_fingerprint, load_records, source_family,
-    _atomic_savez, _load_jsonl, _record_embeddings, _tokens,
 )
 from voice_audit import (  # noqa: E402,F401 -- re-export, unused here by design
     HARDSET_AI_CATEGORIES, HARDSET_HUMAN_CATEGORIES,
     aggregate_audits, audit_split_seed, binary_metrics, confound_audit,
     first_valid_group_split, hardset_evaluation, repeated_group_audit,
     section_normalize_uid, split_corpus_cos,
-    _auc, _bootstrap_auc_ci, _breakdown, _math_bin, _metric_maps, _quantile,
-    _series_summary, _three_way_bin,
 )
 
 
@@ -168,8 +166,12 @@ def main(argv: list[str] | None = None) -> int:
           f"{results['hgb']['auc']:.3f} but weaker OOD — see comment)")
 
     print(f"[audit] primary confound strata for {best}", file=sys.stderr)
+    # Once for both primary audits, as `repeated_group_audit` does for its
+    # own: a record's math density depends on neither the split nor the scores.
+    math_density = [df.math_marker_density(record["text"]) for record in recs]
     primary_raw_audit = confound_audit(
-        recs, X_primary, tr_idx, va_idx, yva, validation_scores[best])
+        recs, X_primary, tr_idx, va_idx, yva, validation_scores[best],
+        math_density=math_density)
     normalized_X, normalization_meta = section_normalize_uid(
         X_primary, recs, tr_idx)
     normalized_scaler = StandardScaler().fit(normalized_X[tr_idx])
@@ -179,7 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     normalized_scores = normalized_model.predict_proba(
         normalized_scaler.transform(normalized_X[va_idx]))[:, normalized_column]
     primary_normalized_audit = confound_audit(
-        recs, X_primary, tr_idx, va_idx, yva, normalized_scores)
+        recs, X_primary, tr_idx, va_idx, yva, normalized_scores,
+        math_density=math_density)
 
     print(f"[audit] repeated source-grouped comparison: "
           f"{args.audit_splits} splits", file=sys.stderr)

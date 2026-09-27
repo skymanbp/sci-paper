@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import itertools
 import json
 import pathlib
 import sys
@@ -472,6 +473,118 @@ class SweepAndOperatingPointTests(unittest.TestCase):
             with mock.patch.object(docstructure, "document_shape",
                                    return_value=self._shape(0.35)):
                 self.assertIn("needs 20", docstructure.docstructure_axis_status("x", root)["reason"])
+
+    def test_a_manifold_without_a_conformal_block_is_degraded_not_scored(self):
+        # The in-sample fallback that scored such a baseline went with audit
+        # B24, since no calibrate writes one. Hand-built, it reads degraded with
+        # a rebuild instruction: no crash, and no finding passed off as scored.
+        names = docstructure.DISPERSION_FEATURE_NAMES
+        rows = [{name: 1.0 + 0.1 * ((index * (k + 2)) % 7) for k, name in enumerate(names)}
+                for index in range(docstructure.MIN_MANIFOLD_DOCUMENTS)]
+        baseline = {"schema": "sci-paper.docstructure-baseline.v2", "n_documents": 40,
+                    "strong_percentile": 0.95, "metrics": {}, "dispersion": {},
+                    "dispersion_manifold": docstructure.fit_dispersion_manifold(rows)}
+        self.assertIsNone(docstructure.manifold_operating_point(baseline, rows[0], 6))
+        text = document([REPEATED_PARAGRAPH])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / docstructure.BASELINE_NAME).write_text(json.dumps(baseline),
+                                                           encoding="utf-8")
+            self.assertEqual(docstructure.document_findings(text, root), [])
+            status = docstructure.docstructure_axis_status(text, root)
+        self.assertEqual(status["status"], "degraded")
+        self.assertIn("deai_docstructure --calibrate", status["reason"])
+
+
+class BlankedSweepTests(unittest.TestCase):
+    """Headings and floats are blanked before the paragraph split, as the
+    anchoring sweep blanks them, and the CLI measures once (audit B22)."""
+
+    VARIED = [REPEATED_PARAGRAPH, SHORT_PARAGRAPH, LONG_PARAGRAPH,
+              SHORT_PARAGRAPH, LONG_PARAGRAPH, REPEATED_PARAGRAPH]
+
+    def assert_same_shape(self, first: str, second: str) -> None:
+        one, two = docstructure.document_shape(first), docstructure.document_shape(second)
+        for key in ("n_paragraphs", "metrics", "dispersion"):
+            self.assertEqual(one[key], two[key], key)
+
+    def test_a_heading_does_not_fuse_into_the_first_block(self):
+        spaced = document(self.VARIED)
+        fused = spaced.replace("}\n\n", "}\n")  # no blank line under any heading
+        start, _end, block = docstructure.shape_units(fused)[0]["blocks"][0]
+        self.assertEqual(start, 2)
+        self.assertNotIn("Introduction", block)
+        self.assert_same_shape(fused, spaced)
+
+    def test_a_float_does_not_split_a_paragraph(self):
+        head, tail = LONG_PARAGRAPH.split("; ", 1)
+        figure = ("\\begin{figure}\n\\includegraphics{map}\n\n"
+                  "\\caption{The smoothed map behind every count in this section.}\n"
+                  "\\end{figure}\n")
+        plain = document([REPEATED_PARAGRAPH, head + ";\n" + tail] + self.VARIED[2:])
+        with_float = plain.replace(head + ";\n", head + ";\n" + figure)
+        blocks = docstructure.shape_units(with_float)[0]["blocks"]
+        self.assertEqual(len(blocks), 2)
+        start, end, block = blocks[1]
+        self.assertEqual(end - start, 1 + figure.count("\n"))
+        self.assertNotIn("caption", block)
+        self.assert_same_shape(with_float, plain)
+
+    def test_the_cli_measures_the_shape_once(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            draft = root / "draft.tex"
+            draft.write_text(document(self.VARIED), encoding="utf-8")
+            (root / "profiles").mkdir()
+            with mock.patch.object(docstructure, "document_shape",
+                                   wraps=docstructure.document_shape) as measure, \
+                    contextlib.redirect_stdout(io.StringIO()):
+                code = docstructure.main([str(draft), "--profile-root", str(root / "profiles")])
+        self.assertEqual((code, measure.call_count), (0, 1))
+
+
+class ConformalEndToEndTests(unittest.TestCase):
+    """Calibrate -> findings through the split-conformal and Mondrian paths
+    on generated documents (audit B30). The manifold is fit on int(0.6 n)
+    documents and needs MIN_MANIFOLD_DOCUMENTS (33) of them, so 55 is the
+    smallest corpus that writes a `conformal` block; a length stratum gets a
+    manifold of its own only with 33 training and 30 calibration documents in
+    it, which 75 documents of one length give."""
+
+    def test_calibrate_then_score_on_the_stratum_and_the_pooled_manifold(self):
+        fraction = docstructure.CONFORMAL_TRAIN_FRACTION
+        self.assertEqual([int(n * fraction) >= docstructure.MIN_MANIFOLD_DOCUMENTS
+                          for n in (54, 55)], [False, True])
+        pairs = itertools.permutations((REPEATED_PARAGRAPH, SHORT_PARAGRAPH, LONG_PARAGRAPH), 2)
+        combos = itertools.islice(itertools.product(list(pairs), repeat=3), 75)
+        corpus = [(f"generated-{index}", document([p for pair in combo for p in pair]))
+                  for index, combo in enumerate(combos)]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            conformal = docstructure.calibrate(corpus, root)["conformal"]
+            manifold = conformal["manifold"]
+            # six paragraphs each: one length, so every document is stratum 0
+            self.assertEqual(conformal["strata_edges"], [6.0, 6.0])
+            self.assertEqual((manifold["n_train"], len(manifold["calibration"])), (45, 30))
+            self.assertEqual(sorted(manifold["stratum"]), ["0"])
+            # a uniform document of the calibrated length is scored on the
+            # stratum's own manifold; a longer one falls to the pooled one
+            for per_section, operating_point, basis in (
+                    (2, "split-conformal, stratum manifold", "stratum 0 manifold"),
+                    (3, "split-conformal", "pooled")):
+                text = "\n\n".join(
+                    f"\\section{{{name}}}\n\n" + "\n\n".join([REPEATED_PARAGRAPH] * per_section)
+                    for name in ("Introduction", "Methods", "Results")) + "\n"
+                found = [f for f in docstructure.document_findings(text, root)
+                         if f["rule"] == "document-dispersion-manifold"]
+                self.assertEqual(len(found), 1, per_section)
+                reference = found[0]["reference"]
+                self.assertEqual((reference["operating_point"], reference["calibration_basis"],
+                                  reference["n_calibration"]), (operating_point, basis, 30))
+                # beyond all 30 calibration papers: the smallest p they allow
+                self.assertAlmostEqual(found[0]["observed"]["p_value"], 1 / 31)
+                self.assertEqual(docstructure.docstructure_axis_status(text, root)["status"],
+                                 "measured")
 
 
 class FeatureRuntimeTests(unittest.TestCase):

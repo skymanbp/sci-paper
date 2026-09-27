@@ -89,40 +89,26 @@ AXES = ("L0.register", "L0.register-zero", "L2.salience_hierarchy",
 DOCUMENT_SCORES = {"L2.collocation": "collocation_novel_fraction"}
 
 
-def _bundle_documents(root: Path) -> list[tuple[str, str]]:
-    """(name, text) per paper under a directory of arXiv source bundles.
-
-    One bundle is one paper even when it ships a dozen `.tex` fragments, so the
-    roots are selected and their includes spliced back in, rather than each file
-    counting as its own document.
-    """
-    out: list[tuple[str, str]] = []
-    for bundle in sorted(p for p in root.iterdir() if p.is_dir()):
-        tex = sorted(bundle.rglob("*.tex"))
-        if not tex:
-            continue
-        for chosen in es.select_document_roots(tex, bundle):
-            text = es.read_tex_document(chosen)
-            if text.strip():
-                out.append((f"{bundle.name}/{chosen.name}", text))
-    return out
-
-
 def _flat_documents(root: Path) -> list[tuple[str, str]]:
-    """(name, text) for a directory of single-file documents."""
+    """(name, text) for a directory of single-file documents; a directory of
+    source bundles is read by `extract_sections.bundle_documents` instead."""
     return [(p.name, p.read_text(encoding="utf-8", errors="replace"))
             for p in sorted(root.glob("*.tex"))]
 
 
-def score_document(text: str, field_dir: Path, path: str) -> dict[str, float]:
+def score_document(text: str, field_dir: Path, path: str,
+                   register: list[dict] | None = None) -> dict[str, float]:
     """Per-axis finding counts, length, and the salience denominator.
 
     `n_salience_units` is the count of passages the salience gate could have
     fired on. Without it the axis can only be reported per 1,000 words, and its
     gate is defined per passage — so there would be no way to check the measured
-    rate against the rate the percentile is supposed to produce.
+    rate against the rate the percentile is supposed to produce. `register` is
+    the document's `deai_register.register_findings` when the caller holds it
+    (`collect` runs that pass once and hands it to `leakage_paired` as well).
     """
-    register = deai_register.register_findings(text, field_dir, path)
+    if register is None:
+        register = deai_register.register_findings(text, field_dir, path)
     zero = [f for f in register if f["rule"].startswith("register-zero:")]
     salience = deai_salience.salience_findings(text, field_dir, path)
     strong = sum(1 for f in salience
@@ -190,7 +176,8 @@ def _density(rows: list[dict[str, float]], axis: str) -> list[float]:
     return [1000.0 * r[axis] / r["n_words"] for r in rows if r["n_words"]]
 
 
-def leakage_paired(text: str, field_dir: Path, path: str) -> tuple[int, int]:
+def leakage_paired(text: str, field_dir: Path, path: str,
+                   register: list[dict] | None = None) -> tuple[int, int]:
     """(flagged, still flagged had this paper been in the bank) for one document.
 
     Comparing the held-out population against the in-sample one estimates
@@ -228,7 +215,9 @@ def leakage_paired(text: str, field_dir: Path, path: str) -> tuple[int, int]:
     with_own = ChainMap({term: int(table.get(term, 0)) + count
                          for term, count in own_df.items()}, table)
     flagged = survives = 0
-    for finding in deai_register.register_findings(text, field_dir, path):
+    if register is None:
+        register = deai_register.register_findings(text, field_dir, path)
+    for finding in register:
         # The zero-hit audit is suppressed by own membership by construction
         # (one occurrence anywhere clears "absent"), so pairing it measures
         # nothing; the rarity rule is the one whose leakage is a question.
@@ -266,14 +255,16 @@ def collect(field: str, corpus_root: Path, profile_root: Path, heldout_dir: str
     for label, root, is_bundle in sources:
         if not root.is_dir():
             continue
-        documents = _bundle_documents(root) if is_bundle else _flat_documents(root)
+        documents = es.bundle_documents(root) if is_bundle else _flat_documents(root)
         rows = []
         for name, text in documents:
             if len(text.split()) < deai_salience.MIN_WORDS:
                 continue
-            rows.append(score_document(text, field_dir, name))
+            # one register pass per document: the row and the pairing read it
+            register = deai_register.register_findings(text, field_dir, name)
+            rows.append(score_document(text, field_dir, name, register))
             if label == "published-heldout":
-                one, two = leakage_paired(text, field_dir, name)
+                one, two = leakage_paired(text, field_dir, name, register)
                 flagged += one
                 survives += two
         if rows:

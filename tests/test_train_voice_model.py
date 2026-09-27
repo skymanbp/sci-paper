@@ -16,6 +16,8 @@ from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what p
 import deai_features as features
 import deai_voice as voice
 import train_voice_model as training
+import voice_audit
+import voice_dataset
 
 
 def _unbound_names(source: str, filename: str = "<module>") -> list[str]:
@@ -67,13 +69,15 @@ def _unbound_names(source: str, filename: str = "<module>") -> list[str]:
 
 
 class ModuleSplitContractTests(unittest.TestCase):
-    """`train_voice_model` must re-export everything the split modules define.
+    """`train_voice_model` must re-export the split modules' public entry points.
 
     The dataset and audit layers were split out on 2026-08-26 (1,174 lines
     against a 750-line budget). The re-export list is hand-written, so it can
     silently fall behind the modules it mirrors -- the drift the equivalent
     `extract_style` and `deai_docstructure` tests have caught four times
-    between them. Every test above reaches these names as `training.<name>`.
+    between them. The tests below reach the public names as `training.<name>`
+    and a private helper through its own module, so the list carries no
+    private name (audit 2026-09-27, E29: it once re-exported twelve).
     """
 
     def _public_names(self, module, module_name):
@@ -84,26 +88,29 @@ class ModuleSplitContractTests(unittest.TestCase):
 
         return {
             name for name, value in vars(module).items()
-            if not name.startswith("__")
+            if not name.startswith("_")
             and not isinstance(value, types.ModuleType)
             and getattr(value, "__module__", module_name) == module_name
         }
 
     def test_dataset_names_are_re_exported(self):
-        import voice_dataset
-
         missing = sorted(n for n in self._public_names(voice_dataset, "voice_dataset")
                          if not hasattr(training, n))
         self.assertEqual(missing, [],
                          f"train_voice_model does not re-export: {missing}")
 
     def test_audit_names_are_re_exported(self):
-        import voice_audit
-
         missing = sorted(n for n in self._public_names(voice_audit, "voice_audit")
                          if not hasattr(training, n))
         self.assertEqual(missing, [],
                          f"train_voice_model does not re-export: {missing}")
+
+    def test_no_private_helper_is_re_exported(self):
+        leaked = sorted(
+            name for name, value in vars(training).items()
+            if name.startswith("_") and not name.startswith("__")
+            and getattr(value, "__module__", None) in ("voice_dataset", "voice_audit"))
+        self.assertEqual(leaked, [], f"train_voice_model re-exports private {leaked}")
 
     def test_the_split_modules_stay_within_the_line_budget(self):
         # The split exists to get under the budget; a test keeps it there.
@@ -321,13 +328,13 @@ class VoiceAuditHelperTests(unittest.TestCase):
             self.skipTest("numpy is unavailable")
         y = [0, 0, 0, 1, 1, 1]
         scores = [0.1, 0.2, 0.3, 0.7, 0.8, 0.9]
-        first = training._bootstrap_auc_ci(y, scores, n_boot=500, seed=7)
-        second = training._bootstrap_auc_ci(y, scores, n_boot=500, seed=7)
+        first = voice_audit._bootstrap_auc_ci(y, scores, n_boot=500, seed=7)
+        second = voice_audit._bootstrap_auc_ci(y, scores, n_boot=500, seed=7)
         self.assertEqual(first, second)                       # seeded => reproducible
         self.assertEqual(first["auc"], 1.0)                   # perfect separation
         self.assertLessEqual(first["ci95_low"], first["auc"])
         self.assertLessEqual(first["auc"], first["ci95_high"] + 1e-9)
-        self.assertIsNone(training._bootstrap_auc_ci([1, 1], [0.2, 0.9]))  # single class
+        self.assertIsNone(voice_audit._bootstrap_auc_ci([1, 1], [0.2, 0.9]))  # single class
 
     def test_undefined_f1_is_excluded_from_aggregation(self):
         report_with_positives = {"overall": training.binary_metrics(
@@ -425,7 +432,7 @@ class VoiceAuditHelperTests(unittest.TestCase):
             bank = Path(raw) / "exemplar_paragraphs.jsonl"
             record = json.dumps({"text": "word " * 30, "source": "s"})
             bank.write_text(record + "\n\n" + record + "\n   \n", encoding="utf-8")
-            loaded = training._load_jsonl(bank, 1, "corpus")
+            loaded = voice_dataset._load_jsonl(bank, 1, "corpus")
         self.assertEqual(len(loaded), 2)
         self.assertEqual({record["label"] for record in loaded}, {1})
 

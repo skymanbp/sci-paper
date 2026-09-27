@@ -356,7 +356,7 @@ def units(text: str) -> list[tuple[int, int, str, str]]:
             for start, end, _label, bucket, block in paragraphs(text)]
 
 
-RE_PLACEHOLDER_TOKEN = re.compile(r"\[[A-Za-z\-]+\]")
+RE_PLACEHOLDER_TOKEN = re.compile(es.PLACEHOLDER_SHAPE)  # the projection's own token shape
 # What may sit between two consecutive words of one projected sentence in the
 # raw block: anything but a letter (space, line break, punctuation, digit), a
 # command with its bracketed and braced arguments (a citation, a reference),

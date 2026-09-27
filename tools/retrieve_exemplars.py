@@ -20,21 +20,19 @@ streamed straight into `/sci-paper:de-ai` context.
 
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
-from extract_style import REFERENCE_DIR, TIER_WEIGHTS
+from extract_style import CLASSIFIED_BUCKETS, REFERENCE_DIR, TIER_WEIGHTS
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 DEFAULT_MODEL = "all-MiniLM-L6-v2"
 
-VALID_SECTIONS = {"abstract", "intro", "method", "data", "results",
-                  "discussion", "conclusion"}
+# The named section buckets (neither `skip` nor `unknown`), derived rather than
+# retyped: the hand-typed set learned about `data` only after 112 bank rows had it.
+VALID_SECTIONS = CLASSIFIED_BUCKETS
 
 # The bank serves two roles. Its curated rows are the imitation target; its
 # `REFERENCE_DIR` rows are the breadth corpus that makes the per-section

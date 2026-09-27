@@ -44,8 +44,8 @@ def load_positives(jsonl_path: Path,
 
     The source travels with the text because paragraphs from one paper are not
     independent: an ungrouped split puts siblings in train and test at once and
-    reports an optimistic score. 28 source papers back the 1957 `wgl`
-    paragraphs, so grouping is available and is used.
+    reports an optimistic score. The bank records each paragraph's source
+    paper, so grouping is available and is used.
     """
     pos = []
     with jsonl_path.open(encoding="utf-8") as f:
@@ -99,7 +99,7 @@ def train_and_save(
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import Pipeline
-    from sklearn.model_selection import cross_val_score
+    from sklearn.model_selection import cross_validate
     import joblib
 
     X = positives + negatives
@@ -128,9 +128,10 @@ def train_and_save(
     # and GROUPED by source paper when groups are supplied: paragraphs from one
     # paper are not independent observations, and an ungrouped split lets
     # siblings sit in train and test simultaneously. Measured on the `wgl`
-    # corpus the difference is F1 0.876 ungrouped vs 0.823 grouped, so the
-    # ungrouped number was optimistic by ~0.05. `cv_grouped` travels with the
-    # metrics so a consumer can never read one for the other.
+    # corpus at v0.27.0 (2026-08-16, CHANGELOG-ARCHIVE) the difference was F1
+    # 0.876 ungrouped vs 0.823 grouped, so the ungrouped number was optimistic
+    # by ~0.05. `cv_grouped` travels with the metrics so a consumer can never
+    # read one for the other.
     from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
     n_splits = 5
     cv_grouped = bool(groups) and len(set(groups)) >= n_splits
@@ -142,10 +143,11 @@ def train_and_save(
         splitter = StratifiedKFold(n_splits=n_splits, shuffle=True,
                                    random_state=seed)
         split_kwargs = {}
-    acc_scores = cross_val_score(pipeline, X, y, cv=splitter,
-                                 scoring="accuracy", **split_kwargs)
-    f1_scores = cross_val_score(pipeline, X, y, cv=splitter, scoring="f1",
-                                **split_kwargs)
+    # One pass: each fold is fitted once and scored on both metrics. Two
+    # cross_val_score passes fitted the same folds twice for the same numbers.
+    scores = cross_validate(pipeline, X, y, cv=splitter,
+                            scoring=("accuracy", "f1"), **split_kwargs)
+    acc_scores, f1_scores = scores["test_accuracy"], scores["test_f1"]
 
     pipeline.fit(X, y)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -219,10 +221,11 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"\n[train_ai_ism_classifier] OK.")
     print(f"  n_pos = {metrics['n_pos']}, n_neg = {metrics['n_neg']}")
-    # Accuracy alone is unreadable at this class ratio: the corpus bank grew to
-    # 25k paragraphs against ~20 negatives, so always-predict-corpus already
-    # scores ~0.999. Print that baseline next to it so the headline number
-    # cannot be mistaken for skill; F1 on the minority class is the real signal.
+    # Accuracy alone is unreadable at this class ratio: corpus paragraphs far
+    # outnumber the negatives, so always-predict-corpus already scores close to
+    # 1. Print that baseline, from this run's own counts, next to it so the
+    # headline number cannot be mistaken for skill; F1 on the minority class is
+    # the real signal.
     majority = metrics["n_pos"] / max(1, metrics["n_pos"] + metrics["n_neg"])
     print(f"  class ratio: {metrics['n_pos'] / max(1, metrics['n_neg']):.0f}:1 "
           f"(always-predict-corpus accuracy = {majority:.3f})")

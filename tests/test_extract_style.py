@@ -20,6 +20,7 @@ import unittest
 from pathlib import Path
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
+from _texbundle import write_bundle
 
 import extract_style as es
 
@@ -286,17 +287,35 @@ class ReExportContractTests(unittest.TestCase):
     def test_every_public_name_is_re_exported(self):
         # An imported module is not a name this module defines, and naming each
         # one to exclude it (`re`, `defaultdict`, `Path`) put the test one
-        # `import` behind its own subject: adding `tex_macros` failed it.
+        # `import` behind its own subject: adding `tex_macros` failed it. A name
+        # borrowed from `tex_assembly` is part of the surface too; excluded by
+        # its `__module__`, it let two dead private aliases sit here unseen.
         import types
         import extract_sections as sections
         expected = {n for n in vars(sections)
                     if not n.startswith("__")
                     and not isinstance(vars(sections)[n], types.ModuleType)
                     and getattr(vars(sections)[n], "__module__", "extract_sections")
-                    in ("extract_sections", "re", None)
-                    and n != "annotations"}
+                    in ("extract_sections", "tex_assembly", "re", None)}
+        self.assertIn("read_tex_document", expected)
         missing = sorted(n for n in expected if not hasattr(es, n))
         self.assertEqual(missing, [], f"extract_style does not re-export: {missing}")
+
+    def test_a_tex_assembly_name_is_its_own_object_under_its_own_name(self):
+        # `tex_assembly` owns the include assembler, so what `extract_style`
+        # re-exports from it is that module's object under that module's name:
+        # `_include_targets` and `_resolve_include` were aliases of
+        # `include_targets` and `resolve_include` that no caller used.
+        import types
+        import tex_assembly
+        owned = {id(value) for name, value in vars(tex_assembly).items()
+                 if not name.startswith("__") and not isinstance(value, types.ModuleType)}
+        borrowed = sorted(name for name, value in vars(es).items()
+                          if not name.startswith("__") and id(value) in owned)
+        self.assertIn("read_tex_document", borrowed)
+        aliased = [name for name in borrowed
+                   if getattr(tex_assembly, name, None) is not getattr(es, name)]
+        self.assertEqual(aliased, [], f"re-exported under another name: {aliased}")
 
 
 class NumberedHeadingTests(unittest.TestCase):
@@ -337,16 +356,9 @@ class DocumentRootTests(unittest.TestCase):
     same pseudoreplication the project refuses elsewhere.
     """
 
-    def _bundle(self, tmp: str, files: dict[str, str]) -> list[Path]:
-        d = pathlib.Path(tmp) / "bundle"
-        d.mkdir(parents=True, exist_ok=True)
-        for name, body in files.items():
-            (d / name).write_text(body, encoding="utf-8")
-        return sorted(d.glob("*.tex"))
-
     def test_included_fragments_are_dropped(self):
         with tempfile.TemporaryDirectory() as tmp:
-            tex = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "main.tex": r"\documentclass{article}" "\n"
                             r"\begin{document}" "\n"
                             r"\include{chap_1}" "\n"
@@ -355,41 +367,41 @@ class DocumentRootTests(unittest.TestCase):
                 "chap_1.tex": r"\section{Results}" "\nfirst\n",
                 "chap_2.tex": r"\section{Discussion}" "\nsecond\n",
             })
-            roots = es.select_document_roots(tex)
+            roots = es.select_document_roots(sorted(d.glob("*.tex")))
         self.assertEqual([p.name for p in roots], ["main.tex"])
 
     def test_unmarked_sibling_of_a_marked_root_is_dropped(self):
         # bib.tex is neither \input nor marked, but it is not a paper either.
         with tempfile.TemporaryDirectory() as tmp:
-            tex = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "ms.tex": r"\documentclass{aastex}" "\n"
                           r"\begin{document}" "\nbody\n"
                           r"\end{document}" "\n",
                 "bib.tex": r"\bibitem{a} A. Author, 2001" "\n",
             })
-            roots = es.select_document_roots(tex)
+            roots = es.select_document_roots(sorted(d.glob("*.tex")))
         self.assertEqual([p.name for p in roots], ["ms.tex"])
 
     def test_a_lone_unmarked_file_is_still_the_paper(self):
         # Plain-TeX papers predating LaTeX2e carry no document marker at all;
         # Schneider (1996) in the wgl corpus is one, and it IS the paper.
         with tempfile.TemporaryDirectory() as tmp:
-            tex = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "aperture.tex": r"\def\ave#1{\langle #1\rangle}" "\n"
                                 r"\section{Introduction}" "\nbody\n",
             })
-            roots = es.select_document_roots(tex)
+            roots = es.select_document_roots(sorted(d.glob("*.tex")))
         self.assertEqual([p.name for p in roots], ["aperture.tex"])
 
     def test_documentstyle_counts_as_a_document_marker(self):
         # LaTeX 2.09; still used by pre-1995 arXiv sources such as
         # Kaiser, Squires & Broadhurst (1995) and Refregier (2003).
         with tempfile.TemporaryDirectory() as tmp:
-            tex = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "main.tex": r"\documentstyle[aaspp]{article}" "\nbody\n",
                 "macros.tex": r"\def\x{1}" "\n",
             })
-            roots = es.select_document_roots(tex)
+            roots = es.select_document_roots(sorted(d.glob("*.tex")))
         self.assertEqual([p.name for p in roots], ["main.tex"])
 
     def test_separate_bundles_do_not_shadow_each_other(self):
@@ -404,21 +416,15 @@ class DocumentRootTests(unittest.TestCase):
         self.assertEqual(len(roots), 2)
 
 
-class TexDocumentAssemblyTests(unittest.TestCase):
-    r"""Dropping a fragment must not drop the prose it holds.
+class BundleRootSelectionTests(unittest.TestCase):
+    """A bundle subdirectory is one paper, and that paper is read once.
 
-    `WeakLens.tex` is 72 words of \include calls; the ~40,000-word review it
-    names lives in the eleven chapter files. Selecting the root and reading
-    it with `read_text` is as wrong as counting each chapter as its own
-    paper -- it replaces a twelvefold overcount with a total loss.
+    Given the source directory as `bundle_root`, each subdirectory under it is
+    one arXiv submission and keeps only the root with the most classified
+    prose, because bundles ship the journal's worked example beside the
+    manuscript; a file lying directly in the source directory stays a paper
+    of its own. The root kept is read with its includes spliced in once.
     """
-
-    def _bundle(self, tmp: str, files: dict[str, str]) -> pathlib.Path:
-        d = pathlib.Path(tmp) / "bundle"
-        d.mkdir(parents=True, exist_ok=True)
-        for name, body in files.items():
-            (d / name).write_text(body, encoding="utf-8")
-        return d
 
     def test_a_bundle_yields_one_paper_not_the_journal_template(self):
         # 27 of the 500 wgl arXiv bundles ship the journal's class
@@ -452,7 +458,7 @@ class TexDocumentAssemblyTests(unittest.TestCase):
 
     def test_the_whole_bundle_is_read_exactly_once(self):
         with tempfile.TemporaryDirectory() as tmp:
-            d = self._bundle(tmp, {
+            d = write_bundle(tmp, {
                 "main.tex": r"\documentclass{article}" "\n"
                             r"\include{ch}" "\n",
                 "ch.tex": r"\section{Results}" "\nUNIQUE MARKER\n",

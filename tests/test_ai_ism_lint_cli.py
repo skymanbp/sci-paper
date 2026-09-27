@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+
+from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
+
+import ai_ism_lint as lint
 
 ROOT = Path(__file__).resolve().parents[1]
 LINTER = ROOT / "tools" / "ai_ism_lint.py"
@@ -355,16 +361,7 @@ class LexicalRuleTests(unittest.TestCase):
 
 
 class DocumentAssemblyTests(unittest.TestCase):
-    """The lint path must read the same document the corpus path reads.
-
-    `extract_sections.latex_to_plain` promises that its projections "can never
-    drift apart in how they treat comments". The L0 lexical scan is a third
-    view -- it must see `---` as authored, so it can use neither projection --
-    and it sat outside that promise, reading raw file text. On a real
-    manuscript that made 3 of 3 em-dash targets false, every one a
-    `% --- lane A: ...` comment rule, and reading only the root file measured
-    678 of 23,505 words while four axes still reported `measured`.
-    """
+    """The lint path measures `ai_ism_lint.document_source`; its docstring says why."""
 
     def lint(self, files: "dict[str, str]"):
         with tempfile.TemporaryDirectory() as temporary:
@@ -381,7 +378,7 @@ class DocumentAssemblyTests(unittest.TestCase):
 
     def test_an_em_dash_inside_a_latex_comment_is_not_a_target(self):
         result = self.lint({"main.tex":
-                            "% --- lane A: all from notes/v19.json, run 2026-07-09 ---\n"
+                            "% --- calibration block: values from run 3 ---\n"
                             "\\section{Methods}\nThe shear catalog is measured.\n"})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("L0=0", result.stdout)
@@ -399,6 +396,129 @@ class DocumentAssemblyTests(unittest.TestCase):
             "sections/body.tex": "The catalog---measured here---is used.\n"})
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertNotIn("L0=0", result.stdout)
+
+
+class LegacyClassifierTests(unittest.TestCase):
+    """`--ai-classifier` (the L3 legacy axis), with a stub in place of the joblib."""
+
+    TEXT = ("\\section{Methods}\nWe fit the model to the binned counts.\n\n"
+            "The residuals stay within the quoted errors.\n")
+
+    class Stub:
+        """A fitted classifier that gives every paragraph one probability."""
+
+        classes_ = [0, 1]
+
+        def __init__(self, probability: float):
+            self.probability = probability
+
+        def predict_proba(self, paragraphs):
+            return [[1.0 - self.probability, self.probability] for _ in paragraphs]
+
+    def lexical(self, loaded: dict, **options):
+        """(L3 findings, L3 axis status or None, the patched loader)."""
+        with mock.patch.object(lint, "load_ai_classifier", **loaded) as loader:
+            findings, axes = lint.lexical_findings(self.TEXT, Path("d.tex"), None, **options)
+        status = {axis["axis"]: axis for axis in axes}.get("L3.legacy_classifier")
+        return [f for f in findings if f["layer"] == "L3"], status, loader
+
+    def test_a_paragraph_at_or_above_the_threshold_is_a_degraded_advisory(self):
+        legacy, status, _ = self.lexical({"return_value": self.Stub(0.9)}, ai_classifier=True)
+        self.assertEqual(status["status"], "degraded")
+        self.assertEqual([(f["location"]["start_line"], f["location"]["end_line"])
+                          for f in legacy], [(1, 2), (4, 4)])
+        for finding in legacy:
+            self.assertEqual((finding["kind"], finding["rule"], finding["measurement_status"]),
+                             ("advisory", "legacy-classifier-high", "degraded"))
+            self.assertEqual(finding["observed"], {"legacy_similarity_score": 0.9})
+            self.assertEqual(finding["reference"]["user_threshold"], 0.7)
+            self.assertAlmostEqual(finding["normalized_distance"], 0.2)
+        # The test is `score < threshold`, so a score at the threshold is flagged.
+        at_threshold, _, _ = self.lexical({"return_value": self.Stub(0.5)},
+                                          ai_classifier=True, ai_threshold=0.5)
+        self.assertEqual(len(at_threshold), 2)
+
+    def test_a_score_below_the_threshold_leaves_the_axis_degraded_and_silent(self):
+        legacy, status, _ = self.lexical({"return_value": self.Stub(0.5)}, ai_classifier=True)
+        self.assertEqual((legacy, status["status"]), ([], "degraded"))
+
+    def test_no_classifier_is_unmeasured(self):
+        for loaded, reason in (
+                ({"return_value": None}, "ai_ism_classifier.joblib is unavailable"),
+                ({"side_effect": ImportError("No module named 'joblib'")}, "joblib")):
+            legacy, status, _ = self.lexical(loaded, ai_classifier=True)
+            self.assertEqual((legacy, status["status"]), ([], "unmeasured"))
+            self.assertIn(reason, status["reason"])
+
+    def test_with_the_option_off_no_legacy_axis_is_reported_or_loaded(self):
+        legacy, status, loader = self.lexical({"return_value": self.Stub(0.9)})
+        self.assertEqual((legacy, status), ([], None))
+        loader.assert_not_called()
+
+
+class SkillMirrorTests(unittest.TestCase):
+    """skills/paper/SKILL.md mirrors the four L0 patterns and the validator
+    holds it to them both ways (audit H8): `paved` and `showcased` once sat in
+    the skill's table while the linter passed them."""
+
+    SKILL = (ROOT / "skills" / "paper" / "SKILL.md").read_text(encoding="utf-8")
+
+    def failures(self, skill_text: str | None = None) -> list[str]:
+        """`validator_check`'s failure messages on a repository holding `skill_text`."""
+        messages: list[str] = []
+
+        def require(condition, message):
+            if not condition:
+                messages.append(message)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            skill = Path(temporary) / "skills" / "paper" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text(self.SKILL if skill_text is None else skill_text,
+                             encoding="utf-8")
+            lint.validator_check(Path(temporary), require)
+        return messages
+
+    def test_the_repository_passes_its_own_check(self):
+        self.assertEqual(self.failures(), [])
+
+    def test_a_form_the_skill_drops_is_reported(self):
+        for name, listed, shorter, form in (
+                ("TIER_A_PATTERN", "`pave / paves / paved / paving`",
+                 "`pave / paves / paving`", "paved"),
+                ("TIER_A_OPENER_PATTERN", "`It is worth noting`, ", "", "it is worth noting"),
+                ("TIER_A_PARAGRAPH_CONNECTOR_PATTERN", ", `Notably,`", "", "Notably,"),
+                ("TIER_B_PATTERN", "`intricate`, ", "", "intricate")):
+            with self.subTest(name):
+                self.assertEqual(self.SKILL.count(listed), 1)
+                failures = self.failures(self.SKILL.replace(listed, shorter))
+                self.assertEqual(len(failures), 1, failures)
+                self.assertIn(f"mirror of {name} ", failures[0])
+                self.assertIn(f"matched but not listed=[{form!r}]", failures[0])
+
+    def test_a_form_the_linter_drops_is_reported(self):
+        for name, alternative, form in (
+                ("TIER_A_PATTERN", "paved|", "paved"),
+                ("TIER_A_OPENER_PATTERN", "|it is worth noting", "It is worth noting"),
+                ("TIER_A_PARAGRAPH_CONNECTOR_PATTERN", "|Notably", "Notably,"),
+                ("TIER_B_PATTERN", "intricate|", "intricate")):
+            with self.subTest(name):
+                pattern = lint.MIRRORED[name]
+                self.assertEqual(pattern.pattern.count(alternative), 1)
+                narrower = re.compile(pattern.pattern.replace(alternative, ""), pattern.flags)
+                with mock.patch.dict(lint.MIRRORED, {name: narrower}):
+                    failures = self.failures()
+                self.assertEqual(len(failures), 1, failures)
+                self.assertIn(f"mirror of {name} ", failures[0])
+                self.assertIn(f"listed but not matched=[{form!r}]", failures[0])
+
+    def test_a_pattern_language_is_its_forms_without_their_context(self):
+        self.assertEqual(lint.pattern_language(re.compile(r"(?i)\bfoster(?:s|ing|ed)?\b")),
+                         {"foster", "fosters", "fostering", "fostered"})
+        self.assertEqual(lint.pattern_language(lint.TIER_A_PARAGRAPH_CONNECTOR_PATTERN),
+                         {"Importantly,", "Interestingly,", "Notably,", "Crucially,"})
+        with self.assertRaises(ValueError):  # an unbounded pattern has no finite mirror
+            lint.pattern_language(re.compile(r"\bdelv\w+"))
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 
@@ -235,6 +236,19 @@ class CliContractTests(unittest.TestCase):
             code, _out, err = self.run_main([str(root / "missing.tex"),
                                              "--profile-root", str(empty)])
             self.assertEqual((code, "file not found" in err), (2, True))
+
+    def test_the_cli_measures_the_document_once(self):
+        # The findings and the axis status each ran the sweep (audit B22).
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            draft = root / "draft.tex"
+            draft.write_text(document({"Results": UNANCHORED}), encoding="utf-8")
+            (root / "profiles").mkdir()
+            with mock.patch.object(anchoring, "document_anchoring",
+                                   wraps=anchoring.document_anchoring) as measure:
+                code, _out, _err = self.run_main([str(draft), "--profile-root",
+                                                  str(root / "profiles")])
+        self.assertEqual((code, measure.call_count), (0, 1))
 
     def test_calibrate_needs_an_existing_field(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -53,11 +53,12 @@ BUCKETS = ("method", "results", "data", "intro", "discussion", "conclusion",
 AXIS_TABLE_ORDER = ("abstract", "method", "data", "intro", "discussion",
                     "results", "conclusion")
 # The per-rule table in examples/README.md, in its order: one rule named with
-# its variant, one with its layer, six with neither. Which rules the
+# its variant, one with its layer, seven with neither. Which rules the
 # walkthrough tabulates is the document's choice; every count in it is the
 # linter's.
 EXAMPLE_RULE_ROWS = (
     ("`discourse-cohesion`", "discourse-cohesion"),
+    ("`discourse-hedging`", "discourse-hedging"),
     ("`em-dash` (L0)", "em-dash"),
     ("`ing-tail:highlighting`", "ing-tail:highlighting"),
     ("`document-uniformity`", "document-uniformity"),
@@ -95,12 +96,6 @@ def bucket_n(name: str) -> dict[str, int]:
     return {key: value["n"] for key, value in artifact(name).items()}
 
 
-def by_dot(counts: dict[str, int]) -> str:
-    """The `name n · name n` ordering §19.1 uses: largest bucket first."""
-    return " · ".join(f"{key} {counts[key]:,}"
-                       for key in sorted(counts, key=lambda key: -counts[key]))
-
-
 def gate(name: str, feature: str, bucket: str, places: int) -> str:
     """The feature value at the advisory gate, as §19 prints it."""
     reference = artifact(name)[bucket]["percentiles"][feature]
@@ -109,7 +104,7 @@ def gate(name: str, feature: str, bucket: str, places: int) -> str:
 
 
 def by_n(counts: dict[str, int]) -> str:
-    """The `name n · name n` ordering both READMEs use: largest bucket first."""
+    """The `name n · name n` ordering both READMEs and §19.1 use: largest first."""
     return " · ".join(f"{key} {counts[key]:,}"
                       for key in sorted(counts, key=lambda key: -counts[key]))
 
@@ -245,8 +240,8 @@ def expectations(document: str) -> list[tuple[str, str]]:
         # error the axis exists to prevent -- so both are pinned to their own
         # artifact, including the p10 gate each bucket abstains or fires at.
         return [
-            ("cohesion buckets", f"| paragraph | {by_dot(bucket_n('cohesion_baseline.json'))} |"),
-            ("hedging buckets", f"| section | {by_dot(bucket_n('hedging_baseline.json'))} |"),
+            ("cohesion buckets", f"| paragraph | {by_n(bucket_n('cohesion_baseline.json'))} |"),
+            ("hedging buckets", f"| section | {by_n(bucket_n('hedging_baseline.json'))} |"),
             ("bank size", f"the {bank_size():,}-paragraph `{FIELD}` bank"),
         ] + [(f"hedging gate: {bucket}",
               f"| {bucket} | {gate('hedging_baseline.json', 'hedging', bucket, 3)} |")
@@ -255,7 +250,6 @@ def expectations(document: str) -> list[tuple[str, str]]:
         salience = bucket_n("salience_baseline.json")
         register = artifact("register_lexicon.json")
         return [
-            ("bucket-history total", f"| **{sum(structure.values()):,}** |"),
             ("axis table: register",
              f"{register['n_passages']:,} corpus passages, "
              f"{len(register['document_frequency']):,} terms"),
@@ -281,6 +275,9 @@ def expectations(document: str) -> list[tuple[str, str]]:
          "mean surprisal {} ± {}.".format(*pooled_uid("mean_surprisal"))),
         ("structure total",
          f"contains {sum(structure.values()):,} paragraph observations"),
+        # §5's bank-history table ends on the current build; its total row is
+        # the artifact's, the earlier columns are history.
+        ("bucket-history total", f"| **{sum(structure.values()):,}** |"),
     ]
     for bucket in BUCKETS:
         # Section 5's `name n` list wraps across source lines, so the whole
@@ -324,7 +321,7 @@ class PublishedFiguresMatchTheirArtifactsTest(unittest.TestCase):
         self.assert_document_carries_its_figures(UID_DOC)
 
     @needs_profile
-    def test_the_evaluation_hub_bucket_table(self) -> None:
+    def test_the_evaluation_hub_axis_table(self) -> None:
         self.assert_document_carries_its_figures(EVALUATION_DOC)
 
     @needs_profile
@@ -350,4 +347,13 @@ class TheCheckKnowsWhatItIsCheckingTest(unittest.TestCase):
         # than no check: it reports agreement it never established.
         self.assertEqual(HAVE_PROFILE,
                          (PROFILE / "uid_baseline.json").is_file())
-        self.assertIs(needs_profile, needs_profile)
+
+        class Probe(unittest.TestCase):
+            @needs_profile
+            def test_figure(self) -> None:
+                """Stands in for any figure case above."""
+
+        result = unittest.TestResult()
+        Probe("test_figure").run(result)
+        self.assertTrue(result.wasSuccessful())
+        self.assertEqual(len(result.skipped), 0 if HAVE_PROFILE else 1)

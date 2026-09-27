@@ -296,34 +296,43 @@ class TestFindingsAndCalibration(unittest.TestCase):
 
 
 class TestBucketRestriction(unittest.TestCase):
-    """Hedging is calibrated for introductions only, and has to say so."""
+    """Hedging is calibrated for introductions and methods only, and has to say so."""
 
     def test_hedging_declares_its_restriction_and_cohesion_declares_none(self):
-        self.assertEqual(discourse.AXES["hedging"]["buckets"], ("intro",))
+        self.assertEqual(discourse.AXES["hedging"]["buckets"], ("intro", "method"))
         self.assertIsNone(discourse.AXES["cohesion"]["buckets"])
 
     def test_a_resolving_bucket_outside_the_restriction_stays_silent(self):
-        with fixture.temp_profile(graded_bank(section="method"),
+        with fixture.temp_profile(graded_bank(section="results"),
                                   prefix="discourse-") as profile:
             discourse.calibrate(profile)
             # The reference resolves; the restriction is what silences it.
             baseline = discourse.LOADERS["hedging"](profile)
             self.assertTrue(
-                discourse.resolves_below_gate(baseline["method"], "hedging"))
+                discourse.resolves_below_gate(baseline["results"], "hedging"))
             self.assertEqual(discourse.live_buckets("hedging", profile), [])
-            self.assertEqual(discourse.live_buckets("cohesion", profile), ["method"])
+            self.assertEqual(discourse.live_buckets("cohesion", profile), ["results"])
+
+    def test_a_method_reference_speaks_for_hedging(self):
+        with fixture.temp_profile(graded_bank(section="method"),
+                                  prefix="discourse-") as profile:
+            discourse.calibrate(profile)
+            self.assertEqual(discourse.live_buckets("hedging", profile), ["method"])
+            rules = {f["rule"] for f in discourse.discourse_findings(
+                document(POOR, "Methods"), profile)}
+            self.assertIn("discourse-hedging:method", rules)
 
     def test_status_and_detection_agree_on_which_buckets_are_live(self):
-        with fixture.temp_profile(graded_bank(section="method"),
+        with fixture.temp_profile(graded_bank(section="results"),
                                   prefix="discourse-") as profile:
             discourse.calibrate(profile)
             statuses = {s["axis"]: s for s in
                         discourse.discourse_axis_status(profile)}
             self.assertEqual(statuses["L2.hedging"]["status"], "degraded")
             rules = {f["rule"] for f in discourse.discourse_findings(
-                document(POOR, "Methods"), profile)}
-            self.assertNotIn("discourse-hedging:method", rules)
-            self.assertIn("discourse-cohesion:method", rules)
+                document(POOR, "Results"), profile)}
+            self.assertNotIn("discourse-hedging:results", rules)
+            self.assertIn("discourse-cohesion:results", rules)
 
 
 class TestLocalReference(unittest.TestCase):
@@ -348,8 +357,8 @@ class TestLocalReference(unittest.TestCase):
         self.assertEqual(statuses["L2.cohesion"], "measured")
         self.assertEqual(statuses["L2.hedging"], "measured")
 
-    def test_hedging_is_live_for_introductions_only(self):
-        self.assertEqual(discourse.live_buckets("hedging", self.PROFILE), ["intro"])
+    def test_hedging_is_live_for_introductions_and_methods_only(self):
+        self.assertEqual(discourse.live_buckets("hedging", self.PROFILE), ["intro", "method"])
 
     def test_an_unlinked_flat_introduction_is_flagged_on_both_axes(self):
         rules = {f["rule"] for f in discourse.discourse_findings(

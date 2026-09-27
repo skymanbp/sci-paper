@@ -37,19 +37,15 @@ from extract_sections import (  # noqa: F401 -- re-export, unused here by design
     RE_HEADING_MATH, RE_HEADING_TEXORPDF, RE_PDF_LINE_HEADER, RE_PLACEHOLDER, RE_SECTION,
     RE_TEX_BEGIN_END, RE_TEX_BRACES, RE_TEX_CITE, RE_TEX_CITE_SILENT, RE_TEX_CITE_TEXT,
     RE_TEX_COMMENT, RE_TEX_DISPLAY_MATH, RE_TEX_ENV_FIGURE_TABLE, RE_TEX_INCLUDEGRAPHICS,
-    RE_TEX_INLINE_MATH, RE_TEX_DOC_MARKER, RE_TEX_INCLUDE, RE_TEX_LABEL_REF, RE_TEX_MATH_CMD,
+    RE_TEX_INLINE_MATH, RE_TEX_DOC_MARKER, RE_TEX_LABEL_REF, RE_TEX_MATH_CMD,
     RE_TEX_SIMPLE_CMD, RE_TEX_THIN_COMMA, RE_TEX_TILDE, RE_SENTENCE_TERMINAL, SECTION_PATTERNS,
     PDF_HEADING_MIN_LETTER_FRAC, PDF_HEADING_MIN_LETTERS, PDF_HEADING_MIN_WORDS,
-    _classify_pdf_heading, _include_targets, _math_numerals, _resolve_include,
-    _rejoin_pdf_paragraphs, blank_preserving, classify_section, clean_heading, corpus_documents,
-    extract_pdf_text, latex_to_numeral_text, latex_to_plain, PLAIN_PLACEHOLDERS, _project,
-    prose_words, read_tex_document, select_document_roots, split_into_sections,
+    _classify_pdf_heading, _math_numerals, PLACEHOLDER_SHAPE, PLAIN_INLINE,
+    _rejoin_pdf_paragraphs, blank_preserving, bundle_documents, classify_section, clean_heading,
+    corpus_documents, extract_pdf_text, latex_to_numeral_text, latex_to_plain, PLAIN_PLACEHOLDERS,
+    _project, prose_words, read_tex_document, select_document_roots, split_into_sections,
     split_pdf_into_sections,
 )
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CORPUS_ROOT = REPO_ROOT / "style-corpus"
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 
 # The curated tiers. The weights are RECORDED metadata (they travel with each
 # observation) and are NOT applied: every aggregate pools the tiers equally,
@@ -84,7 +80,9 @@ def resolve_field(arg_field: str | None, corpus_root: Path) -> str:
 # the opener statistics, so `intro` lost its citation-led paragraphs. Nor are
 # the tokens words: counted, they inflated sentence lengths, the em-dash
 # denominator and the lexicon, and let a 25-word paragraph into the bank.
-_RE_PLAIN_PLACEHOLDER_TOKEN = re.compile(r"\[(?:MATH|math|FIGURE-OR-TABLE|CITE)\]")
+# Built from the owner's vocabulary, so a placeholder added there is dropped here.
+_RE_PLAIN_PLACEHOLDER_TOKEN = re.compile("|".join(
+    re.escape(token.strip()) for token in (PLAIN_INLINE, *PLAIN_PLACEHOLDERS.values())))
 
 
 def without_placeholders(text: str) -> str:  # every placeholder becomes a space
@@ -393,7 +391,7 @@ def _math_numerals_slotted(match: "re.Match[str]") -> str:
     `$\\vec{\\nabla}$` alone on a line is a `[math]` paragraph in the plain
     view and would be a swallowed blank line in the numeral one."""
     reduced = _math_numerals(match)
-    return reduced if reduced.strip() else " [math] "
+    return reduced if reduced.strip() else PLAIN_INLINE
 
 
 def paired_paragraphs(text: str) -> tuple[str, list[str] | None]:
@@ -507,11 +505,16 @@ def write_dossier(
     lexicon: dict,
     n_papers: int,
     field: str,
+    skipped: int = 0,
 ) -> None:
     lines = []
     lines.append(f"# Style Dossier — field: `{field}` (auto-generated)\n")
+    # The run's final summary names the files it could not read; so does the
+    # header of the dossier built without them.
+    skipped_note = (f" {skipped} source file(s) SKIPPED (pymupdf unavailable): this "
+                    "dossier does not describe them." if skipped else "")
     lines.append(f"Built from {n_papers} corpus papers under "
-                 f"`style-corpus/{field}/`. Re-run "
+                 f"`style-corpus/{field}/`.{skipped_note} Re-run "
                  f"`python tools/extract_style.py --field {field}` after "
                  "corpus changes.\n")
     lines.append("> Descriptive evidence only. Normative policy lives in "
@@ -520,10 +523,13 @@ def write_dossier(
                  "and regenerate.\n")
 
     lines.append("\n## 1. Sentence length per section\n")
-    if not sentence_stats:
+    # `unknown` is not a section: sectionless `.tex`, `.txt` and heading-less
+    # PDF text all land there, so "no sections" never meant an empty dict. The
+    # hint joins the table rather than replacing it: `unknown` was measured.
+    if not set(sentence_stats) - {DEFAULT_SECTION_BUCKET}:
         lines.append("_No sections detected. Are you using `.tex` source with "
                      "`\\section{}` markers?_\n")
-    else:
+    if sentence_stats:
         lines.append("| Section | n | mean | median | stdev | p25 | p75 | p95 |")
         lines.append("|---|---|---|---|---|---|---|---|")
         for sec, st in sorted(sentence_stats.items()):
@@ -618,14 +624,7 @@ def main(argv: list[str] | None = None) -> int:
     # build_profile.py does when it captures this tool's output -- the default
     # encoder raises UnicodeEncodeError and the run dies after the work is done.
     cli_common.utf8_stdout()
-    p = cli_common.base_parser(__doc__)
-    p.add_argument("--field", default=None,
-                   help="Field name (subdir under style-corpus/). "
-                        "Auto-detected when only one field exists.")
-    p.add_argument("--corpus-root", type=Path, default=DEFAULT_CORPUS_ROOT,
-                   help="Root corpus dir (default: style-corpus/).")
-    p.add_argument("--profile-root", type=Path, default=DEFAULT_PROFILE_ROOT,
-                   help="Root profile dir (default: style-profile/).")
+    p = cli_common.field_parser(__doc__, corpus=True)
     args = p.parse_args(argv)
 
     field = resolve_field(args.field, args.corpus_root)
@@ -724,6 +723,7 @@ def main(argv: list[str] | None = None) -> int:
         lexicon,
         n_papers=len(per_paper),
         field=field,
+        skipped=skipped,
     )
 
     n_exemplars = write_exemplar_bank(per_paper + reference_papers, field_profile)

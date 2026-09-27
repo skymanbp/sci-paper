@@ -8,8 +8,11 @@ mathematical-density confounding.
 
 Split out of `train_voice_model.py` on 2026-08-26, which had reached 1,174
 lines against the repository's 750-line budget and could no longer be edited.
-Nothing here fits a model; a bundle stays degraded until an operating point and
-a confound audit are recorded, and these functions produce that evidence.
+Nothing here fits a model that ships: `repeated_group_audit` fits two
+audit-only logistic regressions per split (raw and section-normalized UID) and
+keeps only their held-out scores. A bundle stays degraded until an operating
+point and a confound audit are recorded, and these functions produce that
+evidence.
 """
 
 from __future__ import annotations
@@ -23,6 +26,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import deai_features as df  # noqa: E402  resolves only after the sys.path insert
 import voice_dataset as vd  # noqa: E402  resolves only after the sys.path insert
+# The suite's one midrank AUC, because a second copy here could drift from it.
+from eval_docscale import rank_auc  # noqa: E402  because of the sys.path insert
 
 # Hard-set provenance categories. They live here rather than in the CLI because
 # `hardset_evaluation` below is their only consumer; `train_voice_model`
@@ -60,24 +65,11 @@ def _math_bin(value: float, nonzero_median: float) -> str:
     return "present-high"
 
 
-def _auc(y_values: list[int], scores: list[float]) -> float | None:
-    n_pos = sum(y_values)
-    n_neg = len(y_values) - n_pos
-    if not n_pos or not n_neg:
-        return None
-    ordered = sorted(zip(scores, y_values), key=lambda pair: pair[0])
-    rank_sum = 0.0
-    position = 1
-    cursor = 0
-    while cursor < len(ordered):
-        end = cursor + 1
-        while end < len(ordered) and ordered[end][0] == ordered[cursor][0]:
-            end += 1
-        average_rank = (position + position + (end - cursor) - 1) / 2.0
-        rank_sum += average_rank * sum(label for _, label in ordered[cursor:end])
-        position += end - cursor
-        cursor = end
-    return (rank_sum - n_pos * (n_pos + 1) / 2.0) / (n_pos * n_neg)
+def _by_class(y_values, scores) -> tuple[list[float], list[float]]:
+    """(label-0 scores, label-1 scores): `rank_auc`'s argument order, which
+    gives P(a label-1 score outranks a label-0 one), ties at midrank."""
+    pairs = list(zip(y_values, scores))
+    return [s for y, s in pairs if not y], [s for y, s in pairs if y]
 
 
 def binary_metrics(y_values, scores, threshold: float = 0.5) -> dict:
@@ -113,7 +105,7 @@ def binary_metrics(y_values, scores, threshold: float = 0.5) -> dict:
         "n_negative": len(labels) - sum(labels),
         "score_mean": statistics.mean(probabilities) if probabilities else None,
         "score_median": statistics.median(probabilities) if probabilities else None,
-        "auc": _auc(labels, probabilities),
+        "auc": rank_auc(*_by_class(labels, probabilities)),
         "positive_recall": tpr,
         "negative_false_positive_rate": fpr,
         "f1_positive": f1,
@@ -210,7 +202,7 @@ def _bootstrap_auc_ci(y_values: list[int], scores: list[float], *,
     Small author-labelled strata have wide sampling error; a point AUC without
     an interval invites the exact over-reading this hard set previously caused.
     """
-    point = _auc(y_values, scores)
+    point = rank_auc(*_by_class(y_values, scores))
     if point is None:
         return None
     import numpy as np
@@ -219,7 +211,7 @@ def _bootstrap_auc_ci(y_values: list[int], scores: list[float], *,
     draws: list[float] = []
     for _ in range(n_boot):
         idx = rng.integers(0, n, size=n)
-        value = _auc([y_values[i] for i in idx], [scores[i] for i in idx])
+        value = rank_auc(*_by_class([y_values[i] for i in idx], [scores[i] for i in idx]))
         if value is not None:
             draws.append(value)
     draws.sort()
@@ -362,14 +354,20 @@ def hardset_evaluation(field_dir: Path, bundle: dict, model_name: str) -> dict:
 
 
 def confound_audit(recs: list[dict], X, train_indices, validation_indices,
-                   y_validation, scores, threshold: float = 0.5) -> dict:
-    """Build one split's confound report without creating an operating point."""
+                   y_validation, scores, threshold: float = 0.5, *,
+                   math_density: list[float] | None = None) -> dict:
+    """Build one split's confound report without creating an operating point.
+
+    `math_density` is every record's `df.math_marker_density`, which no split
+    changes; `repeated_group_audit` measures it once and passes it to each call.
+    """
     train_indices = [int(i) for i in train_indices]
     validation_indices = [int(i) for i in validation_indices]
     lexicon, lexicon_meta = vd.build_field_lexicon(recs, train_indices)
     word_index = df.FEATURE_NAMES.index("word_count")
     word_counts = [float(X[i, word_index]) for i in range(len(recs))]
-    math_density = [df.math_marker_density(record["text"]) for record in recs]
+    if math_density is None:
+        math_density = [df.math_marker_density(record["text"]) for record in recs]
     jargon_density = [df.lexicon_density(record["text"], lexicon) for record in recs]
 
     train_lengths = [word_counts[i] for i in train_indices]
@@ -559,6 +557,9 @@ def repeated_group_audit(recs: list[dict], X, y, groups, *, n_splits: int,
     normalized_reports: list[dict] = []
     paired_deltas: dict[str, list[float]] = defaultdict(list)
     split_records: list[dict] = []
+    # Once per audit: a record's math density does not depend on the split, and
+    # each split's two confound_audit calls read the same list.
+    math_density = [df.math_marker_density(record["text"]) for record in recs]
     attempts = 0
     maximum_attempts = max(20, n_splits * 20)
     while len(raw_reports) < n_splits and attempts < maximum_attempts:
@@ -586,7 +587,7 @@ def repeated_group_audit(recs: list[dict], X, y, groups, *, n_splits: int,
             raw_scaler.transform(X_split[validation_indices]))[:, positive_column]
         raw_report = confound_audit(
             recs, X_split, train_indices, validation_indices, y_validation,
-            raw_scores)
+            raw_scores, math_density=math_density)
 
         normalized_X, normalization = section_normalize_uid(
             X_split, recs, train_indices)
@@ -600,7 +601,7 @@ def repeated_group_audit(recs: list[dict], X, y, groups, *, n_splits: int,
             normalized_scaler.transform(normalized_X[validation_indices]))[:, positive_column]
         normalized_report = confound_audit(
             recs, X_split, train_indices, validation_indices,
-            y_validation, normalized_scores)
+            y_validation, normalized_scores, math_density=math_density)
 
         raw_reports.append(raw_report)
         normalized_reports.append(normalized_report)
