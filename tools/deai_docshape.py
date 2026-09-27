@@ -171,30 +171,65 @@ def _pairwise_similarity(vectors: list[list[float]]) -> float | None:
     return statistics.mean(values) if values else None
 
 
-def document_shape(text: str) -> dict[str, Any]:
-    """Measure document shape or return an explicit insufficient-evidence state."""
+def shape_units(text: str) -> list[dict[str, Any]]:
+    """The prose sections a document is measured on, with their raw blocks.
+
+    One dict per unit of `deai_metrics.section_units` whose bucket is prose:
+    `{"label", "start_line", "end_line", "blocks": [(start, end, block), ...]}`.
+    The preamble and every `skip` unit (acknowledgements, appendices, the
+    reference list, affiliations) are dropped, on the calibration side and
+    the detection side alike. Until 2026-09-27 this sweep read
+    `section_line_ranges`, which carries no bucket, so a bibliography or an
+    appendix entered the dispersion, role-coupling and section-arc
+    measurements as body prose; a docstructure baseline built before the
+    change must be rebuilt, since its every value carried them.
+    `deai_partition` cuts its candidate blocks from this same list.
+    """
     lines = text.splitlines()
-    sections: list[dict[str, Any]] = []
-    for start, end, label in metrics.section_line_ranges(text):
-        if label == "(preamble)":
+    units: list[dict[str, Any]] = []
+    for start, end, label, bucket in metrics.section_units(text):
+        if bucket in (metrics.PREAMBLE_BUCKET, "skip"):
             continue
         segment = "\n".join(lines[start - 1:end])
-        paragraphs = []
-        for p_start, p_end, block in metrics.paragraph_line_ranges(segment, start):
-            if len(es.words(es.latex_to_plain(block))) < MIN_WORDS:
-                continue
-            paragraphs.append({
-                "start_line": p_start,
-                "end_line": p_end,
-                "vector": _shape_vector(block),
-                "modelfree": _paragraph_modelfree(block),
-                # cheap content-role markers for role-coupled dispersion
-                "has_cite": "\\cite" in block,
-                "has_math": bool(_MATH_MARKER_RE.search(block)),
-            })
-        if len(paragraphs) >= MIN_PARAGRAPHS_PER_SECTION:
-            sections.append({"label": label, "start_line": start,
-                             "end_line": end, "paragraphs": paragraphs})
+        units.append({"label": label, "start_line": start, "end_line": end,
+                      "blocks": metrics.paragraph_line_ranges(segment, start)})
+    return units
+
+
+def measurable_sections(units: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The units `document_shape` scores, each cut down to its scored blocks.
+
+    A block counts when it carries at least MIN_WORDS of prose, and a unit
+    stays when it holds at least MIN_PARAGRAPHS_PER_SECTION such blocks; a
+    document needs MIN_SECTIONS surviving units, which the caller checks.
+    One filter for both consumers of the dispersion manifold: `deai_partition`
+    applied only the word floor, so its starting distance for a document was
+    not the distance `deai_docstructure` reported for the same file.
+    """
+    kept = []
+    for unit in units:
+        blocks = [item for item in unit["blocks"]
+                  if len(es.words(es.latex_to_plain(item[2]))) >= MIN_WORDS]
+        if len(blocks) >= MIN_PARAGRAPHS_PER_SECTION:
+            kept.append({**unit, "blocks": blocks})
+    return kept
+
+
+def document_shape(text: str) -> dict[str, Any]:
+    """Measure document shape or return an explicit insufficient-evidence state."""
+    sections: list[dict[str, Any]] = []
+    for unit in measurable_sections(shape_units(text)):
+        paragraphs = [{
+            "start_line": p_start,
+            "end_line": p_end,
+            "vector": _shape_vector(block),
+            "modelfree": _paragraph_modelfree(block),
+            # cheap content-role markers for role-coupled dispersion
+            "has_cite": "\\cite" in block,
+            "has_math": bool(_MATH_MARKER_RE.search(block)),
+        } for p_start, p_end, block in unit["blocks"]]
+        sections.append({"label": unit["label"], "start_line": unit["start_line"],
+                         "end_line": unit["end_line"], "paragraphs": paragraphs})
     if len(sections) < MIN_SECTIONS:
         return {
             "status": "insufficient_evidence",

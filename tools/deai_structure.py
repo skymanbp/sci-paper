@@ -1,8 +1,8 @@
 """Model-free sentence-construction feedback for scientific prose (L2).
 
 The detector reports concrete template families without making authorship
-claims. :func:`structure_findings` is the structured API;
-:func:`structure_hits` is the compatibility tuple adapter.
+claims. :func:`structure_findings` is the structured API. (A tuple adapter
+shipped beside it until 2026-09-27; nothing called it.)
 """
 
 from __future__ import annotations
@@ -17,11 +17,10 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_feedback as feedback  # noqa: E402  sibling import after path setup
+import deai_metrics as metrics  # noqa: E402  the shared policy reader
 import deai_reference as reference  # noqa: E402  the shared paragraph sweep
 import extract_style as es  # noqa: E402  canonical tokenizer
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 _COUNT = r"two|three|four|five|six|seven|eight|2|3|4|5|6|7|8"
 _ENUM_NOUN = (r"elements|components|parts|ingredients|obligations|requirements|"
               r"properties|features|reasons|ways|steps|aspects|criteria|"
@@ -38,7 +37,18 @@ RE_ENUM_VERB = re.compile(
     rf"depends?|builds?|require|requires|involve|involves|follow|follows|"
     rf"proceeds?|breaks? down)\b[^.\n]{{0,30}}\b(on|of|into|from|in)\b"
     rf"[^.\n]{{0,20}}\b({_COUNT})\b", re.I)
-RE_TRICOLON_WRAP = re.compile(rf"\bthese\s+({_COUNT})\s+\w+", re.I)
+# The wrap-up beat of a set-up/list/wrap-up template: a sentence that OPENS
+# with "These N <nouns>" and then closes the list with a summing verb. Matched
+# per sentence at its start. Until 2026-09-27 the pattern was `these N \w+`
+# anywhere in a paragraph, which read "represent these two quantities" -- a
+# plain object noun phrase -- as a wrap-up, and that count entered both
+# `template_score` and the document-dispersion manifold, so a structure or
+# docstructure baseline built before the change must be rebuilt.
+_WRAP_VERB = (r"together|jointly|defines?|forms?|constitutes?|determines?|spans?|"
+              r"captures?|completes?|summari[sz]es?|comprises?|covers?|fix(?:es)?|"
+              r"sets?|makes?|yields?|closes?|frames?|bounds?|governs?")
+RE_TRICOLON_WRAP = re.compile(
+    rf"^these\s+({_COUNT})\s+(?:\w+\s+){{1,2}}(?:{_WRAP_VERB})\b", re.I)
 RE_BALANCED = re.compile(r"\bone\b[^.\n]{0,60}\band\b[^.\n]{0,45}\banother\b", re.I)
 # Auxiliary families (v0.18.0, panel-derived; EVALUATION §13). Kept OUT of
 # `templates`/`template_score` so the calibrated document-dispersion manifold
@@ -155,7 +165,8 @@ def paragraph_structure(text: str) -> dict[str, Any]:
     ordinal_run = _max_run(first_words, lambda word: word in _ORDINALS)
     anaphora_run = _max_run_equal(first_words, exclude=_TRIVIAL_OPENERS)
     modal_run = _max_run_equal(modals, exclude={""})
-    tricolon_wrap = bool(RE_TRICOLON_WRAP.search(plain))
+    tricolon_wrap = any(RE_TRICOLON_WRAP.match(sentence.strip())
+                        for sentence in sentences)
     balanced = bool(RE_BALANCED.search(plain))
     templates: list[str] = []
     if announced and ordinal_run >= ORDINAL_RUN:
@@ -223,16 +234,8 @@ def load_baseline(field_profile_dir: Path | None) -> dict[str, Any] | None:
 
 
 def load_policy(field_profile_dir: Path | None) -> dict[str, Any] | None:
-    if field_profile_dir is None:
-        return None
-    path = field_profile_dir / "deai_policy.json"
-    if not path.exists():
-        return None
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
-    return data.get("structure", data)
+    """The `structure` block of the field's policy (one reader, see deai_metrics)."""
+    return metrics.load_policy(field_profile_dir, section="structure")
 
 
 def structure_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
@@ -272,14 +275,16 @@ def structure_findings(text: str, field_profile_dir: Path | None,
         human_fraction = bucket_reference.get("templated_frac")
         reference_n = int(bucket_reference.get("n", 0))
         rare_fraction = (policy or {}).get("rare_template_fraction")
+        # A finding is measured only against a reference that exists for ITS
+        # bucket and a policy that says what rare means. A baseline that holds
+        # no `unknown` bucket used to make an `unknown` finding `measured`
+        # while its reference block read `templated_fraction: None, n: 0`.
+        applicable = human_fraction is not None and rare_fraction is not None
+        status = "measured" if applicable else (
+            "degraded" if baseline else "unmeasured")
         if values["templates"]:
-            strong = bool(
-                baseline and policy and human_fraction is not None
-                and rare_fraction is not None and reference_n >= 20
-                and human_fraction <= float(rare_fraction)
-            )
-            status = "measured" if baseline and policy else (
-                "degraded" if baseline else "unmeasured")
+            strong = bool(applicable and reference_n >= 20
+                          and human_fraction <= float(rare_fraction))
             context = (f"; reference {bucket} fraction {human_fraction:.1%} "
                        f"(n={reference_n})") if human_fraction is not None else ""
             findings.append(feedback.make_finding(
@@ -311,8 +316,19 @@ def structure_findings(text: str, field_profile_dir: Path | None,
             ))
         if values["auxiliary_templates"]:
             aux_fraction = bucket_reference.get("auxiliary_frac")
-            aux_context = (f"; reference {bucket} fraction {aux_fraction:.1%} "
-                           f"(n={reference_n})") if aux_fraction is not None else ""
+            # The message states the reference fraction; it calls the figure
+            # rare only when the fraction is at or below the policy's rarity
+            # gate. It used to say "rare in the field reference" unconditionally,
+            # beside a reference fraction of 40%.
+            if aux_fraction is None:
+                aux_context = ""
+            elif rare_fraction is not None and aux_fraction <= float(rare_fraction):
+                aux_context = (f"; rare in the field reference ({bucket} fraction "
+                               f"{aux_fraction:.1%} <= {float(rare_fraction):.1%}, "
+                               f"n={reference_n})")
+            else:
+                aux_context = (f"; reference {bucket} fraction {aux_fraction:.1%} "
+                               f"(n={reference_n})")
             findings.append(feedback.make_finding(
                 kind="advisory", layer="L2",
                 rule=f"structure-auxiliary:{bucket}", scope="paragraph",
@@ -337,8 +353,7 @@ def structure_findings(text: str, field_profile_dir: Path | None,
                 if aux_fraction is not None else None,
                 confidence={"value": min(1.0, values["n_sent"] / 6.0),
                             "basis": f"{values['n_sent']} sentences; deterministic rhetorical-figure evidence"},
-                message=("Paragraph leans on rhetorical figure(s) rare in the "
-                         "field reference: "
+                message=("Paragraph leans on rhetorical figure(s): "
                          f"{', '.join(values['auxiliary_templates'])}{aux_context}."),
                 action=("Keep an antithesis only where the contrast is load-bearing "
                         "technical content; state posture contrasts as plain positive "
@@ -350,11 +365,6 @@ def structure_findings(text: str, field_profile_dir: Path | None,
                 evidence=values["auxiliary_templates"],
             ))
     return findings
-
-
-def structure_hits(text: str, field_profile_dir: Path | None
-                   ) -> list[tuple[int, str, str]]:
-    return feedback.tuple_hits(structure_findings(text, field_profile_dir))
 
 
 def calibrate(field_profile_dir: Path) -> dict[str, Any]:

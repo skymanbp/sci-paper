@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import contextlib
+import io
+import json
 import pathlib
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 
@@ -301,10 +306,6 @@ class DocumentStructureTests(unittest.TestCase):
                 "a document matching the human reference shape should not flag")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class ModuleSplitContractTests(unittest.TestCase):
     """`deai_docstructure` must re-export everything `deai_docshape` defines.
 
@@ -317,9 +318,14 @@ class ModuleSplitContractTests(unittest.TestCase):
 
     def test_every_public_name_is_re_exported(self):
         import deai_docshape as shape
+        # A module object has no `__module__`, so the getattr default used to
+        # count `json`, `re`, `statistics` and the sibling aliases as names
+        # `deai_docshape` defines -- which made their dead imports in
+        # `deai_docstructure` "required" (audit 2026-09-27, B20).
         expected = {
             n for n, v in vars(shape).items()
             if not n.startswith("__")
+            and not isinstance(v, types.ModuleType)
             and getattr(v, "__module__", "deai_docshape") in ("deai_docshape",
                                                               "re", None)
             and n not in {"annotations", "Path", "Any", "Iterable"}
@@ -364,3 +370,178 @@ class CorpusDocumentOrderTests(unittest.TestCase):
             (d / "chap.tex").write_text("body\n", encoding="utf-8")
             docs = docstructure._paper_documents(root)
         self.assertEqual([n for n, _t in docs], ["2501.00002"])
+
+
+class SweepAndOperatingPointTests(unittest.TestCase):
+    """The 2026-09-27 audit's B12 (skip buckets) and B9 (one threshold rule)."""
+
+    SKIP_TAIL = (
+        "\n\n\\section{Acknowledgments}\n\n" + LONG_PARAGRAPH + "\n\n" + SHORT_PARAGRAPH
+        + "\n\n\\section{Appendix A}\n\n" + REPEATED_PARAGRAPH + "\n\n" + LONG_PARAGRAPH
+        + "\n\n\\begin{thebibliography}{9}\n\\bibitem{a} A. Author 2020, ApJ 1, 1.\n"
+        "\\end{thebibliography}\n")
+
+    def test_skip_units_do_not_enter_the_shape(self):
+        # Acknowledgments, an appendix and the reference list are `skip`
+        # buckets on the corpus side; they used to enter dispersion, role
+        # coupling and section arc as body prose because the sweep read
+        # `section_line_ranges`, which carries no bucket.
+        body = document([REPEATED_PARAGRAPH, SHORT_PARAGRAPH, LONG_PARAGRAPH,
+                         SHORT_PARAGRAPH, LONG_PARAGRAPH, REPEATED_PARAGRAPH])
+        plain = docstructure.document_shape(body)
+        with_tail = docstructure.document_shape(body.rstrip("\n") + self.SKIP_TAIL)
+        self.assertEqual(with_tail["status"], "measured")
+        self.assertEqual(with_tail["n_sections"], plain["n_sections"])
+        self.assertEqual(with_tail["n_paragraphs"], plain["n_paragraphs"])
+        self.assertEqual(with_tail["metrics"], plain["metrics"])
+        self.assertEqual([u["label"] for u in docstructure.shape_units(body + self.SKIP_TAIL)],
+                         ["Introduction", "Methods", "Results"])
+        # the preamble (title block before the first heading) is dropped too
+        self.assertEqual(docstructure.shape_units("\\title{T}\n\n" + body)[0]["label"],
+                         "Introduction")
+
+    def test_measurable_sections_is_the_document_shape_filter(self):
+        units = docstructure.shape_units(document([REPEATED_PARAGRAPH, "Too short."]))
+        kept = docstructure.measurable_sections(units)
+        # each section holds one substantial and one short paragraph, so none
+        # reaches MIN_PARAGRAPHS_PER_SECTION and the document is insufficient
+        self.assertEqual(kept, [])
+        self.assertEqual(docstructure.document_shape(
+            document([REPEATED_PARAGRAPH, "Too short."]))["status"], "insufficient_evidence")
+
+    def _baseline(self, root: Path, values: list[float], percentile: float) -> None:
+        threshold = docstructure._quantile(values, percentile)
+        (root / docstructure.BASELINE_NAME).write_text(json.dumps({
+            "schema": "sci-paper.docstructure-baseline.v2",
+            "n_documents": len(values), "strong_percentile": percentile,
+            "metrics": {"within_section_similarity": {
+                "values": values, "strong_threshold": threshold}},
+            "dispersion": {}}), encoding="utf-8")
+
+    def _shape(self, observed: float) -> dict:
+        return {"status": "measured", "reason": None, "n_sections": 3,
+                "n_paragraphs": 6, "dispersion": {}, "sections": [],
+                "metrics": {"within_section_similarity": observed,
+                            "cross_section_similarity": None,
+                            "section_arc_similarity": None}}
+
+    def test_strong_flag_uses_the_quoted_threshold_rule(self):
+        # values [0.1, 0.2, 0.3, 0.4] at p = 0.8: the interpolated quantile the
+        # baseline quotes is 0.34, while the add-one rank percentile of 0.32 is
+        # (1 + 3) / 5 = 0.8, so the old rank rule flagged a document strong
+        # while quoting a threshold its value was below.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._baseline(root, [0.1, 0.2, 0.3, 0.4], 0.8)
+            with mock.patch.object(docstructure, "document_shape",
+                                   return_value=self._shape(0.32)):
+                below = docstructure.document_findings("x", root)
+            self.assertEqual([f["rule"] for f in below], [])
+            with mock.patch.object(docstructure, "document_shape",
+                                   return_value=self._shape(0.35)):
+                above = docstructure.document_findings("x", root)
+            self.assertEqual([f["rule"] for f in above],
+                             ["document-shape:within_section_similarity"])
+            finding = above[0]
+            self.assertAlmostEqual(finding["reference"]["strong_threshold"], 0.34)
+            self.assertGreater(finding["observed"]["value"],
+                               finding["reference"]["strong_threshold"])
+            self.assertAlmostEqual(finding["normalized_distance"], 0.35 - 0.34)
+            self.assertIn("threshold 0.340", finding["message"])
+
+
+class FeatureRuntimeTests(unittest.TestCase):
+    """`deai_features` without its optional dependencies: unmeasured markers
+    and a message, never a ModuleNotFoundError (audit 2026-09-27, B4)."""
+
+    MISSING = (False, "the optional surprisal runtime is not installed (torch)")
+
+    def test_missing_surprisal_runtime_is_an_unmeasured_marker(self):
+        with mock.patch.object(deai_features.do, "model_runtime_available",
+                               return_value=self.MISSING):
+            feats = deai_features.paragraph_features(LONG_PARAGRAPH)
+            self.assertEqual(feats["uid_status"], "unmeasured")
+            self.assertIn("torch", feats["uid_reason"])
+            for name in ("mean_surprisal", "global_uid", "local_uid"):
+                self.assertIsNone(feats[name])
+            self.assertGreater(feats["word_count"], 0)
+            # the model vector cannot be built without those entries
+            with self.assertRaises(RuntimeError) as raised:
+                deai_features.features_vector(LONG_PARAGRAPH)
+            self.assertIn("torch", str(raised.exception))
+            with tempfile.TemporaryDirectory() as temporary:
+                draft = Path(temporary) / "draft.tex"
+                draft.write_text(LONG_PARAGRAPH + "\n", encoding="utf-8")
+                out, err = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    code = deai_features.main([str(draft), "--profile-root", temporary])
+                self.assertEqual(code, 2)
+                self.assertIn("surprisal runtime", err.getvalue())
+                self.assertEqual(out.getvalue(), "")
+
+    def test_corpus_centroid_without_a_cache_needs_no_numpy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            # `numpy: None` makes `import numpy` fail even where it is installed
+            with mock.patch.dict(sys.modules, {"numpy": None}):
+                self.assertIsNone(deai_features.corpus_centroid(Path(temporary)))
+
+
+class CliContractTests(unittest.TestCase):
+    """`--field` is optional on the read path, required (and existing) for
+    `--calibrate`; `--strong-percentile` is a probability (audit B1, B8)."""
+
+    def run_main(self, argv: list[str]) -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = docstructure.main(argv)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_read_path_without_a_field_reports_unmeasured(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            draft = root / "draft.tex"
+            draft.write_text(document([REPEATED_PARAGRAPH, SHORT_PARAGRAPH]),
+                             encoding="utf-8")
+            empty = root / "profiles"
+            empty.mkdir()
+            code, out, _err = self.run_main([str(draft), "--profile-root", str(empty)])
+            self.assertEqual(code, 0)
+            self.assertIn("unmeasured", out)
+            # two fields: one stderr note, still exit 0 and unmeasured
+            (empty / "a").mkdir()
+            (empty / "b").mkdir()
+            code, out, err = self.run_main([str(draft), "--profile-root", str(empty)])
+            self.assertEqual((code, "unmeasured" in out), (0, True))
+            self.assertIn("several field profiles", err)
+
+    def test_calibrate_needs_an_existing_field(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus = root / "corpus"
+            corpus.mkdir()
+            empty = root / "profiles"
+            empty.mkdir()
+            code, _out, err = self.run_main(
+                ["--calibrate", "--corpus-dir", str(corpus), "--profile-root", str(empty)])
+            self.assertEqual(code, 2)
+            self.assertIn("No field profiles", err)
+            code, _out, err = self.run_main(
+                ["--calibrate", "--corpus-dir", str(corpus), "--profile-root",
+                 str(empty), "--field", "nope"])
+            self.assertEqual(code, 2)
+            self.assertIn("not found", err)
+
+    def test_strong_percentile_must_be_a_probability(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            draft = root / "draft.tex"
+            draft.write_text("x\n", encoding="utf-8")
+            for value in ("1.5", "1", "0", "-0.1"):
+                code, _out, err = self.run_main(
+                    [str(draft), "--profile-root", str(root), "--strong-percentile", value])
+                self.assertEqual(code, 2, value)
+                self.assertIn("--strong-percentile", err)
+
+
+if __name__ == "__main__":
+    unittest.main()

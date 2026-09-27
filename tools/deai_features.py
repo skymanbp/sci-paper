@@ -10,7 +10,8 @@ Feature groups (all reuse the existing tooling so they match the corpus):
   distributional (model-free, from extract_style tokenizers):
     n_sentences, mean_sent_len, sent_len_cv, sent_len_stdev, word_count,
     opens_connective, equivocal_rate, paren_rate, semicolon_rate, comma_rate
-  surprisal / UID (Layer B, local LM):
+  surprisal / UID (Layer B, local LM; None with `uid_status: unmeasured`
+    when the optional transformers/torch runtime is not installed):
     mean_surprisal, global_uid, local_uid
   semantic (all-MiniLM-L6-v2, cached corpus centroid):
     corpus_cos  (cosine similarity of the paragraph embedding to the curated
@@ -26,7 +27,6 @@ Lib:  from deai_features import paragraph_features, FEATURE_NAMES, features_vect
 
 from __future__ import annotations
 
-import argparse
 import math
 import random
 import re
@@ -40,8 +40,6 @@ import extract_style as es      # noqa: E402  resolves only after the sys.path i
 import deai_oracle as do        # noqa: E402  same reason
 from deai_metrics import CONNECTIVE_OPENERS  # noqa: E402  same reason
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 FEATURE_SCHEMA_VERSION = "sci-paper.voice-features.v1"
 
@@ -95,15 +93,20 @@ def embedder_available() -> bool:
 
 
 def corpus_centroid(field_profile_dir: Path) -> "object | None":
-    """Unit-normalized mean of the cached corpus paragraph embeddings, or None."""
+    """Unit-normalized mean of the cached corpus paragraph embeddings, or None.
+
+    The file is checked before numpy is imported: a profile with no embedding
+    cache is the common case (numpy is optional), and "no centroid" is the
+    honest answer there, not a ModuleNotFoundError.
+    """
     key = str(field_profile_dir)
     if key in _CENTROID_CACHE:
         return _CENTROID_CACHE[key]
-    import numpy as np
     npy = field_profile_dir / f"exemplar_embeddings_{EMBED_MODEL}.npy"
     if not npy.exists():
         _CENTROID_CACHE[key] = None
         return None
+    import numpy as np
     emb = np.load(npy)
     c = emb.mean(axis=0)
     n = np.linalg.norm(c)
@@ -172,15 +175,29 @@ def paragraph_features(
     model_name: str = do.DEFAULT_MODEL,
     centroid=None,
 ) -> dict:
-    """Full fundamental-feature dict for one paragraph. `text` may contain LaTeX."""
+    """Full fundamental-feature dict for one paragraph. `text` may contain LaTeX.
+
+    The surprisal runtime (transformers + torch) is optional. Without it the
+    three UID features are None and the dict carries `uid_status: "unmeasured"`
+    with the reason, so a caller sees an unmeasured marker rather than the
+    ModuleNotFoundError `token_surprisals` used to raise from inside this
+    function, and never a 0.0 that would read as a measured value. (A
+    paragraph too short for a stable estimate keeps its historical 0.0: the
+    trained bundles were fit with that convention.)
+    """
     plain = es.latex_to_plain(text)
     feats = distributional_features(plain)
     # surprisal / UID (Layer B)
-    uid = do.uid_features(do.token_surprisals(plain, model_name))
-    if uid is None:  # too short for a stable UID estimate
-        feats.update({"mean_surprisal": 0.0, "global_uid": 0.0, "local_uid": 0.0})
+    available, reason = do.model_runtime_available()
+    if not available:
+        feats.update({"mean_surprisal": None, "global_uid": None, "local_uid": None,
+                      "uid_status": "unmeasured", "uid_reason": reason})
     else:
-        feats.update({k: uid[k] for k in ("mean_surprisal", "global_uid", "local_uid")})
+        uid = do.uid_features(do.token_surprisals(plain, model_name))
+        if uid is None:  # too short for a stable UID estimate
+            feats.update({"mean_surprisal": 0.0, "global_uid": 0.0, "local_uid": 0.0})
+        else:
+            feats.update({k: uid[k] for k in ("mean_surprisal", "global_uid", "local_uid")})
     # semantic distance to corpus centroid
     cos = 0.0
     if centroid is None and field_profile_dir is not None:
@@ -194,7 +211,18 @@ def paragraph_features(
 
 
 def features_vector(text: str, **kw) -> list[float]:
+    """The FEATURE_NAMES-ordered vector the learned model consumes.
+
+    It needs the surprisal runtime: a vector with three unmeasured entries is
+    not one the model can read, so a missing runtime raises here with the
+    reason, instead of leaking None into a numpy float cast three frames down
+    in `deai_voice` or `voice_dataset`. A caller that can run without the
+    vector probes `deai_oracle.model_runtime_available()` first.
+    """
     f = paragraph_features(text, **kw)
+    if f.get("uid_status") == "unmeasured":
+        raise RuntimeError(f"[deai_features] {f['uid_reason']}; features_vector "
+                           "has no UID entries without it")
     return [f[name] for name in FEATURE_NAMES]
 
 
@@ -374,9 +402,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("file", type=Path)
     p.add_argument("--model", default=do.DEFAULT_MODEL)
     args = p.parse_args(argv)
-    field_dir = None
-    if args.field:
-        field_dir = args.profile_root / args.field
+    if not args.file.exists():
+        print(f"[deai_features] file not found: {args.file}", file=sys.stderr)
+        return 2
+    # The dump is the full vector, UID included; without the runtime it has
+    # nothing complete to print, so it says why and exits 2 (invalid
+    # configuration) rather than dying in a ModuleNotFoundError.
+    available, reason = do.model_runtime_available()
+    if not available:
+        print(f"[deai_features] {reason}; install the optional surprisal "
+              "runtime (see requirements.txt) to dump feature vectors",
+              file=sys.stderr)
+        return 2
+    field_dir = cli_common.optional_field_dir(args, tool="deai_features")
     text = args.file.read_text(encoding="utf-8", errors="replace")
     centroid = corpus_centroid(field_dir) if field_dir else None
     # split into blank-line paragraphs and dump features

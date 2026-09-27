@@ -7,37 +7,23 @@ paragraph-level pseudoreplication.
 
 from __future__ import annotations
 
-import argparse
-import json
-import math
-import random
-import re
-import statistics
 import sys
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
-import deai_features as features  # noqa: E402  sibling import after path setup
 import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_reference as reference  # noqa: E402 because sibling tools are importable only after the sys.path insert above
-import deai_metrics as metrics  # noqa: E402  canonical section/paragraph ranges
-import deai_structure as structure  # noqa: E402  sentence template features
 import extract_style as es  # noqa: E402  canonical LaTeX cleanup/tokenizer
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
-BASELINE_NAME = "docstructure_baseline.json"
-MIN_WORDS = 30
-MIN_SECTIONS = 3
-MIN_PARAGRAPHS_PER_SECTION = 2
 
 # Document-shape measurement, the dispersion manifold, the conformal operating
 # points and the baseline builder moved to deai_docshape.py on 2026-08-25 (this
 # file could no longer be edited at its size). Re-exported because sibling tools
 # and tests reach them as dds.<name>; unused in this module by design, which is
-# what the F401 waiver records.
+# what the F401 waiver records. The constants and module aliases this file
+# defined for itself were dead after the split (each constant was overwritten by
+# the import below), so it defines none of its own now.
 from deai_docshape import (  # noqa: F401 -- re-export, unused here by design
     BASELINE_NAME, CONFORMAL_ALPHA, CONFORMAL_SEED, CONFORMAL_STRATA,
     CONFORMAL_TRAIN_FRACTION, DISPERSION_FEATURE_NAMES,
@@ -52,7 +38,7 @@ from deai_docshape import (  # noqa: F401 -- re-export, unused here by design
     _pairwise_similarity, _paragraph_modelfree, _percentile, _quantile,
     _shape_vector, _stratum_calibration, calibrate, document_role_coupling,
     document_shape, fit_dispersion_manifold, manifold_distance,
-    manifold_operating_point,
+    manifold_operating_point, measurable_sections, shape_units,
 )
 
 load_baseline = reference.baseline_loader(BASELINE_NAME)
@@ -89,10 +75,22 @@ def document_findings(text: str, field_profile_dir: Path | None,
         values = reference.get("values", [])
         if observed is None or not values:
             continue
-        percentile = _percentile(values, float(observed))
         operating_point = float(baseline.get("strong_percentile", 0.95))
-        if percentile < operating_point:
+        # One rule on both sides: the flag, the quoted `strong_threshold` and
+        # the leave-one-document-out flag rate all use the interpolated
+        # quantile of the reference values. The flag used to be the add-one
+        # rank percentile, which sits above the quantile rule by about one
+        # rank, so a document could be reported strong while quoting a
+        # threshold its own value was below, against a false-flag rate that
+        # belonged to a different rule.
+        threshold = reference.get("strong_threshold")
+        if threshold is None:
+            threshold = _quantile([float(v) for v in values], operating_point)
+        threshold = float(threshold)
+        value = float(observed)
+        if value <= threshold:
             continue
+        percentile = _percentile(values, value)
         findings.append(feedback.make_finding(
             kind="advisory", layer="L2", rule=f"document-shape:{metric_name}",
             scope="document", calibration_unit="document", line=1, section=section_label, path=path,
@@ -103,17 +101,18 @@ def document_findings(text: str, field_profile_dir: Path | None,
                       "n_paragraphs": shape["n_paragraphs"]},
             reference={"n_documents": baseline["n_documents"],
                        "strong_percentile": operating_point,
-                       "strong_threshold": reference.get("strong_threshold"),
+                       "strong_threshold": threshold,
                        "bootstrap_95_ci": reference.get("bootstrap_95_ci"),
                        "leave_one_document_out_flag_rate": reference.get(
                            "leave_one_document_out_flag_rate"),
                        "provenance": BASELINE_NAME},
-            normalized_distance=percentile - operating_point,
+            normalized_distance=value - threshold,
             confidence={"value": min(1.0, baseline["n_documents"] / 30.0),
                         "basis": f"{baseline['n_documents']} complete reference documents"},
             message=(f"Document-level {metric_name.replace('_', ' ')} is "
-                     f"{observed:.3f}, at empirical percentile {percentile:.3f} "
-                     "of the complete-document reference."),
+                     f"{value:.3f}, above the reference {operating_point:.0%} "
+                     f"threshold {threshold:.3f} (empirical percentile "
+                     f"{percentile:.3f} of the complete-document reference)."),
             action=("Inspect repeated paragraph and section shapes; vary only "
                     "needless rhetorical symmetry while preserving logical organization."),
             evidence=[metric_name, round(float(observed), 8)],
@@ -403,14 +402,29 @@ def main(argv: list[str] | None = None) -> int:
                         help="directory of complete human .tex/.md source documents")
     parser.add_argument("--strong-percentile", type=float, default=0.95)
     args = parser.parse_args(argv)
-    field_dir = args.profile_root / args.field
+    # A percentile is a probability: 1.5 indexed past the end of the value
+    # list (IndexError, exit 1) and a negative value extrapolated a threshold
+    # below every reference document.
+    if not 0.0 < args.strong_percentile < 1.0:
+        print(f"[deai_docstructure] --strong-percentile must lie strictly between "
+              f"0 and 1, got {args.strong_percentile}", file=sys.stderr)
+        return 2
     if args.calibrate:
         if args.corpus_dir is None or not args.corpus_dir.exists():
             print("[deai_docstructure] --calibrate requires --corpus-dir", file=sys.stderr)
             return 2
+        # The baseline is written INTO the profile, so calibration needs a
+        # field that exists; the read path below runs without one.
         try:
-            baseline = calibrate(_paper_documents(args.corpus_dir), field_dir,
-                                 args.strong_percentile)
+            field = cli_common.resolve_field(
+                args.field, args.profile_root, tool="deai_docstructure",
+                empty_hint="--calibrate needs an existing style-profile/<field>/ directory.")
+        except SystemExit as error:
+            print(error, file=sys.stderr)
+            return 2
+        try:
+            baseline = calibrate(_paper_documents(args.corpus_dir),
+                                 args.profile_root / field, args.strong_percentile)
         except ValueError as error:
             print(f"[deai_docstructure] {error}", file=sys.stderr)
             return 2
@@ -419,6 +433,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.file is None or not args.file.exists():
         print(f"[deai_docstructure] file not found: {args.file}", file=sys.stderr)
         return 2
+    field_dir = cli_common.optional_field_dir(args, tool="deai_docstructure")
     text = args.file.read_text(encoding="utf-8", errors="replace")
     report = feedback.build_report(
         path=args.file,

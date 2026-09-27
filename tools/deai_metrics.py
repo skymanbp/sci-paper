@@ -1,9 +1,9 @@
 """Model-free information-distribution feedback for scientific prose (L1).
 
-The structured API is :func:`distribution_findings`. The legacy
-:func:`distribution_hits` adapter remains for callers that consume
-``(line, rule, message)`` tuples. Findings are advisory; the standalone CLI
-returns success when measurement completes even when feedback is present.
+The structured API is :func:`distribution_findings`. Findings are advisory; the
+standalone CLI returns success when measurement completes even when feedback is
+present. (A `(line, rule, message)` tuple adapter shipped beside it until
+2026-09-27; nothing called it.)
 
 This module also owns the manuscript-side section sweep every per-bucket axis
 reads (:func:`section_line_ranges`, :func:`section_units`). It parses with the
@@ -24,8 +24,6 @@ import cli_common  # noqa: E402 -- because the sys.path insert above must run fi
 import deai_feedback as feedback  # noqa: E402  sibling tool import after path setup
 import extract_style as es  # noqa: E402  canonical tokenizer import after path setup
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 # One section parser for both sides of every per-bucket reference. This module
 # kept its own (`\\section\{`), which read neither `\section {X}` nor
 # `\section[S]{X}` while the corpus splitter read both, so a manuscript written
@@ -103,7 +101,15 @@ def load_reference(field_profile_dir: Path | None) -> dict[str, Any] | None:
     }
 
 
-def load_policy(field_profile_dir: Path | None) -> dict[str, Any] | None:
+def load_policy(field_profile_dir: Path | None, *,
+                section: str = "distribution") -> dict[str, Any] | None:
+    """The `section` block of the field's `deai_policy.json`, or None.
+
+    One policy file carries one block per axis (`distribution`, `structure`),
+    and a file written before the blocks existed is the block itself. Two
+    axes kept byte-equivalent copies of this reader that differed only in the
+    key; `deai_structure` now reads through here with `section="structure"`.
+    """
     if field_profile_dir is None:
         return None
     path = field_profile_dir / "deai_policy.json"
@@ -113,7 +119,7 @@ def load_policy(field_profile_dir: Path | None) -> dict[str, Any] | None:
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return None
-    return data.get("distribution", data)
+    return data.get(section, data)
 
 
 def _headings(lines: list[str]) -> list[tuple[int, str, str]]:
@@ -201,6 +207,18 @@ def distribution_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
         return feedback.axis_status(
             "L1.distribution", "unmeasured",
             reason="sentence_stats.json reference is unavailable",
+            detector="deai_metrics",
+        )
+    # A reference whose only bucket is `unknown` has no sentence-length CV to
+    # compare against: `pooled_cv` is 0, the burstiness rule can never fire,
+    # and reporting the axis `measured` would pass that silence off as a
+    # clean result. The opener rule still runs, so the axis is degraded, not
+    # unmeasured.
+    if not reference["cv"]:
+        return feedback.axis_status(
+            "L1.distribution", "degraded",
+            reason=("sentence_stats.json holds no classified section bucket, "
+                    "so sentence-length variation cannot be measured"),
             detector="deai_metrics",
         )
     if load_policy(field_profile_dir) is None:
@@ -307,11 +325,6 @@ def distribution_findings(text: str, field_profile_dir: Path | None,
     return findings
 
 
-def distribution_hits(text: str, field_profile_dir: Path | None
-                      ) -> list[tuple[int, str, str]]:
-    return feedback.tuple_hits(distribution_findings(text, field_profile_dir))
-
-
 def main(argv: list[str] | None = None) -> int:
     cli_common.utf8_stdout()
     parser = cli_common.field_parser(__doc__)
@@ -320,12 +333,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.file.exists():
         print(f"[deai_metrics] file not found: {args.file}", file=sys.stderr)
         return 2
-    field_dir = args.profile_root / args.field if args.field else None
-    if field_dir is None and args.profile_root.exists():
-        fields = [path for path in args.profile_root.iterdir()
-                  if path.is_dir() and not path.name.startswith(".")]
-        if len(fields) == 1:
-            field_dir = fields[0]
+    field_dir = cli_common.optional_field_dir(args, tool="deai_metrics")
     text = args.file.read_text(encoding="utf-8", errors="replace")
     findings = distribution_findings(text, field_dir, args.file)
     report = feedback.build_report(

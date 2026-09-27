@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import sys
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -141,6 +142,133 @@ class AuxiliaryFamilyTests(unittest.TestCase):
             if finding["rule"].startswith("structure-auxiliary"):
                 self.assertEqual(finding["kind"], "advisory")
                 self.assertFalse(finding.get("strong_advisory"))
+
+
+TEMPLATED = (
+    "The estimator must preserve the measured signal under rotation. "
+    "The covariance must retain the corresponding noise dependence under rotation. "
+    "The likelihood must represent these two quantities without changing their units. "
+    "These three requirements define the calculation used for every sample in this analysis."
+)
+
+
+def write_profile(root: Path, *, baseline: dict | None, policy: dict | None) -> None:
+    if baseline is not None:
+        (root / "structure_baseline.json").write_text(json.dumps(baseline),
+                                                      encoding="utf-8")
+    if policy is not None:
+        (root / "deai_policy.json").write_text(json.dumps({"structure": policy}),
+                                               encoding="utf-8")
+
+
+class TricolonWrapTests(unittest.TestCase):
+    """The wrap-up beat opens a sentence with "These N <nouns>" and closes it
+    with a summing verb (audit 2026-09-27, B15)."""
+
+    def test_wrap_up_sentence_matches(self):
+        for sentence in ("These three requirements define the calculation.",
+                         "These two simple facts together fix the scale.",
+                         "These four steps constitute the pipeline."):
+            self.assertTrue(structure.RE_TRICOLON_WRAP.match(sentence), sentence)
+
+    def test_an_object_noun_phrase_is_not_a_wrap_up(self):
+        for sentence in ("The likelihood must represent these two quantities "
+                         "without changing their units.",
+                         "these three samples were observed at dawn.",
+                         "We compare these two estimators below."):
+            self.assertIsNone(structure.RE_TRICOLON_WRAP.match(sentence), sentence)
+        values = structure.paragraph_structure(
+            "We represent these two quantities here. Nothing else follows in "
+            "this paragraph of ordinary prose about the shear estimator.")
+        self.assertFalse(values["tricolon_wrap"])
+        self.assertTrue(structure.paragraph_structure(TEMPLATED)["tricolon_wrap"])
+
+
+class StrongStatusTests(unittest.TestCase):
+    """A template finding is `measured` only against a reference for its own
+    bucket plus a policy; `degraded` with a baseline that lacks the bucket;
+    `unmeasured` without a baseline (audit 2026-09-27, B6)."""
+
+    BASELINE = {"method": {"n": 25, "templated_frac": 0.02, "auxiliary_frac": 0.4}}
+    POLICY = {"rare_template_fraction": 0.05}
+
+    def template_finding(self, text: str, profile: Path | None) -> dict:
+        findings = [f for f in structure.structure_findings(text, profile)
+                    if f["rule"].startswith("structure-template:")]
+        self.assertEqual(len(findings), 1)
+        return findings[0]
+
+    def test_measured_and_strong_only_with_bucket_reference_and_policy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write_profile(root, baseline=self.BASELINE, policy=self.POLICY)
+            finding = self.template_finding("\\section{Methods}\n\n" + TEMPLATED, root)
+            self.assertEqual((finding["measurement_status"], finding["strength"]),
+                             ("measured", "strong"))
+            self.assertIn("reference method fraction 2.0%", finding["message"])
+            # a bucket the baseline does not hold: degraded, never strong, and
+            # the message quotes no fraction
+            unknown = self.template_finding(
+                "\\section{Weak gravitational lensing}\n\n" + TEMPLATED, root)
+            self.assertEqual((unknown["measurement_status"], unknown["strength"]),
+                             ("degraded", "ordinary"))
+            self.assertEqual(unknown["reference"]["templated_fraction"], None)
+            self.assertNotIn("fraction", unknown["message"])
+
+    def test_baseline_without_policy_is_degraded(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write_profile(root, baseline=self.BASELINE, policy=None)
+            finding = self.template_finding("\\section{Methods}\n\n" + TEMPLATED, root)
+            self.assertEqual((finding["measurement_status"], finding["strength"]),
+                             ("degraded", "ordinary"))
+
+    def test_no_profile_is_unmeasured(self):
+        finding = self.template_finding("\\section{Methods}\n\n" + TEMPLATED, None)
+        self.assertEqual((finding["measurement_status"], finding["strength"]),
+                         ("unmeasured", "ordinary"))
+
+    def test_load_policy_reads_the_structure_block(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write_profile(root, baseline=None, policy=self.POLICY)
+            self.assertEqual(structure.load_policy(root), self.POLICY)
+            self.assertIsNone(structure.load_policy(None))
+
+
+class AuxiliaryWordingTests(unittest.TestCase):
+    """The auxiliary message states the reference fraction and calls a figure
+    rare only below the policy gate (audit 2026-09-27, B14)."""
+
+    def auxiliary_message(self, profile: Path | None) -> str:
+        findings = [f for f in structure.structure_findings(
+            "\\section{Methods}\n\n" + ANTITHESIS_HEAVY, profile)
+            if f["rule"].startswith("structure-auxiliary:")]
+        self.assertEqual(len(findings), 1)
+        return findings[0]["message"]
+
+    def test_common_figure_is_not_called_rare(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write_profile(root, baseline={"method": {"n": 120, "auxiliary_frac": 0.4}},
+                          policy={"rare_template_fraction": 0.05})
+            message = self.auxiliary_message(root)
+            self.assertNotIn("rare", message)
+            self.assertIn("reference method fraction 40.0% (n=120)", message)
+
+    def test_rare_figure_is_called_rare_with_the_gate(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write_profile(root, baseline={"method": {"n": 120, "auxiliary_frac": 0.01}},
+                          policy={"rare_template_fraction": 0.05})
+            message = self.auxiliary_message(root)
+            self.assertIn("rare in the field reference (method fraction 1.0% <= 5.0%, n=120)",
+                          message)
+
+    def test_no_reference_quotes_no_fraction(self):
+        message = self.auxiliary_message(None)
+        self.assertNotIn("rare", message)
+        self.assertNotIn("fraction", message)
 
 
 if __name__ == "__main__":
