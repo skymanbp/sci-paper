@@ -125,7 +125,7 @@ papers and 173 machine documents:
 | 30 | 0.0322 | 26.6% | 0.0004 | 0.6% | 0.369 |
 | 50 | 0.0117 | 12.3% | 0.0000 | 0.0% | 0.438 |
 
-(Rates here use `body_only` word counts, so they sit above the headline figure
+(Rates here use `body_only` word counts, so they differ from the headline figure
 below, which uses the evaluator's own denominator. Columns are internally
 comparable; the level is not comparable across the two.)
 
@@ -234,7 +234,7 @@ stays unbuilt until a second, independently produced AI bank answers it.
 - **`corpus_cos` ablation.** Not run, and now withdrawn as an item rather than
   deferred: `confound_audit` bins on record metadata the feature cache does not
   carry, so an ablation runnable from the cache would compute a different
-  statistic from the three recorded retrains (§7.0a) and could not be compared
+  statistic from the four recorded retrains (§7.0a) and could not be compared
   with them. Its only consumer is a `degraded`, audit-only classifier with no
   shipped operating point, whose status rests on independently refuted grounds,
   so no ablation result could change shipped behaviour.
@@ -270,8 +270,9 @@ check: instead of reading a number out of a document and asking whether it looks
 right, it renders the expected substring **from the artifact** and asks whether
 the document still contains it. A document that agrees with a stale artifact and
 a document nobody updated then fail identically, which is the property the
-working rule never had. It pins 39 figures across the two READMEs, this record,
-and the hub's axis and bucket tables, and it was verified by putting each
+working rule never had. It pins the figures its own table lists — the two
+READMEs, `examples/README.md`, this record and the hub's axis and bucket tables;
+39 when it was written, more since — and it was verified by putting each
 corrected figure back to its stale value — 11 mutations, 11 caught.
 
 The field is read from this record's own path literal rather than hard-coded, so

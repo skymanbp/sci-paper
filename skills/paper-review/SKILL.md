@@ -291,7 +291,8 @@ stale scientific content、冲突副本或 required artifact drift 是 `integrit
   `residue-negative-label`（标题或 caption 承诺正文没有的东西）、
   `residue-absence`（正文句子用"它从不做什么"定义论文自己的对象：`never`
   为 strong，`carries no` 等为 ordinary，句中带 citation 的豁免）与 diff 规则
-  `residue-negative-label-added`。strong finding 使工具 exit 1，本轮不得收尾。
+  `residue-negative-label-added`。strong finding 使工具 exit 1，本轮不得收尾；
+  静态负标签规则在正文不足 400 词时弃权（轴状态会说明），diff 规则照跑。
 - 只保留当前科学状态。绝对句先删后改：上下文已承载肯定陈述时整句/整从句删除，
   只有页面尚未说出的内容才改写成肯定形式；物理事实、范围限制与承认的局限保留
   原样（见 `/sci-paper:paper` 自检第 5 项与工具的 action 文本）。

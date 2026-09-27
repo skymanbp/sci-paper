@@ -34,7 +34,7 @@ argument-hint: "<file_path> [--field <name>]"
 2. 建**公式清单**：每个 displayed equation 的左右端量纲 + 涉及物理量的定义。
 3. 建**数字溯源清单**：abstract / table / figure caption / 正文的所有数值，
    每条记值、位置、声称来源、核验状态。
-4. 执行论文的权威 build（LaTeX 项目为 `pdflatex × 2 + bibtex + pdflatex × 2`）；
+4. 执行论文的权威 build（项目自己的 build 命令优先；LaTeX 默认 `pdflatex, bibtex, pdflatex × 2`，与 figure-review 一致）；
    记录 errors、undefined refs、multiply-defined labels、overfull、missing-number。
 
 ## 2. 检查项 P1–P8

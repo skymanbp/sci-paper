@@ -570,7 +570,7 @@ gates, `build` corpus and profile construction, `eval` evidence. Detail: [tools/
 | `tools/deai_provenance.py` | L4 | Editing-provenance ledger over the author's **own** draft history; labels each span AI-untouched → author-original by token edit ratio. Not a detector; `unmeasured` without an AI-draft ancestor. |
 | `tools/deai_personal.py` | L4 | Personal dispersion baseline against the author's own prior papers — a confound-free same-author reference. `unmeasured` below three papers. |
 | `tools/eval_docscale.py` | eval | Reproduces the §9 document-scale table — human false-flag rate and per-tier tail power — by scoring the corpus and every `docval` tier through the same operating point findings use. |
-| `tools/eval_findings.py` | eval | Scores register, salience, cohesion, hedging and collocation against **provenance** labels instead of hand labels: their firing rate on held-out refereed ApJ/ApJL/A&A papers, on the in-sample papers, and on the `docval` machine tiers, plus a paired test that isolates calibration leakage from publication era. |
+| `tools/eval_findings.py` | eval | Scores register (thresholded and zero-hit), salience and collocation against **provenance** labels instead of hand labels: their firing rate on held-out refereed ApJ/ApJL/A&A papers, on the in-sample papers, and on the `docval` machine tiers, plus a paired test that isolates calibration leakage from publication era. |
 | `tools/label_findings.py` | eval | Samples findings from all five finding-emitting axes (register, salience, cohesion, hedging, collocation) into a human-labelling sheet, re-serves a blind subset for intra-rater agreement, and reports per-axis precision plus **pooled** recall, stratified by named `--population NAME=DIR` sets. Reports `unmeasured` for any stratum under 20 labels. |
 | `tools/build_profile.py` | build | Builds the basic field profile: extraction, optional legacy classifier, exemplar-cache warm-up. |
 | `tools/cli_common.py` | build | Shared command-line preamble and field resolution (one profile auto-resolves; several run without one and say so), used by 30 of the 39 Python tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
@@ -631,7 +631,7 @@ For scale, the reference profile behind every measured number here carries:
 | `structure_baseline.json` | method 9,478 · results 3,978 · data 3,894 · intro 3,812 · discussion 3,635 · conclusion 2,611 · abstract 433 |
 | `salience_baseline.json` | abstract 13,971 · method 6,967 · results 3,240 · intro 3,239 · data 3,020 · discussion 2,954 · conclusion 1,999 |
 | `docstructure_baseline.json` | 507 complete documents · conformal α 0.05 · length strata [46, 75] |
-| `anchoring_baseline.json` | 517 documents · all six section classes above the 30-document minimum |
+| `anchoring_baseline.json` | 517 documents · all six section classes above the 30-document retention minimum and the 119-document floor of the six-class Bonferroni share |
 | `voice_model.joblib` | 44,636 records · 14 features · **no operating point**, `degraded` |
 
 Every bucket clears the 30-passage floor — untrue before 2026-08-25, when
@@ -727,7 +727,7 @@ Empty. `label_findings.py` ships; running it is the author's business, not the r
 this project measures against is provenance — `eval_findings.py`, on labels that already exist.
 
 **Closed by refutation, not by shipping.** The length-aware manifold, a larger conformal calibration
-set, long-form tail power, three L3 retrains, the leakage contrast, the register operating point, and
+set, long-form tail power, four L3 retrains, the leakage contrast, the register operating point, and
 now citation placement were built or tested and refuted. The last was the strongest model-free
 discriminator in the record (AUC 0.866) and did not survive its own pre-registered test: a second bank
 from a different model scores **0.053** on the same statistic with no citation instruction and **0.734**

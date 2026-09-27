@@ -2,7 +2,7 @@
 name: condense
 description: Whole-document condensation. Removes every passage that is unnecessary or already stated elsewhere: claims and numbers repeated across sections, zero-information paragraphs, dead definitions and uncited figures, verbose constructions. Executes SCIPAPER_STANDARD §5.3 (condense, do not accumulate): the default direction of every edit is shorter — delete > compress in place > same-length rewrite, with growth last and only under a recorded justification. Each fact keeps exactly one canonical home; the copies are deleted or replaced by a cross-reference. The removal map is machine-built (condense_map.py), every entry is dispositioned, and the length gate proves the shrink against the map's target. Fidelity invariants (§6) are protected throughout. Use when: "condense" / "trim" / "too long" / "repetitive" / "cut the padding" / 精简 / 太长了 / 重复 / 废话太多 / 去冗余, or when a paper-review dimension-I redundancy finding needs to be executed.
 disable-model-invocation: false
-argument-hint: "<file_path> [--section <name>] [--max-iter N] [--report-only] [--field <name>] [--target <words|N%>]"
+argument-hint: "<file_path> [--report-only] [--field <name>] [--target <words|N%>]"
 ---
 
 > **Normative authority:** `docs/SCIPAPER_STANDARD.md`. §5.3 (condense, do not
@@ -140,7 +140,9 @@ every cross-reference into it.
    it — either remove more, or record which kept entries account for the gap.
 2. **Residue:** `python tools/deai_residue.py <file> --before
    <scratch>/baseline/<root>.tex`. A condensation must not leave a heading or
-   caption promising what the body no longer says; exit 1 blocks closing.
+   caption promising what the body no longer says; exit 1 blocks closing. The
+   static negative-label rule abstains below 400 prose words (the axis says
+   so); the diff rule runs regardless.
 3. **No orphans:** rebuild/compile the document if it is LaTeX (0 errors,
    0 undefined references, no newly-missing labels); re-run the map and grep
    every deleted label and symbol to confirm zero remaining consumers.

@@ -2,10 +2,10 @@
 name: calibrate
 description: Make the plugin yours. Walks the whole calibration chain for one field — corpus intake, profile extraction, per-axis calibration, optional model training, a held-out provenance measurement, and finding-level labelling against your own standard, style and target journal — then verifies the result. Every axis reports `measured`, `degraded` or `unmeasured` from its own floor; a stratum that cannot support a rate stays `unmeasured` rather than being given one. Produces evidence only: no threshold here creates a verdict, an authorship claim, or a paper PASS/FAIL. Use when: "calibrate" / "set up my corpus" / "train on my papers" / "adapt to my journal" / "why is this axis degraded" / 校准 / 建语料库 / 用我自己的论文训练 / 适配目标期刊 / 标注 / 这个轴为什么是 degraded.
 disable-model-invocation: false
-argument-hint: "<field-name> [--variant <journal-format>] [--from <step>] [--labels-only]"
+argument-hint: "<field-name>"
 ---
 
-> **Not a normative skill.** `docs/SCIPAPER_STANDARD.md` decides what good
+> **Not a policy source.** `docs/SCIPAPER_STANDARD.md` decides what good
 > scientific prose is; nothing produced here can change that. Calibration
 > supplies the *reference distributions* the advisory axes compare against, and
 > `docs/architecture/EVALUATION.md` records what each one is worth. A corpus

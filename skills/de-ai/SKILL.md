@@ -102,7 +102,9 @@ condense's ranked sweep.
    reporting `measured`). A stale profile is `unmeasured`, never conformity.
 4. Retrieve section-typed positive anchors only when the bank exists:
    `python tools/retrieve_exemplars.py --field <field> --section <type>
-   --topic "<verified one-sentence topic>" --k 5`. Read every returned
+   --topic "<verified one-sentence topic>" --k 5` (add `--allow-fallback`
+   when sentence-transformers is absent: keyword overlap, strictly worse;
+   without either, record the anchors as `unmeasured`). Read every returned
    exemplar; record provenance; use for rhythm and register only.
 
 ## 2. Pass 1 — measure (de-AI subsystem)

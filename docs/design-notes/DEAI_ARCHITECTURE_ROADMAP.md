@@ -3,7 +3,7 @@
 Status: design note written 2026-07-12, retained as the reasoning record for why the
 document scale is the keystone. It is **not** a status document: the keystone shipped on
 2026-07-13, and the current disposition of every ranked item lives in
-[`SCIPAPER_STANDARD.md`](../SCIPAPER_STANDARD.md) §11. Complements
+[`DISPOSITIONS.md`](../architecture/DISPOSITIONS.md). Complements
 [`DEAI_SUBSYSTEM.md`](../architecture/DEAI_SUBSYSTEM.md) (current architecture) and
 [`SCIPAPER_STANDARD.md`](../SCIPAPER_STANDARD.md) (normative policy).
 
@@ -207,5 +207,6 @@ document-level surprisal is itself weaker than the model-free manifold (0.757 vs
 0.881) and adds nothing to it, so the enriched features are not shipped into the
 model-free detector (recorded, not added). This resolves the last L3 document-level
 debt: the detector stays model-free by measurement at document scale. Ranks 2, 3, 4
-and 6 were never started as scoped; their decided dispositions live in SCIPAPER_STANDARD §11,
-which is the single status home.
+and 6 had not been started as scoped when this section was last written; their
+dispositions since live in [`DISPOSITIONS.md`](../architecture/DISPOSITIONS.md), the
+single status home.

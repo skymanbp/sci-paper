@@ -94,7 +94,9 @@ fraction as evidence only.
 **Design.** `deai_collocation.py --calibrate` builds a bank from the two human
 passage banks: unigram document frequency for the 11,286 words at or above
 `COMMON_RATE` (2 × 10⁻⁴), and passage frequency for 530,677 adjacent pairs of
-them. A pair is two words the writer put side by side, so it breaks at
+them (the v0.36.2 bank this section was measured on; the v0.36.3 rebuild holds
+11,282 words and 530,504 pairs, and the per-bucket sizes below are the v0.36.2
+ones). A pair is two words the writer put side by side, so it breaks at
 punctuation, at a `[math]`/`[CITE]` placeholder, at a dash, at a slash and at
 a digit (`yields, separate` is two clauses; `50/50` and `2 sigma` are not word
 pairs), and a sentence's pairs are judged distinct. The unit is the sentence;
@@ -173,6 +175,8 @@ more tokens before the head noun with at least two hyphenated compounds).
 | results | 3,958 | 0.28% | 0.03% | 2.53% |
 | discussion | 3,647 | 0.41% | 0.16% | 3.32% |
 | conclusion | 2,609 | 1.00% | 0.23% | 5.83% |
+
+The `n` column is the v0.32.0 bank's; the v0.36.3 `structure_baseline.json` holds intro 3,812, method 9,478, data 3,894, results 3,978, discussion 3,635, conclusion 2,611, and the fractions were not re-taken on it.
 
 A first cut of the stack rule counted any run of non-function tokens and put
 15% of human method paragraphs in it; cutting the run at the head noun and

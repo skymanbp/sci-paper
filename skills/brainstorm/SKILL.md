@@ -53,7 +53,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
    - `--max-branches N` 默认 ∞ — 每节点单轮新增分支上限（注意：§3 强制 12 条 framing pass 各产 ≥1 分支，所以下限实际是 12；该 flag 仅可放大）
    - **caps 触顶的语义**：当用户**显式**设置了 `--width N` / `--depth N` / `--rounds N` 并触顶时，**已展开的节点必须先全部完整推进到§4 12 字段填满、§5 verdict 定论之后**才允许停止；不允许"刚到上限立即停留下半成品"。报告以 `WIDTH_CAP_REACHED` / `DEPTH_CAP_REACHED` / `ROUNDS_EXHAUSTED` 标记，**但所有可见叶节点必须完整**。
    - **不允许 skill 内部自行扩大 cap**；也不允许内部自行缩小默认 ∞ 为某个有限值。
-   - 旧版的 `--max-nodes 200` / `--max-time-min 60` 已**移除**。"探索成本太大"不构成停止理由；这是本 skill 与普通 brainstorm 工具的关键区别。
+   - "探索成本太大"不构成停止理由；这是本 skill 与普通 brainstorm 工具的关键区别。
 
 8. **完整推进禁令（hard ban on deferred / incomplete leaves）** —— 见「数据模型」最后一条：
    - 任何叶节点的任何字段中含以下字样均视为**违规半成品**，节点状态强制改为 `INCOMPLETE_FORBIDDEN`，必须继续推进至完整：

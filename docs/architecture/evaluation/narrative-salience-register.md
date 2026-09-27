@@ -207,7 +207,7 @@ of each passage since v0.36.3:
 | data | **3,020** | 3,016 | 102 | — | `exemplar_paragraphs.jsonl` — bucket added 2026-08-25 |
 | intro | **3,239** | 3,264 | 94 | 88 | `exemplar_paragraphs.jsonl` |
 | discussion | **2,954** | 2,958 | 93 | 78 | `exemplar_paragraphs.jsonl` |
-| results | **3,240** | 3,206 | 26 | 10 | `exemplar_paragraphs.jsonl` — clears the floor by 85× |
+| results | **3,240** | 3,206 | 26 | 10 | `exemplar_paragraphs.jsonl` — clears the floor by 108× |
 | conclusion | **1,999** | 1,994 | 39 | 41 | `exemplar_paragraphs.jsonl` |
 
 The 2026-08-25 column is the rebuild that made `method` a reference, and `method` is the headline: **it was never a
@@ -309,18 +309,19 @@ as observed evidence, gives 19.
 
 ### 14.4 Register reference and precision
 
-Document frequency over **41,710** passages (27,917 exemplar paragraphs + 13,793
-abstracts), **53,414** terms. Firing rule: ≥ 15 manuscript uses **and** corpus df
+Document frequency over **41,644** passages (27,851 exemplar paragraphs + 13,793
+abstracts), **53,367** terms, after the v0.36.3 profile rebuild (41,710 and
+53,414 before it). Firing rule: ≥ 15 manuscript uses **and** corpus df
 rate < 1e-4. (The use count was 5 until v0.32.0 raised it to 15, and this
 paragraph still said 5 until the 2026-08-26 sweep caught it. §17 records the
 held-out rates at the old setting; §18 records them at the new one.)
 
 The composition bias recorded in §14.6 is largely resolved. Reading the 500-paper
 breadth corpus took the body contribution from 593 to 25,005 passages and it now
-stands at 27,917, so abstracts fell from **96% of the reference to 33%** (13,793
-of 41,710). The axis was biased toward flagging body-section vocabulary precisely
+stands at 27,851, so abstracts fell from **96% of the reference to 33%** (13,793
+of 41,644). The axis was biased toward flagging body-section vocabulary precisely
 because body text was almost absent from its reference; that reference is now
-two-thirds body prose. The threshold's resolution also improves by 2.9×: 41,710
+two-thirds body prose. The threshold's resolution also improves by 2.9×: 41,644
 passages can express a df rate of 2.4e-5, comfortably below the 1e-4 firing rule,
 where 14,235 could express 7.0e-5.
 
@@ -398,12 +399,12 @@ re-proposed as an obvious gap.
 
 ### 14.6 Limits
 
-One field, one case document. Every non-abstract bucket rests on 1,994–6,959
+One field, one case document. Every non-abstract bucket rests on 1,999–6,967
 reference passages, so **all seven clear the 30-passage floor** and none is
 rank-only. `abstract` (13,971) is still the largest by a factor of 2.0, but it no
 longer dwarfs the body buckets by two orders of magnitude, and `method` is
 second-largest on method prose rather than on residue. The counts are the
-2026-08-26 author-query sweep's; §14.2's table carries the earlier rebuilds.
+v0.36.3 rebuild's, the column §14.2's table leads with.
 
 The reference-size limitation recorded here from v0.26 through v0.27.1 is therefore
 closed. What remains is narrower and should not be read as the same caveat: register

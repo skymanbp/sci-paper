@@ -107,8 +107,9 @@ These read as strength; keep or add them rather than editing them out.
   principled step toward it.
 - **Run-in lead-ins for scannability**: bold or italic **Goal:**,
   **Motivation:**, **Innovation:**, *Aim N (one-line mission)*. Reviewers skim;
-  visible structure earns reading time. (The manuscript colon-elaboration rule
-  does not apply to these labeled run-ins.)
+  visible structure earns reading time. (The linter's `colon-elaboration`
+  advisory still fires on a labeled run-in; disposition those hits as
+  `rejected_as_false_positive` instead of rewriting the run-ins.)
 - **A concrete running example** that stays consistent across aims and makes an
   abstract method vivid.
 - **Sharp aim statements posed as questions**: a crisp open question reads as a

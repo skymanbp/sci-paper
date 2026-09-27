@@ -37,6 +37,9 @@ argument-hint: "<document_path>"
 Use the paper's authoritative build command. A simple LaTeX fallback is:
 
 ```bash
+# the project's own build command wins; this is the default recipe (as in physics)
+pdflatex -interaction=nonstopmode main.tex
+bibtex main
 pdflatex -interaction=nonstopmode main.tex
 pdflatex -interaction=nonstopmode main.tex
 ```

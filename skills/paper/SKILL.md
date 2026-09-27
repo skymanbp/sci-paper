@@ -12,7 +12,7 @@ disable-model-invocation: false
 
 ## Paper Writing Standards / 论文写作标准
 
-Target: **Top-tier astrophysics journals** (ApJ, MNRAS, A&A level).
+Target: **the field's top-tier journals** (`[WGL]`: ApJ, MNRAS, A&A level).
 
 ### General Principles
 
@@ -193,7 +193,7 @@ deleting its hedges has been damaged.
 - When describing the detection pipeline, maintain the distinction between signal (E-mode) and noise (B-mode).
 - All filter functions must be written with explicit mathematical definitions, not just names.
 
-### Method Descriptions
+### Method Descriptions `[WGL]`
 
 - For each ML model, specify: architecture, input representation, loss function, training procedure, and evaluation metric.
 - For ensembles, explain the aggregation strategy and why it is appropriate given any class imbalance.
@@ -207,7 +207,7 @@ deleting its hedges has been damaged.
 - Figures should have: descriptive captions, labeled axes with units, legends, and consistent color schemes.
 - When comparing methods, use the same evaluation protocol for all. Never compare training metrics of one model to validation metrics of another.
 
-### Discussion and Limitations
+### Discussion and Limitations `[WGL]`
 
 - **Honestly discuss limitations.** Acknowledge sample-size and selection-effect limits.
 - Distinguish between: limitations of the method vs. limitations of the data.

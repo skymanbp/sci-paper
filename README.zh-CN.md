@@ -248,7 +248,7 @@ strong advisory **131 → 131 → 126**。词表处理让 strong advisory 变化
 
 ```console
 $ python tools/ai_ism_lint.py before.tex --field wgl \
-    --structure --distribution --register --salience --document-structure --no-discourse
+    --structure --distribution --register --salience --document-structure --no-discourse --no-collocation --no-residue
 
 findings: blockers=0 L0=8 advisories=10 (strong=1)
 axis L0.lexical: measured   axis L0.register: measured   axis L2.salience_hierarchy: measured
@@ -350,6 +350,20 @@ advisory 必须有明确 disposition，而普通 advisory 与不可用的轴保�
 重复，直到这个"disposition 完备"的状态**连续两轮稳定** —— 不是直到反馈数归零，
 更不会给出一个全局 PASS/FAIL。维度 **M** 会用三遍独立推导复核论文自己的数学，
 分歧则通过十二种 framing 升级为 `CONFIRMED` / `REFUTED` / `MARGINAL`。
+
+---
+
+### 6. 一个可以自己跑的例子
+
+`examples/` 里有一份合成稿件，以及按 finding 处理后的同一篇 —— 每个数值都保留、每个数值都是编造的，所以没有一处是谁的未发表工作。
+
+| | 之前 | 之后 |
+|---|---:|---:|
+| L0 目标 | 1 | **0** |
+| `discourse-cohesion` | 3 | **1** |
+| `salience-recital` | 4 | **3** |
+
+最后一行随参照而动：2026-08-27 的 profile 把修订稿读作 6，按数值投影校准的 v0.36.3 重建把同一文件读作 3，仍为 strong 的两条从"连续串长"变成了"密度"。张力本身还在：为了衔接两句而把名词带到下一句，会把主语拉进也带数字的句子里，所以在数字密集的段落里 cohesion 与 recital 要的是相反的东西，没有哪种改写能同时满足两者。两条 finding 都成立，采纳哪一条是作者的判断 —— 这正是两者都不是 blocker、也没有分数的原因。演练：[`examples/README.md`](examples/README.md)。
 
 ---
 
@@ -699,27 +713,13 @@ Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权�
 ### 路线图
 
 空了。`label_findings.py` 已交付 —— 跑不跑标注是作者自己的事，不是仓库的事。本项目
-自己的参照基准是 provenance：`eval_findings.py` 拿**已经存在的标注**（203 篇未见过的
-已发表审稿论文等）给各轴打分。「这条建议对不对」需要人，上面的限制表里已写明。
-
-**citation placement 不是「待定」，是被证伪了。** v0.32.0 留下的条件是「换一套独立生成的
-机器库来验」，这次补上了：同一个模型（Codex `gpt-5.6-terra`）、同样 20 个题目，提示词只差
-一行。不提引用时同一个统计量得 **0.053** —— 不是「没有区分度」，而是几乎同等强度地指向
-**反方向**；提了就得 **0.734**。引用密度在这一行提示词之间摆动 12.5 倍（每千词 1.00 ↔ 12.55），
-而人类中位数是 6.20，两个机器极端把人类分布夹在中间。信号是提示词，不是作者身份
-（[§20](docs/architecture/evaluation/discourse-and-citation.md)）。
+自己的参照基准是 provenance：`eval_findings.py` 拿**已经存在的标注**给各轴打分。
 
 **以证伪收口，不是以发布收口。** 长度感知流形、扩大 conformal 标定集、长文尾部功效、
-三次 L3 重训、留出对样本内的泄漏估计、register 操作点，以及这次的 citation placement ——
-全部做出来、测过、然后被否决，每一条在上表里都有自己的一行。同一批工作里，cohesion 与
-hedging 两条轴（roadmap rank 6，自 v0.26.1 挂着）**发布**了，其中 hedging 被收窄到只管
-`intro`。`deai_policy.json` 维持撤回；细节见
-[§9.4c](docs/architecture/evaluation/document-scale.md)、
-[§18.4](docs/architecture/evaluation/projection-and-operating-point.md)。
-
-**v0.28.0 已收口。** `deai_policy.json` 是**撤回**而非推迟：在 500 篇人类论文上测量，
-它要设阈值的那两个统计量都不具判别力
-（[§16](docs/architecture/evaluation/lexical-structure-uid.md)）；补厚薄桶语料也已完成。
+四次 L3 重训、留出对样本内的泄漏估计、register 操作点，以及 citation placement ——
+全部做出来、测过、然后被否决。最后一项曾是记录里最强的 model-free 判别量（AUC 0.866），
+却没通过自己预先登记的检验：换一个模型生成的第二个库，不提引用时同一统计量得 **0.053**，
+提了就得 **0.734**，所以信号是提示词（[§20](docs/architecture/evaluation/discourse-and-citation.md)）。
 **领域特定指引：** 弱引力透镜的科学锚点在适用处标 `[WGL]`，共享的写作与审查政策与领域无关。
 
 ## 致谢与许可

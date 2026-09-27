@@ -135,7 +135,8 @@ than machine drafts (EVALUATION §23.1) — and ships as advice.
 
 [`../tools/deai_metrics.py`](../../tools/deai_metrics.py) measures section-aware
 sentence-length variation and paragraph-opening connective density. A compatibility
-heuristic may produce degraded evidence. A strong advisory would require an
+heuristic may produce degraded evidence, and a reference with no classified
+section bucket leaves the axis degraded. A strong advisory would require an
 applicable calibrated policy; none is written, because the operating point was
 refuted by measurement (EVALUATION §16), so the axis stays `degraded`.
 
@@ -153,7 +154,8 @@ structural patterns that keyword replacement cannot repair:
 - announced enumeration and ordinal runs;
 - repeated modal frames;
 - parallel or anaphoric runs;
-- setup, list, and wrap-up symmetry;
+- setup, list, and wrap-up symmetry (the wrap-up is a sentence opening `These N
+  <nouns>` and closing with a summing verb);
 - balanced closers;
 - repeated paragraph templates.
 
@@ -278,9 +280,12 @@ length stratum (`fit_dispersion_manifold`, `manifold_distance`), role-coupled di
 
 Document calibration records one observation per verified complete paper, bootstrap
 uncertainty, leave-one-document-out human flag behavior, and empirical percentiles.
-If the corpus does not contain enough complete and measurable papers, the axis is
-`unmeasured`; for `wgl` it is `measured` on a complete-paper baseline (EVALUATION §9). The
-implementation must not synthesize a document baseline from paragraph exemplars.
+The sweep drops the preamble and every `skip` unit (acknowledgements, appendices,
+references) on both sides, and a document-shape metric is strong when it exceeds the
+quoted quantile threshold. If the corpus does not contain enough complete and
+measurable papers, the axis is `unmeasured`; the `wgl` figures in EVALUATION §9
+predate the rebuild these changes require. The implementation must not synthesize a
+document baseline from paragraph exemplars.
 
 ### L3: learned field similarity
 

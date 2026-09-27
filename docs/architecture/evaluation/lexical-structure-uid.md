@@ -120,7 +120,7 @@ default and split them from PDF line fragments, so both its size and its section
 described something other than what they claimed (§14.2, EVALUATION §2).
 
 The section means are strikingly tight — 3.23 to 3.36 across seven buckets, a spread of
-0.13 against within-bucket standard deviations of 0.26–0.58. It was 0.15 before the
+0.13 against within-bucket standard deviations of 0.26–0.51. It was 0.15 before the
 fourth rebuild and 0.13 after, so removing the leaked keys did not disturb the null. **Section identity barely
 moves paragraph-level UID in this corpus.** That is a null worth recording rather than
 a defect: it means a per-section UID operating point would be calibrating on a

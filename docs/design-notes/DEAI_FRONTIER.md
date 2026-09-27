@@ -4,9 +4,9 @@ Status: design note, 2026-07-13. Produced by a six-lens divergent ideation
 (scale-unlocks, arms-race, writing-time product, cross-field transfer,
 evaluation science, contrarian) after the keystone validation and its measured
 adversarial limit. Complements [`DEAI_ARCHITECTURE_ROADMAP.md`](DEAI_ARCHITECTURE_ROADMAP.md)
-(ranks 1, 5, 7 and 8 there have since shipped or been measured; ranks 2, 3, 4 and 6 remain
-open, with their dispositions in [`SCIPAPER_STANDARD.md`](../SCIPAPER_STANDARD.md) §11). **The ranked frontier is now
-complete (2026-07-13).** Detection core: idea 5 (shipped,
+(the disposition of every rank there lives in
+[`DISPOSITIONS.md`](../architecture/DISPOSITIONS.md); nothing in this note is status). **The ranked frontier is
+complete as of this note's date (2026-07-13).** Detection core: idea 5 (shipped,
 `deai_docstructure.fit_dispersion_manifold`), idea 7 (executed, signal survives —
 §9.3), idea 1 (shipped, `document-role-decoupling` — §9.4), idea 8 (shipped,
 split-conformal + length-Mondrian — §9.5). Cooperative layer: idea 2 (shipped,
@@ -139,9 +139,9 @@ ledger (4) are the cooperative-tool layer. Progress: **all eight ideas shipped o
 executed** (7 pass, 5/1/8 detection core, 2/3/4/6 cooperative layer). The recorded
 length-aware-manifold refinement was measured to be a length confound and not
 adopted; the per-stratum manifold plus length-Mondrian conformal is the
-confound-safe length handling (§9.8). The ranked frontier queue is empty; further
-detector work continues on the roadmap track (ranks 2, 3, 4 and 6) and the ai_long
-standing target.
+confound-safe length handling (§9.8). The ranked frontier queue is empty as of this
+note's date; what became of each roadmap rank and of the ai_long standing target
+is recorded in [`DISPOSITIONS.md`](../architecture/DISPOSITIONS.md), not here.
 
 ## Notable discards (with reasons)
 

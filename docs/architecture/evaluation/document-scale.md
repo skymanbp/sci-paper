@@ -512,8 +512,8 @@ What remains is the honest form of the item: an explicit estimator-noise model, 
 the sampling variance of a dispersion statistic at n paragraphs to the manifold
 covariance, so short documents are compared against a correspondingly wider human band.
 That is a modelling change with its own falsification burden and is **not** shipped in
-v0.28.0. The roadmap entry stays open, now with its mechanism measured rather than
-hypothesized.
+v0.28.0. The roadmap entry was closed in §9.4c: the estimator-noise manifold was
+built and refuted.
 
 ### 9.4c The estimator-noise manifold is implemented and refuted; the tail-power figures are seed draws
 
