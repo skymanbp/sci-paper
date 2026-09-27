@@ -18,38 +18,30 @@ Out:  style-profile/<field>/voice_model.joblib and voice_model_evaluation.json
 
 from __future__ import annotations
 
-import argparse
-import hashlib
 import json
-import math
-import re
-import statistics
 import sys
 import time
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_features as df  # noqa: E402  resolves only after the sys.path insert
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
-
 # Re-exported so `train_voice_model.<name>` keeps resolving for existing
 # callers and tests after the 2026-08-26 split. A contract test asserts this
 # list still covers every public name in both modules.
 from voice_dataset import (  # noqa: E402,F401 -- re-export, unused here by design
     CHECKPOINT_EVERY,
-    build_features, build_field_lexicon, feature_cache_fingerprint,
-    load_records, source_family,
+    build_features, build_field_lexicon, embeddings_failed_at_run_time,
+    feature_cache_fingerprint, load_records, source_family,
     _atomic_savez, _load_jsonl, _record_embeddings, _tokens,
 )
 from voice_audit import (  # noqa: E402,F401 -- re-export, unused here by design
     HARDSET_AI_CATEGORIES, HARDSET_HUMAN_CATEGORIES,
-    aggregate_audits, binary_metrics, confound_audit, first_valid_group_split,
-    hardset_evaluation, repeated_group_audit, section_normalize_uid,
-    split_corpus_cos,
+    aggregate_audits, audit_split_seed, binary_metrics, confound_audit,
+    first_valid_group_split, hardset_evaluation, repeated_group_audit,
+    section_normalize_uid, split_corpus_cos,
     _auc, _bootstrap_auc_ci, _breakdown, _math_bin, _metric_maps, _quantile,
     _series_summary, _three_way_bin,
 )
@@ -74,15 +66,31 @@ def main(argv: list[str] | None = None) -> int:
     if args.audit_splits < 3:
         p.error("--audit-splits must be at least 3")
 
-    import numpy as np
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.ensemble import HistGradientBoostingClassifier
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.metrics import (roc_auc_score, f1_score, balanced_accuracy_score,
-                                 confusion_matrix)
-    import joblib
+    # The field is required here -- the records live under it -- so it is
+    # resolved before anything else: `args.profile_root / None` was a
+    # TypeError traceback when `--field` was omitted, against a `--help` that
+    # promised auto-detection.
+    field = cli_common.resolve_field(args.field, args.profile_root,
+                                     tool="train_voice_model")
+    field_dir = args.profile_root / field
 
-    field_dir = args.profile_root / args.field
+    # The learning stack is optional (requirements.txt); its absence is one
+    # line and the execution-failure exit, not a ModuleNotFoundError traceback.
+    try:
+        import numpy as np
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.ensemble import HistGradientBoostingClassifier
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.metrics import (roc_auc_score, f1_score, balanced_accuracy_score,
+                                     confusion_matrix)
+        import joblib
+    except ImportError as error:
+        print(f"[train_voice_model] cannot train without "
+              f"{getattr(error, 'name', None) or error}: install the optional "
+              f"learning dependencies from requirements.txt (numpy, scikit-learn, "
+              f"joblib)", file=sys.stderr)
+        return 2
+
     recs = load_records(field_dir)
     n_pos = sum(r["label"] for r in recs); n_neg = len(recs) - n_pos
     if not recs:
@@ -175,6 +183,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"[audit] repeated source-grouped comparison: "
           f"{args.audit_splits} splits", file=sys.stderr)
+    # Seeded from the split the primary audit actually used, so the repeats
+    # start one past it and the primary is not one of the N (audit_split_seed).
     repeated_audit = repeated_group_audit(
         recs,
         X,
@@ -182,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
         src,
         n_splits=args.audit_splits,
         val_frac=args.val_frac,
-        seed=args.seed,
+        seed=primary_split_seed,
         emb=emb,
     )
     cache_fingerprint = feature_cache_fingerprint(field_dir, recs, args.model)
@@ -211,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
     evaluation = {
         "schema": "sci-paper.voice-model-evaluation.v1",
         "generated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "field": args.field,
+        "field": field,
         "task": "curated-reference versus generated-negative field compatibility",
         "interpretation": (
             "This evaluation measures compatibility with the recorded training task. "

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import contextlib
 import copy
+import io
+import json
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 
@@ -11,6 +15,54 @@ from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what p
 import deai_features as features
 import deai_voice as voice
 import train_voice_model as training
+
+
+def _unbound_names(source: str, filename: str = "<module>") -> list[str]:
+    """`scope:name` for every name read where no binding reaches it.
+
+    Scope-aware, on CPython's own symbol tables rather than a flat walk of the
+    AST. The flat walk pooled every binding in the module, so a function-local
+    `import numpy as np` in one function let a bare `np` in every other
+    function pass, and the `time` it was written to catch went uncaught the
+    moment any other scope bound the name. Here a function-local import binds
+    the name only inside that function; a name a function reads without
+    binding it must be bound at module level (including through a `global`
+    declaration elsewhere), be a builtin, or be a closure variable of an
+    enclosing function. Annotation and type-parameter blocks (3.12+) are
+    skipped: every tool imports `annotations` from `__future__`, so those
+    names are never evaluated.
+    """
+    import builtins
+    import symtable
+
+    module = symtable.symtable(source, filename, "exec")
+    known = set(dir(builtins)) | {
+        "__file__", "__name__", "__doc__", "__package__", "__spec__",
+        "__loader__", "__builtins__", "__module__", "__qualname__"}
+
+    def tables(table):
+        yield table
+        for child in table.get_children():
+            try:
+                kind = child.get_type()
+            except AssertionError:  # a 3.12 annotation or type-parameter block
+                continue
+            if kind in ("function", "class"):
+                yield from tables(child)
+
+    scopes = list(tables(module))
+    for table in scopes:
+        for symbol in table.get_symbols():
+            bound_here = (symbol.is_assigned() or symbol.is_imported()
+                          or symbol.is_namespace())
+            if bound_here and (table is module or symbol.is_declared_global()):
+                known.add(symbol.get_name())
+    return sorted(
+        f"{table.get_name()}:{symbol.get_name()}"
+        for table in scopes for symbol in table.get_symbols()
+        if symbol.is_referenced()
+        and not (symbol.is_local() or symbol.is_free() or symbol.is_parameter())
+        and symbol.get_name() not in known)
 
 
 class ModuleSplitContractTests(unittest.TestCase):
@@ -64,39 +116,82 @@ class ModuleSplitContractTests(unittest.TestCase):
         source = (TOOLS / "voice_dataset.py").read_text(encoding="utf-8")
         self.assertNotIn("voice_audit", source)
 
-    def test_no_module_level_name_is_unbound(self):
-        """Every name a tool module loads must be defined or imported in it.
+    def test_no_name_is_read_where_nothing_binds_it(self):
+        """Every name a tool reads must be bound in a scope that reaches it.
 
         Splitting a module moves function bodies but re-writes the import block
         by hand, so a moved function can reference a name that stayed behind.
         That is not a hypothetical: the 2026-08-26 split left `time`,
         `CHECKPOINT_EVERY`, `df` and the two HARDSET category sets unbound, and
         the suite went green anyway because no test reached those lines --
-        `build_features` failed only when a real retrain ran. This walks the AST
-        instead of waiting for a call site.
+        `build_features` failed only when a real retrain ran. This reads the
+        symbol tables instead of waiting for a call site.
+        """
+        for name in sorted(p.name for p in TOOLS.glob("*.py")):
+            unbound = _unbound_names((TOOLS / name).read_text(encoding="utf-8"), name)
+            self.assertEqual(unbound, [], f"{name} reads names nothing binds")
+
+    def test_the_unbound_name_check_is_scope_aware(self):
+        # The case the 2026-09-27 audit reproduced against the flat walk: a
+        # local import in one function does not bind the name in another.
+        leaked = ("def a():\n    import numpy as np\n    return np\n\n"
+                  "def b():\n    return np.zeros(1)\n")
+        self.assertEqual(_unbound_names(leaked), ["b:np"])
+        # The case the check was written for, in the shape it had.
+        split = ("def build_features():\n    t0 = time.time()\n"
+                 "    return CHECKPOINT_EVERY - t0\n")
+        self.assertEqual(_unbound_names(split),
+                         ["build_features:CHECKPOINT_EVERY", "build_features:time"])
+        # The same names bound where they are read pass, as do a closure, a
+        # `global` binding made in another function, and a method's `super()`.
+        bound = ("import time\nCHECKPOINT_EVERY = 500\n\n"
+                 "def build_features():\n    import numpy as np\n"
+                 "    return np, time.time(), CHECKPOINT_EVERY\n\n"
+                 "def outer():\n    x = 1\n    def inner():\n        return x\n"
+                 "    return inner\n\n"
+                 "def init():\n    global _CACHE\n    _CACHE = {}\n\n"
+                 "def use():\n    return _CACHE\n\n"
+                 "class K(dict):\n    def m(self):\n        return super().m()\n")
+        self.assertEqual(_unbound_names(bound), [])
+        # A class attribute is not visible from its methods: a real NameError.
+        self.assertEqual(
+            _unbound_names("class K:\n    attr = 1\n    def m(self):\n        return attr\n"),
+            ["m:attr"])
+
+    def test_the_split_modules_carry_no_unused_import(self):
+        """The mirror of the unbound-name check: a name imported and never read.
+
+        The 2026-08-26 split re-wrote three import blocks by hand and left
+        hashlib, math, re, statistics, json, Counter and defaultdict behind in
+        one file or another (audit 2026-09-27, E22), plus `DEFAULT_PROFILE_ROOT`
+        copies that `cli_common` owns. Declared re-exports (`noqa: F401`) are
+        read by nothing here by design and are skipped.
         """
         import ast
-        import builtins
 
-        for name in sorted(p.name for p in TOOLS.glob("*.py")):
-            tree = ast.parse((TOOLS / name).read_text(encoding="utf-8"))
-            bound = set(dir(builtins)) | {"__file__", "__name__", "__doc__"}
-            for node in ast.walk(tree):
-                if isinstance(node, (ast.Import, ast.ImportFrom)):
-                    for alias in node.names:
-                        bound.add((alias.asname or alias.name).split(".")[0])
-                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
-                                       ast.ClassDef)):
-                    bound.add(node.name)
-                elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-                    bound.add(node.id)
-                elif isinstance(node, ast.arg):
-                    bound.add(node.arg)
-                elif isinstance(node, ast.ExceptHandler) and node.name:
-                    bound.add(node.name)
-            used = {n.id for n in ast.walk(tree)
-                    if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
-            self.assertEqual(sorted(used - bound), [], f"{name} has unbound names")
+        for name in ("train_voice_model.py", "voice_dataset.py", "voice_audit.py",
+                     "train_ai_ism_classifier.py"):
+            source = (TOOLS / name).read_text(encoding="utf-8")
+            lines = source.splitlines()
+            tree = ast.parse(source)
+            imported = set()
+            for node in tree.body:
+                if not isinstance(node, (ast.Import, ast.ImportFrom)):
+                    continue
+                if "F401" in " ".join(lines[node.lineno - 1:node.end_lineno]):
+                    continue
+                for alias in node.names:
+                    bound = (alias.asname or alias.name).split(".")[0]
+                    if bound != "annotations":
+                        imported.add(bound)
+            read = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
+            unused = sorted(imported - read)
+            self.assertEqual(unused, [], f"{name} imports but never reads {unused}")
+        import train_ai_ism_classifier
+        import voice_dataset
+        for module in (training, voice_dataset, train_ai_ism_classifier):
+            self.assertFalse(hasattr(module, "DEFAULT_PROFILE_ROOT"), module.__name__)
+        self.assertFalse(hasattr(train_ai_ism_classifier, "list_fields"))
 
 
 class VoiceAuditHelperTests(unittest.TestCase):
@@ -313,6 +408,232 @@ class VoiceAuditHelperTests(unittest.TestCase):
             training.source_family("raid-ai:42"),
             "generated-public",
         )
+
+    def test_a_blank_line_in_a_bank_is_skipped_not_parsed(self):
+        # `train_ai_ism_classifier.load_positives` reads the same files and
+        # always tolerated a blank line; `json.loads("")` raised here.
+        with tempfile.TemporaryDirectory() as raw:
+            bank = Path(raw) / "exemplar_paragraphs.jsonl"
+            record = json.dumps({"text": "word " * 30, "source": "s"})
+            bank.write_text(record + "\n\n" + record + "\n   \n", encoding="utf-8")
+            loaded = training._load_jsonl(bank, 1, "corpus")
+        self.assertEqual(len(loaded), 2)
+        self.assertEqual({record["label"] for record in loaded}, {1})
+
+    def test_repeated_audit_seeds_start_past_the_primary_split(self):
+        # The first "repeat" was the primary split again, so twenty repeats
+        # were nineteen plus the one already reported.
+        self.assertEqual(training.audit_split_seed(7, 0), 8)
+        self.assertNotIn(7, [training.audit_split_seed(7, attempt)
+                             for attempt in range(400)])
+        self.assertEqual([training.audit_split_seed(0, a) for a in range(3)], [1, 2, 3])
+        # ...counted from the seed the primary actually used, which the
+        # trainer passes on rather than the one requested.
+        source = (TOOLS / "train_voice_model.py").read_text(encoding="utf-8")
+        self.assertIn("seed=primary_split_seed", source)
+
+
+class _Array:
+    """Just enough of an ndarray for `build_features`' bookkeeping."""
+
+    def __init__(self, shape, value=None):
+        self.shape = tuple(shape)
+        self.value = value
+
+    def __setitem__(self, key, value):
+        pass
+
+    def __getitem__(self, key):
+        return self
+
+    def __iter__(self):
+        return iter(self.value or [])
+
+    def item(self):
+        return self.value
+
+    def copy(self):
+        return self
+
+
+class _Npz:
+    def __init__(self, stored):
+        self._stored = stored
+        self.files = list(stored)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def __getitem__(self, key):
+        shape, value = self._stored[key]
+        return _Array(shape, value)
+
+
+class _Numpy(types.ModuleType):
+    """A stand-in for the optional numpy: an array is its shape plus, for the
+    small ones, its values, and `savez`/`load` round-trip them through JSON."""
+
+    float32 = "float32"
+
+    def __init__(self):
+        super().__init__("numpy")
+
+    def zeros(self, shape, dtype=None):
+        return _Array(shape)
+
+    def asarray(self, values, dtype=None):
+        if isinstance(values, _Array):
+            return values
+        if isinstance(values, (int, float, str)):
+            return _Array((), values)
+        rows = list(values)
+        if rows and isinstance(rows[0], (list, tuple)):
+            return _Array((len(rows), len(rows[0])), [list(row) for row in rows])
+        return _Array((len(rows),), rows)
+
+    def array_equal(self, first, second):
+        return first.value == second.value
+
+    def savez(self, handle, **arrays):
+        handle.write(json.dumps({key: [list(array.shape), array.value]
+                                 for key, array in arrays.items()}).encode("utf-8"))
+
+    def load(self, path, allow_pickle=False):
+        return _Npz(json.loads(Path(path).read_bytes()))
+
+
+class EmbeddingFailureTests(unittest.TestCase):
+    """A run whose encoder fails must not become the feature cache.
+
+    `embedder_available()` probes the import, and that is what the cache
+    fingerprint records. The encode itself can still fail -- offline, a
+    device fault -- and the rows then carry corpus_cos = 0.0; cached under the
+    healthy fingerprint they were served as measured to every later run.
+    """
+
+    RECORDS = [{"text": "word " * 40 + str(i), "label": i % 2, "source": f"s{i}",
+                "section": "method"} for i in range(4)]
+
+    def test_width_zero_is_a_failure_only_when_the_embedder_imports(self):
+        original = features.embedder_available
+        try:
+            features.embedder_available = lambda: True
+            self.assertTrue(training.embeddings_failed_at_run_time(0))
+            self.assertFalse(training.embeddings_failed_at_run_time(384))
+            features.embedder_available = lambda: False
+            self.assertFalse(training.embeddings_failed_at_run_time(0))
+        finally:
+            features.embedder_available = original
+
+    @contextlib.contextmanager
+    def _fakes(self, encoder):
+        """The numpy stand-in, an importable embedder whose encode is
+        `encoder`, and a free per-record feature pass that records its calls."""
+        saved = sys.modules.get("numpy")
+        originals = (features.embedder_available, features._embedder,
+                     features.features_vector)
+        featurized: list[str] = []
+        sys.modules["numpy"] = _Numpy()
+        features.embedder_available = lambda: True
+        features._embedder = lambda: types.SimpleNamespace(encode=encoder)
+        features.features_vector = (
+            lambda text, **kw: featurized.append(text) or [0.0] * len(features.FEATURE_NAMES))
+        try:
+            yield featurized
+        finally:
+            (features.embedder_available, features._embedder,
+             features.features_vector) = originals
+            if saved is None:
+                sys.modules.pop("numpy", None)
+            else:
+                sys.modules["numpy"] = saved
+
+    @staticmethod
+    def _failing(*args, **kwargs):
+        raise RuntimeError("offline")
+
+    @staticmethod
+    def _working(plains, **kwargs):
+        return [[0.1, 0.2, 0.3] for _ in plains]
+
+    def test_a_failed_encode_withholds_the_cache_and_keeps_the_rows(self):
+        with tempfile.TemporaryDirectory() as raw:
+            field_dir = Path(raw)
+            cache = field_dir / "voice_features_cache.npz"
+            partial = field_dir / "voice_features_cache.partial.npz"
+            with self._fakes(self._failing) as featurized, \
+                    contextlib.redirect_stderr(io.StringIO()) as err:
+                _X, _y, _src, emb = training.build_features(
+                    field_dir, self.RECORDS, "gpt2", False)
+            self.assertEqual(emb.shape, (4, 0))
+            self.assertEqual(len(featurized), 4)
+            self.assertFalse(cache.exists())
+            self.assertTrue(partial.exists())
+            self.assertEqual(json.loads(partial.read_bytes())["n_done"][1], 4)
+            self.assertIn("withheld", err.getvalue())
+            # The next run resumes past the language-model pass, retries the
+            # embedder, and only then writes the cache.
+            with self._fakes(self._working) as featurized, \
+                    contextlib.redirect_stderr(io.StringIO()) as err:
+                _X, _y, _src, emb = training.build_features(
+                    field_dir, self.RECORDS, "gpt2", False)
+            self.assertEqual(emb.shape, (4, 3))
+            self.assertEqual(featurized, [])
+            self.assertIn("resuming featurization from checkpoint row 4/4", err.getvalue())
+            self.assertTrue(cache.exists())
+            self.assertFalse(partial.exists())
+
+    def test_a_cache_of_empty_embeddings_under_a_healthy_fingerprint_is_recomputed(self):
+        # A cache an earlier run wrote from a failed encode.
+        with tempfile.TemporaryDirectory() as raw, self._fakes(self._working) as featurized:
+            field_dir = Path(raw)
+            fingerprint = training.feature_cache_fingerprint(field_dir, self.RECORDS, "gpt2")
+            names = list(features.FEATURE_NAMES)
+            stale = {"X": [[4, len(names)], None],
+                     "y": [[4], [r["label"] for r in self.RECORDS]],
+                     "src": [[4], [r["source"] for r in self.RECORDS]],
+                     "emb": [[4, 0], None],
+                     "names": [[len(names)], names],
+                     "fingerprint": [[], fingerprint]}
+            (field_dir / "voice_features_cache.npz").write_bytes(
+                json.dumps(stale).encode("utf-8"))
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                _X, _y, _src, emb = training.build_features(
+                    field_dir, self.RECORDS, "gpt2", False)
+        self.assertIn("empty embeddings", err.getvalue())
+        self.assertEqual(len(featurized), 4)
+        self.assertEqual(emb.shape, (4, 3))
+
+
+class TrainingEntryTests(unittest.TestCase):
+    def test_a_missing_learning_dependency_is_one_line_and_exit_2(self):
+        saved = sys.modules.get("numpy")
+        sys.modules["numpy"] = None      # `import numpy` raises, installed or not
+        try:
+            with tempfile.TemporaryDirectory() as raw:
+                (Path(raw) / "wgl").mkdir()
+                err = io.StringIO()
+                with contextlib.redirect_stderr(err), \
+                        contextlib.redirect_stdout(io.StringIO()):
+                    code = training.main(["--field", "wgl", "--profile-root", raw])
+        finally:
+            if saved is None:
+                sys.modules.pop("numpy", None)
+            else:
+                sys.modules["numpy"] = saved
+        self.assertEqual(code, 2)
+        self.assertEqual(err.getvalue().count("\n"), 1, err.getvalue())
+        self.assertIn("[train_voice_model] cannot train without numpy", err.getvalue())
+
+    def test_the_field_is_resolved_under_the_tools_own_name(self):
+        # `args.profile_root / None` was a TypeError traceback without --field.
+        with tempfile.TemporaryDirectory() as raw:
+            with self.assertRaises(SystemExit) as caught:
+                training.main(["--field", "nope", "--profile-root", raw])
+        self.assertIn("[train_voice_model]", str(caught.exception))
 
 
 if __name__ == "__main__":

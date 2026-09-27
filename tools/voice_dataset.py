@@ -26,18 +26,25 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import deai_features as df  # noqa: E402  resolves only after the sys.path insert
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
-
 CHECKPOINT_EVERY = 500   # rows between resumable partial-cache writes
 
 
 def _load_jsonl(path: Path, label: int, prefix: str) -> list[dict]:
+    """Records of one bank, labelled; a blank line is skipped, not parsed.
+
+    The banks are appended to by hand and by the fetch tools, and a blank
+    line -- a doubled trailing newline, a separator -- is not a record.
+    `json.loads("")` raised on it and took the whole training run down, while
+    `train_ai_ism_classifier.load_positives` reads the same files and always
+    tolerated it. The fallback `source` keeps the physical line index.
+    """
     out: list[dict] = []
     if not path.exists():
         return out
     with path.open(encoding="utf-8") as f:
         for i, line in enumerate(f):
+            if not line.strip():
+                continue
             r = json.loads(line)
             t = r.get("text", "")
             if t and len(t.split()) >= 30:
@@ -78,7 +85,6 @@ def load_records(field_dir: Path) -> list[dict]:
     recs += _load_jsonl(field_dir / "ai_ism_negatives_public.jsonl", 0, "public")
     hand = field_dir / "ai_ism_negatives_handcrafted.txt"
     if hand.exists():
-        import re
         blocks = [b.strip() for b in re.split(r"\n\s*\n", hand.read_text(encoding="utf-8"))]
         for i, b in enumerate(blocks):
             if b and not b.startswith("#") and len(b.split()) >= 30:
@@ -217,13 +223,32 @@ def _record_embeddings(recs: list[dict]):
     return np.asarray(emb, np.float32)
 
 
+def embeddings_failed_at_run_time(width: int) -> bool:
+    """Whether an embedding pass produced no vectors although the embedder imports.
+
+    The cache fingerprint records `embedder_available()`, which probes the
+    import only. The encode itself can still fail -- an offline model
+    download, a device fault -- and `_record_embeddings` then degrades to an
+    (n, 0) block with a warning. Rows built from it carry corpus_cos = 0.0,
+    and a cache written under the import-time fingerprint would serve them as
+    measured to every later run, including the runs where the encoder works.
+    Width 0 without the embedder is the known, fingerprinted degraded state,
+    and is not this.
+    """
+    return width == 0 and df.embedder_available()
+
+
 def build_features(field_dir: Path, recs: list[dict], model_name: str,
                    refeature: bool):
     """Return (X, y, src, emb) with provenance-fingerprinted caching.
 
     The slow per-record language-model pass checkpoints every
     ``CHECKPOINT_EVERY`` rows into a resumable partial cache so a preempted
-    cloud run loses at most one chunk, never the whole extraction.
+    cloud run loses at most one chunk, never the whole extraction. When the
+    embedding pass fails at run time (`embeddings_failed_at_run_time`), the
+    finished rows are written to that same checkpoint instead of the cache,
+    so the next run retries the embedder without refeaturizing and only a
+    run whose corpus_cos is real ever becomes the cache.
     """
     import numpy as np
     cache = field_dir / "voice_features_cache.npz"
@@ -258,8 +283,16 @@ def build_features(field_dir: Path, recs: list[dict], model_name: str,
                         np.asarray([str(record["source"]) for record in recs], str),
                     )
                 )
-                if (cached_fingerprint == fingerprint and names_match
+                reason = None
+                if not (cached_fingerprint == fingerprint and names_match
                         and values_match):
+                    reason = "provenance mismatch"
+                elif embeddings_failed_at_run_time(int(cached["emb"].shape[1])):
+                    # A cache an earlier run wrote from a failed encode: its
+                    # fingerprint is healthy and its corpus_cos is all zero.
+                    reason = ("holds empty embeddings although the embedder "
+                              "imports (the encode failed when it was written)")
+                if reason is None:
                     print(f"[train] using provenance-verified cached features "
                           f"{cached['X'].shape}", file=sys.stderr)
                     return (cached["X"].copy(), cached["y"].copy(),
@@ -268,8 +301,7 @@ def build_features(field_dir: Path, recs: list[dict], model_name: str,
             print(f"[train] unusable legacy feature cache ({error}); recomputing",
                   file=sys.stderr)
         else:
-            print("[train] feature cache provenance mismatch; recomputing",
-                  file=sys.stderr)
+            print(f"[train] feature cache {reason}; recomputing", file=sys.stderr)
 
     y = np.asarray([record["label"] for record in recs], int)
     src = np.asarray([str(record["source"]) for record in recs], str)
@@ -310,11 +342,23 @@ def build_features(field_dir: Path, recs: list[dict], model_name: str,
     cos_index = df.FEATURE_NAMES.index("corpus_cos")
     if centroid is not None and emb.shape[1]:
         X[:, cos_index] = emb @ np.asarray(centroid, np.float32)
-    _atomic_savez(cache, X=X, y=y, src=src, emb=emb,
-                  names=np.asarray(df.FEATURE_NAMES, str),
-                  fingerprint=np.asarray(fingerprint))
-    if partial.exists():
-        partial.unlink()
+    if embeddings_failed_at_run_time(int(emb.shape[1])):
+        # The slow rows are kept as a finished checkpoint (`n_done` = every
+        # row) and the cache is withheld: the next run resumes past the
+        # language-model pass, retries the embedder, and writes the cache
+        # only once corpus_cos is what the fingerprint says it is.
+        _atomic_savez(partial, X=X, n_done=np.asarray(len(recs)),
+                      names=np.asarray(df.FEATURE_NAMES, str),
+                      fingerprint=np.asarray(fingerprint))
+        print(f"[train] embeddings failed although the embedder imports; "
+              f"feature cache withheld, language-model rows checkpointed -> "
+              f"{partial.name}", file=sys.stderr)
+    else:
+        _atomic_savez(cache, X=X, y=y, src=src, emb=emb,
+                      names=np.asarray(df.FEATURE_NAMES, str),
+                      fingerprint=np.asarray(fingerprint))
+        if partial.exists():
+            partial.unlink()
     print(f"[train] featurized {len(recs)} in {(time.time()-t0):.0f}s -> {cache.name}",
           file=sys.stderr)
     return X, y, src, emb

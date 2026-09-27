@@ -18,7 +18,6 @@ The model is written to
 
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from pathlib import Path
@@ -27,7 +26,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 HANDCRAFTED_NEGATIVES = REPO_ROOT / "tools" / "ai_ism_negatives_handcrafted.txt"
 
 # Mutation infrastructure removed — empirically (see docstring) mutated
@@ -35,15 +33,9 @@ HANDCRAFTED_NEGATIVES = REPO_ROOT / "tools" / "ai_ism_negatives_handcrafted.txt"
 # generalization. Handcrafted negatives only.
 
 
-def list_fields(profile_root: Path) -> list[str]:
-    return cli_common.list_fields(profile_root)
-
-
 def resolve_field(arg_field: str | None, profile_root: Path) -> str:
     return cli_common.resolve_field(
         arg_field, profile_root, tool="train_ai_ism_classifier")
-
-
 
 
 def load_positives(jsonl_path: Path,

@@ -14,13 +14,10 @@ a confound audit are recorded, and these functions produce that evidence.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import math
-import re
 import statistics
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -530,10 +527,25 @@ def first_valid_group_split(X, y, groups, *, val_frac: float, seed: int,
         f"no grouped split with both classes after {maximum_attempts} attempts")
 
 
+def audit_split_seed(primary_seed: int, attempt: int) -> int:
+    """The seed of the `attempt`-th repeated split: one past the primary's.
+
+    The primary split (`first_valid_group_split`) is reported on its own under
+    `primary_split`. The repeats once started at the same seed, so the first
+    "repeat" was that split again and twenty repeats were nineteen plus the
+    one already shown. Counting from the seed the primary actually used, not
+    the one requested, keeps them disjoint even when the requested seed gave
+    no valid split and the primary moved on.
+    """
+    return primary_seed + 1 + attempt
+
+
 def repeated_group_audit(recs: list[dict], X, y, groups, *, n_splits: int,
                          val_frac: float, seed: int, emb=None) -> dict:
     """Compare raw and section-normalized UID under repeated grouped splits.
 
+    `seed` is the seed the primary split used; the repeats start one past it
+    (`audit_split_seed`), so the split already reported is not among them.
     When record embeddings are supplied, every split recomputes corpus_cos
     against a training-only centroid (split_corpus_cos), so held-out papers
     cannot inflate their own similarity feature.
@@ -550,7 +562,7 @@ def repeated_group_audit(recs: list[dict], X, y, groups, *, n_splits: int,
     attempts = 0
     maximum_attempts = max(20, n_splits * 20)
     while len(raw_reports) < n_splits and attempts < maximum_attempts:
-        split_seed = seed + attempts
+        split_seed = audit_split_seed(seed, attempts)
         splitter = GroupShuffleSplit(
             n_splits=1, test_size=val_frac, random_state=split_seed)
         train_indices, validation_indices = next(splitter.split(X, y, groups=groups))
@@ -631,6 +643,7 @@ def repeated_group_audit(recs: list[dict], X, y, groups, *, n_splits: int,
         "requested_splits": n_splits,
         "completed_splits": len(raw_reports),
         "attempts": attempts,
+        "first_seed": audit_split_seed(seed, 0),
         "validation_fraction": val_frac,
         "split_records": split_records,
         "raw_uid": aggregate_audits(raw_reports),
