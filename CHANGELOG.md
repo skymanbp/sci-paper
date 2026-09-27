@@ -139,8 +139,33 @@ comment-led files are sources and colliding tarball basenames are both kept;
 omitting `--field` is a message and exit 2; the built-in query sets are
 marked `[WGL]` and `--query` serves any other field.
 
-Tests and counts are stated at the end of this entry once every part of the
-release has landed.
+**The per-bucket axes read the grid at nearest rank and say what they
+skipped.** `quantiles` stored the ⌊qn⌋+1-th smallest value, one order
+statistic high: p90 of 100 values was the 91st, and at the 30-unit floor the
+tails read at P = 0.133 and 0.933. It stores the ⌈qn⌉-th now; an artifact
+calibrated before this keeps the old grid until it is recalibrated, and the
+EVALUATION rates measured on the old grid predate it. An artifact recording
+another unit than the axis measures is refused and named. A document whose
+units fall in the `unknown` bucket, a bucket the baseline lacks, and a
+salience reference no bucket resolves above are `degraded` with counts, where
+the floor alone read `measured` with zero findings. The edit-meta residue
+scan keeps the `skip` sections (an appendix TODO was invisible and the gate
+exited 0), a caption's object is sought in the whole paper minus preamble and
+bibliography, `\section {X}` labels are read, `truncation` and `truncated`
+share one stem, `\newcommand*` is read, an unwritable `--output` is exit 2,
+calibrating on no passage writes nothing and exits 2, and a bank row without
+`numeral_text` is warned about instead of calibrating silently on the
+`[math]` projection. `--glossary` goes through argparse, reads a definition
+cue only after the pair, counts a pair joined twice in a sentence twice, and
+its status depends on the bank alone; sentence findings carry the sentence's
+own lines; the provenance ledger no longer lists a title block as a
+paragraph; the oracle survives an empty CUDA message and a blank bank line.
+The voice axis is `unmeasured` without the surprisal runtime instead of a
+RuntimeError, `--scores` lists paragraphs by source line, and every one of
+these tools resolves `--field` through the shared resolver.
+
+The suite is 763 tests in 32 files (v0.38.0: 529 in 27); the validator runs
+11 checks and passes.
 
 ## v0.38.0 — 2026-09-16
 

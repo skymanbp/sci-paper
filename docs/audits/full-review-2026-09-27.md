@@ -375,3 +375,25 @@
 - `deai_feedback` 校验、优先级排序（与 §4 一致）、0.5 段落置信上限；`_mat_inv`/Mahalanobis/conformal `_conformal_p`/分层回退/角色 z 分数正负号一致；`fit_dispersion_manifold` 33 行下限；voice 流水线的训练集内 centroid、词表、分组划分、原子写出、schema 漂移拒绝；`rank_auc` 与 `_auc` 与暴力 tie-aware AUC 在 3000 例上一致；kappa 与独立实现一致；20 标签下限；blind relabel 剥离字段正确。
 - register 的多行置空、宏项、复合词最稀部分、三类 zero-hit 豁免、`wgl-letter` 借用；collocation 的断点集、留一法、可能所有格首词；discourse 状态与检测同一 `live_buckets`、hedging 限 `intro`；salience 的 `numeral_text` 与 `latex_to_numeral_text` 占位符一致、每段一条 finding、低于下限的 bucket 给 degraded finding 而非沉默；residue 规则 6 家族、`never(?!-)`、`[CITE]` 豁免、强弱顺序；validator 镜像检查；CUDA 回退可达且不泄漏（除 C7 的空消息情形）。
 - 文档：所有 43 个 markdown 的相对链接、`tools/*.py`、`skills/*` 引用均可解析（除 M3）；docs/README 的 section map 与磁盘一致；skill 里引用的 EVALUATION §号全部经 hub 解析；没有 skill 引入 PASS/FAIL 或作者身份断言，没有 skill 豁免 integrity blocker；README 引用的所有 flag 存在；文档常量（15 / 1e-4 / 500 / 2e-4 / 4 / 2 / 30 / 0.90 / 0.95 / 0.10 / 0.05 / 150 / 3 / 400 / 0.60 / 0.20 / 0.5 / 3 篇 / 0.40 / 20 / 0.05 / 3 层 / 0.6）与代码一致；v0.36.3 重测数字在已更新的位置内部一致，过时的恰是 §6.2 列出的位置。
+
+## 10. 落地记录（v0.39.0，2026-09-27）
+
+§8 第一梯队与其耦合的第二梯队已在 v0.39.0 落地，提交按范围列出；每个提交正文写明它覆盖的条目号。
+
+| 范围 | 条目 | 提交 |
+|---|---|---|
+| 字段解析：`cli_common.optional_field_dir`、`axis_main` 的 `--calibrate` 检查与 `extra_arguments`/`check`/`report_for` 钩子 | M1/B1/C1/C2/D3/E9/H2，C8/C21 的 cli_common 侧 | `49624e5` |
+| 装配、投影与宏；length_gate 与 condense_map；ai_ism_lint 与 validate_plugin；extract_style 与 retrieve_exemplars | A1–A20、A28，F3/F4/F7/F9/F12/F14/F16–F20/F25/F27/F28/F33，D6–D11/D14/D16/D19，M2/M3 | `5ce670c` |
+| verify_references | F1/F2/F5/F6/F8/F10/F11/F13/F21/F23/F24/F32 | `46cf4ce` |
+| 文档级轴：docshape、docstructure、metrics、structure、features、partition、anchoring | B1–B15、B19–B21、B23、B28，E20 的 features 侧 | `1c9736d`、`f211ece`、`2d2685d` |
+| rewrite_reward | E1–E4、E12、E30，H1 | `116f074` |
+| eval_findings、eval_docscale、label_findings、voice_dataset、voice_audit、train_voice_model、train_ai_ism_classifier | E5–E8、E10/E11、E13–E16、E18/E19、E21/E22、E28、E31、E33，M5 | `9b30c47`、`e47d250` |
+| fetch_arxiv_abstracts | D1–D5、D12/D13、D24、D26 | `41a29a8` |
+| 逐 bucket 轴：reference、collocation、discourse、salience、register、residue、oracle、provenance、personal、voice | C1–C19、C21、C22（C20 属 deai_structure，未动），E20 的 voice 侧 | `95c988f`、`3e13594` |
+| 文档与元数据：§6.2 全部数字（I1–I20、G14–G25）、H3–H6/H12/H13/H36 的 skill 补丁、I21/I25/I36、I22/I31–I34、I38、G11、G27、D15（改为"记录权重，未应用"）、H31（标准 v3.9）及各部分的 registry 行、发布说明与记录的测试数 | | `1ad6ed7`、`de925a9`、`470290d`、`b25f4cd` 及本节所在提交 |
+
+未落地（§8.3 及本轮范围之外）：
+
+- §5 的去重（R1–R10、H23–H30/H45–H51）；待核实项 B16/B17/B18/E17/E32/F22/F26/D20；G19（`latency.json`）；M3/I35 的 disposition 列。A31/D26/E33/B28 的 `__main__` 位置已随各自文件修复。
+- 需重建的制品：`structure_baseline` 与 `docstructure_baseline`（B12/B15）、`anchoring_baseline`（B13）；逐 bucket 轴的制品需重新校准才采用最近秩分位网格（C12）。重建前，EVALUATION 中据旧制品测得的比率沿用旧值，各处已注明测得日期。
+- 抓取器的内置查询集、关键词过滤与期刊表标为 `[WGL]`，其他领域改用 `--query`（D24）；`TIER_WEIGHTS` 仍只记录不应用（D15 按第二梯队的"改措辞"落地）。
