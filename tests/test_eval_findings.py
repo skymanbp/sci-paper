@@ -154,6 +154,36 @@ class ThinPopulationTest(unittest.TestCase):
         self.assertEqual(summary["flag_rate"], 1.0)
         self.assertEqual(summary["per_1k_words"], 2.0)
 
+    def test_a_population_without_body_words_is_unmeasured_not_a_density(self):
+        # Twenty documents whose body projection is empty: the cell had
+        # printed as measured with a None density, which `render` then
+        # formatted with `.3f`.
+        rows = self._rows(ef.MIN_DOCUMENTS, 1.0)
+        for row in rows:
+            row["n_words"] = 0.0
+        summary = ef.summarize(rows, "L0.register")
+        self.assertEqual(summary["status"], "unmeasured")
+        self.assertIn("0 body words", summary["why"])
+        self.assertNotIn("flag_rate", summary)
+        rendered = ef.render(ef.build_report("wgl", {"published-heldout": rows}))
+        self.assertIn("unmeasured", rendered)
+
+    def test_median_words_is_the_statistical_median(self) -> None:
+        rows = self._rows(4, 1.0)
+        for row, words in zip(rows, (100.0, 200.0, 300.0, 400.0)):
+            row["n_words"] = words
+        report = ef.build_report("wgl", {"published-heldout": rows})
+        # The upper middle element, 300, once stood in for it.
+        self.assertEqual(report["populations"]["published-heldout"]["median_words"], 250.0)
+
+    def test_the_document_floor_has_one_owner(self) -> None:
+        # Shared with eval_docscale, so the two evaluators cannot disagree on
+        # how many documents a document-level rate needs.
+        import eval_docscale
+        self.assertEqual(ef.MIN_DOCUMENTS, eval_docscale.MIN_DOCUMENTS)
+        self.assertNotIn("MIN_DOCUMENTS =",
+                         (TOOLS / "eval_findings.py").read_text(encoding="utf-8"))
+
     def test_density_is_per_thousand_words_not_per_document(self) -> None:
         rows = [{"n_words": 2000.0, "L0.register": 4.0,
                  "L2.salience_hierarchy": 0.0, "salience_strong": 0.0}]
@@ -229,6 +259,12 @@ class ReadingOfEachAxisTest(unittest.TestCase):
         rendered = ef._cell({"status": "unmeasured", "n": 3})
         self.assertIn("unmeasured", rendered)
         self.assertNotIn("0.000", rendered)
+
+    def test_a_measured_cell_without_a_density_prints_a_dash_not_a_traceback(self):
+        rendered = ef._cell({"status": "measured", "flag_rate": 0.5,
+                             "per_1k_words": None})
+        self.assertIn("0.500", rendered)
+        self.assertIn("-", rendered)
 
 
 class SalienceGateTransferTest(unittest.TestCase):

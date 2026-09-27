@@ -56,6 +56,7 @@ Run:  python tools/eval_findings.py --field wgl [--format json]
 
 from __future__ import annotations
 
+import statistics
 import sys
 from pathlib import Path
 
@@ -65,12 +66,13 @@ import deai_collocation  # noqa: E402 -- because of that same sys.path insert
 import deai_register  # noqa: E402 -- because of that same sys.path insert
 import deai_salience  # noqa: E402 -- because of that same sys.path insert
 import extract_sections as es  # noqa: E402 -- because of that same sys.path insert
-from eval_docscale import rank_auc  # noqa: E402 -- one AUC implementation, same reason
+# One AUC implementation and one document floor for both evaluators, so a rate
+# that is `unmeasured` here at n < 20 cannot be a rate there.
+from eval_docscale import MIN_DOCUMENTS, rank_auc  # noqa: E402 -- same reason
 
 SCHEMA = "sci-paper.findings-eval.v1"
 HELDOUT_DIR = "fulltext-heldout"
 INSAMPLE_DIR = "fulltext-arxiv"
-MIN_DOCUMENTS = 20   # below this a rate is reported `unmeasured`, never as 0/0
 # Deliberately FOUR, where `label_findings.AXES` carries more. This file is not
 # a generic axis loop: each axis needs a reading of its own -- register is an
 # absolute rarity test whose held-out rate IS a false-positive rate, the
@@ -150,18 +152,29 @@ def score_document(text: str, field_dir: Path, path: str) -> dict[str, float]:
 
 
 def summarize(rows: list[dict[str, float]], axis: str) -> dict:
-    """Document flag rate and length-normalized density for one axis."""
+    """Document flag rate and length-normalized density for one axis.
+
+    Two floors, and both are `unmeasured` rather than a number: fewer than
+    `MIN_DOCUMENTS` documents, and a population whose documents carry no body
+    prose at all. `n_words` is the register projection of the body, so a set
+    of sources with nothing between `\\begin{document}` and `\\end{document}`
+    counts twenty documents and zero words; a density over zero words is not a
+    rate, and the None it once produced reached `render` as a `.3f` format.
+    """
     if len(rows) < MIN_DOCUMENTS:
         return {"status": "unmeasured", "n": len(rows),
                 "why": f"n < {MIN_DOCUMENTS}"}
-    flagged = sum(1 for r in rows if r[axis] > 0)
     words = sum(r["n_words"] for r in rows)
+    if not words:
+        return {"status": "unmeasured", "n": len(rows),
+                "why": f"0 body words over {len(rows)} documents"}
+    flagged = sum(1 for r in rows if r[axis] > 0)
     findings = sum(r[axis] for r in rows)
     return {
         "status": "measured",
         "n": len(rows),
         "flag_rate": round(flagged / len(rows), 4),
-        "per_1k_words": round(1000.0 * findings / words, 4) if words else None,
+        "per_1k_words": round(1000.0 * findings / words, 4),
         "total_findings": int(findings),
     }
 
@@ -290,7 +303,9 @@ def build_report(field: str, populations: dict[str, list[dict[str, float]]],
     rows_out = {
         label: {
             "n_documents": len(rows),
-            "median_words": sorted(r["n_words"] for r in rows)[len(rows) // 2],
+            # `statistics.median`: the upper middle element once stood in for
+            # it, so 100/200/300/400 words read as 300.
+            "median_words": statistics.median(r["n_words"] for r in rows),
             **{axis: summarize(rows, axis) for axis in AXES},
         }
         for label, rows in populations.items()
@@ -338,9 +353,16 @@ def build_report(field: str, populations: dict[str, list[dict[str, float]]],
 
 
 def _cell(entry: dict) -> str:
+    """One axis cell: two numbers, or `unmeasured` and a dash.
+
+    A measured cell always carries a density now, but a missing one prints as
+    a dash rather than reaching `.3f` as None and taking the table down.
+    """
     if entry.get("status") != "measured":
         return f"{'unmeasured':>10s} {'-':>9s}"
-    return f"{entry['flag_rate']:>10.3f} {entry['per_1k_words']:>9.3f}"
+    density = entry.get("per_1k_words")
+    shown = f"{density:>9.3f}" if density is not None else f"{'-':>9s}"
+    return f"{entry['flag_rate']:>10.3f} {shown}"
 
 
 def render(report: dict) -> str:

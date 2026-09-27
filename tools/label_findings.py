@@ -27,6 +27,11 @@ harness is for, to the scheme chosen on 2026-08-26:
   with different answers. Which populations are worth labelling is the user's
   call, not this file's: `--drafts` is the special case that names one `draft`,
   and the held-out published set is added automatically when it exists.
+- **spread over documents within a cell.** Every finding of every document is
+  collected first and each (population, axis) cell is then drawn at random
+  with a per-document cap, so twenty rows are twenty advisories rather than
+  one long paper's worth; the summary prints how many documents each cell
+  came from, and `score` counts a passage several axes flagged once.
 
 Recall is reported POOLED over the axes, not per axis, and that is a property of
 the data rather than a shortcut. A control row asks "should this passage have
@@ -41,7 +46,7 @@ explicit `unmeasured` states wherever a stratum is too thin to support a rate.
 
 Run:  python tools/label_findings.py sample --field wgl \\
           --population mentor=style-corpus/wgl/fulltext-mentor \\
-          --n 60 --out labels.jsonl
+          --n 20 --out labels.jsonl
       python tools/label_findings.py relabel --sheet labels.jsonl --frac 0.2 \\
           --out recheck.jsonl
       python tools/label_findings.py score --sheet labels.jsonl [--recheck recheck.jsonl]
@@ -88,6 +93,10 @@ EMITTERS = (
 )
 AXES = tuple(axis for _, axes, _ in EMITTERS for axis in axes)
 MIN_PER_CELL = 20   # below this a rate is reported `unmeasured`, never as 0/0
+# A cell is drawn from at least this many documents when the population holds
+# them: a rate over rows that all come from one long paper is a rate on that
+# paper, whatever the row count says.
+MIN_SOURCES_PER_CELL = 5
 
 
 def _passages(text: str) -> list[tuple[str, str, int, int]]:
@@ -202,6 +211,33 @@ def _findings_for(name: str, text: str, field_dir: Path) -> list[dict]:
     return found
 
 
+def _spread_sample(rng: random.Random, items: list[tuple[str, object]],
+                   quota: int, cap: int) -> list[tuple[str, object]]:
+    """Up to `quota` of `items` at random, at most `cap` from any one document.
+
+    `items` are (document, payload) pairs. The cap applies first; if it
+    starves the quota -- fewer documents than the spread wants -- the rest is
+    filled from whatever remains, because a cell under the floor wastes every
+    label spent on it, and the summary prints how many documents the cell came
+    from so a cell filled from two papers reads as one.
+    """
+    order = list(range(len(items)))
+    rng.shuffle(order)
+    kept: list[int] = []
+    per_document: dict[str, int] = {}
+    for index in order:
+        if len(kept) >= quota:
+            break
+        document = items[index][0]
+        if per_document.get(document, 0) < cap:
+            kept.append(index)
+            per_document[document] = per_document.get(document, 0) + 1
+    if len(kept) < quota:
+        chosen = set(kept)
+        kept += [index for index in order if index not in chosen][:quota - len(kept)]
+    return [items[index] for index in kept]
+
+
 def cmd_sample(args) -> int:
     field = cli_common.resolve_field(args.field, args.profile_root,
                                      tool="label_findings")
@@ -236,93 +272,130 @@ def cmd_sample(args) -> int:
             f"and/or place a held-out set at "
             f"{args.corpus_root / field / args.heldout_dir}/.")
 
-    rows = []
-    live = [key for key, docs in populations.items() if docs]
-    # Stratify by AXIS as well as by population. Salience fires roughly twenty
-    # times as often as register -- 0.0858 register findings per 1,000 words
-    # (EVALUATION section 18.4) against a per-passage p90 gate -- so a quota the
-    # two share is spent on salience long before register reaches the floor, and
-    # the register cell then reports `unmeasured` however large the sheet is.
-    quota = max(MIN_PER_CELL, args.n // (2 * max(1, len(live)) * len(AXES)))
+    # The quota is per (population, AXIS) cell -- `--n`, default the floor.
+    # Salience fires roughly twenty times as often as register -- 0.0858
+    # register findings per 1,000 words (EVALUATION section 18.4) against a
+    # per-passage p90 gate -- so a quota the two shared was spent on salience
+    # long before register reached the floor, and the register cell reported
+    # `unmeasured` however large the sheet was.
+    if args.n < MIN_PER_CELL:
+        print(f"[label_findings] --n {args.n} is below the {MIN_PER_CELL}-label "
+              f"floor: every cell of this sheet will score `unmeasured`",
+              file=sys.stderr)
+    quota = args.n
+    rows: list[dict] = []
+    # (population, axis) -> (rows drawn, distinct documents they came from).
+    cells: dict[tuple[str, str], tuple[int, int]] = {}
     short: list[str] = []
+    failures: list[str] = []
     for population, documents in populations.items():
         if not documents:
             print(f"[label_findings] population {population!r} is empty; skipped",
                   file=sys.stderr)
             continue
-        rng.shuffle(documents)
-        taken = {axis: 0 for axis in AXES}
+        # Every finding of every document first, then the draw. Taking each
+        # document's findings in emission order until the quota filled meant
+        # a 20-row cell usually came from one or two long papers, and the
+        # precision it supported was per paper, not per finding. A document's
+        # full finding set also serves the control pass below, so the emitters
+        # run once per document rather than twice.
+        candidates: dict[str, list[tuple[str, object]]] = {axis: [] for axis in AXES}
+        errors: dict[str, list[str]] = {axis: [] for axis in AXES}
+        spans: dict[str, list[tuple[int, int]]] = {}
         for name, text in documents:
-            if all(count >= quota for count in taken.values()):
-                break
-            for entry in _findings_for(name, text, field_dir):
+            entries = _findings_for(name, text, field_dir)
+            spans[name] = flagged_spans(entries)
+            for entry in entries:
                 axis = entry.get("axis")
-                if "error" in entry or taken.get(axis, quota) >= quota:
+                if axis not in candidates:
                     continue
-                taken[axis] += 1
+                if "error" in entry:
+                    errors[axis].append(f"{name}: {entry['error']}")
+                else:
+                    candidates[axis].append((name, (text, entry["finding"])))
+        for axis in AXES:
+            drawn = _spread_sample(rng, candidates[axis], quota,
+                                   -(-quota // MIN_SOURCES_PER_CELL))
+            for name, (text, finding) in drawn:
                 rows.append({
                     "id": f"{population}-{len(rows):04d}",
                     "population": population,
                     "axis": axis,
                     "source": name,
                     "flagged": True,
-                    "evidence": entry["finding"],
-                    "excerpt": _excerpt(text, entry["finding"]),
+                    "evidence": finding,
+                    "excerpt": _excerpt(text, finding),
                     "question": FLAG_QUESTION,
                     "label": None,          # <- you fill this in: true | false
                     "note": "",
                 })
-        # A cell the population cannot fill is stated here rather than
-        # discovered after the labelling is done.
-        short += [f"{population} x {axis}: {count} of {MIN_PER_CELL} needed "
-                  f"({len(documents)} documents hold no more)"
-                  for axis, count in taken.items() if count < MIN_PER_CELL]
-    # Unflagged controls make recall computable: a sheet of flags alone can only
-    # ever report precision. Target roughly as many controls as flags in each
-    # population, so neither side of the ratio is the one that starves.
-    for population, documents in populations.items():
-        flagged_here = sum(1 for r in rows
-                           if r["population"] == population and r["flagged"])
+            cells[(population, axis)] = (len(drawn), len({name for name, _ in drawn}))
+            # A cell the population cannot fill is stated here rather than
+            # discovered after the labelling is done -- and an emitter that
+            # failed on some documents is stated as that, not folded into
+            # "the corpus holds no more".
+            failed = errors[axis]
+            if len(drawn) < MIN_PER_CELL:
+                short.append(
+                    f"{population} x {axis}: {len(drawn)} of {MIN_PER_CELL} needed "
+                    f"({len(documents) - len(failed)} of {len(documents)} documents "
+                    f"hold no more"
+                    + (f"; the emitter failed on the other {len(failed)}" if failed else "")
+                    + ")")
+            if failed:
+                failures.append(f"{population} x {axis}: emitter failed on "
+                                f"{len(failed)} of {len(documents)} documents; "
+                                f"first: {failed[0]}")
+        # Unflagged controls make recall computable: a sheet of flags alone
+        # can only ever report precision. Target roughly as many controls as
+        # flags in this population, so neither side of the ratio is the one
+        # that starves -- drawn with the same spread, for the same reason.
+        flagged_here = sum(count for (owner, _axis), (count, _documents)
+                           in cells.items() if owner == population)
         want = max(MIN_PER_CELL, flagged_here)
-        made = 0
-        for name, text in documents:
-            if made >= want:
-                break
-            spans = flagged_spans(_findings_for(name, text, field_dir))
-            for bucket, passage, start, end in unflagged_passages(_passages(text), spans):
-                if made >= want:
-                    break
-                rows.append({
-                    "id": f"{population}-ctl-{len(rows):04d}",
-                    "population": population,
-                    "axis": "control",
-                    "source": name,
-                    "flagged": False,
-                    "evidence": {"section": bucket, "text": passage[:1200]},
-                    "question": CONTROL_QUESTION,
-                    "label": None,
-                    "note": "",
-                })
-                made += 1
+        pool: list[tuple[str, object]] = [
+            (name, (bucket, passage))
+            for name, text in documents
+            for bucket, passage, _start, _end
+            in unflagged_passages(_passages(text), spans[name])]
+        drawn = _spread_sample(rng, pool, want, -(-want // MIN_SOURCES_PER_CELL))
+        for name, (bucket, passage) in drawn:
+            rows.append({
+                "id": f"{population}-ctl-{len(rows):04d}",
+                "population": population,
+                "axis": "control",
+                "source": name,
+                "flagged": False,
+                "evidence": {"section": bucket, "text": passage[:1200]},
+                "question": CONTROL_QUESTION,
+                "label": None,
+                "note": "",
+            })
+        cells[(population, "control")] = (len(drawn), len({name for name, _ in drawn}))
 
     rng.shuffle(rows)
     args.out.write_text(
         "\n".join(json.dumps({"schema": SCHEMA, **row}, ensure_ascii=False)
                   for row in rows) + "\n", encoding="utf-8")
-    by_population: dict[str, int] = {}
-    for row in rows:
-        by_population[row["population"]] = by_population.get(row["population"], 0) + 1
     print(f"[label_findings] {len(rows)} rows -> {args.out}")
-    for population, count in sorted(by_population.items()):
-        flagged = sum(1 for r in rows
-                      if r["population"] == population and r["flagged"])
-        print(f"    {population:10s} {count:4d} rows ({flagged} flagged, "
-              f"{count - flagged} controls)")
+    for population in populations:
+        here = [r for r in rows if r["population"] == population]
+        if not here:
+            continue
+        flagged = sum(1 for r in here if r["flagged"])
+        print(f"    {population:10s} {len(here):4d} rows ({flagged} flagged, "
+              f"{len(here) - flagged} controls)")
+        for (owner, axis), (count, documents_used) in cells.items():
+            if owner == population:
+                print(f"        {axis:24s} {count:4d} rows from "
+                      f"{documents_used} documents")
     print("    Each row carries its own `question`. A flagged row asks whether "
           "the advisory is right;\n    a control row asks whether it SHOULD "
           "have been flagged, which is the miss recall counts.")
     for line in short:
         print(f"    unmeasurable cell -- {line}", file=sys.stderr)
+    for line in failures:
+        print(f"    emitter error -- {line}", file=sys.stderr)
     return 0
 
 
@@ -351,7 +424,25 @@ def _rate(hits: int, total: int) -> str:
     return f"{hits / total:.3f}  (n={total})"
 
 
+def _passage_key(row: dict) -> tuple:
+    """What makes two true positives one hit: the passage, not the row.
+
+    A passage three axes flagged is three rows, each judged on its own
+    advisory, but it is ONE passage for recall -- the control side counts
+    passages a labeller says were missed, so the numerator must count passages
+    too, or three axes agreeing inflates recall three-fold. A row without a
+    location (an older sheet) keys on its own id, which merges nothing.
+    """
+    location = (row.get("evidence") or {}).get("location") or {}
+    if location.get("start_line"):
+        return ("passage", row.get("source"), location["start_line"],
+                location.get("end_line") or location["start_line"])
+    return ("row", row.get("id"))
+
+
 def cmd_score(args) -> int:
+    if args.recheck and not args.recheck.exists():
+        raise SystemExit(f"[label_findings] --recheck sheet not found: {args.recheck}")
     rows = [json.loads(line) for line in
             args.sheet.read_text(encoding="utf-8").splitlines() if line.strip()]
     labelled = [r for r in rows if r.get("label") is not None]
@@ -363,23 +454,30 @@ def cmd_score(args) -> int:
     for population in populations:
         here = [r for r in labelled if r["population"] == population]
         print(f"population: {population}")
-        caught = 0
+        true_rows = 0
+        caught: set[tuple] = set()
         for axis in AXES:
             flagged = [r for r in here if r["axis"] == axis]
-            true_positive = sum(1 for r in flagged if r["label"] is True)
-            caught += true_positive
-            print(f"  {axis:24s} precision {_rate(true_positive, len(flagged))}")
+            true_positive = [r for r in flagged if r["label"] is True]
+            true_rows += len(true_positive)
+            caught.update(_passage_key(r) for r in true_positive)
+            sources = {r.get("source") for r in flagged} - {None}
+            print(f"  {axis:24s} precision {_rate(len(true_positive), len(flagged))}"
+                  + (f"  from {len(sources)} documents" if sources else ""))
         # Recall is POOLED over the axes, and can only be. A control row asks
         # whether the passage should have been flagged; a labeller who says yes
         # has not said by WHICH axis, so no per-axis miss count exists to divide
         # by. Printing one anyway -- as this did while it carried two axes --
-        # charges every axis with every other axis's misses.
+        # charges every axis with every other axis's misses. Its numerator is
+        # passages, deduplicated across the axes, because its denominator is.
         missed = sum(1 for r in here if not r["flagged"] and r["label"] is True)
         print(f"  {'(all axes pooled)':24s} recall    "
-              f"{_rate(caught, caught + missed)}")
+              f"{_rate(len(caught), len(caught) + missed)}  "
+              f"true positives counted once per passage: {true_rows} rows on "
+              f"{len(caught)} passages")
         print()
 
-    if args.recheck and args.recheck.exists():
+    if args.recheck:
         second = {r["_relabel_of"]: r["label"] for r in
                   (json.loads(line) for line in
                    args.recheck.read_text(encoding="utf-8").splitlines() if line.strip())
@@ -407,10 +505,14 @@ def cmd_score(args) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     cli_common.utf8_stdout()
-    parser = cli_common.field_parser(__doc__, corpus=True)
-    # The field options go on every subparser too: argparse routes everything
-    # after the subcommand name to the subparser, so a root-only --field would
-    # force `label_findings --field wgl sample`, unlike every other tool here.
+    # The field options live on the subparsers, and only there: argparse
+    # routes everything after the subcommand name to the subparser, so
+    # `--field` goes last, as in every other tool here. They sat on the root
+    # as well, and argparse let each subparser's defaults overwrite what the
+    # root had parsed -- `label_findings --field wgl --corpus-root X sample`
+    # ran with field=None and the default corpus root, silently. That spelling
+    # is now an argparse error.
+    parser = cli_common.base_parser(__doc__)
     shared = [cli_common.field_options(corpus=True)]
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -422,7 +524,11 @@ def main(argv: list[str] | None = None) -> int:
                         "automatic held-out population.")
     s.add_argument("--drafts", type=Path, default=None,
                    help="shorthand for --population draft=DIR")
-    s.add_argument("--n", type=int, default=60)
+    s.add_argument("--n", type=int, default=MIN_PER_CELL,
+                   help="flagged rows to draw per (population, axis) cell "
+                        "(default %(default)s, the floor below which a cell "
+                        "scores unmeasured); each population also gets about as "
+                        "many unflagged control rows as flagged ones")
     s.add_argument("--heldout-dir", default=eval_findings.HELDOUT_DIR,
                    help="directory under style-corpus/<field>/ holding the "
                         "held-out papers the calibration never saw")
