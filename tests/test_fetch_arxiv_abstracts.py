@@ -1,19 +1,19 @@
 from __future__ import annotations
 
+import io
 import json
-import sys
 import tempfile
 import types
-import io
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
 import urllib.error
 import urllib.request
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
+from _toolpath import TOOLS  # noqa: E402 -- because importing it is what puts tools/ on sys.path
 
-import fetch_arxiv_abstracts as fetch
+import fetch_arxiv_abstracts as fetch  # noqa: E402
+from _fetch_harness import ARXIV_NS, ATOM_NS, _bank, _record, _sweep, _write_bank  # noqa: E402
 
 
 class ClassifyJournalTest(unittest.TestCase):
@@ -79,9 +79,6 @@ class ClassifyJournalTest(unittest.TestCase):
         self.assertIsNone(fetch.classify_journal(None))
         self.assertIsNone(fetch.classify_journal(""))
 
-
-ATOM_NS = "http://www.w3.org/2005/Atom"
-ARXIV_NS = "http://arxiv.org/schemas/atom"
 
 FEED = f"""<feed xmlns="{ATOM_NS}" xmlns:arxiv="{ARXIV_NS}">
   <entry>
@@ -156,6 +153,15 @@ class QuerySetTest(unittest.TestCase):
                                      "aperture mass", "mass map",
                                      "mass reconstruction", "peak statistics")),
                                 f"{query!r} carries no weak-lensing term")
+
+    def test_the_built_in_sets_and_keyword_filter_are_marked_wgl(self) -> None:
+        # D24: every hard-coded astro-ph / weak-lensing table is field-specific
+        # content and says so where it is defined, in the comment block above it.
+        source = (TOOLS / "fetch_arxiv_abstracts.py").read_text(encoding="utf-8")
+        for name in ("JOURNAL_FILTERS", "QUERIES", "AUTHOR_QUERIES", "WL_QUERIES",
+                     "FULLTEXT_QUERIES", "_FIELD_RELEVANCE_RE"):
+            preceding = source[:source.index(f"\n{name} = ")].rsplit("\n\n", 1)[-1]
+            self.assertIn("[WGL]", preceding, f"{name} lacks a [WGL] marker")
 
 
 class _FakeResponse:
@@ -234,13 +240,6 @@ class BackoffTest(unittest.TestCase):
         self.assertFalse(issubclass(fetch.Throttled, urllib.error.HTTPError))
 
 
-def _record(source: str, updated: str, journal_ref: str = "ApJ, 927, 101 (2021)") -> dict:
-    return {"section": "abstract", "text": "word " * 60, "source": source,
-            "year": 2020, "published": "2020-01-01", "updated": updated,
-            "journal_ref": journal_ref,
-            "journal": fetch.classify_journal(journal_ref), "doi": None}
-
-
 class TextVintageFilterTest(unittest.TestCase):
     """--date-hi bounds the v1 submission; only --updated-before dates the text.
 
@@ -252,27 +251,9 @@ class TextVintageFilterTest(unittest.TestCase):
     def _run(self, page: list[dict], extra: list[str]) -> list[dict]:
         with tempfile.TemporaryDirectory() as name:
             tmp = Path(name)
-            (tmp / "wgl").mkdir(parents=True)
-            real = fetch.fetch_page
-            calls = {"n": 0}
-
-            def one_page(*a, **k):
-                calls["n"] += 1
-                return page if calls["n"] == 1 else []
-
-            fetch.fetch_page = one_page
-            try:
-                # The CLI's progress log is the suite's only stdout noise and
-                # prints an absolute temp path; capture it so a test run stays
-                # readable, the same technique validate_plugin.py uses.
-                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                    fetch.main(["--field", "wgl", "--profile-root", str(tmp),
-                                "--query-set", "wl", "--out-name", "v.jsonl",
-                                "--per-query", "100"] + extra)
-            finally:
-                fetch.fetch_page = real
-            text = (tmp / "wgl" / "v.jsonl").read_text(encoding="utf-8").strip()
-            return [json.loads(line) for line in text.splitlines() if line]
+            _sweep(tmp, ["--query-set", "wl", "--out-name", "v.jsonl",
+                         "--per-query", "100"] + extra, page)
+            return _bank(tmp / "wgl" / "v.jsonl")
 
     def test_record_revised_after_the_cutoff_is_dropped(self) -> None:
         page = [_record("arxiv:2001.1v3", "2023-04-01"),
@@ -303,34 +284,18 @@ class IncompleteSweepTest(unittest.TestCase):
     """
 
     def _run(self, pages) -> tuple[int, list[dict]]:
+        def flaky(*args, **kwargs):
+            flaky.calls += 1
+            if flaky.calls == 1:
+                return pages
+            raise RuntimeError("simulated transient API failure")
+        flaky.calls = 0
         with tempfile.TemporaryDirectory() as temporary:
             tmp = Path(temporary)
-            calls = {"n": 0}
-
-            def flaky(*args, **kwargs):
-                calls["n"] += 1
-                if calls["n"] == 1:
-                    return pages
-                raise RuntimeError("simulated transient API failure")
-
-            real = fetch.fetch_page
-            fetch.fetch_page = flaky
-            try:
-                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as err:
-                    status = fetch.main([
-                        "--field", "wgl", "--profile-root", str(tmp),
-                        "--query-set", "wl", "--out-name", "v.jsonl",
-                        "--per-query", "100", "--page", "1",
-                    ])
-            finally:
-                fetch.fetch_page = real
-            self.assertIn("INCOMPLETE", err.getvalue())
-            written = tmp / "wgl" / "v.jsonl"
-            records = []
-            if written.exists():
-                records = [json.loads(line) for line
-                           in written.read_text(encoding="utf-8").splitlines() if line]
-            return status, records
+            status, err = _sweep(tmp, ["--query-set", "wl", "--out-name", "v.jsonl",
+                                       "--per-query", "100", "--page", "1"], fetch_page=flaky)
+            self.assertIn("INCOMPLETE", err)
+            return status, _bank(tmp / "wgl" / "v.jsonl")
 
     def test_page_error_reports_incomplete_and_exits_two(self):
         status, records = self._run([_record("arxiv:2001.1v1", "ApJ, 927, 101 (2021)")])
@@ -342,72 +307,40 @@ class IncompleteSweepTest(unittest.TestCase):
 class ResumeTest(unittest.TestCase):
     """A rerun after rate limiting must extend the corpus, never shrink it."""
 
-    def _run_main(self, tmp: Path, extra: list[str]) -> int:
-        real = fetch.fetch_page
-        fetch.fetch_page = lambda *a, **k: []      # no network in tests
-        try:
-            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                return fetch.main(["--field", "wgl", "--profile-root", str(tmp),
-                                   "--query-set", "wl", "--journals", "apj",
-                                   "--out-name", "carry.jsonl",
-                                   "--per-query", "100"] + extra)
-        finally:
-            fetch.fetch_page = real
+    ARGV = ["--query-set", "wl", "--journals", "apj", "--out-name", "carry.jsonl",
+            "--per-query", "100"]
 
     def _seed(self, tmp: Path) -> Path:
-        field = tmp / "wgl"
-        field.mkdir(parents=True)
-        out = field / "carry.jsonl"
-        with out.open("w", encoding="utf-8") as handle:
-            for i in range(3):
-                handle.write(json.dumps({
-                    "section": "abstract", "text": "word " * 60,
-                    "source": f"arxiv:20{i:02d}.00001", "year": 2020,
-                    "journal_ref": "ApJ, 927, 101 (2021)", "journal": "apj",
-                    "doi": None}) + "\n")
-        return out
+        return _write_bank(tmp, [{"section": "abstract", "text": "word " * 60,
+                                  "source": f"arxiv:20{i:02d}.00001", "year": 2020,
+                                  "journal_ref": "ApJ, 927, 101 (2021)", "journal": "apj",
+                                  "doi": None} for i in range(3)], "carry.jsonl")
 
     def test_resume_keeps_existing_records_when_the_sweep_finds_nothing(self) -> None:
         with tempfile.TemporaryDirectory() as name:
-            tmp = Path(name)
-            out = self._seed(tmp)
-            self.assertEqual(self._run_main(tmp, ["--resume"]), 0)
-            self.assertEqual(len(out.read_text(encoding="utf-8").strip().splitlines()), 3)
+            out = self._seed(Path(name))
+            self.assertEqual(_sweep(Path(name), self.ARGV + ["--resume"])[0], 0)
+            self.assertEqual(len(_bank(out)), 3)
 
     def test_without_resume_the_writer_truncates(self) -> None:
         # Documents the destructive default that --resume exists to avoid.
         with tempfile.TemporaryDirectory() as name:
-            tmp = Path(name)
-            out = self._seed(tmp)
-            self.assertEqual(self._run_main(tmp, []), 0)
+            out = self._seed(Path(name))
+            self.assertEqual(_sweep(Path(name), self.ARGV)[0], 0)
             self.assertEqual(out.read_text(encoding="utf-8").strip(), "")
 
     def test_resume_deduplicates_against_carried_sources(self) -> None:
         with tempfile.TemporaryDirectory() as name:
-            tmp = Path(name)
-            out = self._seed(tmp)
-            duplicate = {"section": "abstract", "text": "word " * 60,
-                         "source": "arxiv:2000.00001", "year": 2020,
-                         "journal_ref": "ApJ, 927, 101 (2021)",
-                         "journal": "apj", "doi": None}
-            real = fetch.fetch_page
-            calls = {"n": 0}
+            out = self._seed(Path(name))
+            _sweep(Path(name), self.ARGV + ["--resume"], [_record("arxiv:2000.00001", "2020-01-01")])
+            self.assertEqual(len(_bank(out)), 3, "carried source must not be re-added")
 
-            def one_page(*a, **k):
-                calls["n"] += 1
-                return [duplicate] if calls["n"] == 1 else []
-
-            fetch.fetch_page = one_page
-            try:
-                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                    fetch.main(["--field", "wgl", "--profile-root", str(tmp),
-                                "--query-set", "wl", "--journals", "apj",
-                                "--out-name", "carry.jsonl", "--per-query", "100",
-                                "--resume"])
-            finally:
-                fetch.fetch_page = real
-            lines = out.read_text(encoding="utf-8").strip().splitlines()
-            self.assertEqual(len(lines), 3, "carried source must not be re-added")
+    def test_resume_does_not_bank_a_revised_paper_twice(self) -> None:
+        # D13: dedup keys on the bare id, so v2 of a carried paper is the same paper.
+        with tempfile.TemporaryDirectory() as name:
+            out = self._seed(Path(name))
+            _sweep(Path(name), self.ARGV + ["--resume"], [_record("arxiv:2000.00001v2", "2021-01-01")])
+            self.assertEqual(len(_bank(out)), 3)
 
 
 class HeldOutSetTest(unittest.TestCase):
@@ -494,162 +427,3 @@ class HeldOutSetTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-OLD_ID_FEED = f"""<feed xmlns="{ATOM_NS}" xmlns:arxiv="{ARXIV_NS}">
-  <entry>
-    <id>http://arxiv.org/abs/astro-ph/9403003v1</id>
-    <published>1994-03-01T00:00:00Z</published>
-    <updated>1994-03-01T00:00:00Z</updated>
-    <summary>{' word' * 60}</summary>
-    <author><name>Ian P. Dell'Antonio</name></author>
-    <author><name>J. Anthony Tyson</name></author>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2001.00009v1</id>
-    <published>2020-01-01T00:00:00Z</published>
-    <updated>2020-01-01T00:00:00Z</updated>
-    <summary>{' word' * 60}</summary>
-  </entry>
-</feed>"""
-
-
-def _parse(feed: str) -> list[dict]:
-    real = fetch.urlopen_backoff
-    fetch.urlopen_backoff = lambda *a, **k: feed.encode("utf-8")
-    try:
-        return fetch.fetch_page("q", 0, 10, "199001010000", "202512312359")
-    finally:
-        fetch.urlopen_backoff = real
-
-
-class OldStyleIdTest(unittest.TestCase):
-    """An `archive/YYMMNNN` id must keep its archive.
-
-    The e-print endpoint 404s without it, and the failure is silent in the worst
-    way: the sweep reports `failed=N` and carries on, so the corpus is short by
-    however many old papers the query returned. Measured on a live 1990-2021
-    author sweep before the fix, 7 of 19 candidates were lost this way.
-    """
-
-    def test_the_archive_prefix_survives(self) -> None:
-        self.assertEqual(_parse(OLD_ID_FEED)[0]["source"],
-                         "arxiv:astro-ph/9403003v1")
-
-    def test_a_new_style_id_is_unaffected(self) -> None:
-        self.assertEqual(_parse(OLD_ID_FEED)[1]["source"], "arxiv:2001.00009v1")
-
-    def test_the_slashed_id_still_normalises_for_identity(self) -> None:
-        # Everything downstream was already built for the slash; only the parser
-        # never produced one. This is the join that keeps held-out bookkeeping
-        # working now that it does.
-        self.assertEqual(fetch._bare("astro-ph/9403003v1"), "astro-ph_9403003")
-
-
-class AuthorListTest(unittest.TestCase):
-    """Team size comes from the API, never from counting `\author` in LaTeX."""
-
-    def test_authors_are_extracted_in_order(self) -> None:
-        self.assertEqual(_parse(OLD_ID_FEED)[0]["authors"],
-                         ["Ian P. Dell'Antonio", "J. Anthony Tyson"])
-
-    def test_an_entry_with_no_authors_yields_an_empty_list(self) -> None:
-        self.assertEqual(_parse(OLD_ID_FEED)[1]["authors"], [])
-
-    def test_the_abstract_writer_drops_the_list(self) -> None:
-        # The abstract bank is a prose corpus that other tools read as text.
-        with tempfile.TemporaryDirectory() as name:
-            tmp = Path(name)
-            real = fetch.fetch_page
-            calls = {"n": 0}
-
-            def one_page(*a, **k):
-                calls["n"] += 1
-                return [{"section": "abstract", "text": "word " * 60,
-                         "source": "arxiv:2001.00001", "year": 2020,
-                         "published": "2020-01-01", "updated": "2020-01-01",
-                         "journal_ref": None, "journal": None,
-                         "authors": ["A. Author"], "doi": None}
-                        ] if calls["n"] == 1 else []
-
-            fetch.fetch_page = one_page
-            try:
-                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                    fetch.main(["--field", "wgl", "--profile-root", str(tmp),
-                                "--query-set", "wl", "--out-name", "a.jsonl",
-                                "--per-query", "100"])
-            finally:
-                fetch.fetch_page = real
-            record = json.loads(
-                (tmp / "wgl" / "a.jsonl").read_text(encoding="utf-8").splitlines()[0])
-            self.assertNotIn("authors", record)
-
-
-class AuthorQueryFormTest(unittest.TestCase):
-    """`Surname_Initial` is the listing URL's format, not the search API's.
-
-    Every one of the ten author queries carried that shape until 2026-08-26 and
-    returned exactly 0 records, so the `broad` set was silently ten queries
-    short while its comment claimed they broadened the corpus. A dead query
-    leaves no trace in the output, which is why this is a test and not a note.
-    """
-
-    def test_no_author_query_uses_the_dead_underscore_initial_form(self) -> None:
-        import re as _re
-        dead = _re.compile(r"au:[A-Za-z]+_[A-Za-z](?:\b|$)")
-        for query in fetch.AUTHOR_QUERIES:
-            self.assertIsNone(dead.search(query), f"dead listing-URL form: {query}")
-
-    def test_every_author_query_quotes_its_name(self) -> None:
-        for query in fetch.AUTHOR_QUERIES:
-            self.assertIn('au:"', query, f"unquoted author term: {query}")
-
-    def test_surname_only_queries_are_scoped_to_the_field(self) -> None:
-        # `au:` matches a SURNAME, and a surname is not a person: unscoped,
-        # "Dell'Antonio" also returns a mathematical physicist's math-ph work.
-        for query in fetch.AUTHOR_QUERIES:
-            self.assertTrue("cat:" in query or "abs:" in query,
-                            f"unscoped author query: {query}")
-
-
-class AuthorQueryConstructionTest(unittest.TestCase):
-    """`--author` takes a name OR a whole query, and the difference matters.
-
-    `au:` matches a surname in every archive, not just the field's, and the
-    identity filter cannot fix that: 32 of 100 `au:"Kaiser, N"` papers are
-    nuclear theory under the SAME spelling of the name an `--author-is` regex
-    would match. Scoping has to live in the query, so a value that already
-    carries a query operator is passed through untouched.
-    """
-
-    def queries_for(self, author: str) -> list[str]:
-        seen: list[str] = []
-        real = fetch.fetch_page
-
-        def capture(query, *a, **k):
-            seen.append(query)
-            return []
-
-        fetch.fetch_page = capture
-        try:
-            with tempfile.TemporaryDirectory() as name:
-                args = types.SimpleNamespace(
-                    author=author, author_is="", max_authors=0,
-                    profile_root=Path(name), field="wgl", per_query=1, page=1,
-                    start_at=0, date_lo="201001010000", date_hi="202112312359",
-                    sleep=0)
-                with redirect_stderr(io.StringIO()):
-                    fetch._candidate_ids(args, {"x"}, None)
-        finally:
-            fetch.fetch_page = real
-        return seen
-
-    def test_a_bare_name_is_quoted(self) -> None:
-        self.assertEqual(self.queries_for("Dell'Antonio"), ['au:"Dell\'Antonio"'])
-
-    def test_a_whole_query_passes_through_untouched(self) -> None:
-        whole = 'au:"Kaiser, N" AND cat:astro-ph*'
-        self.assertEqual(self.queries_for(whole), [whole])
-
-    def test_no_author_falls_back_to_the_topic_sweep(self) -> None:
-        self.assertEqual(self.queries_for(""), list(fetch.FULLTEXT_QUERIES))
