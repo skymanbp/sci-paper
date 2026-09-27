@@ -255,9 +255,9 @@ The collocation axis judged one sentence at a time: does it join words the
 field never joins? The author's mentor read the same manuscript with a
 different question, "this is jargon and won't make sense to an astronomer",
 and the sentences the axis had flagged were not where the jargon was. The
-jargon was in the pairs the manuscript kept using, `detector settings` nine
-times, `noiseless map` six, `keeps minimum` five, none of them in any of the
-field's 41,644 passages and most of them undefined where they first appear.
+jargon was in the pairs the manuscript kept using, three of them five to nine
+times each, none of them in any of the field's 41,644 passages and most of
+them undefined where they first appear.
 A pair that recurs is a term; a pair that occurs once is a figure of speech
 or a slip. `deai_collocation --glossary` (and `ai_ism_lint --glossary`, off by
 default so no count moves) reads the same bank document-wide and lists every
