@@ -99,6 +99,46 @@ command as fixed. The tricolon wrap-up needs a wrap-up. `structure_baseline`,
 `docstructure_baseline` and `anchoring_baseline` must be rebuilt for these to
 take effect; the EVALUATION figures tied to them predate the rebuild and say so.
 
+**The rewrite gate runs on a fresh clone.** A missing profile, a missing or
+unusable `voice_model.joblib`, or a missing sentence-transformers was exit 2,
+so the fidelity gate could not run where the optional model had never been
+trained; each now leaves its term unmeasured at weight 0 with one stderr line,
+and the run ends 0 or 1 by eligibility. Numbers and the negation, causal and
+comparison markers are compared as bags, so a dropped second `not` or a
+repeated value replaced by another is caught and the report names the count
+mismatch; a marker moved between clauses still passes and stays with the
+by-hand check. The numeral tokenizer reads the LaTeX en-dash range
+`0.5--1.2`, the Unicode minus and exponent sign, and no longer starts a token
+inside an identifier (`M200` yielded `00`). `--field` is optional.
+
+**Labelling and evaluation report a thin stratum as unmeasured.** A
+population with no body words, a document-scale row under the 20-document
+floor, and a labelling cell short of its quota say so instead of printing a
+rate, a `StatisticsError`, or a `None` formatted as a float; the floor is one
+constant shared by `eval_findings` and `eval_docscale`. `label_findings --n`
+is the flagged-row quota per (population, axis) cell; every finding is
+collected first and each cell drawn at random with a per-document cap;
+emitter failures are printed per axis instead of being read as an exhausted
+corpus; pooled recall counts a passage several axes flagged once; `--field`
+belongs after the subcommand. `eval_docscale` decides each flag by its
+operating point's own alpha, names that point per row, and finds its tiers
+under `docval/`. In voice training a failed encode never becomes the feature
+cache (the language-model rows are checkpointed and the embedder retried
+next run), the repeated audit splits start one seed past the primary split, a
+missing numpy is one line and exit 2, and the unbound-name check is
+scope-aware: it sees an import that one function bound only for itself.
+
+**The fetcher does what its flags say.** `--journals` applies on the local
+full-text shortcut (the "refereed" breadth corpus was never restricted);
+`--start-at` sizes its pages from where the band began instead of requesting
+a negative page; a throttled full-text run reports TRUNCATED and exits 2 like
+the abstract sweep; `--updated-before` applies in full-text mode and the
+abstract-only flags are refused there instead of accepted and ignored; a
+version bump no longer fetches `...v2` beside `...v1`; `\documentstyle` and
+comment-led files are sources and colliding tarball basenames are both kept;
+omitting `--field` is a message and exit 2; the built-in query sets are
+marked `[WGL]` and `--query` serves any other field.
+
 Tests and counts are stated at the end of this entry once every part of the
 release has landed.
 

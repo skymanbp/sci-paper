@@ -346,16 +346,19 @@ findings. For each selected paragraph:
    `eligible=False` (fidelity failure, or longer than the original → `-inf`)
    cannot be selected; the tool exits 1 when NO candidate is eligible (a
    measured outcome, not a failure — regenerate tighter) and 2 only on invalid
-   input. Without a `voice_model.joblib` the learned score is reported
-   unmeasured and the deterministic gate still decides; the set comparison of
-   invariants is blind to a negation MOVED between clauses, so step 3's
-   hand check is where that is caught. `--allow-growth "<reason>"` only with an
-   author-approved justification, printed into the run record. Among
-   eligible candidates rank by L0 reduction, semantic fidelity, voice score,
-   and condensation. If none is eligible, preserve the original and
-   regenerate tighter — never pick the least-bad ineligible candidate. Then
-   verify entities, scope, stance, and logical dependencies against the
-   source by hand: the deterministic checker is necessary, not sufficient.
+   input or a crash. A missing profile, a missing or unusable
+   `voice_model.joblib`, or a missing sentence-transformers does not stop the
+   gate: that term is unmeasured at weight 0, one stderr line says which, and
+   ranking proceeds on the deterministic terms (the learned model is never
+   required). `--allow-growth "<reason>"` only with an author-approved
+   justification, printed into the run record. Among eligible candidates
+   rank by L0 reduction, semantic fidelity, voice score, and condensation.
+   If none is eligible, preserve the original and regenerate tighter — never
+   pick the least-bad ineligible candidate. Then verify entities, scope,
+   stance, and logical dependencies against the source by hand: the
+   deterministic checker is necessary, not sufficient — it compares numbers
+   and negation/causal/comparison markers as bags, so a marker moved between
+   clauses passes it; its `count mismatch` line flags only lost repeats.
 4. **Re-measure.** Re-run the Pass-1 linter on the candidate in enough
    section context for section caps. A good rewrite introduces no new
    integrity blocker or L0 target, stays eligible, acts on the selected

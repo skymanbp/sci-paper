@@ -235,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  → {output}")
     print()
     print("To use the classifier:")
-    print(f"  python tools/ai_ism_lint.py <draft.tex> --ai-classifier --summary")
+    print("  python tools/ai_ism_lint.py <draft.tex> --ai-classifier")
     return 0
 
 

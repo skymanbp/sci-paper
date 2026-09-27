@@ -120,10 +120,12 @@ For each map entry, in rank order, record `deleted` / `merged` / `kept:<reason>`
    shortened rewrite with `python tools/rewrite_reward.py --field <field>
    --reference <claim-record> --original <span> --candidates ...` — a
    candidate that drops a protected invariant is ineligible regardless of its
-   brevity; among eligible candidates the shorter wins. `--field` resolves as
-   in §1 step 1 (one profile auto-resolves); without a `voice_model.joblib`
-   the learned score is reported unmeasured and the deterministic gate still
-   decides eligibility. Exit 2 is invalid input, never a missing model.
+   brevity; among eligible candidates the shorter wins. `--field` is optional
+   (one field auto-detects; none or several run without a profile, the
+   learned score unmeasured at weight 0 with a stderr line saying so); exit 2
+   means invalid input or a crash, never a missing model. A value the claim
+   record states twice counts twice, so a condensation keeping one copy is
+   ineligible: distil the record before gating.
 
 Apply each change with a minimal Edit and re-read the affected region plus
 every cross-reference into it.

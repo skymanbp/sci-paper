@@ -205,10 +205,10 @@ loads under local scikit-learn 1.8.0 with no warnings.
 ## 8. Rewrite eligibility
 
 [`tools/rewrite_reward.py`](../../../tools/rewrite_reward.py) checks protected invariants before
-ranking. The protected set includes numbers, units, citations, inline mathematics,
-uppercase acronyms, comparison direction, negation, and causal direction.
+ranking. The protected set includes numbers, units, citations, inline and displayed
+mathematics (numerals collected from both), uppercase acronyms, comparison direction, negation, and causal direction.
 
-**Three properties of the protected set, recorded rather than implied:**
+**Five properties of the protected set, recorded rather than implied:**
 
 - **Display math is protected as of v0.27.0.** Both LaTeX projections drop
   `\begin{equation}`/`align`/`gather` bodies by design, so until v0.27.0 every
@@ -235,6 +235,20 @@ uppercase acronyms, comparison direction, negation, and causal direction.
   measured outcome the caller acts on — preserve the original and regenerate
   tighter — so reporting it as an execution failure made a correct run
   indistinguishable from a crash. Registered in `SCIPAPER_STANDARD` §0.1.
+- **Numbers and the marker categories are bags as of 2026-09-27.** Set
+  comparison could not see a dropped second negation or a repeated value
+  replaced by another; both are now caught, and the report names a count
+  mismatch when the candidate still carries the token fewer times. A marker
+  moved between clauses, or two distinct numbers exchanging places, changes
+  no count and passes: that is the gate's stated residual limit, covered by
+  the by-hand check the de-ai skill requires.
+- **No optional artifact is a precondition** (2026-09-27). A missing profile,
+  a missing or unusable `voice_model.joblib`, or a missing sentence-transformers
+  leaves the corresponding term unmeasured at weight 0 — never a nominal 0.0 —
+  with one stderr line each; without the cosine the fidelity floor on the
+  advisory-reduction credit and the condensation bonus cannot be applied and
+  the run says so. Until then a missing bundle was exit 2 and the gate could
+  not run on a fresh clone.
 
 An ineligible candidate receives a combined score of negative infinity. This replaces
 the former relative semantic-similarity band, under which a fluent but scientifically
@@ -246,7 +260,10 @@ Current tests in
 - a candidate preserving protected invariants remains eligible;
 - dropping a number makes it ineligible;
 - dropping a citation makes it ineligible;
-- reversing a comparison makes it ineligible.
+- reversing a comparison makes it ineligible;
+- a dropped second negation makes it ineligible;
+- a missing model, profile or embedder leaves the term unmeasured with exit 0/1
+  by eligibility.
 
 Section 11 records a source-traced, proposal-only real-manuscript validation. Its
 manual review covers entities, scope, stance, logical dependency, and citation support,

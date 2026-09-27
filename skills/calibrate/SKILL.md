@@ -79,7 +79,10 @@ python tools/fetch_arxiv_abstracts.py --field <field> --fulltext \
 ```
 
 `--exclude-known` is what makes the second pull disjoint from the first. Verify
-the disjointness before trusting any rate computed from it.
+the disjointness before trusting any rate computed from it. The fetcher's
+built-in query sets, keyword filter and journal table are `[WGL]`: for any other
+field pass your own `--query <term>` (repeatable; it replaces them) and omit
+`--journals`, or the pull fills your corpus with weak-lensing papers.
 
 ## 3. Extract the profile
 
@@ -175,7 +178,7 @@ calibration input.
 ```bash
 python tools/label_findings.py sample --field <field> \
     --population mentor=style-corpus/<field>/fulltext-mentor \
-    --n 240 --out labels.jsonl
+    --n 24 --out labels.jsonl
 # fill in "label": true | false, guided by each row's own "question"
 python tools/label_findings.py relabel --sheet labels.jsonl --frac 0.2 \
     --out recheck.jsonl
@@ -196,7 +199,9 @@ Four things about the sheet decide whether the effort is worth anything:
 - **Stratified by axis, not only by population.** Salience fires roughly twenty
   times as often as register. A shared quota is spent on salience before
   register reaches the floor, and the register cell then reads `unmeasured`
-  however large the sheet is.
+  however large the sheet is. Within a cell the draw is spread over documents
+  (at most a fifth of the cell from one paper when the population allows) and
+  the summary prints how many documents each cell came from.
 - **A flag and a control ask opposite questions.** A flagged row asks whether the
   advisory is right. A control row asks whether it *should* have been flagged —
   that miss is the numerator of recall. Each row carries its own `question`;
