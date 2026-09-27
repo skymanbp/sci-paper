@@ -14,9 +14,10 @@ no CLI, plus the two divergences below.
 
 Two divergences are kept on purpose rather than folded in:
 
-- `ai_ism_lint.resolve_field` **warns and returns None** instead of raising,
-  because the linter must still run its L0 pass with no profile present. That is
-  a behavioural difference, not duplication, so it keeps its own copy.
+- `ai_ism_lint.resolve_field` returns None instead of raising (warning on an
+  explicit field that does not exist), because the linter must still run its
+  L0 pass with no profile present. That is a behavioural difference, not
+  duplication, so it keeps its own copy.
 - `extract_style` resolves against the *corpus* root, where a `tier-*`
   subdirectory is not a field. That is expressed here as `exclude_prefixes`
   rather than as a second implementation.
@@ -102,7 +103,12 @@ def axis_main(doc: str | None, argv: list[str] | None, *, tool: str,
               calibrate: Callable[[Path], Any],
               summary: Callable[[Any, Path], str],
               report: Callable[[str, Path | None, Path], dict],
-              render: Callable[[dict], str]) -> int:
+              render: Callable[[dict], str],
+              extra_arguments: Callable[[argparse.ArgumentParser], None] | None = None,
+              check: Callable[[argparse.Namespace], str | None] | None = None,
+              report_for: Callable[[argparse.Namespace],
+                                   Callable[[str, Path | None, Path], dict]] | None = None,
+              ) -> int:
     """The `--calibrate`-or-read-one-file CLI every calibrated axis shares.
 
     Three axis tools carried a near-byte-equivalent copy of this body before a
@@ -111,25 +117,79 @@ def axis_main(doc: str | None, argv: list[str] | None, *, tool: str,
     functions produce the findings and the axis statuses. `render` is injected
     for the same reason `emit_report` injects it -- so this module goes on
     holding no report schema and no policy.
+
+    The field is optional on the read path and resolved by `optional_field_dir`
+    (one field auto-resolves; several print a note and run without a profile).
+    `--calibrate` needs a field that exists under the profile root, and a
+    `calibrate` that read no reference records returns None, which is exit 2
+    rather than an empty artifact reported as written. An axis with a flag of
+    its own registers it through `extra_arguments`, rejects a bad combination
+    through `check` (return the message), and picks its report function per
+    run through `report_for`; `--glossary` used to be stripped from argv by
+    hand, which let it ride silently beside `--calibrate`.
     """
     utf8_stdout()
     parser = field_parser(doc)
     parser.add_argument("file", type=Path, nargs="?")
     parser.add_argument("--calibrate", action="store_true")
+    if extra_arguments is not None:
+        extra_arguments(parser)
     args = parser.parse_args(argv)
-    field_dir = args.profile_root / args.field if args.field else None
-    if args.calibrate:
-        if field_dir is None:
-            print(f"[{tool}] --calibrate needs --field", file=sys.stderr)
+    if check is not None:
+        message = check(args)
+        if message:
+            print(f"[{tool}] {message}", file=sys.stderr)
             return 2
-        print(f"[{tool}] {summary(calibrate(field_dir), field_dir)}")
+    if args.calibrate:
+        try:
+            field = resolve_field(args.field, args.profile_root, tool=tool,
+                                  empty_hint="--calibrate needs an existing "
+                                             "style-profile/<field>/ directory.")
+        except SystemExit as error:
+            print(error, file=sys.stderr)
+            return 2
+        field_dir = args.profile_root / field
+        written = calibrate(field_dir)
+        if written is None:
+            print(f"[{tool}] --calibrate read no reference records under "
+                  f"{field_dir}; nothing written.", file=sys.stderr)
+            return 2
+        print(f"[{tool}] {summary(written, field_dir)}")
         return 0
     if not args.file or not args.file.exists():
         print(f"[{tool}] file not found: {args.file}", file=sys.stderr)
         return 2
+    field_dir = optional_field_dir(args, tool=tool)
     text = args.file.read_text(encoding="utf-8", errors="replace")
-    print(render(report(text, field_dir, args.file)))
+    chosen = report_for(args) if report_for is not None else report
+    print(render(chosen(text, field_dir, args.file)))
     return 0
+
+
+def optional_field_dir(args: argparse.Namespace, *, tool: str) -> Path | None:
+    """The profile directory for a tool that can run without one.
+
+    An explicit `--field` is used as given: a directory that does not exist
+    means "no profile", which every axis already reports as `unmeasured` with
+    the missing artifact named. Without it, exactly one field under the
+    profile root resolves on its own, as the option's help text has always
+    promised; several print one stderr line naming them and return None, so
+    the run continues with every calibrated axis `unmeasured` for a reason a
+    reader can act on; none returns None. Before this helper the same option
+    was resolved four ways behind one help string: five tools divided the
+    root by None and died with a TypeError, the axis tools never auto-detected,
+    and `deai_oracle` and `deai_metrics` each carried their own loop.
+    """
+    if args.field:
+        return args.profile_root / args.field
+    fields = list_fields(args.profile_root)
+    if len(fields) == 1:
+        return args.profile_root / fields[0]
+    if len(fields) > 1:
+        print(f"[{tool}] several field profiles present ({fields}); pass "
+              "--field=<name> to use one. Running without a profile.",
+              file=sys.stderr)
+    return None
 
 
 def list_fields(root: Path, *, exclude_prefixes: tuple[str, ...] = ()) -> list[str]:
