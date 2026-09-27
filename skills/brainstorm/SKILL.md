@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: Fully automatic radial exploration engine for divergent research ideation, or for exhaustively finding ways to solve one concrete hard problem. The data model is a phylogenetic tree: root = the starting point (topic / problem / current research state), node = one idea, depth = number of divergence layers, width = number of final results. Every node is brainstormed through twelve framing passes (first-principles, inversion, cross-disciplinary transport, adversarial, constraint relaxation, scale extrapolation, office-hours, contrarian, failure-driven, high-risk, meta), every branch gets a complete rigorous derivation (mathematics / physics / logic / literature check / feasibility / falsifiability), and divergence recurses until every deepest leaf is fully advanced. A mandatory glossary grill locks the root node's terminology to the project FACTS.md before exploration starts. width / depth / rounds default to unlimited and stop on convergence criteria. Deferred or incomplete leaves ('defer', 'cost limits', 'future work', 'TODO') are hard-banned. Use when: "brainstorm" / "explore options" / "find research directions" / "how do I solve this problem" / 发散思考 / 找研究方向 / 怎么解决这个难题 / 穷尽某个研究问题的解法 / 论文 motivation 阶段需要 radial 探索.
+description: Fully automatic radial exploration engine for divergent research ideation, or for exhaustively finding ways to solve one concrete hard problem. The data model is a phylogenetic tree: root = the starting point (topic / problem / current research state), node = one idea, depth = number of divergence layers, width = number of final results. Every node is brainstormed through twelve framing passes (first-principles, inversion, cross-disciplinary transport, adversarial, constraint relaxation, scale extrapolation, office-hours, contrarian, failure-driven, high-risk, meta), every branch gets a complete rigorous derivation (mathematics / physics / logic / literature check / feasibility / falsifiability), and divergence recurses until every deepest leaf is fully advanced. A mandatory glossary grill locks the root node's terminology to the project glossary (FACTS.md if available) before exploration starts. width / depth / rounds default to unlimited and stop on convergence criteria. Deferred or incomplete leaves ('defer', 'cost limits', 'future work', 'TODO') are hard-banned. Use when: "brainstorm" / "explore options" / "find research directions" / "how do I solve this problem" / 发散思考 / 找研究方向 / 怎么解决这个难题 / 穷尽某个研究问题的解法 / 论文 motivation 阶段需要 radial 探索.
 disable-model-invocation: false
 argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max-branches N|∞] [--field <name>] [--out <dir>] [--seed <text>] [--no-online] — 不传 topic 则自动从当前项目状态推断"
 ---
@@ -22,7 +22,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 - **node（节点）** = 每一个想法本身。无论位于哪一层、哪一支，**任何一个发散/推导/结果点都是 node**。
 - **width（最外弧 / "宽度"）** = 最终交付的结果数，即树达到收敛/终止时**叶节点（不再扩展的终态节点）**的总数。**宽度无上限**（除非用户用 `--width N` 显式封顶）。
 - **生长准则**：一个 node 若能再开出"不同尝试 / 不同方向"，则**必须**伸出新子节点继续向外（depth + 1）；只有当一个 node 已经被 §4 的 12 字段全部填满、§5 评分定论、且§3 的 12 个 framing pass 在该节点上跑过仍**无新颖增益**时，它才允许作为最终叶（计入 width）。
-- **完整推进准则（硬性，§0.8 强制）**：进入 width 计数的每一片最终叶节点都**必须完整推进**——derivation 走通、predictions 给数、falsifiability 给判据、novelty_vs_literature 给真实文献对比。任何含 "defer / 时间不够 / 算力不够 / future work / 留作 TODO" 字样的节点**不算最终叶**，必须继续推进或被显式标记为 `INCOMPLETE_FORBIDDEN` 并触发再循环。
+- **完整推进准则（硬性，§0.8 强制）**：进入 width 计数的每一片最终叶节点都**必须完整推进**——derivation 走通、predictions 给数、falsifiability 给判据、novelty_vs_literature 给真实文献对比；半成品的判定与处理见 §0.8。
 
 ---
 
@@ -46,11 +46,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 6. **禁止用户中断决策**——本 skill 是全自动的。
    遇到歧义优先选**信息量最大**的分支继续；只有当 (a) 触及不可逆操作、(b) 触及 §0.7 资源安全阀、(c) 用户原始 topic 完全无法解析、(d) §2.0 glossary grill 判定 MISSING / AMBIGUOUS（一次性提问）或 CONFLICT（硬停，等用户裁决）时才停下。术语歧义是 root 节点的缺陷，绕过它会让整棵树建立在错误定义上。
 
-7. **资源参数（默认全部不限；caps 仅在用户显式提供数值时生效）**：
-   - `--width N` 默认 ∞ — 最终叶节点总数上限
-   - `--depth N` 默认 ∞ — 树深度上限
-   - `--rounds N|conv` 默认 `conv` — 发散轮次，由§6 收敛判据终止
-   - `--max-branches N` 默认 ∞ — 每节点单轮新增分支上限（注意：§3 强制 12 条 framing pass 各产 ≥1 分支，所以下限实际是 12；该 flag 仅可放大）
+7. **资源参数（默认全部不限；caps 仅在用户显式提供数值时生效；flag 与默认值见 §1 flag 表）**：
    - **caps 触顶的语义**：当用户**显式**设置了 `--width N` / `--depth N` / `--rounds N` 并触顶时，**已展开的节点必须先全部完整推进到§4 12 字段填满、§5 verdict 定论之后**才允许停止；不允许"刚到上限立即停留下半成品"。报告以 `WIDTH_CAP_REACHED` / `DEPTH_CAP_REACHED` / `ROUNDS_EXHAUSTED` 标记，**但所有可见叶节点必须完整**。
    - **不允许 skill 内部自行扩大 cap**；也不允许内部自行缩小默认 ∞ 为某个有限值。
    - "探索成本太大"不构成停止理由；这是本 skill 与普通 brainstorm 工具的关键区别。
@@ -61,7 +57,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
      - "因成本限制" / "因算力限制" / "因时间限制" / "时间不够" / "算力不够"
      - "future work" / "留作 future work" / "TODO" / "FIXME"
      - "暂不展开" / "略" / "details omitted" / "省略" / "暂略"
-     - "应该" / "大概" / "我相信" / "通常" / "可能"（→ 触发 cc-enforcer rule 01）
+     - "应该" / "大概" / "我相信" / "通常" / "可能"（→ 若装有 cc-enforcer，触发其 rule 01）
    - 若推导**真的**需要外部资源（特定数据集、特定计算、特定文献全文），必须当轮通过 WebFetch / WebSearch / Bash / Read 获取；获取失败 → 改用§3.X / §3.E（约束变换）派生**替代方案分支**并完整推导。**禁止**留半成品节点声称"算最终叶"。
    - 这条禁令在**每一个节点**处都强制执行，不分主分支次分支、不分高分低分。
 
@@ -89,11 +85,8 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 | `--out <dir>` | `brainstorm-out/<UTCdate>__<topic-slug>/` | 树输出目录 |
 | `--seed <text>` | 无 | 额外种子提示，作为 root 节点的 hint |
 | `--no-online` | 关 | 关闭 WebSearch / WebFetch；只用本地 + 已读引用 |
-| `--min-frameworks N` | 12 | 每节点至少跑过的 framing pass 数（§3）；下限即 §3.A–§3.L 全 12 条 |
 | `--min-novelty-ratio R` | 0.15 | 收敛要求的"近 2 轮新颖比"下限（详§6） |
 | `--no-grill` | 关 | 跳过 §2.0 glossary grill 预热（弱收敛模式；root 节点术语标 `unverified`） |
-
-> **关于"无上限"**：本 skill 的设计哲学是用§6 收敛判据（substantive convergence）而不是用资源 cap（resource exhaustion）来终止。当用户既不传 `--width / --depth / --rounds` 也不触§6 收敛 → 它会一直跑直到收敛，这是预期行为而非 bug。
 
 **§1.1 field 选择**：与 `/sci-paper:de-ai` 的 field 解析一致 —
 解析 `style-profile/` 下子目录：1 个 → 自动选；多个 → 要求 `--field`；0 个 → 跳过文献先验加权（不阻塞，仅警告）。
@@ -113,7 +106,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 **操作**（一次一问、每问给推荐答；用户传 `--no-grill` 才跳过）：
 
 1. **定位 glossary 来源**（按优先级 Read 第一个存在的）：
-   - `wgl-suite/FACTS.md` + `wgl-suite/KEY_NUMBERS.md`（WGL 项目 single source of truth）
+   - `wgl-suite/FACTS.md` + `wgl-suite/KEY_NUMBERS.md`（可选，若存在；WGL 项目 single source of truth）
    - 项目根的 `CLAUDE.md`
    - `style-profile/<field>/style_dossier.md` 中含 glossary 表的段落
    - 兜底：从最近 git log + .tex / .md draft 抽常见 noun-phrase 自建临时 glossary
@@ -127,7 +120,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
    - **EXACT MATCH** → 默认用 glossary 定义，无须打扰用户，记入 `<out>/glossary-anchors.md`
    - **ALIAS** → 直接用 canonical 名替换，在 `glossary-anchors.md` 注 `aka: "<别名>"`，无须打扰用户
    - **MISSING**（glossary 没收）→ 一次性问用户："你说的 X 是不是指 glossary 里的 Y？还是 Z？还是一个 glossary 没收的新概念？" → 给 ≤3 个选项 + 推荐答（按 grill-me 的"一次一问"惯例）
-   - **AMBIGUOUS**（glossary 有 ≥2 条相似条目 A vs B）→ 一次性问 "X 是 A（FACTS.md §3.A）还是 B（FACTS.md §3.B）？" + 推荐答
+   - **AMBIGUOUS**（glossary 有 ≥2 条相似条目 A vs B）→ 一次性问 "X 是 A（glossary §3.A）还是 B（glossary §3.B）？" + 推荐答
    - **CONFLICT**（用户 topic 的用法跟 glossary 已收定义矛盾）→ **立刻停 brainstorm**，等用户裁决：改 brainstorm 用法 vs 改 glossary 收新定义。**不允许**绕过冲突静默继续。
 
 4. **产物**：写 `<out>/glossary-anchors.md`：root 节点用的术语 + 对应 glossary 定义 + file:line 引用。后续每个 framing pass / 每个分支生成时用本文件做术语锁——若新分支引入新 noun，要追加到本文件并 grill 一次。
@@ -177,7 +170,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 
 > **核心创新点**：每个节点走完 §3.A–§3.L 全部 12 条 framing pass，每条至少产出 1 个分支；
 > 之后由§4 完整推导每个分支，§5 评估并决定是否进一步展开。
-> "全部"是硬性要求 —— `--min-frameworks` 的下限即全 12 条（§1 flag 表、§3 完成判据、§9 反模式同此）。它只能放大所需的 framing 数，不能低于 12。
+> "全部"是硬性要求。
 
 ### §3.A — First-principles / Constructor-theoretic
 - 把当前节点的所有"约定俗成"假设列出来；逐条问"如果这条不成立呢？"
@@ -242,7 +235,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
   7. 现在树里的"最 weird" 分支真的足够 weird 吗？如果不够，强制再生成一个。
 - 输出至少 1 个分支，必须是元层自审中暴露出的盲区
 
-> **§3 完成判据**：上述 12 条全部跑完 + `--min-frameworks` 下限满足 + 每条至少有 1 条分支带完整推导。
+> **§3 完成判据**：上述 12 条全部跑完 + 每条至少有 1 条分支带完整推导。
 
 ### §3.X — 在线工具/插件检索（每节点至少 1 次，除非 `--no-online`）
 
@@ -279,7 +272,7 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 - `derivation` 中含数值时**当轮**用 Bash + python（sympy / numpy）跑一次自检脚本；输出贴入字段；无法跑则在字段最后写 `[unverified — needs symbolic check]`
 - `novelty_vs_literature` 中每篇引用必须 WebFetch arXiv abs / DOI 页确认作者+年份+标题至少匹配；不可仅凭 WebSearch 摘要下结论
 - 任何字段写出 "应该 / 大概 / 我相信 / 通常 / 应当" → 该字段无效，必须重写
-- **§0.8 完整推进禁令在此强制生效**：任何字段含 "defer / 留后 / 待定 / 因成本限制 / 因时间限制 / 因算力限制 / future work / TODO / FIXME / 略 / details omitted / 暂略 / 暂不展开" 之一 → 该字段无效，节点状态强制改为 `INCOMPLETE_FORBIDDEN`，必须继续推进至该字段完整。**不允许把半成品节点提交进 verdict**。
+- **§0.8 完整推进禁令在此强制生效**：任一字段含 §0.8 所列字样 → 该字段无效，节点状态强制改为 `INCOMPLETE_FORBIDDEN`，必须继续推进至该字段完整。**不允许把半成品节点提交进 verdict**。
 
 ---
 
@@ -336,7 +329,6 @@ argument-hint: "[topic] [--width N|∞] [--depth N|∞] [--rounds N|conv] [--max
 | Topic 完全无法解析 | `EARLY_STOP=topic_unparseable` | 必须在§2 baseline 阶段；进入§3 之后此项不再适用 |
 
 CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**最终报告**（§7）。
-**"资源不够"不构成停止理由**——本 skill 不接受 "exploration cost too high" 之类的隐含 early-stop（与 §0.7 / §0.8 一致）。
 
 ---
 
@@ -415,7 +407,7 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 
 ---
 
-## 8. 工具使用规范（cc-enforcer 投影）
+## 8. 工具使用规范（取自 cc-enforcer 规则；不依赖该插件）
 
 | 任务 | 必用工具 | 禁止 |
 |---|---|---|
@@ -429,7 +421,7 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 **子代理使用建议**：
 - 当树宽度 ≥ 5 时，把每个 framing pass 派给一个 Explore subagent 并行；汇总后由主 agent 做§5 评估
 - 子代理 prompt 必须自包含（背景 + 当前节点 + 该 pass 的硬要求）
-- 子代理返回的引用主 agent 必须再 verify（cc-enforcer rule 04）
+- 子代理返回的引用主 agent 必须再 verify（若装有 cc-enforcer，即其 rule 04）
 
 ---
 
@@ -444,9 +436,9 @@ CONVERGED / WIDTH_CAP_REACHED / DEPTH_CAP_REACHED / ROUNDS_EXHAUSTED 时输出**
 - ❌ "WebSearch 找了，没找到，就是新的" — 至少要换 3 种关键词组合 + 检查相邻 field。
 - ❌ "用户没说要并行，我就串行做" — `--rounds conv` 模式下并行是性能必需。
 - ❌ "树太大用户看不动，我手动剪一下" — 用户要的是穷尽，不是好看。
-- ❌ "我跑完了 framing A 到 D 觉得够了" — §3.A–§3.L 全部必跑（`--min-frameworks` 下限即 12）。
-- ❌ **"这条分支留作 future work"** / **"因时间限制暂不展开"** / **"因算力限制 defer 到将来"** / **"细节暂略"** / **"TODO: 进一步推导"** — 全部违反§0.8 完整推进禁令。节点必须完整推进或显式标 `INCOMPLETE_FORBIDDEN` 触发再循环。
-- ❌ "探索成本太高，提前停止" — §0.7 已移除时间 / 节点数硬 cap；只有§6 收敛或用户**显式** width/depth/rounds cap 触顶才能停，且停时所有叶必须完整。
+- ❌ "我跑完了 framing A 到 D 觉得够了" — §3.A–§3.L 全部必跑。
+- ❌ **"这条分支留作 future work"** / **"因时间限制暂不展开"** / **"因算力限制 defer 到将来"** / **"细节暂略"** / **"TODO: 进一步推导"** — 全部违反§0.8 完整推进禁令。
+- ❌ "探索成本太高，提前停止" — 只有§6 收敛或用户**显式** width/depth/rounds cap 触顶才能停（§0.7）。
 - ❌ "用户说 problem-solving，我就跳过§3 的某些 framing" — 不允许。研究 mode 与问题求解 mode 都跑全部 12 条 framing；问题求解 mode 只是 baseline 不同。
 
 ---

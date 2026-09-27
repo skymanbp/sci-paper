@@ -1,6 +1,6 @@
 ---
 name: mainline
-description: 叙事主线核查（测量原件，只产 finding，不改稿）：建 paper-level purpose record 与 contribution graph，再按 cold reader 回答七问，定位读者需要回溯、补隐藏上下文或在竞争解读间抉择的地方。findings 走 sci-paper.feedback.v1；不假设三幕模板，多贡献论文可有多个明确相关的分支。可单独运行，也是 /sci-paper:paper-review 维度 E 的唯一来源。Use for: 叙事主线, 主线检查, contribution graph, 冷读七问, narrative spine, 文章结构是否讲得通, 读者会不会卡住。
+description: 叙事主线核查（测量原件，只产 finding，不改稿）：建 paper-level purpose record 与 contribution graph，再按 cold reader 回答八问，定位读者需要回溯、补隐藏上下文或在竞争解读间抉择的地方。findings 走 sci-paper.feedback.v1；不假设三幕模板，多贡献论文可有多个明确相关的分支，但都从属于唯一的 thesis line。可单独运行，也是 /sci-paper:paper-review 维度 E 的唯一来源。Use for: 叙事主线, 主线检查, contribution graph, 冷读八问, narrative spine, 文章结构是否讲得通, 读者会不会卡住。
 disable-model-invocation: false
 argument-hint: "<file_path> [--field <name>]"
 ---
@@ -45,11 +45,12 @@ argument-hint: "<file_path> [--field <name>]"
 - **不预设三幕。** motivation → method → validation 是常见默认，不是所有论文
   必须套用的模板。
 - **多贡献合法。** 多贡献论文可以有多个明确相关的分支；问题是**关系有没有讲
-  清楚**，而不是图是否恰好只有一个连通分量。
+  清楚**，而不是图是否恰好只有一个连通分量。但每个分支都必须从属于唯一的 thesis
+  line（标准 §5.4：全文只有一个中心结果，可用一句话说出）。
 - **disconnected node 是待查证据，不是自动 fatal。**
 - **禁手**：用连接词桥接逻辑断链（拿 Furthermore / Moreover 顶替缺失的前提）。
 
-## 3. 第三步：cold reader 七问
+## 3. 第三步：cold reader 八问
 
 按第一次读的读者依次回答：
 
@@ -59,9 +60,10 @@ argument-hint: "<file_path> [--field <name>]"
 4. 各自的方法 / 论证是什么？
 5. 各自的关键证据是什么？
 6. take-home 与 scope 是什么？
-7. 读者在哪里需要**回溯**、**补隐藏上下文**，或在**竞争解读**之间抉择？
+7. thesis line 是什么？能否用一句话说出唯一的中心结果，且每个贡献分支都从属于它？
+8. 读者在哪里需要**回溯**、**补隐藏上下文**，或在**竞争解读**之间抉择？
 
-前六问答不上来，就是主线本身的缺陷，而不是读者的问题。第七问的每个落点都是
+前七问答不上来，就是主线本身的缺陷，而不是读者的问题。第八问的每个落点都是
 一条候选 finding。
 
 ## 4. 后果分类
@@ -69,13 +71,14 @@ argument-hint: "<file_path> [--field <name>]"
 | 情形 | 类别 |
 |---|---|
 | 矛盾，或关键 claim 缺必要支撑论证 | `integrity_blocker` |
-| 高曝光、可复现的困惑 + 能给出具体修复 | strong `advisory` |
+| 高曝光、可复现的困惑 + 能给出具体修复 | `advisory`，排在最前 |
 | 局部措辞、可读性偏好 | `advisory` |
 
 - 缺失支撑关键 claim 的必要论证可升为 `integrity_blocker`。
-- 其余 narrative finding 按证据强度分 strong 或 ordinary advisory。
-- **不得要求所有结构 advisory 归零。** strong advisory 要 disposition，
-  普通 residual 报告即可。
+- 其余 narrative finding 都是普通 advisory，按证据强度和读者曝光排序（标准 §4）。
+  不升 strong：strong 要求效应超出校准过的操作点，冷读没有操作点。
+- **不得要求所有结构 advisory 归零。** 普通 residual 报告即可；作者可以逐条处置，
+  但这不是收尾条件。
 
 ## 5. 边界 —— 本 skill 不做什么
 
@@ -101,18 +104,18 @@ argument-hint: "<file_path> [--field <name>]"
 ## Contribution graph
 | node | type | file:line | edges (type → target) |
 
-## Cold-read seven questions
+## Cold-read eight questions
 | # | question | answer or gap | file:line |
 
 ## Findings
 | id | kind | location | reader confusion | proposed fix | disposition |
 ```
 
-不打印 PASS/FAIL 行。终止态是七问都有明确答案或明确记录的缺口。
+不打印 PASS/FAIL 行。终止态是八问都有明确答案或明确记录的缺口。
 
 ## 7. 反模式
 
-- ❌ "整体看结构还行" —— 没有 purpose record 和七问逐条答案的总评无效。
+- ❌ "整体看结构还行" —— 没有 purpose record 和八问逐条答案的总评无效。
 - ❌ 拿摘要或 intro 概括代替全文冷读。
 - ❌ 因为图不是单连通就判 fatal。
 - ❌ 要求每篇论文都是 motivation → method → validation。

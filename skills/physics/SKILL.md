@@ -116,8 +116,11 @@ argument-hint: "<file_path> [--field <name>]"
 | 类别 | 本 skill 的来源 |
 |---|---|
 | `integrity_blocker` | 量纲错、物理错、推导错、数值不一致、编译失败、未声明的必要假设、伪造引用 |
-| strong `advisory` | 命名/单位混用、精度不一、bracketing 超出物理域、schematic 公式无标注 |
+| `advisory`，排在最前 | 命名/单位混用、精度不一、bracketing 超出物理域、schematic 公式无标注（仅限量纲闭合时；不闭合者按 P1 为 `integrity_blocker`） |
 | `advisory` | 纯表述偏好 |
+
+两行都是普通 advisory：strong 要求效应超出校准过的操作点（标准 §4），人工核查没有
+操作点。第一行是有出处可查的清晰度缺陷，按标准 §4 第 3 条排在第二行之前。
 
 每条 finding 带 measurement state。不适用的检查标 `not_applicable` 并说明为什么
 不适用；拿不到证据标 `unmeasured` 并说明缺什么。

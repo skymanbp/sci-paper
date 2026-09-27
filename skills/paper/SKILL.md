@@ -105,14 +105,10 @@ deleting its hedges has been damaged.
 - ✅ "Equation (3) gives Y, which we then evaluate at $z = 0.5$."
 - ✅ "We adopt $H_0 = 67.4\,\mathrm{km\,s^{-1}\,Mpc^{-1}}$."
 
-读者**绝对不该**看到（无论初稿还是修订稿）：
+读者**绝对不该**看到（无论初稿还是修订稿；修订场景的更多例句见下方 Patch/Structural 对照表）：
 
 - ❌ "我们一开始尝试了 A，发现 A 不对，所以改用 B"
-- ❌ "We did A, found it gave incorrect results, and therefore switched to B"
 - ❌ "Method A would have suggested X, but in fact ..."（除非这是本文有意做的 baseline 对照，见下"唯一例外"）
-- ❌ "An earlier version of Eq. (5) had a factor-of-2 error; the corrected form is ..."
-- ❌ "Note: the previous draft used $H_0 = 70$; the present analysis uses $H_0 = 67.4$."
-- ❌ "After several iterations we converged on the following architecture."
 
 **Patch（禁）vs Structural（要）—— 修订时的硬区分**
 
@@ -161,8 +157,7 @@ deleting its hedges has been damaged.
 
 ### 改写不堆叠 / Condense, Do Not Accumulate
 
-> 规范条文：`docs/SCIPAPER_STANDARD.md` §5.3。用户规则 2026-07-16：
-> "改写、删减、精简，而不是堆叠！"
+> 规范条文：`docs/SCIPAPER_STANDARD.md` §5.3（改写、删减、精简，而不是堆叠）。
 
 - 每次修改的默认方向是**更短**。优先级：删除 > 原位精简 > 等长改写 > 增长。
 - 增长只有两种合法理由：用户要求的新内容，或来源可验证的科学必需
@@ -171,7 +166,7 @@ deleting its hedges has been damaged.
   而不是重写句子本身。上节 forward narrative 禁止堆叠**状态**；本节禁止
   堆叠**字数**。
 - 每处修改报告字数差；靠加字消除 detector 信号是缺陷，不是修复。
-- **机械执行**（标准 §5.3 v3.3）：改写候选经 `rewrite_reward.py --original`
+- **机械执行**（标准 §5.3）：改写候选经 `rewrite_reward.py --original`
   硬门（超长即 `-inf`）；编辑循环收尾经 `length_gate.py` delta 门
   （无理由净增长 = exit 1，循环不得收尾）。增长的唯一合法路径是
   `--allow`/`--allow-growth` 记录的作者批准理由。
@@ -249,7 +244,7 @@ python tools/ai_ism_lint.py <file> --field <field> \
   --format json --output <scratch>/writing-feedback.json
 ```
 
-- Tier A、em-dash 和超过每节每词 cap 的 Tier B 是 `l0_target`。
+- Tier A、em-dash 和超过每 heading 单元每词 cap 的 Tier B 是 `l0_target`。
 - 句式模板、burstiness、UID、document shape 与 learned field-similarity 是
   advisory；必须保留 `measured` / `degraded` / `unmeasured` / `not_applicable`
   区别，不能把缺失测量当作零命中。
@@ -268,7 +263,7 @@ python tools/ai_ism_lint.py <file> --field <field> \
 
 **Tier A — L0 target**
 
-正文命中必须重写。canonical set：
+正文命中必须重写。规范词表是 `tools/ai_ism_lint.py` 的 `TIER_A_PATTERN`（段首套话对应 `TIER_A_OPENER_PATTERN` 与 `TIER_A_PARAGRAPH_CONNECTOR_PATTERN`），下表是它的人读镜像：
 
 | 类别 | 词 |
 |---|---|
@@ -277,27 +272,22 @@ python tools/ai_ism_lint.py <file> --field <field> \
 | 名词类 | `tapestry`, `testament`, `realm / realms` |
 | 段首套话 | `Recent advances in...`, `Despite significant progress...`, `With the advent of...`, `In recent years,...`, `It is worth noting`, 段首 `Crucially,`, `Importantly,`, `Notably,`, `Interestingly,` |
 
-2026-07-16 扩充（`underscore*`, `pivotal`, `tapestry`, `testament`, `realm*`）
-采自 academic-humanizer 词表（MIT，见文末 Provenance），并经两域 curated
-corpus 复核为 0 出现后才入 Tier A；`landscape` 虽在其词表中，但它是本领域
-正当术语（detection landscape 等，corpus 高频），**不入表**。
+`landscape` 是本领域正当术语（detection landscape 等，corpus 高频），**不入表**。
 
 替换原则：使用直接、具体、可核验的动词或范围，不做机械同义词交换。例如
 `leverages X to Y` → `uses X to Y`，`pave the way for` → `enable`，
 `comprehensively` → 明确列出覆盖范围。
 
-**Tier B — per-section/per-word cap**
+**Tier B — per-heading-unit/per-word cap**
 
 Tier B 可以使用，但同一个 Tier B 词在同一 heading 单元（`\section` 与
 `\subsection` 各算一个单元，linter 按此计）最多出现 1 次。第 2 次及
 以后是 `l0_target`；cap 内的出现不是 finding。规范词表是
-`tools/ai_ism_lint.py` 的 `TIER_A_PATTERN` / `TIER_B_PATTERN`，本表是它的
-人读镜像，常见项包括 `Furthermore`, `Moreover`, `Additionally`,
-`robust/robustly`, `comprehensive`, `utilize/utilized`, `leverage`,
-`Importantly`, `Interestingly`, `Notably`, `intricate`,
-`foster/fosters/fostering/fostered`（后两组 2026-07-16 加入；curated corpus
-各有 1 次出现，非零故不入 Tier A）。经验频率只从当前 profile 读取，不在
-本文件复制。优先用直接陈述或可验证数字，但不要为了避词而损害准确性。
+`tools/ai_ism_lint.py` 的 `TIER_B_PATTERN`，本表是它的人读镜像：`Furthermore`,
+`Moreover`, `Additionally`, `robust/robustly`, `comprehensive`,
+`utilize/utilized`, `leverage`, `Importantly`, `Interestingly`, `Notably`,
+`intricate`, `foster/fosters/fostering/fostered`。经验频率只从当前 profile
+读取，不在本文件复制。优先用直接陈述或可验证数字，但不要为了避词而损害准确性。
 `robust` 紧接 `estimator(s)` / `estimation` / `statistic(s)` / `regression`
 时是 robust statistics 的方法名，不计入 Tier B（跨行也算）；`robust estimate`
 仍计入，因为它同样常指"可靠的估计"。
@@ -329,7 +319,7 @@ Tier B 可以使用，但同一个 Tier B 词在同一 heading 单元（`\sectio
 - **阐释式冒号（colon-appositive）**：`X: the rule that ...` 这类
   "名词: 展开" 结构是 `X — that is, Y` 的冒号变体。改写为限定从句、
   两个句子或 ", so ..."；caption 标签（`Left: ...`）与真正的列表规格
-  说明可保留（linter `colon-elaboration` advisory；用户规则 2026-07-16）。
+  说明可保留（linter `colon-elaboration` advisory）。
 
 结构模式必须结合 section、样本量、calibration 和科学功能判断。技术列表若编码真实
 分类，不应为了制造参差而破坏可读性。
@@ -346,13 +336,12 @@ Tier B 可以使用，但同一个 Tier B 词在同一 heading 单元（`\sectio
 grep -n -E '—|---|\\textemdash' main.tex
 
 # Tier A（必删；正文中不允许出现，包括变体）
-grep -n -E -i '(delve|leveraged|leverages|leveraging|paved?|paves|paving|shed[s]?|shedding|showcase[sd]?|showcasing|seamless(ly)?|holistic(ally)?|comprehensively|crucially|utilizes|utilizing|underscor(e|es|ed|ing)|tapestry|testament|pivotal|realms?|recent advances|despite significant|with the advent|in recent years|it is worth)' main.tex
+grep -n -E -i '(delv(e|es|ed|ing)|leveraged|leverages|leveraging|paved?|paves|paving|shed[s]?|shedding|showcase[sd]?|showcasing|seamless(ly)?|holistic(ally)?|comprehensively|crucially|utilizes|utilizing|underscor(e|es|ed|ing)|tapestry|testament|pivotal|realms?|recent advances|despite significant|with the advent|in recent years|it is worth)' main.tex
 # 段首套话（Tier A）：只有位于段落第一行时才算段首；linter 按段落判定，不按物理行
 grep -n -E '^\s*(Importantly|Interestingly|Notably|Crucially),' main.tex
 
 # Tier B（定位；是否超过每 heading 单元每词 cap 由 linter 计算）
-grep -n -E -i '^\s*(Furthermore|Moreover|Additionally),' main.tex
-grep -n -E -i '\b(robust|robustly|comprehensive|utilize|utilized|leverage|importantly|interestingly|notably|intricate|foster(s|ing|ed)?)\b' main.tex
+grep -n -E -i '\b(furthermore|moreover|additionally|robust|robustly|comprehensive|utilize|utilized|leverage|importantly|interestingly|notably|intricate|foster(s|ing|ed)?)\b' main.tex
 
 # 顽固替换组（不分级）
 grep -n -E -i '\b(in order to|aim to|facilitate|serves as)\b' main.tex
@@ -363,7 +352,7 @@ grep -n -E '([A-Za-z0-9]|\}): [a-z$\\]' main.tex
 ```
 
 **Tier A / em-dash 残留** = `l0_target`。
-**Tier B 超频** = 同词在同 section 的第 2 次及以后为 `l0_target`。
+**Tier B 超频** = 同词在同一 heading 单元内的第 2 次及以后为 `l0_target`。
 
 > **Companion evidence from `/sci-paper:de-ai` calibration:** corpus assets supply
 > descriptive frequencies and calibration. Re-run `python tools/extract_style.py`
@@ -373,8 +362,7 @@ grep -n -E '([A-Za-z0-9]|\}): [a-z$\\]' main.tex
 ### Claim–Evidence Discipline / 声明-证据纪律
 
 > QD 类规则（claim-evidence defects 在 SCIPAPER_STANDARD §2 QD 下是
-> `integrity_blocker`）。本节给出操作化检查；条目改编自 academic-humanizer
-> Layer 4（MIT，见文末 Provenance），并按天体物理语料重校准。
+> `integrity_blocker`）。本节给出操作化检查。
 
 对每个经验性声明检查两件事：(a) 它是否有正文内的数字、图、表或引用支撑；
 (b) 动词强度是否不超过证据强度。
@@ -393,15 +381,14 @@ grep -n -E '([A-Za-z0-9]|\}): [a-z$\\]' main.tex
   区间优于单一均值（除非均值方法已声明）；每个数字注明方法、指标、基线。
   做比较时先打最强对手，不打平凡基线。
 - **`significantly` 必须有伴随检验或数字**；孤立的 "significantly better"
-  是声明缺陷。注意这是**证据条件规则，不是词法禁令**：astro curated corpus
-  中 `demonstrate*`（0.147/1k）与 `significantly`（0.274/1k，合并语料实测
-  2026-07-16）都是正常用词，禁词式移植（ML 会议口味）会误伤本领域写作——
+  是声明缺陷。注意这是**证据条件规则，不是词法禁令**：`demonstrate*` 与
+  `significantly` 在本领域 curated corpus 中都是正常用词，禁词会误伤本领域写作；
   只有"动词/副词超出证据"才构成 finding。
 
 ### 防过度纠正 / Preserve List（rewrite 护栏）
 
-> 改编自 academic-humanizer Layer 3（MIT）。De-AI 重写循环的反向风险是
-> "把校准的 hedging 改强"——这会**制造** over-claiming，比留下 AI 词更糟。
+> De-AI 重写循环的反向风险是"把校准的 hedging 改强"——这会**制造**
+> over-claiming，比留下 AI 词更糟。
 > 与 SCIPAPER_STANDARD §6 rewrite eligibility（stance/modality/qualifier
 > 不可变）同源；此处是写作端明细。
 
@@ -436,12 +423,5 @@ grep -n -E '([A-Za-z0-9]|\}): [a-z$\\]' main.tex
 
 ### Provenance / 借鉴出处
 
-The 2026-07-16 additions (Tier A/B word extensions, `serves as`, the
--ing-tail and colon-elaboration structure tells, the Claim–Evidence
-Discipline section, and the Preserve List) adapt material from
-[academic-humanizer](https://github.com/AIScientists-Dev/academic-humanizer)
-(MIT License, Copyright (c) 2026 AIScientists-Dev, itself building on
-blader/humanizer, MIT). Every lexical adoption was re-verified against the
-curated field corpora before tier assignment; venue-specific rules that
-conflict with astro usage (`landscape`, blanket `demonstrate`/
-`significantly` bans) were deliberately not adopted.
+部分条目改编自 MIT 许可的外部项目；出处、版权声明、日期与采纳边界见仓库根目录
+`ACKNOWLEDGMENTS.md`。

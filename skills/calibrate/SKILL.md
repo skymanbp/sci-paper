@@ -123,9 +123,9 @@ python tools/deai_discourse.py     --calibrate --field <field>
 | `L2.sentence_structure` | per-section reference fractions | `measured` for deterministic matches, `degraded` for strength — there is no calibrated strong-advisory operating point |
 | `L0.register` | ≥ 500 corpus passages, and enough of them to resolve a 1e-4 document-frequency rate | under 500 the axis is silent; unable to resolve the rate it is `degraded`, or borrows `<field>`'s bank and says so |
 | `L2.claim_anchoring` | ≥ 30 documents per section class | classes below the floor are omitted from the band, honestly, rather than estimated |
-| `L2.document_structure` | ≥ 3 complete documents, each ≥ 3 sections with ≥ 2 substantial paragraphs | `unmeasured`; legacy baselines without a conformal block fall back to percentile thresholds |
+| `L2.document_structure` | ≥ 3 complete documents, each ≥ 3 sections with ≥ 2 substantial paragraphs | `unmeasured`; under the 20 documents a 5% tail needs, `degraded`; a manifold without a conformal block is left unscored and the axis `degraded` until `--calibrate` is rerun |
 | `L2.cohesion` | ≥ 30 reference paragraphs per bucket, each ≥ 3 sentences and ≥ 40 words | that bucket abstains; a reference with no spread *below* the p10 gate reports nothing rather than everything |
-| `L2.hedging` | ≥ 30 reference **sections** per bucket, each ≥ 150 words — and the bucket must be one the axis is calibrated for | `degraded`. It ships restricted to `intro` because that is the only bucket where its gate was shown to transfer (EVALUATION §19.4); a thin profile is `degraded` there too |
+| `L2.hedging` | ≥ 30 reference **sections** per bucket, each ≥ 150 words — and the bucket must be one the axis is calibrated for | `degraded`. It ships restricted to `intro` and `method`, the buckets where its gate was shown both to transfer and to separate (EVALUATION §19.3–19.4); a thin profile is `degraded` there too |
 
 If you point `--corpus-dir` anywhere, point it at the field root or at
 `fulltext-arxiv/`. Aimed at the field root it collects the calibration corpus
@@ -231,10 +231,10 @@ and a surname is not a person.
 **Sample size.** Any cell under 20 labels reports `unmeasured`. The sampler
 prints, before you start, every cell its populations cannot fill — and some
 cannot be filled by any sheet size, only by more papers. Measured on the `wgl`
-corpus: fifteen held-out single-author-group papers yield 8 register findings
-and 2 hedging findings, and the entire 203-paper held-out set yields 15 hedging
-findings, because hedging speaks only about introductions and fires below a
-tenth percentile. Salience and cohesion fill from a handful of papers.
+corpus: the entire 203-paper held-out set yields 33 hedging findings, because
+hedging speaks only about introductions and methods and fires below a tenth
+percentile, so a hedging cell needs most of that set. Salience and cohesion
+fill from a handful of papers.
 
 ## 8. Verify, then record what stayed unmeasured
 

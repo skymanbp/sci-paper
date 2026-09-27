@@ -1,6 +1,6 @@
 ---
 name: paper-review
-description: Strict, source-traced scientific paper review. Runs all A-R dimensions under the SCIPAPER_STANDARD feedback contract: mathematics, physics, logic and statistics, language and de-AI, document structure and narrative spine (contribution graph plus a seven-question cold read), citation existence and relevance, data and figures, interfaces, redundancy, reproducibility, modern-physics checks, cross-section consistency, adversarial derivation verification (three passes plus twelve-framing escalation to CONFIRMED / REFUTED / MARGINAL), staleness and drift, process artifacts, internal draft language, citation precision, and glossary alignment. Scientific-integrity blockers must be resolved, L0 targets must reach zero, and every strong advisory needs an explicit disposition; ordinary editorial advisories are never disguised as a universal paper PASS/FAIL. Use for: pre-submission audit, full manuscript review, source tracing, mathematics and physics re-derivation, 投稿前 audit, 完整论文审查, 严格迭代修订.
+description: Strict, source-traced scientific paper review. Runs all A-R dimensions under the SCIPAPER_STANDARD feedback contract: mathematics, physics, logic and statistics, language and de-AI, document structure and narrative spine (contribution graph plus an eight-question cold read), citation existence and relevance, data and figures, interfaces, redundancy, reproducibility, modern-physics checks, cross-section consistency, adversarial derivation verification (three passes plus twelve-framing escalation to CONFIRMED / REFUTED / MARGINAL), staleness and drift, process artifacts, internal draft language, citation precision, and glossary alignment. Scientific-integrity blockers must be resolved, L0 targets must reach zero, and every strong advisory needs an explicit disposition; ordinary editorial advisories are never disguised as a universal paper PASS/FAIL. Use for: pre-submission audit, full manuscript review, source tracing, mathematics and physics re-derivation, 投稿前 audit, 完整论文审查, 严格迭代修订.
 disable-model-invocation: false
 argument-hint: "<file_path> [--max-iter N] [--no-fix] [--skip-final-physics] [--orchestrated] [--field <name>]"
 ---
@@ -39,7 +39,7 @@ measure → type → rank → edit → re-measure → disposition
    M.pass-1/2/3；任一命中后修复并重跑全部三 pass。
 8. **后果类别不能混用。**
    - `integrity_blocker`: 科学、来源、引用、构建或必需制品错误；不可由风格偏好豁免。
-   - `l0_target`: Tier A、em-dash、同 section 同 Tier B 词的第 2 次及以后。
+   - `l0_target`: Tier A、em-dash、同一 heading 单元内同一 Tier B 词的第 2 次及以后。
    - `advisory`: editorial、narrative、结构、corpus distance、learned field-similarity。
 9. **缺失测量不等于 0。** 所有 axes 显式标 `measured`、`degraded`、
    `unmeasured` 或 `not_applicable`。
@@ -143,30 +143,32 @@ uncertainty、多重比较、prior）与**声明-证据纪律**（动词强度�
   几何、burstiness、UID、document shape、learned field-similarity、-ing 分词尾巴与
   阐释式冒号（linter `ing-tail` / `colon-elaboration`）是 advisory。
 - 词汇层两条证据来自语料而非词表：`register-zero:<term>`（全文逐词零命中审计，
-  strong 除非是已证实词干的机械派生）与 `collocation-novel:<section>`（一句中相邻
-  常用词对在语料里从未同现的比例，如 `binned kernel`）。零命中 strong 必须走
+  strong 除非是已证实词干的机械派生、本文首次使用处定义的术语或专有名词）与
+  `collocation-novel:<section>`（一句中相邻常用词对在语料里从未同现的比例，如
+  `binned kernel`）。零命中 strong 必须走
   de-ai §4.2 的三种 disposition 之一（本文定义 / 首次引入并引用 / 换成领域词）。
 - `deai_structure` 的 auxiliary 家族（paper-as-agent 主语、wh-cleft 开头、三词以上
   且含两个连字符复合的修饰堆）只命名句子，不进 template score；命中是 advisory。
 - learned signals 只表示 field-similarity/triage，不证明作者身份；没有 calibrated
   operating point 时必须 `degraded`。
-- **结构 tell 审计（每轮必跑；`/sci-paper:de-ai` `--audit-only` 模式，其 Pass 2）**：
+- **结构 tell 审计（`/sci-paper:de-ai` `--audit-only` 模式，其 Pass 2；单独运行时每轮必跑，`--orchestrated` 时标 `SKIPPED_FOR_ORCHESTRATOR`、由父级独立启动）**：
   对全文执行 humanizer Layers 1--2 结构清单——2.11 长句堆叠（约 30 词以上、
   3 层以上从句链或双层括号嵌套）、negative parallelism（"X, not Y" 模板密度）、
   elegant variation（同一对象换名）、rule-of-three padding、公式化开场白、
-  connective 连排。结构命中为 advisory（同类超密度升 strong advisory）；该 skill
+  connective 连排。结构命中为普通 advisory（同类超密度只把它排在普通 advisory
+  最前，不升 strong：人工清单没有校准过的操作点，标准 §4）；该 skill
   的 Layer-4 claim--evidence 命中并入上方 §C 纪律（`integrity_blocker`）。其
   Corpus overrides 优先于上游词表：landscape / demonstrate / significantly
   不做词表级标记，只走证据条件。
 - 修复 de-AI finding 时遵守 `/sci-paper:paper` 的 Preserve List：不得把证据绑定的
   hedging 改强，不得为避词改动数字、引用或 stance——制造 over-claim 的"修复"
   本身构成 claim-evidence defect。
-- 不能要求所有结构 advisory 归零。strong advisory 要 disposition，普通 residual 要报告。
+- 结构 advisory 不要求归零，处置按 §0 第 10 条。
 
 ### E. Document structure and narrative spine
 
 **叙事主线协议委派 `/sci-paper:mainline`**——purpose record、contribution graph、
-cold reader 七问与它们的后果分级都由该 skill 拥有，本维度不复述。
+cold reader 八问与它们的后果分级都由该 skill 拥有，本维度不复述。
 
 本维度自己拥有的是**章节层面的编排**：依赖顺序、section function、abstract
 coverage、intro promise、results/discussion/conclusion closure、图表首次引用位置。
@@ -190,7 +192,8 @@ coverage、intro promise、results/discussion/conclusion closure、图表首次�
 - abstract、正文、table、caption、figure、conclusion 同名数字与单位一致。
 - table 逐 cell 与上游数据对位。
 - **figure 制品本身的检查调用 `/sci-paper:figure-review`**（150 DPI 编译页上的曲线、
-  点、误差棒、轴、单位、legend、caption 与画布平衡），不在此复述。本维度只负责
+  点、误差棒、轴、单位、legend、caption 与画布平衡），不在此复述；`--orchestrated`
+  时该调用标 `SKIPPED_FOR_ORCHESTRATOR`，由父级独立启动 figure-review。本维度只负责
   数字与 caption 声明的**溯源与一致性**。
 - baseline 比较使用相同 protocol；uncertainty 的定义与样本量明确。
 - mismatch、stale result、missing required artifact 或不可复现 claim 为
@@ -227,7 +230,9 @@ coverage、intro promise、results/discussion/conclusion closure、图表首次�
 
 - de-AI review 不得覆盖物理判断。
 - 不适用项由 physics 标 `not_applicable`，不能虚构检查结果。
-- 隔离冷读模式见 §5。
+
+单独运行 paper-review 时在本维度内联执行 physics protocol，收尾另跑 §5 隔离冷读；
+`--orchestrated` 时标 `SKIPPED_FOR_ORCHESTRATOR`，由父级独立启动 physics。
 
 ### L. Systemic consistency
 
@@ -239,11 +244,12 @@ coverage、intro promise、results/discussion/conclusion closure、图表首次�
 
 ### M. Adversarial verification
 
-**M.1 — Three-pass derivation verification.** 对每个关键推导块和数值结论独立执行：
+**M.1 — Three-pass derivation verification.** 对每个关键推导块和数值结论独立执行。
+pass-1 与 pass-3 的检查项归 `/sci-paper:physics`，本维度不复述，只拥有三 pass 的纪律与 pass-2：
 
-- **pass-1:** 量纲、代数、近似、边界、数值复算。
+- **pass-1:** 按 physics P1、P5、P6 从源重做（`--orchestrated` 时由父级的 physics 运行承担）。
 - **pass-2:** 以对手 reviewer 视角提出最强的具体反驳，并用当前证据回答。
-- **pass-3:** 守恒、对称、渐近、概率与统计前提。
+- **pass-3:** 按 physics P2、P3、P4 从源重做（同上）。
 
 规则：
 
@@ -269,7 +275,7 @@ coverage、intro promise、results/discussion/conclusion closure、图表首次�
   CONFIRMED 自动降 MARGINAL。verdict 只表证据状态；consequence class 按
   §C claim-evidence 影响单独赋予，CONFIRMED 的纯 editorial critique 仍是 advisory。
 - M.2 在进程内执行、不 spawn 子代理；需要大宽度并行探索时移交用户级
-  `cc-tree:attack`（同一方法学的通用引擎），结论以 finding 形式回流本审查。
+  `cc-tree:attack`（若已安装；同一方法学的通用引擎），结论以 finding 形式回流本审查。
 
 ### N. Staleness and drift
 
@@ -342,20 +348,19 @@ stale scientific content、冲突副本或 required artifact drift 是 `integrit
 2. 对每个 blocker 修根因；对每个 L0 做最小有效修改。修复遵守标准 §5.3
    长度纪律：默认删减或精简，被修段落净增长必须有科学必要性理由，
    报告给出每段字数差。解释性补丁（对被标记文本追加说明而非重写）是缺陷。
-3. 对 strong advisory：行动、接受、验证为 false positive，或带原因 pending。
-4. ordinary advisory 不要求消失；保留并报告即可。
-5. 每个 edit 后重新 Read 相关上下文。
-6. 改公式/数字/物理链后重跑 M 三 pass；改 figure/table 后重新查看制品与来源；
+3. strong 与 ordinary advisory 按 §0 第 10 条处置。
+4. 每个 edit 后重新 Read 相关上下文。
+5. 改公式/数字/物理链后重跑 M 三 pass；改 figure/table 后重新查看制品与来源；
    改 citation 后重新读原文；改 prose 后重新跑 shared linter。
-7. 重跑权威 build 和所有受影响测试/脚本。
-8. **收尾前跑 length gate**（标准 §5.3 机械执行）：
+6. 重跑权威 build 和所有受影响测试/脚本。
+7. **收尾前跑 length gate**（标准 §5.3 机械执行）：
    `python tools/length_gate.py <file> --before <scratch>/length-baseline.tex`
    （或 `--git-ref <ref>`）。exit 1 = 存在无理由净增长——精简回预算内，
    或用 `--allow "<section>=<理由>"` 记录作者批准的理由后重跑至 exit 0。
    `length-growth` finding 未 disposition 时循环不得收尾。本轮若执行了
    condense，加 `--require-shrink <condense_budget.default_target_words>`：
    删减未达目标产生 strong `length-shrink-short` 且 exit 1。
-9. **收尾前跑 residue diff**：`python tools/deai_residue.py <file> --before
+8. **收尾前跑 residue diff**：`python tools/deai_residue.py <file> --before
    <scratch>/length-baseline.tex`；exit 1（strong residue）时循环不得收尾。
 
 伪代码：
@@ -363,10 +368,7 @@ stale scientific content、冲突副本或 required artifact drift 是 `integrit
 ```text
 for iter in 1..max_iter:
     report = full_A_to_R_review_from_current_sources()
-    if no integrity_blocker \
-       and no l0_target \
-       and no UNDER_SCRUTINY derivation \
-       and every strong advisory has a disposition:
+    if stopping_semantics_hold(report):   # 条件见 §7
         stop with DISPOSITION_COMPLETE
     if no_fix:
         stop with REVIEW_ONLY
@@ -389,10 +391,9 @@ isolated worktree agent，重新读取 `/sci-paper:physics` skill 并 cold-read 
 
 - `--skip-final-physics`: 仅用户显式选择时跳过，报告 `unmeasured`/`SKIPPED_BY_USER`。
 - `--orchestrated`: 仅供 final-review 等父 orchestrator 避免 nested agent。physics、
-  mainline、logic 三个测量原件改由父级在同级独立启动；本 skill 对应维度报告
-  `SKIPPED_FOR_ORCHESTRATOR`。
-- isolated review 产生的 critique 先判断 evidentiary verdict，再单独赋 consequence class。
-  CONFIRMED editorial critique 不自动成为 blocker。
+  mainline、logic、figure-review 与 de-ai `--audit-only` 五个测量原件改由父级在同级
+  独立启动；本 skill 对应维度（D、G 为维度内的该调用）报告 `SKIPPED_FOR_ORCHESTRATOR`。
+- isolated review 的 critique 按 §2 开头与 M.2 的规则赋 consequence class。
 - 新 blocker/L0/strong advisory 回注主循环；agent failure 必须显式报告，不能伪装通过。
 
 ## 6. Report contract
@@ -448,6 +449,8 @@ Review may stop as disposition-complete only when:
 - required build and artifacts are valid;
 - the length gate (standard §5.3) exits 0 against the loop's pre-edit
   baseline, every recorded growth justification included in the report;
+- the residue diff (`deai_residue.py --before`, standard §5.3) exits 0 against
+  the same baseline, so no strong residue finding remains;
 - every strong advisory has an explicit disposition or a stated pending reason;
 - ordinary advisories and unavailable axes are reported.
 

@@ -23,7 +23,7 @@ The required review components are:
 6. `/sci-paper:mainline` for the narrative-spine cold read;
 7. `/sci-paper:logic` for reasoning, statistics and claim-evidence discipline.
 
-Components 5-7 are measurement primitives that paper-review also composes. The parent
+Components 3-7 are measurement primitives that paper-review also composes. The parent
 launches them at its own level so their cold read is independent of paper-review's
 context rather than nested inside it.
 
@@ -57,9 +57,7 @@ condense during §3.7. Keeping detection in one lane avoids duplicate review sur
    `unmeasured`/`degraded`, not clean.
 10. **Minimum effective fixes only.** Every edit maps to a finding ID; no opportunistic
     rewriting or unrelated refactor.
-11. **Stable rounds verify state, not zero suggestions.** `--require-consecutive` rounds must
-    reproduce a disposition-complete state with no new blockers/L0 and no unexplained change
-    in strong advisories.
+11. **Stable rounds verify state, not zero suggestions.** The criterion is §4.
 12. **Do not expand budget silently.** `--max-rounds` exhaustion returns
     `BREAK_WITH_USER_DECISION` with the exact unresolved state.
 
@@ -74,7 +72,7 @@ Defaults:
 - `--max-rounds 10`
 - `--require-consecutive 2`
 - no skipped reviewers
-- output under `final-review-out/<date>__<slug>/`
+- output under `final-review-out/<date>__<slug>/`; `--out <dir>` sets another root (the `<out>` of §2)
 
 Valid skips: `paper-review`, `figure-review`, `de-ai`, `physics`, `mainline`, `logic`.
 A skip must be user-explicit, remains visible as `unmeasured`, and cannot be described as
@@ -130,7 +128,8 @@ Launch a worktree agent with a self-contained prompt:
 - return the complete typed report, including A–R coverage (dimension E narrative-spine
   answers and dimension M record included), measurement states, blockers, L0 targets,
   strong/ordinary advisories, dispositions and build evidence;
-- set physics, mainline and logic to `SKIPPED_FOR_ORCHESTRATOR`.
+- set physics, mainline, logic, the dimension-D de-ai audit and the dimension-G figure-review
+  call to `SKIPPED_FOR_ORCHESTRATOR`; the parent runs all five itself (§3.3-§3.5).
 
 If it attempts nesting, return `NESTED_AGENT_REJECTED`; the round becomes
 `PROMPT_VIOLATION` and must be reissued with the corrected prompt.
@@ -156,8 +155,8 @@ Launch a separate worktree agent to invoke `/sci-paper:de-ai <target> --audit-on
 - the full `sci-paper.feedback.v1` measurement report with every axis state;
 - L0 targets (Tier A / em-dash / Tier B excess) as `l0_target` findings;
 - structural-tell and distribution findings as ranked advisories;
-- document-shape findings with their fidelity-free partition suggestions,
-  clearly marked apply-by-hand.
+- document-shape findings as advisories; their fidelity-free partition suggestions come from
+  de-ai Pass 3 (`deai_partition.py`), which the parent runs in §3.7, not from this audit.
 
 The parent applies L0 fixes and selected strong-advisory rewrites itself in §3.7
 (or runs de-ai Pass 3 in the parent context); the auditor never edits.
@@ -230,12 +229,11 @@ For each action:
 Close the round with the §5.3 loop-close gates against the round's baseline (§2 step 7):
 `python tools/length_gate.py <target> --before <baseline-root>` and
 `python tools/deai_residue.py <target> --before <baseline-root>` (or `--git-ref`). A strong
-`length-growth`, `length-shrink-short` or residue finding needs a disposition before the round
-can be disposition-complete; record `--allow "<section>=<reason>"` justifications in the
-round record.
+`length-growth`, `length-shrink-short` or residue finding needs a disposition (§4); record
+`--allow "<section>=<reason>"` justifications in the round record.
 
-Subjective strong advisories that require author preference may remain pending with a precise
-question. Do not erase them merely to make counts zero.
+A strong advisory whose fix turns on the author's preference may remain pending with a precise
+question. Do not erase it merely to make counts zero.
 
 ## 4. Stable-round criterion
 
@@ -323,13 +321,8 @@ unmeasured axes.
 
 ## 7. Completion meaning
 
-`DISPOSITION_COMPLETE` means the mandated review workflow reached a stable state in which:
-
-- scientific blockers were resolved or disproved;
-- L0 targets are zero;
-- strong advisories have explicit author/process dispositions;
-- ordinary residuals and limitations are visible;
-- independent reviewers reproduced that state for the required consecutive rounds.
+`DISPOSITION_COMPLETE` means the mandated review workflow reached the §4 disposition-complete
+state and independent reviewers reproduced it for `--require-consecutive` rounds.
 
 It does not mean the paper is guaranteed correct, accepted, human-authored, aesthetically
 unique or free of every possible reviewer objection.

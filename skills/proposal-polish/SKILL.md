@@ -97,7 +97,9 @@ most editing effort there.
   to the research: named programs, named courses or tools, measurable outreach.
 - **Hedged central hypothesis.** The Aims-page hypothesis is a falsifiable
   commitment, not "we will explore whether possibly ...". Calibrated hedging
-  belongs in the Approach's interpretation, not in the central claim.
+  belongs in the Approach's interpretation, not in the central claim. Firming
+  a hedged hypothesis changes stance and modality (§6), so propose the committed
+  wording to the author and apply it only with their approval, never silently.
 
 ## Preserve and deploy (funded-proposal craft)
 
@@ -135,23 +137,25 @@ These read as strength; keep or add them rather than editing them out.
    `python tools/ai_ism_lint.py <file> --field <field>` (skip the field flag
    when no profile applies; structural axes calibrated on journal corpora are
    `degraded` for proposals and advisory-only).
-3. **Rewrite.** Same aims, same evidence, same citations. Fix weak moves,
+3. **Rewrite.** Same aims, same evidence, same citations. Fix weak moves
+   (a firmer central hypothesis stays a proposal until the author approves it),
    attach feasibility footings beside ambitious claims, keep the vision, clear
    L0 targets, and edit the score-forming pages hardest. Rewrite-eligibility
    invariants (SCIPAPER_STANDARD §6) hold: no number, citation, stance, or
    qualifier changes without the author's source.
 4. **Report.** Cleaned text plus a change log: weak moves fixed by type,
    feasibility gaps flagged for the author (with what evidence would close
-   them), L0 before/after counts, and any structural expectations the draft
-   still misses. Confirm no number, result, or citation was altered and no
-   support was invented.
+   them), any central-hypothesis wording proposed for approval, L0 before/after
+   counts, and any structural expectations the draft still misses. Confirm no
+   number, result, or citation was altered and no support was invented.
 
 ## Anti-patterns
 
 - Flattening the long-term vision because paper mode would trim it.
 - "Improving" a proposal by inventing preliminary results, partners, letters,
   or funding history: that is fabrication, not editing.
-- Leaving a hedged central hypothesis because hedging is legitimate in papers.
+- Leaving a hedged central hypothesis unflagged because hedging is legitimate in
+  papers, or firming it without the author's approval.
 - Spending effort on later sections while the Aims/Summary page is weak.
 - Treating funder page limits, formatting, and deadline rules from memory as
   current: consult the funder's live policy documents (NSF PAPPG, NIH

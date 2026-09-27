@@ -76,7 +76,7 @@ condense's ranked sweep.
    `degraded` or `unmeasured`, never a clean result. No universal style
    verdict exists.
 6. **L0 is the only axis rewritten to zero.** Tier A, em-dash, and Tier B
-   above the section cap are `l0_target`. L1-L4 findings are ranked
+   above its heading-unit cap are `l0_target`. L1-L4 findings are ranked
    advisories with dispositions, never forced to zero at the cost of clarity.
 7. **Condense, do not accumulate (§5.3).** The default direction of every
    rewrite is shorter; the explanatory patch — answering a finding by
@@ -202,8 +202,10 @@ Axes and tools:
 ## 3. Pass 2 — humanizer structural-tell audit (vendored)
 
 Audit against the catalog below, then merge every hit into the Pass-1 ranked
-list (Layer 1-2 structural hits are style-class advisories, density excess
-upgrades to strong; Layer-4 claim-evidence failures are integrity-class).
+list (Layer 1-2 structural hits are ordinary style-class advisories: a
+catalog count has no calibrated operating point, so density excess puts a hit
+first among the ordinary advisories but never makes it strong (standard §4);
+Layer-4 claim-evidence failures are integrity-class).
 Skip LaTeX comments and scaffolding macros. This pass never edits.
 
 ### Layer 1 — general AI tells
@@ -315,8 +317,8 @@ is the measured voice baseline. Funding proposals route to
 ## 4. Pass 3 — claim-first rewrite
 
 Select work in ranked order: L0 targets in the requested span first, then
-strong L1/L2/L3 advisories with concrete actions, then document-shape
-findings. For each selected paragraph:
+strong L1/L2/L3 advisories with concrete actions, then Pass-2 density hits,
+then document-shape findings. For each selected paragraph:
 
 1. **Protect.** Write the protected claim record (`<scratch>/claim.txt`):
    every claim and its evidence relation, all numbers/units, citations, named
@@ -360,7 +362,7 @@ findings. For each selected paragraph:
    and negation/causal/comparison markers as bags, so a marker moved between
    clauses passes it; its `count mismatch` line flags only lost repeats.
 4. **Re-measure.** Re-run the Pass-1 linter on the candidate in enough
-   section context for section caps. A good rewrite introduces no new
+   heading-unit context for the Tier B cap. A good rewrite introduces no new
    integrity blocker or L0 target, stays eligible, acts on the selected
    advisory, worsens no higher-priority finding, does not grow the passage
    without a stated reason (report the length delta), and reports residual
