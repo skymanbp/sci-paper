@@ -16,44 +16,47 @@ nothing here can redefine it. All machine-readable findings use the
 
 The current
 `style-profile/wgl/voice_model.joblib` bundle
-was **retrained locally on 2026-09-05** (RTX 4060 Ti) after the v0.36.3 profile
-rebuild took the curated-field bank to 42,371 positive records, and re-evaluated with
-the same confound-aware audit. It supersedes the 2026-08-26 retrain, which superseded
-2026-08-25, 2026-08-17 and the 2026-07-12 cloud run. The full machine-readable audit is
-`style-profile/wgl/voice_model_evaluation.json`
-(schema `sci-paper.voice-model-evaluation.v1`, `generated_utc` `2026-09-05T06:41:31Z`).
+was **retrained locally on 2026-09-27** (RTX 4060 Ti) after the v0.39.0 profile
+rebuild took the curated-field bank to 42,888 positive records, and re-evaluated with
+the same confound-aware audit. It supersedes the 2026-09-05 retrain, which superseded
+2026-08-26, 2026-08-25, 2026-08-17 and the 2026-07-12 cloud run. The full
+machine-readable audit is `style-profile/wgl/voice_model_evaluation.json`
+(schema `sci-paper.voice-model-evaluation.v1`, `generated_utc` `2026-09-27T09:55:51Z`).
 
-| Metadata | 2026-09-05 | 2026-08-26 | 2026-08-25 | 2026-08-17 |
-|---|---:|---:|---:|---:|
-| classifier | logistic regression | logistic regression | logistic regression | logistic regression |
-| positive-class records | 42,371 | 42,311 | 39,376 | 15,034 |
-| negative-class records | 2,265 | 2,265 | 2,265 | 2,265 |
-| total records | **44,636** | 44,576 | 41,641 | 17,299 |
-| grouped-split AUC (20 splits) | **0.9487** | 0.9518 | 0.9502 | 0.9320 |
-| grouped-split F1 (positive class) | 0.9324 | 0.9345 | 0.9394 | 0.9172 |
-| grouped-split balanced accuracy | 0.8704 | 0.8761 | 0.8724 | 0.8445 |
-| feature count | 14 | 14 | 14 | 14 |
-| operating point in bundle | absent | absent | absent | absent |
-| `measurement_status` | degraded | degraded | degraded | degraded |
+| Metadata | 2026-09-27 | 2026-09-05 | 2026-08-26 | 2026-08-25 | 2026-08-17 |
+|---|---:|---:|---:|---:|---:|
+| classifier | logistic regression | logistic regression | logistic regression | logistic regression | logistic regression |
+| positive-class records | 42,888 | 42,371 | 42,311 | 39,376 | 15,034 |
+| negative-class records | 2,265 | 2,265 | 2,265 | 2,265 | 2,265 |
+| total records | **45,153** | 44,636 | 44,576 | 41,641 | 17,299 |
+| grouped-split AUC (20 splits) | **0.9487** | 0.9487 | 0.9518 | 0.9502 | 0.9320 |
+| grouped-split F1 (positive class) | 0.9323 | 0.9324 | 0.9345 | 0.9394 | 0.9172 |
+| grouped-split balanced accuracy | 0.8705 | 0.8704 | 0.8761 | 0.8724 | 0.8445 |
+| feature count | 14 | 14 | 14 | 14 | 14 |
+| operating point in bundle | absent | absent | absent | absent | absent |
+| `measurement_status` | degraded | degraded | degraded | degraded | degraded |
 
 ### 7.0a The field-topic confound is a property of the feature set, decided
 
 The roadmap carried "a field-topic-robust L3 operating point, **or a recorded decision
-that one is not obtainable from this feature set**". Four retrains on banks differing
-by 2.6×, the last on the rebuilt v0.36.3 profile, answer it, each with its own 20-split
-grouped audit:
+that one is not obtainable from this feature set**". Five retrains on banks differing
+by 2.6×, the last two on the rebuilt v0.36.3 and v0.39.0 profiles, answer it, each with
+its own 20-split grouped audit. This is the one table of the negative-control
+false-positive rates: the fraction of generated negatives the model scores as
+curated-field-like, mean over the 20 splits.
 
-| negative control | 2026-09-05 (44,636) | 2026-08-26 (44,576) | 2026-08-25 (41,641) | 2026-08-17 (17,299) |
-|---|---:|---:|---:|---:|
-| public-generic generated | **0.055** (0.026–0.076) | 0.052 | 0.053 | 0.086 |
-| field-topic generated | **0.295** (0.230–0.356) | 0.280 | 0.285 | 0.318 |
-| field-jargon-dense generated | **0.421** (0.236–0.543) | 0.393 | 0.410 | 0.417 |
+| negative control | 2026-09-27 (45,153) | 2026-09-05 (44,636) | 2026-08-26 (44,576) | 2026-08-25 (41,641) | 2026-08-17 (17,299) |
+|---|---:|---:|---:|---:|---:|
+| public-generic generated | **0.057** (0.026–0.076) | 0.055 | 0.052 | 0.053 | 0.086 |
+| field-topic generated | **0.292** (0.230–0.349) | 0.295 | 0.280 | 0.285 | 0.318 |
+| field-jargon-dense generated | **0.418** (0.212–0.528) | 0.421 | 0.393 | 0.410 | 0.417 |
 
 Ranges are 2.5–97.5 percentiles over the 20 splits. **The decision is recorded: not
-obtainable from this feature set.** Every movement across a 2.6× bank increase and a
-profile rebuild lies inside a single retrain's own split range — field-topic 0.318 →
-0.285 → 0.280 → 0.295 against a range of 0.230–0.356 — while the *headline* AUC first
-rose and then eased, 0.9320 → 0.9518 → 0.9487, itself inside 0.9409–0.9583. More data
+obtainable from this feature set.** Every movement across a 2.6× bank increase and two
+profile rebuilds lies inside a single retrain's own split range — field-topic 0.318 →
+0.285 → 0.280 → 0.295 → 0.292 against a range of 0.230–0.349 — while the *headline*
+AUC rose, eased and held, 0.9320 → 0.9518 → 0.9487 → 0.9487, itself inside
+0.9392–0.9587. More data
 buys separation on the easy contrast and buys nothing on the one that matters, which
 is what a feature-set confound looks like rather than a sampling limit. The model partly measures field register, and field-topic AI prose is precisely
 the distribution on which field register is uninformative.
@@ -67,29 +70,30 @@ verdict. Reopening this requires a *different feature set*, not a larger bank.
 The retrain is checked at the unit the bundle is actually used on. `voice_findings`
 scores every paragraph of ≥ 30 words and, because the bundle is degraded, surfaces the
 three lowest-ranked ones; feeding it a whole document is out of distribution and says
-nothing about product behaviour. The 2026-08-26 and 2026-09-05 bundles therefore
-scored the **same 1,808 paragraphs** from 63 documents (every third of the `docval`
-tiers and the curated tiers), against the same feature pipeline, so only the
-classifier differs. The 2026-08-26 column is the same check between that bundle and
-its 2026-08-25 predecessor (1,845 paragraphs, 54 documents).
+nothing about product behaviour. Each column compares a bundle with its predecessor
+on the same paragraphs (every third document of the `docval` tiers and the curated
+tiers), featurized once through the same pipeline, so only the classifier differs:
+2,080 paragraphs from 69 documents for 2026-09-27, 1,808 from 63 for 2026-09-05, and
+1,845 from 54 for 2026-08-26.
 
-| Quantity | 2026-09-05 | 2026-08-26 |
-|---|---|---|
-| feature schema, feature names, classifier, `measurement_status` | unchanged | unchanged |
-| operating point | absent in both — no threshold was introduced | absent |
-| per-paragraph score change | median 0.007, p90 0.044, max 0.168 | median 0.034, p90 0.268, max 0.776 |
-| within-document rank correlation (Spearman ρ) | median **0.991**, p10 0.972 | median 0.846, p10 0.698 |
-| triage paragraphs unchanged, mean overlap of the 3 surfaced | **0.889** | 0.654 |
-| documents whose 3 surfaced paragraphs are identical | 42/63 = 0.667 | 11/54 = 0.204 |
+| Quantity | 2026-09-27 | 2026-09-05 | 2026-08-26 |
+|---|---|---|---|
+| feature schema, feature names, classifier, `measurement_status` | unchanged | unchanged | unchanged |
+| operating point | absent in both — no threshold was introduced | absent | absent |
+| per-paragraph score change | median 0.0007, p90 0.004, max 0.022 | median 0.007, p90 0.044, max 0.168 | median 0.034, p90 0.268, max 0.776 |
+| within-document rank correlation (Spearman ρ) | median **1.000**, p10 0.999 | median 0.991, p10 0.972 | median 0.846, p10 0.698 |
+| triage paragraphs unchanged, mean overlap of the 3 surfaced | **0.995** | 0.889 | 0.654 |
+| documents whose 3 surfaced paragraphs are identical | 68/69 = 0.986 | 42/63 = 0.667 | 11/54 = 0.204 |
 
 **Exact behavioural equivalence does not hold, and it was not available to hold**: a
 refitted logistic regression is a different function, and the 2026-08-26 retrain, on a
-bank grown 2.6×, moved the marginal third of every triage list. The 2026-09-05 retrain
-on the rebuilt profile (60 more positive rows) is close to equivalent at the unit that
-matters: the ranking the degraded mode consumes is preserved at ρ = 0.991, two thirds
-of the documents surface the identical three paragraphs, and the per-paragraph score
-moves by 0.007 at the median. That is reported rather than assumed: a reviewer who
-reran an old triage list will get the same list back on most documents, not all.
+bank grown 2.6×, moved the marginal third of every triage list. The two retrains on
+rebuilt profiles are close to equivalent at the unit that matters. With 60 more
+positive rows, 2026-09-05 kept the ranking the degraded mode consumes at ρ = 0.991 and
+two thirds of the documents surfaced the identical three paragraphs; with 517 more,
+2026-09-27 keeps it at ρ = 1.000 and 68 of 69 documents surface the identical three.
+That is reported rather than assumed: a reviewer who reran an old triage list will get
+the same list back on most documents, not all.
 
 The labels represent curated field prose versus generated negative examples. The
 resulting probability is exposed as `field_similarity`, not a probability that a human
@@ -102,45 +106,35 @@ recomputes `corpus_cos` against a training-only curated centroid so held-out pap
 cannot inflate their own similarity feature. Intervals summarize split-to-split
 variation; they are not independent-sample confidence intervals.
 
-| Metric | mean | 2.5% | 97.5% | 2026-08-26 mean |
+| Metric | mean | 2.5% | 97.5% | 2026-09-05 mean |
 |---|---:|---:|---:|---:|
-| overall AUC (raw UID) | **0.9487** | 0.9409 | 0.9583 | 0.9518 |
-| overall balanced accuracy | **0.8704** | 0.8588 | 0.8881 | 0.8761 |
-| matched-stratum AUC (section × length × math × field-term) | **0.9262** | 0.9063 | 0.9494 | 0.9306 |
+| overall AUC (raw UID) | **0.9487** | 0.9392 | 0.9587 | 0.9487 |
+| overall balanced accuracy | **0.8705** | 0.8602 | 0.8883 | 0.8704 |
+| matched-stratum AUC (section × length × math × field-term) | **0.9250** | 0.9058 | 0.9495 | 0.9262 |
 
-The matched-stratum AUC stays within ~0.02 of the overall AUC, so the separation is not
+The matched-stratum AUC stays within 0.024 of the overall AUC, so the separation is not
 merely a topic, length, or mathematical-density artifact.
 
-**What the v0.36.3 profile rebuild moved.** Every headline figure eased by less than
-its own interval: AUC −0.003, balanced accuracy −0.006, matched-stratum AUC −0.004,
-each inside the 2.5–97.5% range of the audit before it. The `joint_matched_support`
-cell holds 1,358 records across 6 qualifying strata in the primary split (1,283 on
-average over the 20 audit splits). The posture is unchanged: no operating point,
-`degraded`, for the reason §7.2 gives.
+**What the v0.39.0 profile rebuild moved.** Nothing beyond its own interval: AUC
++0.00001, balanced accuracy +0.0002, matched-stratum AUC −0.0012, each inside the
+2.5–97.5% range of the audit before it. The `joint_matched_support` cell holds 1,365
+records across 6 qualifying strata in the primary split (1,277 on average over the 20
+audit splits). The posture is unchanged: no operating point, `degraded`, for the
+reason §7.2 gives.
 
 ### 7.2 Negative controls — the confound the audit exposes
 
-The false-positive rate is the fraction of generated negatives the model wrongly scores
-as curated-field-like (mean across 20 splits):
+The negative-control false-positive rates, per retrain and with their split ranges,
+are the §7.0a table. Generic public AI prose is easy (5.7% FPR), but AI text written in
+the field's topic and jargon fools the model 29–42% of the time. The learned score
+partly measures field register, so it is unreliable on the exact distribution —
+field-topic AI prose — that a manuscript de-AI pass must catch.
 
-| Generated-negative control | false-positive rate | 95% split range | 2026-08-26 |
-|---|---:|---:|---:|
-| public-generic AI text | **0.055** | 0.026–0.076 | 0.052 |
-| field-topic AI text | **0.295** | 0.230–0.356 | 0.280 |
-| field-jargon-dense AI text | **0.421** | 0.236–0.543 | 0.393 |
-
-Generic public AI prose is easy (5.5% FPR), but AI text written in the field's topic and
-jargon fools the model 30–42% of the time. The learned score partly measures field
-register, so it is unreliable on the exact distribution — field-topic AI prose — that a
-manuscript de-AI pass must catch.
-
-**Neither the corpus growth nor the profile rebuild fixed this.** Field-jargon-dense
-prose has read 0.417 → 0.410 → 0.393 → 0.421 across four retrains and field-topic 0.318
-→ 0.285 → 0.280 → 0.295, every step inside the split-to-split range; public-generic sits
-at 5%, the easy case. Four retrains on banks of very different sizes and two profile
-generations now agree that the confound is a property of the feature set, not of any
-one training bank — which is the measured reason L3 ships `degraded` and will keep
-doing so until a feature set separates field register from provenance.
+**Neither the corpus growth nor the two profile rebuilds fixed this**: across five
+retrains every step of every control lies inside the split-to-split range (§7.0a). The
+confound is a property of the feature set, not of any one training bank — which is the
+measured reason L3 ships `degraded` and will keep doing so until a feature set
+separates field register from provenance.
 
 ### 7.3 Author hard set — true provenance is the yardstick, perception is not
 
@@ -152,11 +146,11 @@ the provenance is the meaningful one. Every AUC below is reported with a seeded 
 
 | Question | AUC | 95% CI |
 |---|---:|---:|
-| Does the **model** score separate true generated from human? (low compatibility = generated) | 0.938 | 0.846–0.998 |
+| Does the **model** score separate true generated from human? (low compatibility = generated) | 0.937 | 0.842–0.999 |
 | Can the **author's `ai_feel`** separate the same true provenance? | 0.444 | 0.304–0.582 |
 
-Mean compatibility by true source on the retrained bundle: human papers 0.916 and the
-author's own drafts 0.887, against RAID generations 0.189 and Claude generations 0.373.
+Mean compatibility by true source on the retrained bundle: human papers 0.917 and the
+author's own drafts 0.887, against RAID generations 0.185 and Claude generations 0.372.
 The author's drafts score with the published papers, not with the generations.
 
 The model separates true AI-vs-human prose well (0.94). The author's single-paragraph
@@ -177,8 +171,8 @@ secondary line in `voice_model_evaluation.json`, not as evidence about the model
 L3 stays `degraded` with **no operating point** — but for the well-powered reasons, not
 the hard-set perception metric:
 
-1. the field-topic and field-jargon-dense negative controls (§7.2, n=170/48 in the
-   primary split) show a 31–42% false-positive rate on exactly the AI prose a manuscript
+1. the field-topic and field-jargon-dense negative controls (§7.2, n=170/47 in the
+   primary split) show a 31–43% false-positive rate on exactly the AI prose a manuscript
    pass must catch;
 2. AI-ness in scientific writing is substantially a document- and cross-paragraph
    property, and no document-level calibration set exists yet (§9).
@@ -192,7 +186,7 @@ never a universal cutoff.
 
 - Grouping by source paper reduces same-paper leakage; the matched-stratum result adds
   section/length/math/jargon control, but observational separation is not causal proof.
-- The `results` stratum holds 687 records in the primary split and no generated
+- The `results` stratum holds 706 records in the primary split and no generated
   negative, so its per-section figures are reported and not interpreted.
 - Held-out classification performance alone is insufficient for rewrite ranking outside
   the training distribution; §8 gates ranking on measured calibration.

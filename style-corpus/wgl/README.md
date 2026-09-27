@@ -1,8 +1,7 @@
 # style-corpus/wgl/
 
-Weak-gravitational-lensing (WGL) field corpus. This is the only populated
-field in v0.1; additional fields will live alongside it as
-`style-corpus/<field>/` subdirectories (e.g. `cosmology/`, `ml-methods/`).
+Weak-gravitational-lensing (WGL) field corpus. Other fields live alongside it
+as `style-corpus/<field>/` subdirectories (e.g. `cosmology/`, `ml-methods/`).
 
 ## Tiers
 
@@ -13,15 +12,16 @@ field in v0.1; additional fields will live alongside it as
   weak-lensing methodology, cluster lensing, NFW fits, aperture-mass
   formalism, etc.). Default weight 0.2.
 
-See `../README.md` (one level up) for general corpus rules.
+See `../README.md` (one level up) for general corpus rules and the
+`fulltext-*` pulls.
 
 ## Building this field's profile
 
 ```bash
 python tools/extract_style.py --field wgl
-# (or just `python tools/extract_style.py` while wgl is the only field —
-# the tool auto-detects single-field corpora.)
+# (`--field` may be omitted when one field is present — the tool auto-detects
+# a single-field corpus; with several fields it is required.)
 ```
 
-Outputs to `style-profile/wgl/{lexicon.json, sentence_stats.json,
-transition_inventory.json, style_dossier.md}`.
+Its outputs, and every `--calibrate` step after it, are listed in
+[`style-profile/README.md`](../../style-profile/README.md).

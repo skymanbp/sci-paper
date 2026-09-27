@@ -9,8 +9,9 @@ All notable changes to the `sci-paper` plugin. Versions follow the
 
 `docs/audits/full-review-2026-09-27.md` recorded a full-repository review of
 v0.38.0: nine parallel line-by-line reads of the tools, skills and documents,
-every high and medium finding reproduced first-party. This release acts on its
-first tier ("应修") and the documentation corrections that go with it. No
+every high and medium finding reproduced first-party. This release settles
+every item: its first tier ("应修") and the documentation corrections that go
+with it first, then the rest and a profile rebuilt on them. No
 consequence class changed; the standard is v3.9 (a fourth narrow exit
 contract, `verify_references.py`, and the residues and readings v0.37–v0.38 had
 added without a version stamp).
@@ -95,9 +96,10 @@ sweep drops the preamble and every `skip` unit on both sides. The partition
 tool compares candidate states by conformal p instead of distances from
 different manifolds, simulates a split on the original text (the joined text
 let a trailing `%` comment swallow half a paragraph), and treats every heading
-command as fixed. The tricolon wrap-up needs a wrap-up. `structure_baseline`,
-`docstructure_baseline` and `anchoring_baseline` must be rebuilt for these to
-take effect; the EVALUATION figures tied to them predate the rebuild and say so.
+command as fixed. The tricolon wrap-up needs a wrap-up. A field's
+`structure_baseline`, `docstructure_baseline` and `anchoring_baseline` must be
+rebuilt for these to take effect; the shipped `wgl` ones were, and their
+figures re-taken (below).
 
 **The rewrite gate runs on a fresh clone.** A missing profile, a missing or
 unusable `voice_model.joblib`, or a missing sentence-transformers was exit 2,
@@ -143,8 +145,8 @@ marked `[WGL]` and `--query` serves any other field.
 skipped.** `quantiles` stored the ⌊qn⌋+1-th smallest value, one order
 statistic high: p90 of 100 values was the 91st, and at the 30-unit floor the
 tails read at P = 0.133 and 0.933. It stores the ⌈qn⌉-th now; an artifact
-calibrated before this keeps the old grid until it is recalibrated, and the
-EVALUATION rates measured on the old grid predate it. An artifact recording
+calibrated before this keeps the old grid until it is recalibrated, as the
+shipped `wgl` profile was (below). An artifact recording
 another unit than the axis measures is refused and named. A document whose
 units fall in the `unknown` bucket, a bucket the baseline lacks, and a
 salience reference no bucket resolves above are `degraded` with counts, where
@@ -164,8 +166,86 @@ The voice axis is `unmeasured` without the surprisal runtime instead of a
 RuntimeError, `--scores` lists paragraphs by source line, and every one of
 these tools resolves `--field` through the shared resolver.
 
-The suite is 764 tests in 32 files (v0.38.0: 529 in 27); the validator runs
-11 checks and passes.
+### The rest of the audit, and the profile rebuilt on it
+
+**Every item is settled.** Past the first tier, each finding of the audit is
+fixed or closed with its reason, and §10 of the audit record names the commit
+that carries it.
+
+**The document scale reads prose, at calibrated operating points only.**
+Headings and floats are blanked before paragraphs are cut: a heading had fused
+into its section's first block, and a float holding a blank line split its
+paragraph in two (audit B22). The length-stratum edges are fitted on the
+training papers alone, as exchangeability requires (B17), and a feature whose
+reference cannot resolve its own tail is `degraded` and ordinary (B18). The
+in-sample percentile fallback for a manifold without split-conformal
+calibration is gone (B24): no calibration writes such a baseline, so the
+manifold rule goes unscored and the axis `degraded` with a rebuild instruction,
+and `deai_partition` gives that reason instead of "not measurable".
+
+**Hedging speaks for methods.** Re-measured per section on the rebuilt
+profile, hedging separates machine text in `method` at 0.731–0.898 against a
+0.442 human/human null and fires on 9.62% of held-out refereed method sections
+at its 10% gate, so the axis runs on `intro` and `method` (EVALUATION §19.4).
+The v0.33.0 measurement, taken when a manuscript section was one heading span,
+had read `method` at 26.77%.
+
+**Skills defer to the standard on strong advisories.** Standard §4 makes an
+advisory strong only when a measured effect exceeds a calibrated operating
+point. De-AI's structural density hits, paper-review's structural hits,
+physics' naming and unit checks and mainline's narrative findings are
+judgement calls with no such point; each is now an ordinary advisory ranked
+first, and the standard is unchanged. A firmer central hypothesis in
+proposal-polish is proposed to the author, never applied silently. Under
+`--orchestrated` the parent runs the de-AI audit and figure-review itself, as it
+already ran physics, mainline and logic. Mainline's cold read asks an eighth
+question, the one thesis line every contribution branch serves (standard
+§5.4). Brainstorm drops `--min-frameworks`, whose floor was already all twelve
+framings. The paper skill's review grep finds every form the linter does
+(`delving`, and `Moreover` mid-sentence).
+
+**One copy of each fact.** The L0 word lists are the linter's patterns, and the
+validator now holds the paper skill's table to them in both directions (audit
+H8). The loader both evaluators read, the midrank AUC, the placeholder
+vocabulary and the named section buckets each have one owner; register
+findings, math density and cross-validation folds are computed once where they
+were computed twice. The evidence documents keep each measurement in one place
+and point to it, the validator's checks and the optional dependencies are
+listed once (`tools/README.md`, `requirements.txt`), and the orphaned
+`latency.json` is gone.
+
+**Smaller corrections.** `robust` before estimator, estimation, statistic or
+regression is a method name and no longer counts toward the Tier B cap (F26).
+The paired leakage estimate counts a paper the way the bank holds it (E17).
+`corpus_cos` without the embedder or the corpus centroid scores unmeasured
+instead of 0.0 (E20). CrossRef requests carry a polite-pool address from
+`SCI_PAPER_MAILTO` and retry once on 429 and 5xx (F22). The exemplar embedding
+cache is rebuilt when its fingerprint disagrees with the bank (D20). The arXiv
+API is queried over HTTPS, and the style dossier names the source files it
+skipped. Three regressions the pull request itself introduced are fixed: a
+hyphenated compound is one word again, a unit reason names only buckets the
+document reaches, and a commented-out `\newcommand` no longer beats the live
+one. Examples in code, tests and documents that had been taken from a
+manuscript under review are replaced by invented ones; no measurement changes.
+
+**The profile is rebuilt and the figures re-taken.** The `wgl` profile was
+rebuilt on 2026-09-27 on every corpus-side fix above, and each evaluation figure
+that reads an artifact was re-taken through the shipped path; a figure that was
+not names the build it was taken on. The exemplar bank holds 28,444 paragraphs
+from 18 of the 19 curated and 498 of the 500 reference papers. The
+document-structure baseline is 504 papers, and its table moved (natural-AI
+length-fair manifold AUC 0.933 → 0.893, long-form 0.740 → 0.840; human
+false-flag 0.020 manifold, 0.042 role) under four changes the record does not
+separate (EVALUATION §9). The learned model, retrained on 45,153 records, keeps
+its grouped-split AUC at 0.9487 and the ranking its degraded mode consumes
+(median Spearman ρ 1.000; 68 of 69 documents surface the same three
+paragraphs). Held-out register reads 56 findings, 0.0364 per 1,000 body words,
+87.5% of which would vanish had the paper been in its own bank. The worked
+example reads 22 advisories before the revision and 17 after.
+
+The suite is 801 tests in 32 files (v0.38.0: 529 in 27); the validator runs
+11 checks and passes. v0.35.0–v0.35.1 moved to `CHANGELOG-ARCHIVE-v0.35.md`; this
+file had reached 806 lines.
 
 ## v0.38.0 — 2026-09-16
 
@@ -583,144 +663,10 @@ from 458 ms to 1.07 s, most of it the 541,309-pair bank load, which
 `--no-collocation` drops. v0.30.0–v0.31.0 moved to `CHANGELOG-ARCHIVE-RECENT.md`;
 this file had reached 790 lines.
 
-## v0.35.1 — 2026-09-03
-
-A post-release audit of the documentation, not of the code. An escape the
-writer lost had truncated the tools table in both READMEs, the one published
-figure with no artifact behind it was wrong, and several figures and dates in
-the record had drifted from what they describe.
-
-### A lost backslash ended the tools table four rows early
-
-The `tools/tex_macros.py` row wrote `\newcommand` without its backslash, and
-the consumed newline split the row, so the table stopped rendering there —
-`retrieve_exemplars`, `fetch_arxiv_abstracts`, `train_ai_ism_classifier` and
-`extract_md_negatives` fell out of it, in both READMEs. The same damage sat in
-the v0.32.0 changelog entry at `\nocite`.
-
-### The worked example published a count the linter does not report
-
-`examples/README.md` said 19 total advisories where `ai_ism_lint` reports 18.
-It was the only published-figure document with no artifact behind it, so
-nothing read it. `tests/test_published_figures.py` now renders both of its
-tables — the before/after summary and the per-rule counts — by running the
-linter on the two shipped manuscripts and looking for the result, the same way
-every other pinned figure is rendered from the artifact it was read from. A
-cell the linter does not produce fails the case, so a document that agrees with
-a stale run and a document nobody updated fail identically.
-
-### Figures and dates the record had drifted from
-
-- **203**, not 200, held-out refereed papers, in the two `DISPOSITIONS.md` rows
-  that still carried the count from before §18 re-measured it.
-- The v0.30.0–v0.33.0 changelog headings were dated 2026-08-27; their tagger
-  dates are **2026-08-26**.
-- The release-gate label in `EVALUATION.md` §12 stamped a version on a suite
-  size measured after it. It now reads "as of 2026-09-03; last tagged release
-  v0.35.1", so the version names the tag and the date names the measurement.
-- Both README latency tables paired 394 tests with 81.4 s, a wall time taken on
-  the 393-test suite. The suite row is re-taken: **73.0 s**, median of 3, the
-  three runs spanning 70.0–86.9 s. Every other row still stands from the
-  2026-08-27 take and the preamble now says which rows carry which date.
-- `docs/README.md` called the evidence record five files where it is eight,
-  gave three of them section maps missing the sections added since, counted
-  four kinds of document where six live there, and described the validator's
-  version and suite-size checks narrower than they are.
-- The unit-pattern anchor in both READMEs pointed at `rewrite_reward.py:41`;
-  the pattern is at `:56`.
-- Both READMEs said CI runs on every push. `ci.yml` filters `branches: [main]`,
-  so it runs on every push to `main` and every pull request.
-
-### Also
-
-- `.gitignore` covers `models/hf-cache/`, `.ce/` and `.ccm/` — relocated model
-  cache and machine-local tool state, never repository content.
-- Suite: 394 tests across 20 files; `validate_plugin.py` 9/9.
-
-## v0.35.0 — 2026-08-27
-
-The axis that counts numbers could not see numbers written as macros, a public
-repository was carrying an unpublished manuscript's method summary, and the
-worked example that demonstrates any of this now runs on a synthetic paper
-instead of a real one.
-
-### Numbers held in macros were invisible, in both directions
-
-A manuscript that writes `\newcommand{\Nsamples}{12}` in its preamble and
-`\Nsamples{}` in its results put a measured quantity where neither named text
-projection could read it. `RE_TEX_SIMPLE_CMD` reduces a command to its
-argument, so the use site contributed nothing while the definition site
-contributed the digits once, in the preamble, attributed to no reported
-section. Two errors running in opposite directions, which is why the net stayed
-small enough to go unnoticed: on the manuscript that surfaced it, expanding the
-uses adds 650 digits and dropping the definitions removes 493.
-
-Found by running the tools on a real manuscript, not by a test. The salience
-axis had been reporting recital percentiles for that paper computed on 91% of
-its digits, and correcting it moved that paper from 16 recital findings to 26.
-
-`tools/tex_macros.py` expands numeric-literal macros once, on the assembled
-document root, because that is the only scope holding both a preamble
-definition and a body use — the same reason `read_tex_document` folds
-`\include` in the first place. Only a bare numeric literal expands, so
-`\newcommand{\Msun}{M_\odot}` and every macro taking an argument are untouched.
-
-Both salience baselines were rebuilt rather than left to score expanded
-manuscripts against an unexpanded reference. They move by **zero to four
-decimals** at the p90 and p95 gates, across all three features and all seven
-buckets, in both `wgl` and `wgl-letter`: 88.2% of 390 corpus documents never
-use the construction. That is what separates a correction from a rescaling, and
-it means no published salience figure in `EVALUATION.md` changes (§22).
-
-### An unpublished manuscript's method summary was in a public repository
-
-This repository is public. Content from the author's unpublished manuscripts
-had accumulated in the evaluation record since 2026-07-12, in increments that
-each looked locally harmless — a codename in a test fixture, a macro and its
-value in a docstring, one fidelity-preserving rewrite quoted in full.
-
-The aggregate was a complete method summary: enough of the method for a competitor to reconstruct the contribution. Public for 46 days.
-
-The quoted rewrite was the largest single exposure, and it was labelled a
-proposal rather than a quotation, which is exactly why it survived review: the
-rewrite gate protects numbers, citations, macros, entities and claim/evidence
-relations, so a fidelity-preserving rewrite discloses what the original
-discloses. Being a rewrite is not a defence.
-
-Removed: the quoted block, the method-component list, manuscript codenames
-throughout, one real measured value, and manuscript-derived test fixtures,
-which now use invented macros. Kept: every measurement. Finding counts,
-percentiles, rule names, before/after tables and the panel results describe how
-the tools behave, not what the paper found, and they are why the record exists.
-
-Git history was rewritten to remove the same content from every earlier commit.
-That does not undo publication — the content may persist in existing clones,
-forks and upstream caches.
-
-### A worked example that is safe to ship
-
-`examples/` now carries a synthetic manuscript and the same paper after acting
-on the findings. The topic is a textbook one and every value is invented, so
-the demonstration no longer depends on anyone's unpublished work.
-
-It is also a more honest demonstration than a clean sweep would be. L0 targets
-go to zero and `discourse-cohesion` from 3 findings to 1, while
-`salience-recital` **rises** from 4 to 6 — because carrying a noun forward to
-link two sentences pulls the subject into sentences that also carry a numeral.
-In a number-dense passage cohesion and recital want opposite things and no
-rewrite satisfies both. Both findings are true, and which to act on is the
-author's judgement, which is why neither is a blocker and there is no score.
-
-### Also
-
-- The re-export contract test named its excluded module imports one at a time
-  (`re`, `defaultdict`, `Path`), so it failed the moment a new import appeared.
-  It now excludes module objects by type.
-- Suite: 393 tests across 20 files; `validate_plugin.py` 9/9.
-
 ---
 
-Older entries: [CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)
+Older entries: [CHANGELOG-ARCHIVE-v0.35.md](CHANGELOG-ARCHIVE-v0.35.md)
+(v0.35.0-v0.35.1), [CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)
 (v0.33.0-v0.34.0), [CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)
 (v0.27.1-v0.32.0), [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)
 (v0.22.0-v0.27.0) and

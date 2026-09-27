@@ -1,15 +1,17 @@
 # EVALUATION §23 — vocabulary the field never wrote, sentence families from a mentor's comments, the removal map, and the residue an edit leaves
 
 Part of the evidence record whose hub is [`../EVALUATION.md`](../EVALUATION.md);
-section numbers are global. Everything here was measured on 2026-09-04 against
-the rebuilt `wgl` profile (41,710 passages), the 203 held-out refereed
+section numbers are global. Everything here was first measured on 2026-09-04;
+the tables were re-taken on 2026-09-27 against the profile rebuilt that day
+(42,237 passages), the 203 held-out refereed
 ApJ/ApJL/A&A papers of §17 (median 6,944 body prose words, 9,793 counting the
 raw source; none in any calibration bank), the 544 in-sample refereed papers,
 and the 173 `docval` machine documents of §16. Every per-1,000-word rate is per
 body prose word since v0.36.2 — the register projection with placeholders
 dropped — where it was per raw-source word, bibliography and preamble included.
 A manuscript under review that motivated the work is measured too; nothing
-from it is quoted, and only the counts the tools report on it are given.
+from it is quoted, only the counts the tools report on it are given, and those
+paragraphs keep their 2026-09-04 date.
 
 ## 23.1 The zero-hit audit: every word the corpus never wrote
 
@@ -26,23 +28,23 @@ word is strong and takes one of the §5.2 step-1b dispositions.
 
 **It is exhaustive, and it is not a detector.** Rates per 1,000 body prose
 words, and the fraction of documents with at least one finding
-(`eval_findings.py --field wgl`, 2026-09-04, re-taken under v0.36.2):
+(`eval_findings.py --field wgl`, re-taken on the 2026-09-27 rebuild):
 
 | population | n | `register-zero` /1k words | documents flagged | `register` (15-use rule) /1k words |
 |---|---:|---:|---:|---:|
-| held-out refereed | 203 | **3.374** | 100.0% | 0.037 |
-| in-sample refereed (bank members) | 544 | 0.812 | 75.0% | 0.007 |
-| machine, all tiers | 173 | 1.054 | 79.8% | 0.002 |
+| held-out refereed | 203 | **3.337** | 100.0% | 0.036 |
+| in-sample refereed (bank members) | 544 | 0.790 | 73.7% | 0.006 |
+| machine, all tiers | 173 | 1.049 | 78.6% | 0.002 |
 | machine `ai_adversarial` | 40 | 2.132 | 92.5% | 0.000 |
-| machine `ai_long` | 29 | 1.043 | 100.0% | 0.003 |
+| machine `ai_long` | 29 | 1.040 | 100.0% | 0.003 |
 
-Rank AUC of machine over held-out on the per-1k rate is **0.174**: a refereed
+Rank AUC of machine over held-out on the per-1k rate is **0.177**: a refereed
 paper carries more words the corpus never wrote than a machine draft does,
 which is the same direction §18.4 found for the thresholded rule at every floor
 from 5 to 50. The audit therefore ships as advice with author dispositions and
 never as a gate, and the standard says so (§2 L0). The in-sample row is what
 bank membership buys — a paper whose own vocabulary is in the denominator
-loses two thirds of its zero-hit words — and is not a leakage estimate, for the
+loses three quarters of its zero-hit words — and is not a leakage estimate, for the
 era reason §17.3 gives.
 
 **What it finds on the manuscript under review** (re-measured on the current
@@ -74,8 +76,8 @@ documents, AUC 0.392, own-membership 98.2% of 57. v0.36.2 moved the
 denominator, not the findings: the same 57 read **0.0371** per 1,000 body
 prose words (AUC 0.391) and the audit 3.374 (AUC 0.174), because a refereed
 paper's raw source carries a bibliography and a preamble that a single-file
-machine draft does not, so the old rate was diluted on one side only; the
-table above is the re-taken one.
+machine draft does not, so the old rate was diluted on one side only. The
+table closing §17.4 carries this chain to the current build.
 
 ## 23.2 `L2.collocation`: sentences that join words the field never joins
 
@@ -91,11 +93,10 @@ shipped axis below, which is judged per sentence and reports its document
 fraction as evidence only.
 
 **Design.** `deai_collocation.py --calibrate` builds a bank from the two human
-passage banks: unigram document frequency for the 11,286 words at or above
-`COMMON_RATE` (2 × 10⁻⁴), and passage frequency for 530,677 adjacent pairs of
-them (the v0.36.2 bank this section was measured on; the v0.36.3 rebuild holds
-11,282 words and 530,504 pairs, and the per-bucket sizes below are the v0.36.2
-ones). A pair is two words the writer put side by side, so it breaks at
+passage banks: unigram document frequency for the 11,368 words at or above
+`COMMON_RATE` (2 × 10⁻⁴), and passage frequency for 535,517 adjacent pairs of
+them (the 2026-09-27 rebuild, which the tables below were re-taken on). A pair
+is two words the writer put side by side, so it breaks at
 punctuation, at a `[math]`/`[CITE]` placeholder, at a dash, at a slash and at
 a digit (`yields, separate` is two clauses; `50/50` and `2 sigma` are not word
 pairs), and a sentence's pairs are judged distinct. The unit is the sentence;
@@ -113,29 +114,29 @@ stronger absence than a pair of two rare ones.
 
 | bucket | n sentences | p50 | p90 (advisory) | p95 (strong) |
 |---|---:|---:|---:|---:|
-| abstract | 89,392 | 0.250 | 0.588 | 0.667 |
-| method | 27,293 | 0.200 | 0.500 | 0.600 |
-| intro | 14,382 | 0.200 | 0.444 | 0.500 |
-| results | 12,419 | 0.200 | 0.500 | 0.571 |
-| data | 12,054 | 0.200 | 0.500 | 0.600 |
-| discussion | 12,205 | 0.200 | 0.500 | 0.571 |
-| conclusion | 8,571 | 0.200 | 0.500 | 0.556 |
+| abstract | 89,377 | 0.250 | 0.583 | 0.667 |
+| method | 28,114 | 0.200 | 0.500 | 0.600 |
+| intro | 14,529 | 0.200 | 0.444 | 0.500 |
+| results | 12,911 | 0.200 | 0.500 | 0.571 |
+| data | 12,346 | 0.200 | 0.500 | 0.600 |
+| discussion | 12,584 | 0.200 | 0.500 | 0.571 |
+| conclusion | 8,741 | 0.200 | 0.467 | 0.545 |
 
 **Transfer and separation** (`eval_findings.py`, findings per 1,000 words and
 documents with at least one):
 
 | population | n | findings /1k words | documents flagged |
 |---|---:|---:|---:|
-| held-out refereed | 203 | 4.700 | 99.0% |
-| in-sample refereed (bank members) | 544 | 0.203 | 43.4% |
-| machine, all tiers | 173 | 4.811 | 100.0% |
-| machine `ai_long` | 29 | 4.534 | 100.0% |
-| machine `ai_adversarial` | 40 | 6.128 | 100.0% |
+| held-out refereed | 203 | 4.663 | 99.0% |
+| in-sample refereed (bank members) | 544 | 0.128 | 32.4% |
+| machine, all tiers | 173 | 4.791 | 100.0% |
+| machine `ai_long` | 29 | 4.519 | 100.0% |
+| machine `ai_adversarial` | 40 | 6.146 | 100.0% |
 
 On the document novel-pair fraction the rank AUC of machine over held-out is
-**0.704** — the axis separates, unlike the two vocabulary rules, and more than
-salience now does (0.572 on body-word density; §17.5 records why that figure
-moved). Two things the table must not be read as. The held-out row
+**0.703** — the axis separates, unlike the two vocabulary rules, and more than
+salience does (0.666 on body-word density, §17.5). Two things the table must
+not be read as. The held-out row
 is an upper bound on the design rate, not the rate itself: the reference is
 leave-one-out over bank passages of one era, and a 2020–2021 paper's pairs drift
 from a 2012–2018 bank for reasons that have nothing to do with how it is
@@ -157,12 +158,14 @@ exception at work, recorded in [`examples/README.md`](../../../examples/README.m
 
 **Two limits recorded on 2026-09-27.** The bank keeps rows of 30–400 words
 and the manuscript side has no such band, so a manuscript paragraph outside it
-is measured against a reference that holds none of its length (audit C17, open).
-Each artifact bucket now records `text_key` (the projection its rows were read
-on) and `text_fallback_rows` (how many fell back to `text`), and the quantile
-grid is stored at nearest rank; the gates quoted above were measured on the
-earlier grid, one order statistic high, and move only when the artifact is
-recalibrated and the rate re-measured.
+is measured against a reference that holds none of its length. Recording the
+asymmetry here is the fix the audit asked for (C17): the band is the bank's
+admission rule, and applying it to a manuscript would skip exactly the
+paragraphs that fall outside the field's range. The references built through
+`deai_reference.calibrate` (salience, cohesion, hedging) record per bucket
+`text_key` (the projection its rows were read on) and `text_fallback_rows` (how
+many fell back to `text`); every quantile grid, this one included, is stored at
+nearest rank (audit C12), and the gates above are read on it.
 
 
 ## 23.3 Three structure families from the mentor's margin
@@ -178,14 +181,14 @@ more tokens before the head noun with at least two hyphenated compounds).
 | bucket | n paragraphs | paper-agent | wh-cleft | modifier stack |
 |---|---:|---:|---:|---:|
 | abstract | 433 | 0.92% | 0.00% | 15.94% |
-| intro | 3,840 | 0.29% | 0.13% | 5.83% |
-| method | 9,512 | 0.13% | 0.05% | 3.44% |
-| data | 3,908 | 0.23% | 0.15% | 4.32% |
-| results | 3,958 | 0.28% | 0.03% | 2.53% |
-| discussion | 3,647 | 0.41% | 0.16% | 3.32% |
-| conclusion | 2,609 | 1.00% | 0.23% | 5.83% |
+| intro | 3,848 | 0.29% | 0.13% | 5.98% |
+| method | 9,654 | 0.11% | 0.06% | 3.56% |
+| data | 3,953 | 0.23% | 0.15% | 4.40% |
+| results | 4,065 | 0.27% | 0.02% | 2.58% |
+| discussion | 3,739 | 0.40% | 0.16% | 3.34% |
+| conclusion | 2,747 | 0.95% | 0.22% | 5.82% |
 
-The `n` column is the v0.32.0 bank's; the v0.36.3 `structure_baseline.json` holds intro 3,812, method 9,478, data 3,894, results 3,978, discussion 3,635, conclusion 2,611, and the fractions were not re-taken on it.
+Counts and fractions are the 2026-09-27 rebuild's `structure_baseline.json`.
 
 A first cut of the stack rule counted any run of non-function tokens and put
 15% of human method paragraphs in it; cutting the run at the head noun and
@@ -202,14 +205,15 @@ edit-meta literals, a heading or caption whose object the body never names, and
 — given `--before` or `--git-ref` — a label the edit added and does not earn. A
 strong finding exits 1. The strengths were set on the 203 held-out papers (70,848
 body prose sentences; 85,324 under the raw-source projection the first three
-passes counted), in four passes:
+passes counted), in four passes, and re-measured on 2026-09-27:
 
 | pass | self-history strong | edit-meta strong | negative-label | documents with a strong finding |
 |---|---:|---:|---:|---:|
 | raw document, first families | 243 | 184 | 78 (strong) | 154 / 203 |
 | body projection, `initially`/`originally` ordinary | 203 | 67 | 74 (ordinary) | 106 / 203 |
 | `used to` dropped, `at first` ordinary | 24 in 20 papers | 67 in 15 papers | 74 in 58 papers | 34 / 203 (16.7%) |
-| v0.36.2: marks read across lines, `we have added` needs a document object | **24 in 20 papers** | **69 in 8 papers** | 67 in 53 papers | **27 / 203 (13.3%)** |
+| v0.36.2: marks read across lines, `we have added` needs a document object | 24 in 20 papers | 69 in 8 papers | 67 in 53 papers | 27 / 203 (13.3%) |
+| 2026-09-27: the source as both CLIs read it, comments blanked; the label rule's `-ate` family and appendix prose | **24 in 20 papers** | **54 in 5 papers** | 64 in 52 papers | **24 / 203 (11.8%)** |
 
 The first pass was the projection asymmetry again: `\newcommand{\TODO}` in a
 preamble and "Planck Collaboration XXX" in a bibliography are not prose an
@@ -223,9 +227,15 @@ wrapped at a line break had been invisible, and once seen it fired fourteen
 times, every one a procedure (`we have added uniform Gaussian noise`) or
 another paper's history (`in the revised version of \citet{…}`) — the `used
 to` lesson again — so the phrase is a mark only with a document object (`we
-have added a paragraph`). What remains strong fires in 13% of refereed
-papers; 68 of the 69 edit-meta hits are `\textcolor{red}` inside tables, an
-author's emphasis that the disposition `kept` answers in a word. The static
+have added a paragraph`). The last row corrects the measurement, not the
+rules: `ai_ism_lint` and `deai_residue` both read a manuscript through
+`ai_ism_lint.document_source`, which blanks `%` comments, while the v0.36.2
+sweep read the raw source, so 15 edit-meta hits in 3 papers and 2 negative
+labels sat in comments no user is shown; the label rule's fixes removed one
+more. What remains strong fires in 11.8% of refereed papers (18.7% with the
+absence rule of §23.4a, strong in 16 papers); 53 of the 54 edit-meta hits are
+`\textcolor{red}`, at least 48 of them in table rows, an author's emphasis that
+the disposition `kept` answers in a word. The static
 negative-label rule fires on 26% of refereed papers and is ordinary; only the
 diff rule gates. The manuscript under review carries 0 residue findings.
 
@@ -286,25 +296,29 @@ clause, so the human disposition decides, and the record names which.
 
 ## 23.5 The removal map: what a refereed paper has to remove
 
-`condense_map.py` on the 203 held-out papers (median 7,174 prose words) and the
+`condense_map.py` on the 203 held-out papers (median 6,622 prose words) and the
 173 machine documents, removable words per 1,000 prose words — candidate mass
-per scan, overlaps included:
+per scan, overlaps included, p90 at nearest rank (re-taken 2026-09-27):
 
 | scan | held-out median | held-out p90 |
 |---|---:|---:|
-| `condense-restatement` | 10.01 | 35.04 |
-| `condense-zero-gain` | 8.37 | 23.29 |
-| `condense-dead:*` | 0.49 | 8.21 |
-| `condense-verbose` | 2.65 | 5.78 |
-| `condense-regloss` | 0.00 | 0.50 |
+| `condense-restatement` | 5.55 | 28.53 |
+| `condense-zero-gain` | 8.62 | 26.53 |
+| `condense-dead:*` | 0.40 | 8.00 |
+| `condense-verbose` | 2.73 | 7.32 |
+| `condense-regloss` | 0.00 | 0.00 |
 | `condense-duplicate` | 0.00 | 0.00 |
 
 The default target (restatement plus zero-gain outside the abstract/conclusion
 carve-out, each unit counted once since v0.36.2 — a sentence that was both a
 restatement and zero-gain, or a sentence inside a removed paragraph, had been
-counted twice) is a median **1.59%** of prose on refereed papers (p90 4.11%),
-total removable 2.48%; on machine documents 0.20% and 0.29%. The map is not a
-detector either (AUC of machine over human on the default target 0.097 — short
+counted twice) is a median **1.22%** of prose on refereed papers (p90 3.39%),
+total removable 2.06%; on machine documents 0.19% and 0.26%. It was 1.59% (p90
+4.11%) before the map and gate fixes of the 2026-09-27 audit (the carve-out on
+either side of a restatement pair, negation- and number-aware restatement, one
+prose count for map and gate); how the difference divides between them was not
+measured. The map is not a
+detector either (AUC of machine over human on the default target 0.098 — short
 machine documents restate less) and is not meant as one: it exists because the
 `condense` skill's own sweep removed 1.5% of the shipped sample manuscript by
 reading, and a pass that cuts less than a refereed paper's own median has not

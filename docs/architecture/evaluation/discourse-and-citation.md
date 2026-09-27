@@ -29,7 +29,7 @@ boilerplate.
 ### 19.1 The two axes measure at different units, because one of them has to
 
 Hedging has **no paragraph-scale lower tail at all**. Calibrated per paragraph
-over the 27,851-paragraph `wgl` bank, the tenth percentile is exactly 0.000
+over the 28,444-paragraph `wgl` bank, the tenth percentile is exactly 0.000
 markers per 1,000 words in every one of the seven section buckets: more than a
 tenth of real human paragraphs contain no hedge, because a 40-word paragraph
 that hedges nowhere is entirely ordinary. A gate there is one no passage can
@@ -38,16 +38,18 @@ fall below, and the axis would have reported a confident zero findings forever.
 the defect surfaced rather than shipping.
 
 Regrouped so that one section is one unit — every paragraph sharing a source
-document and a bucket joined back together — six of the seven buckets separate:
+document and a bucket joined back together, on the reference side and, since
+v0.39.0, on the manuscript side as well, however many headings split the
+bucket there — six of the seven buckets separate:
 
 | bucket | hedging p10, section unit (markers / 1,000 words) |
 |---|---:|
-| discussion | 3.350 |
-| results | 3.008 |
-| method | 2.172 |
-| intro | 1.986 |
-| conclusion | 1.647 |
-| data | 1.034 |
+| discussion | 3.378 |
+| results | 3.128 |
+| method | 2.273 |
+| intro | 2.066 |
+| conclusion | 1.600 |
+| data | 0.824 |
 | abstract | **0.000** — abstains |
 
 `abstract` stays flat because an abstract *is* one passage; regrouping cannot
@@ -60,15 +62,17 @@ granularities are both valid and are not comparable:
 
 | artifact | unit | bucket sizes |
 |---|---|---|
-| `cohesion_baseline.json` | paragraph | abstract 13,967 · method 6,886 · intro 3,228 · results 3,211 · data 2,989 · discussion 2,926 · conclusion 1,980 |
-| `hedging_baseline.json` | section | abstract 10,404 · intro 502 · method 438 · conclusion 383 · discussion 327 · results 317 · data 299 |
+| `cohesion_baseline.json` | paragraph | abstract 13,966 · method 7,138 · results 3,309 · intro 3,269 · data 3,069 · discussion 3,022 · conclusion 1,988 |
+| `hedging_baseline.json` | section | abstract 10,400 · intro 503 · method 438 · conclusion 384 · discussion 329 · results 317 · data 303 |
 
-Sizes and gates are the v0.36.3 profile rebuild (2026-09-04); the 2026-08-27
-build read method 6,903 · intro 3,252 · results 3,183 · data 2,992 ·
-discussion 2,932 · conclusion 1,975 at paragraph unit, and the `results` and
-`data` hedging gates were 2.853 and 1.055.
+Sizes and gates are the 2026-09-27 profile rebuild, read on the nearest-rank
+quantile grid (audit C12); the CHANGELOG records the earlier builds.
 
 ### 19.2 Both floors were measured, not chosen
+
+Both sweeps below were run on the v0.33.0 bank, when the floors were set, and
+not again since; on the rebuilt bank every non-abstract bucket still resolves
+at the 150-word floor (§19.1).
 
 **Hedging, section word floor.** A rate per 1,000 words computed over too few
 words turns on the presence of one or two of them. Sweeping the floor against
@@ -94,95 +98,87 @@ unchanged (0.676 at three sentences against 0.674 at four).
 ### 19.3 What separates, and what does not
 
 203 held-out refereed papers (`fulltext-heldout`, disjoint from all calibration
-banks) against the six `docval` generation regimes. Rank AUC, human over
-machine; 0.5 is no separation. The **null** row is the same held-out set split
-in half and scored against itself — the only number that says what a given AUC
-is worth.
+banks) against the six `docval` generation regimes, on the 2026-09-27 profile.
+Rank AUC, human over machine; 0.5 is no separation. The **null** row is the
+same held-out set split in half and scored against itself — the only number
+that says what a given AUC is worth. A regime with fewer than five units in a
+bucket is `—`, and the worst is taken over the rest.
 
 **Cohesion (paragraph unit)**
 
 | regime | intro | method | results | discussion | conclusion | data |
 |---|---:|---:|---:|---:|---:|---:|
-| ai | 0.744 | 0.648 | 0.658 | — | — | — |
-| ai_adversarial | 0.830 | 0.693 | 0.767 | 0.601 | — | 0.502 |
-| ai_deai | 0.738 | 0.648 | 0.683 | 0.547 | 0.751 | 0.649 |
-| ai_long | 0.676 | 0.545 | 0.614 | 0.623 | 0.631 | 0.516 |
-| ai_natural | 0.684 | 0.624 | 0.679 | 0.559 | 0.580 | 0.533 |
-| ai_skeleton | 0.711 | 0.562 | 0.573 | 0.667 | 0.707 | 0.538 |
-| **worst of six** | **0.676** | 0.545 | 0.573 | 0.547 | 0.580 | 0.502 |
-| null (human/human) | 0.515 | 0.487 | 0.505 | 0.496 | 0.510 | 0.505 |
-| n human units | 960 | 1,128 | 593 | 869 | 631 | 868 |
+| ai | 0.746 | 0.645 | 0.668 | — | — | — |
+| ai_adversarial | 0.832 | 0.698 | 0.772 | — | — | 0.508 |
+| ai_deai | 0.739 | 0.624 | 0.678 | 0.558 | — | 0.650 |
+| ai_long | 0.677 | 0.552 | 0.546 | 0.609 | 0.627 | 0.519 |
+| ai_natural | 0.686 | 0.599 | 0.671 | 0.573 | — | 0.538 |
+| ai_skeleton | 0.713 | 0.569 | 0.585 | 0.744 | 0.716 | 0.544 |
+| **worst of six** | **0.677** | 0.552 | 0.546 | 0.558 | 0.627 | 0.508 |
+| null (human/human) | 0.489 | 0.520 | 0.485 | 0.465 | 0.443 | 0.531 |
+| n human units | 1,040 | 2,038 | 1,326 | 1,412 | 631 | 1,391 |
 
 **Hedging (section unit)**
 
 | regime | intro | method | results | discussion | conclusion | data |
 |---|---:|---:|---:|---:|---:|---:|
-| ai | 0.776 | 0.796 | 0.683 | — | — | — |
-| ai_adversarial | 0.613 | 0.692 | 0.473 | 0.842 | 0.948 | 0.585 |
-| ai_deai | 0.811 | 0.747 | 0.613 | 0.795 | 0.948 | 0.589 |
-| ai_long | 0.682 | 0.603 | 0.607 | 0.568 | 0.591 | 0.459 |
-| ai_natural | 0.816 | 0.761 | 0.622 | 0.850 | 0.948 | 0.544 |
-| ai_skeleton | 0.750 | 0.613 | 0.490 | 0.526 | 0.376 | 0.609 |
-| **worst of six** | **0.613** | 0.603 | 0.473 | 0.526 | **0.376** | 0.459 |
-| null (human/human) | 0.460 | 0.574 | 0.520 | 0.475 | 0.469 | 0.508 |
-| n human units | 190 | 310 | 120 | 202 | 155 | 248 |
+| ai | 0.770 | 0.898 | 0.769 | — | — | — |
+| ai_adversarial | 0.605 | 0.832 | 0.510 | — | — | 0.649 |
+| ai_deai | 0.806 | 0.858 | 0.670 | — | — | — |
+| ai_long | 0.671 | 0.731 | 0.551 | 0.593 | 0.601 | 0.464 |
+| ai_natural | 0.811 | 0.866 | 0.675 | — | — | 0.609 |
+| ai_skeleton | 0.744 | 0.788 | 0.578 | 0.421 | 0.358 | 0.641 |
+| **worst of six** | **0.605** | **0.731** | 0.510 | 0.421 | 0.358 | 0.464 |
+| null (human/human) | 0.487 | 0.442 | 0.440 | 0.472 | 0.520 | 0.489 |
+| n human units | 198 | 156 | 120 | 158 | 154 | 139 |
 
 Read the worst-of-six row against the null row, not the best cell. Hedging in
-`conclusion` looks impressive at 0.948 for three regimes and is **0.376** — below
-chance, pointing the wrong way — for `ai_skeleton`. Hedging in `method` looks
-respectable at 0.603–0.796 until its human-vs-human null is read: at 0.574, most
-of that is not separation at all. Only `intro` clears the null for every regime
-on both features.
+`conclusion` reads 0.601 for `ai_long` and **0.358** — below chance, pointing
+the wrong way — for `ai_skeleton`, the only two regimes that reach it. Hedging
+clears its null for every regime in `intro` and in `method` (0.731–0.898
+against 0.442); cohesion does so in `intro`, and in `data` its worst regime sits
+below its null. The v0.33.0 table, taken when a manuscript section was one
+heading span, read hedging in `method` at 0.603–0.796 against a 0.574 null.
 
 ### 19.4 The transfer test agrees with the separation test, independently
 
 Held-out flag rate at the p10 gate: the design point is 10% by construction, so
 this measures whether the reference *transfers* to unseen refereed papers, not
-whether those papers are defective. 203 papers:
+whether those papers are defective. 203 papers, 2026-09-27 profile:
 
 | bucket | cohesion (paragraph) | hedging (section) |
 |---|---:|---:|
-| intro | 8.33% | **7.89%** |
-| method | 9.93% | 26.77% |
-| results | 10.62% | 24.17% |
-| discussion | 12.20% | 16.34% |
-| conclusion | 10.14% | 15.48% |
-| data | 14.63% | 22.98% |
-| abstract | 6.58% | (abstains) |
-| **all** | **10.87%** | 19.67% |
+| intro | 8.17% | **9.09%** |
+| method | 10.50% | **9.62%** |
+| results | 10.33% | 14.17% |
+| discussion | 11.97% | 8.23% |
+| conclusion | 10.30% | 13.64% |
+| data | 14.88% | 12.23% |
+| abstract | 6.76% | (abstains) |
+| **all** | **11.15%** (882 of 7,912) | 10.92% (101 of 925) |
 
-Re-taken under v0.36.2, with subsections inheriting their parent bucket on the
-manuscript side (§17.5): cohesion **10.81%** over 7,865 paragraphs (intro 7.91,
-method 10.11, results 9.95, discussion 11.60, conclusion 10.03, data 14.61,
-abstract 6.58) and hedging in `intro` 7.80% over 205 sections — the transfer
-holds on the paragraphs the old bucketing dropped, where salience's did not
-until its reference was calibrated on the numeral projection (§17.5). On the
-v0.36.3 profile rebuild the same sweep reads cohesion **10.78%** (848 of
-7,865; `data` 14.46, every other bucket unchanged to two decimals) and hedging
-in `intro` 7.80% again.
-
-Cohesion transfers across every bucket — 10.87% against a 10% design point, a
-quality of transfer `deai_salience` showed only on the paragraphs its old
-bucketing measured (§17.5). Hedging transfers **only in `intro`**. Everywhere else it
-fires at two to three times its nominal rate on prose a referee accepted, which
-means the reference does not describe the held-out population there.
+Cohesion transfers across every bucket, `data` highest. Hedging transfers in
+`intro`, `method` and `discussion` and over-fires in the other three.
 
 Two independent measurements — one against machine text, one against unseen
-human text — put the restriction in the same place. So hedging ships restricted
-to `intro`, and `deai_discourse.AXES["hedging"]["buckets"]` carries the
-restriction with this table beside it. A new field inherits it; widening it means
-re-running this measurement, not editing the tuple.
+human text — agree on `intro` and `method`; `discussion` transfers, but a
+regime lands below chance there (§19.3). So hedging ships restricted to `intro`
+and `method`, and `deai_discourse.AXES["hedging"]["buckets"]` carries the
+restriction with this table beside it. A new field inherits it; widening it
+means re-running this measurement, not editing the tuple — which is how
+`method` joined on 2026-09-27, after the v0.33.0 measurement had put it at
+26.77% and restricted the axis to `intro` alone.
 
 ### 19.5 What ships
 
 | axis | unit | live buckets | held-out rate at a 10% gate | worst-of-six AUC (null) |
 |---|---|---|---:|---|
-| `L2.cohesion` | paragraph | all seven | 10.87% (557 of 5,125 units; 163 of 203 documents) | 0.676 in `intro` (0.515) |
-| `L2.hedging` | section | `intro` only | 7.89% (15 of 190 units; 15 of 203 documents) | 0.613 in `intro` (0.460) |
+| `L2.cohesion` | paragraph | all seven | 11.15% (882 of 7,912 units; 170 of 203 documents) | 0.677 in `intro` (0.489) |
+| `L2.hedging` | section | `intro`, `method` | 9.32% (33 of 354 units; 31 of 203 documents) | 0.605 in `intro` (0.487); 0.731 in `method` (0.442) |
 
-On `wgl-letter`, hedging reports `degraded`: no bucket clears the 30-unit floor
-after the restriction. That is the correct answer for a 36-document profile and
-is reported rather than papered over.
+On `wgl-letter` both hedging buckets reach the 30-unit floor on the rebuilt
+profile (`intro` 37 sections, `method` exactly 30), so the axis reports
+`measured` there under the restriction measured on `wgl`.
 
 **What this evidence does not license.** It says the reference distributions are
 real and section-bound. It does not say a low value means a machine wrote the

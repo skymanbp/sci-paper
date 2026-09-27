@@ -1,7 +1,8 @@
 # EVALUATION: de-AI subsystem for `sci-paper` v0.39.0
 
-First recorded 2026-07-12; every section-keyed measurement re-derived against the
-rebuilt `wgl` profile on 2026-08-17.
+First recorded 2026-07-12. The profile-dependent figures in §2 were re-taken on the
+`wgl` profile rebuilt on 2026-09-27; a row that was not re-taken names the build it
+was measured on.
 
 ## 0. Section map
 
@@ -30,7 +31,7 @@ is cited from.
 | **14** | 14. Salience hierarchy and domain register (v0.26.0) | [`narrative-salience-register.md`](evaluation/narrative-salience-register.md) |
 | **15** | 15. Narrative salience: two more refuted features, and two reference nulls (v0.26.1) | [`narrative-salience-register.md`](evaluation/narrative-salience-register.md) |
 | **16** | 16. `L1.distribution`: the operating point is refuted, not merely absent (v0.28.0) | [`lexical-structure-uid.md`](evaluation/lexical-structure-uid.md) |
-| **17** | 17. Held-out refereed papers as labels: register and salience measured (v0.30.0, corrected v0.31.0, superseded by 18) | [`held-out-labels.md`](evaluation/held-out-labels.md) |
+| **17** | 17. Held-out refereed papers as labels: register and salience measured (v0.30.0; every re-measurement since is tabled in §17.4) | [`held-out-labels.md`](evaluation/held-out-labels.md) |
 | **18** | 18. Projection symmetry, the register operating point, and citation placement (v0.32.0) | [`projection-and-operating-point.md`](evaluation/projection-and-operating-point.md) |
 | **19** | 19. Discourse texture: cohesion and hedging (v0.33.0) | [`discourse-and-citation.md`](evaluation/discourse-and-citation.md) |
 | **20** | 20. Citation placement refuted by the second bank (v0.33.0) | [`discourse-and-citation.md`](evaluation/discourse-and-citation.md) |
@@ -52,78 +53,31 @@ result.
 
 ## 2. Current axis status
 
-> ### ⚠️ Every section-keyed figure below is post-2026-08-25. Rebuild before reading them.
->
-> Two rounds of corpus-layer defects were fixed on 2026-08-25 and the profile
-> was rebuilt against both. **A machine still holding an older profile must
-> treat every section-keyed axis below as `degraded`, whatever this table
-> says**, until it reruns the rebuild. The repository ships no baseline (all
-> are gitignored), so a fresh clone is `unmeasured` and unaffected.
->
-> **Round 1 — section labels.** `classify_section` matched titles in the
-> singular only, so `Results`/`Conclusions`/`Systematics` fell to `method`;
-> `method` was itself the default bucket and absorbed every unnamed heading;
-> PDF table cells were accepted as headings and PDF "paragraphs" were line
-> fragments. An unrecognised heading is now `unknown` and is dropped rather
-> than guessed.
->
-> **Round 2 — what counts as a paper.** The corpus layer treated a *file* as a
-> paper and could only see the three curated tiers. Four consequences, each
-> measured: `\include` fragments counted as separate papers (one review entered
-> every distribution twelve times); selecting the root instead lost the body it
-> includes (72 words in place of 64,657); the root-selector and the reader
-> resolved `\input` targets differently, costing four arXiv bundles most of
-> their prose; and a `\subsection` did not inherit its `\section`, sending
-> 54.8% of all section words to `unknown`. Separately, the 500-paper
-> `fulltext-arxiv/` breadth corpus — already on disk for §9 — was invisible to
-> every paragraph-level baseline.
->
-> | bucket | v0.27.1 (31 files) | v0.28.0 | v0.29.0 (heading coverage) | v0.32.0 (citation fix) | v0.36.3 (profile rebuild) |
-> |---|---:|---:|---:|---:|---:|
-> | abstract | 15 | 433 | 433 | 433 | 433 |
-> | intro | 109 | 3,753 | 3,844 | 3,840 | 3,812 |
-> | data | 112 | 3,929 | 3,915 | 3,908 | 3,894 |
-> | method | 163 | 8,144 | 9,522 | 9,512 | 9,478 |
-> | discussion | 118 | 3,088 | 3,653 | 3,647 | 3,635 |
-> | conclusion | 48 | 2,533 | 2,610 | 2,609 | 2,611 |
-> | results | 26 | **3,118** | **3,964** | **3,958** | **3,978** |
-> | **total** | **593** | **25,005** | **27,951** | **27,907** | **27,841** |
->
-> Consequences, stated rather than smoothed over:
->
-> - **Every bucket now clears the 30-passage floor**, `results` by 104×. No
->   bucket is rank-only, and the `results` limitation recorded since v0.27.0 is
->   cleared — the binding constraint was never corpus availability but a
->   corpus layer that could not see it.
-> - The curated tiers and the breadth corpus are **distinct roles**. The tiers
->   carry every weighted aggregate and the dossier; the breadth corpus is
->   unweighted and feeds the reference distributions only, so it cannot restyle
->   the imitation target. `retrieve_exemplars` reads the curated tiers by
->   default.
-> - Register composition changes materially and for the better: abstracts fall
->   from 96% of the reference to 35%.
-> - One arXiv bundle in 500 still loses 35% of its prose — it ships chapter
->   files with no root that assembles them.
->
-> Rebuild: `python tools/build_profile.py --field <field>` then the
-> `--calibrate` commands listed in `style-profile/README.md`, including a full
-> `train_voice_model.py` retrain (§7).
+> **Every section-keyed figure below reads the profile rebuilt on 2026-09-27.** A
+> machine holding an older profile must treat every section-keyed axis as
+> `degraded`, whatever this table says, until it reruns the rebuild:
+> `python tools/build_profile.py --field <field>`, then the `--calibrate`
+> commands in `style-profile/README.md`, including a full `train_voice_model.py`
+> retrain (§7). The repository ships no baseline (all are gitignored), so a
+> fresh clone is `unmeasured` and unaffected. How the paragraph bank reached its
+> present shape, and why no count before v0.28.0 compares with one after, is
+> recorded once, in [§5](evaluation/lexical-structure-uid.md).
 
 | Axis | Status | Current evidence | Required next evidence |
 |---|---|---|---|
 | L0 lexical/punctuation | measured | Deterministic Tier A, em-dash, and Tier B cap implementation with CLI regression tests. | Continue regression coverage when policy changes. |
-| L1 distribution | degraded (refuted) | §16: measured on 500 human papers against 173 `docval` AI documents, one observation per document. Burstiness reverses sign — adversarial prose is *more* bursty than the human median (1.036 vs 0.775, AUC 0.181) and long-form sits inside the human band (AUC 0.441) — while flagging 7.2% of humans. Signposting has an AUC of 0.247, below chance, and flags 0 of 173 AI documents at the shipped default. | None. `deai_policy.json` is withdrawn as a roadmap item: the statistics do not support an operating point, so the axis stays advisory by measurement rather than by absence. |
+| L1 distribution | degraded (refuted) | §16 (v0.28.0; not re-taken on later builds): measured on 500 human papers against 173 `docval` AI documents, one observation per document. Burstiness reverses sign — adversarial prose is *more* bursty than the human median (1.036 vs 0.775, AUC 0.181) and long-form sits inside the human band (AUC 0.441) — while flagging 7.2% of humans. Signposting has an AUC of 0.247, below chance, and flags 0 of 173 AI documents at the shipped default. | None. `deai_policy.json` is withdrawn as a roadmap item: the statistics do not support an operating point, so the axis stays advisory by measurement rather than by absence. |
 | L1 UID | degraded | `style-profile/wgl/uid_baseline.json` records paragraph-level GPT-2-large summaries. | A documented operating point and human false-flag behavior; audit sensitivity to mathematics and jargon. |
-| L2 salience hierarchy | measured | §14: per-bucket passage reference from the field's own banks, calibrated on the numeral projection of each passage (abstract 13,971; method 6,967; data 3,020; intro 3,239; discussion 2,954; results 3,240; conclusion 1,999 after the v0.36.3 profile rebuild); P(X ≤ x) on a 0.01 quantile grid; abstains where the reference cannot resolve above the gate. Measured on the quantile grid the axes used until 2026-09-27, which sat one order statistic high; the artifact must be recalibrated and the rate re-measured before this figure moves. | Whether an individual advisory is good advice; recall. §17.5: the p90 gate was measured to transfer to unseen refereed papers essentially exactly — 0.2705 per passage on 203 held-out ApJ/ApJL/A&A papers (§17.5's headline; 0.2776 when re-run in the v0.36.2 process) against the 1 − 0.9³ = 0.2710 three-feature union bound — **while the manuscript side bucketed every subsection whose title matched no bucket as `unknown` and never measured it** (344 of one paper's 540 paragraphs). With subsections inheriting their parent bucket (v0.36.2) the same papers fired at **0.4542** per passage over 9,849 scorable paragraphs. That excess was a projection seam after all, on the reference side: the bank stored only the `[math]` projection, so the reference counted no numeral inside math while the manuscript side counted every one. With each bank row carrying its numeral projection and the reference calibrated on it (v0.36.3) the same papers fire at **0.2034** per passage (2,003 findings), under the union bound as three correlated gates must be, and machine text separates at AUC **0.663** on body-word density (0.572 before). §18.2: 7.00% of the digits this axis read on LaTeX were citation years, now removed; 0 of its 2,759 findings on those papers start on a bibliography line. §22: the same class in the other direction — a quantity written as `\newcommand{\Nsamples}{12}` was unreadable at its use site and mis-attributed to the preamble at its definition site; expansion now runs once on the assembled root. 88.2% of 390 corpus documents never use the construction, and both rebuilt baselines move by **zero to four decimals** at the p90 and p95 gates in all seven buckets, so no figure here changes. Every bucket clears the 30-passage floor by two orders of magnitude. |
-| L0 register | measured | §14: document frequency over 41,644 corpus passages, 53,367 terms (v0.36.3 profile rebuild; 41,710 and 53,414 before it, and the 57 held-out findings below are the same 57 under both); compound-by-rarest-part and macro-subscript handling; native-term controls pass. Since v0.32.0 a `<field>-<variant>` profile whose own bank cannot resolve the 1e-4 gate judges against `<field>` and names the borrowed bank in every finding: on 36 letter-format documents the 706-passage `wgl-letter` bank produced 262 findings the field bank did not (`sne`, `bao`, `pantheon`, and `letter` itself) against 2 the other way (§18.5). | Recall below the 15-use floor, and a **measured** false-positive rate: §18.4 put it at 0.0858 findings per 1,000 words on 203 held-out refereed papers (44.83% of documents), rank AUC 0.2856 against machine text — it still fires more on human prose than on AI drafts — and §23.1 re-measures the same papers at 0.0351 (30.05%, AUC 0.352) after the heading projection fix and at 0.0247 (22.2%, AUC 0.392) after v0.36.1's float projection fix, same direction; v0.36.2 counts per body prose word instead of per raw-source word, and the same 57 findings read 0.0371 (AUC 0.391). §17.3, re-measured: 94.44% of the 198 remaining flags would be suppressed by the paper's own bank membership (98.2% of the 57 under v0.36.1). The operating point is no longer an open item: swept 5→50 uses, rank AUC stays below 0.5 everywhere, so no setting makes this a detector and the knob buys advisory volume only. It was cut at 15, the first point where a referee-grade paper is not flagged more often than not (§18.4). §21 replicates that refutation on a second population — 22 papers by one author, 1996–2015, sampled by author rather than by journal and spanning a different two decades — where rank AUC is **0.328**, again below 0.5 (0.412 on the v0.36.3 profile rebuild, 5 findings on the 22 papers). |
-| L2 sentence structure | measured for deterministic matches; degraded for strength | `style-profile/wgl/structure_baseline.json` provides section-level reference fractions over 27,841 paragraphs — method 9,478; results 3,978; data 3,894; intro 3,812; discussion 3,635; conclusion 2,611; abstract 433. §23.3 adds the per-bucket human fractions of the three auxiliary families taken from a mentor's comments (paper-as-agent 0.13–1.00%, wh-cleft 0.00–0.23%, modifier stacks 2.5–15.9%). | Author-labelled difficult cases. A calibrated strong-advisory threshold is no longer expected from `deai_policy.json` (§16). |
-| L2 collocation | measured | §23.2: per-sentence fraction of adjacent common-word pairs unattested in 41,644 passages (530,504 pairs over 11,282 partner words), leave-one-out reference per bucket at sentence unit (abstract 89,391; method 27,207; intro 14,321; results 12,509; data 12,048; discussion 12,183; conclusion 8,588 after the v0.36.3 profile rebuild; 41,710 passages and 541,309 → 530,677 pairs under v0.36.2); p90 gates 0.44–0.59, p95 0.50–0.67. On the first measured draft of a manuscript under review it flagged five of the six mentor-marked phrases present; the document novel-pair fraction separates machine documents from held-out refereed papers at AUC 0.704 (7,237 findings on the 203 papers). The document-scope glossary reading (v0.38.0) on the same manuscript: 252 distinct unattested pairs, 42 used twice or more, 16 with a definition cue at first use; the default run's finding set is unchanged (86 before and after, set difference 0). Measured on the quantile grid the axes used until 2026-09-27, which sat one order statistic high; the artifact must be recalibrated and the rate re-measured before this figure moves. | Whether an individual advisory is good advice; a second generation process (§20's lesson). |
-| L4 residue | measured | §23.4: four static rules (self-history, edit-meta, negative-label, and since v0.37.0 the absence rule, §23.4a) and one diff rule, deterministic, strengths set on 203 held-out refereed papers (70,848 body prose sentences): strong self-history fires in 20 papers, strong edit-meta in 8 (68 of 69 are `\textcolor{red}` in tables), any strong in 27 (13.3%); the static negative-label rule is ordinary at 26% of papers. Four passes to get there, the first a projection asymmetry and the last the procedural sense of `we have added`. | Recall against a labelled edit history; only the author's own drafts can supply it. |
-| L0 register zero-hit audit | measured, not a detector | §23.1: every body word with corpus df 0, on both sides of one projection (headings now excluded on both). All 203 held-out refereed papers carry zero-hit words, 3.37 per 1,000 body prose words (2.21 per raw-source word under v0.36.1, 2.66 before its float fix), against 1.05 for the 173 machine documents — rank AUC 0.174, the audit fires more on human prose — so it ships as exhaustive advice with author dispositions, never as a gate. The two projection fixes moved the thresholded rule from 0.0858 to 0.0247 findings per 1,000 raw-source words on the same papers (0.0371 per body prose word). | None as a detector. Whether the mechanical exemptions (attested stem, defined term, proper name) are the right three. |
-| L2 document structure | measured | §9: cross-paragraph dispersion calibrated one-observation-per-paper over 493 complete human `wgl` papers — the 2026-08-17 scoring; the v0.36.3 rebuild (2026-09-05) re-fit the artifact on 507 documents and the operating-point figures were not re-scored on it — human false-flag at the shipped conformal operating point 0.0325 (manifold) and 0.0426 (role) against nominal α = 0.05. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field. | Re-score §9 through `eval_docscale.py` on the 507-document artifact; continue recalibration when the corpus changes. 
-| L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.9487, matched-stratum AUC 0.9262, hard-set true-provenance AUC 0.938 (2026-09-05 retrain), but a 30–42% false-positive rate on field-topic AI text. Document-level now measured (§9.8): surprisal dispersion (0.757) is weaker than the model-free manifold (0.881) and adds nothing to it, so L3 stays degraded for a measured reason. | None from this feature set: four retrains agree the confound is in the features (§7.0a), so reopening needs a different feature set; the surprisal path is measured not to provide one. |
-| L2 cohesion | measured | §19: given/new linkage per paragraph against the field's own bank (abstract 13,967; method 6,886; intro 3,228; results 3,211; data 2,989; discussion 2,926; conclusion 1,980 after the v0.36.3 profile rebuild), flagged on the LOW tail at p10. The gate transfers to 203 held-out refereed papers at 10.78% (10.87% at v0.33.0) against a 10% design point, in every bucket (6.58%–14.61%), and separates all six machine regimes in `intro` at worst-of-six 0.676 against a 0.515 human-vs-human null. Measured on the quantile grid the axes used until 2026-09-27, which sat one order statistic high; the artifact must be recalibrated and the rate re-measured before this figure moves. | Whether an individual advisory is good advice; recall. Whether the `intro` separation holds for a second generation process — §20 is what happens when that question is not asked. |
-| L2 hedging | measured, restricted to `intro` | §19: epistemic markers per 1,000 words per SECTION (abstract 10,404; intro 502; method 438; conclusion 383; discussion 327; results 317; data 299 after the v0.36.3 profile rebuild). It has no paragraph-scale lower tail — p10 is 0.000 in all seven buckets — so calibration and detection both run at section unit, and each artifact records its own. Restricted to `intro` by two independent measurements that agree: held-out transfer is 7.80% there (7.89% at v0.33.0) against 15.48–26.77% elsewhere, and worst-of-six AUC is 0.613 (null 0.460) there while `conclusion` runs below chance at 0.376. Measured on the quantile grid the axes used until 2026-09-27, which sat one order statistic high; the artifact must be recalibrated and the rate re-measured before this figure moves. | Whether the restriction generalizes beyond `wgl`. On `wgl-letter` the axis is `degraded`: no bucket clears the 30-unit floor after the restriction. |
+| L2 salience hierarchy | measured | §14: per-bucket passage reference from the field's own banks, calibrated on the numeral projection of each passage (abstract 13,970; method 7,209; data 3,098; intro 3,280; discussion 3,051; results 3,337; conclusion 2,018 on the 2026-09-27 rebuild); P(X ≤ x) on a 0.01 quantile grid at nearest rank; abstains where the reference cannot resolve above the gate. The smallest bucket clears the 30-passage floor 67-fold. The p90 gate transfers to 203 held-out refereed papers at 0.2007 per passage (1,975 findings over 9,840 scorable paragraphs) against the 1 − 0.9³ = 0.2710 three-feature union bound, under it as three correlated gates must be, and machine text separates at rank AUC 0.666 on body-word density. §17.5 is the record of the two projection seams that moved this rate; §18.2 of the citation years removed from its numerals; §22 of the numbers held in macros. | Whether an individual advisory is good advice; recall. |
+| L0 register | measured | §14: document frequency over 42,237 corpus passages, 53,668 terms (2026-09-27 rebuild); compound-by-rarest-part and macro-subscript handling; native-term controls pass. A `<field>-<variant>` profile whose own bank cannot resolve the 1e-4 gate judges against `<field>` and names the borrowed bank in every finding (§18.5). The false-positive rate is measured: on 203 held-out refereed papers the rule fires 0.0364 times per 1,000 body prose words (56 findings, 22.17% of documents) at rank AUC 0.391 against machine text — more on human prose than on AI drafts — and 87.5% of those flags would be suppressed by the paper's own bank membership. The table closing §17.4 is the one account of how the rate reached this value. Swept 5 → 50 uses, rank AUC stays below 0.5 at every setting (§18.4), and a second population, 22 papers by one author, agrees at 0.411 (§21). | Recall below the 15-use floor. There is no operating point to find: no setting makes this a detector, so the floor buys advisory volume only, and it is cut at 15, the first point where a referee-grade paper is not flagged more often than not. |
+| L2 sentence structure | measured for deterministic matches; degraded for strength | `style-profile/wgl/structure_baseline.json` provides section-level reference fractions over 28,439 paragraphs — method 9,654; results 4,065; data 3,953; intro 3,848; discussion 3,739; conclusion 2,747; abstract 433. §23.3 adds the per-bucket human fractions of the three auxiliary families taken from a mentor's comments (paper-as-agent 0.11–0.95%, wh-cleft 0.00–0.22%, modifier stacks 2.6–15.9%). | Author-labelled difficult cases. A calibrated strong-advisory threshold is no longer expected from `deai_policy.json` (§16). |
+| L2 collocation | measured | §23.2: per-sentence fraction of adjacent common-word pairs unattested in 42,237 passages (535,517 pairs over 11,368 partner words), leave-one-out reference per bucket at sentence unit (abstract 89,377; method 28,114; intro 14,529; results 12,911; data 12,346; discussion 12,584; conclusion 8,741 on the 2026-09-27 rebuild); p90 gates 0.44–0.58, p95 0.50–0.67. On the first measured draft of a manuscript under review it flagged five of the six mentor-marked phrases present; the document novel-pair fraction separates machine documents from held-out refereed papers at rank AUC 0.703 (7,172 findings on the 203 papers). The document-scope glossary reading (v0.38.0) on the same manuscript: 252 distinct unattested pairs, 42 used twice or more, 16 with a definition cue at first use; the default run's finding set is unchanged (86 before and after, set difference 0). | Whether an individual advisory is good advice; a second generation process (§20's lesson). |
+| L4 residue | measured | §23.4: four static rules (self-history, edit-meta, negative-label, and since v0.37.0 the absence rule, §23.4a) and one diff rule, deterministic, strengths set on 203 held-out refereed papers and re-measured on 2026-09-27 on the source as both CLIs read it, comments blanked: strong self-history fires in 20 papers, strong edit-meta in 5 (53 of its 54 hits are `\textcolor{red}`), strong absence in 16; any strong in 38 (18.7%), 24 (11.8%) without the absence rule. The static negative-label rule is ordinary at 26% of papers. | Recall against a labelled edit history; only the author's own drafts can supply it. |
+| L0 register zero-hit audit | measured, not a detector | §23.1: every body word with corpus df 0, on both sides of one projection (headings excluded on both). All 203 held-out refereed papers carry zero-hit words, 3.34 per 1,000 body prose words, against 1.05 for the 173 machine documents — rank AUC 0.177, the audit fires more on human prose — so it ships as exhaustive advice with author dispositions, never as a gate. | None as a detector. Whether the mechanical exemptions (attested stem, defined term, proper name) are the right three. |
+| L2 document structure | measured | §9: cross-paragraph dispersion calibrated one-observation-per-paper over 504 complete human `wgl` papers and re-scored through the shipped path on 2026-09-27 — human false-flag at the shipped conformal operating point 0.020 (manifold) and 0.042 (role) against nominal α = 0.05, in-sample; length-fair manifold AUC 0.840–0.953 across the natural, adversarial, skeleton and long-form tiers, long-form tail power 0.000. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field. | Continue recalibration when the corpus changes. |
+| L3 learned field similarity | degraded (confound-audited) | Confound-aware audit complete (§7): repeated grouped-split AUC 0.9487, matched-stratum AUC 0.9250, hard-set true-provenance AUC 0.937 (2026-09-27 retrain), but a 29–42% false-positive rate on field-topic AI text. Document-level now measured (§9.8): surprisal dispersion (0.757) is weaker than the model-free manifold (0.881) and adds nothing to it, so L3 stays degraded for a measured reason. | None from this feature set: five retrains agree the confound is in the features (§7.0a), so reopening needs a different feature set; the surprisal path is measured not to provide one. |
+| L2 cohesion | measured | §19: given/new linkage per paragraph against the field's own bank (abstract 13,966; method 7,138; intro 3,269; results 3,309; data 3,069; discussion 3,022; conclusion 1,988 on the 2026-09-27 rebuild), flagged on the LOW tail at p10. The gate transfers to 203 held-out refereed papers at 11.15% against a 10% design point, in every bucket (6.76%–14.88%), and separates all six machine regimes in `intro` at worst-of-six 0.677 against a 0.489 human-vs-human null. | Whether an individual advisory is good advice; recall. Whether the `intro` separation holds for a second generation process — §20 is what happens when that question is not asked. |
+| L2 hedging | measured, restricted to `intro` and `method` | §19: epistemic markers per 1,000 words per SECTION (abstract 10,400; intro 503; method 438; conclusion 384; discussion 329; results 317; data 303 on the 2026-09-27 rebuild). It has no paragraph-scale lower tail — p10 is 0.000 in all seven buckets — so calibration and detection both run at section unit, and each artifact records its own. Restricted to `intro` and `method` by two independent measurements that agree: held-out transfer is 9.09% and 9.62% there against 12.23–14.17% in `data`, `conclusion` and `results`, and worst-of-six AUC is 0.605 (null 0.487) and 0.731 (null 0.442) there, while `discussion`, which transfers at 8.23%, has a regime below chance at 0.421. | Whether the restriction generalizes beyond `wgl`. On `wgl-letter` it is inherited, and the `method` reference sits exactly at the 30-unit floor. |
 | Citation placement | **refuted, not shipped** | §20: the v0.32.0 candidate (section-matched AUC 0.866 in `method`) does not hold its sign across generation processes. A second bank from a different model scores 0.053 with no citation instruction and 0.734 with one — one prompt line, a 12.5× density swing, and the two machine extremes bracket the human distribution rather than sitting on one side of it. | None. Reopening requires a statistic that holds its sign across independently produced banks. |
 | Rewrite scientific fidelity | measured for protected invariants | Unit tests cover preserved invariants, dropped number, dropped citation, reversed comparison, display-math values and exponents (v0.27.0), and the punctuation/adjacent-word tokenizer boundaries (§8). | Real manuscript before/after demonstration, including scope and stance review. The plain-ASCII-space unit boundary in §8 is an accepted limit ([DISPOSITIONS](DISPOSITIONS.md)): the number stays protected, the unit does not. |
 
@@ -131,48 +85,34 @@ A missing baseline is not interpreted as zero findings.
 
 ## 3. Repository verification
 
-The repository validator checks manifest/version agreement, skill contract references,
-product registries, Python syntax, runtime imports, CLI entry points, feedback schema,
-linter exit semantics, Tier B cap behavior, tests, and CI wiring:
+The repository validator runs the release checks listed once, in
+[`tools/README.md`](../../tools/README.md); the unit and CLI suite covers the rest:
 
 ```bash
 python tools/validate_plugin.py
 python -m unittest discover -s tests -v
 ```
 
-The working tree passes the validator and all 764 unit/CLI tests (32 test files, collected
+The working tree passes the validator and all 801 unit/CLI tests (32 test files, collected
 2026-09-27). These commands must be rerun after every subsequent code or release-metadata
 change; the release record must quote the fresh output rather than a past result.
 
-Figures quoted from a generated profile are pinned the same way, by
-`tests/test_published_figures.py`: each one is rendered *from* the artifact it
-came from and then looked for, so a document that quotes a number the artifact
-no longer holds fails. Those artifacts are gitignored and no CI runner can see
-them, so on a clean clone the cases **skip** rather than pass — absence is
-reported as absence, which is the same rule this record applies to every axis.
-The three drift events it exists to stop are recorded in §18.8.
+Figures quoted from a generated profile are pinned by
+`tests/test_published_figures.py`, which renders each one from its artifact and
+skips, rather than passes, on a clean clone that has none; §18.8 records how it
+works and the drift it exists to stop.
 
 ## 12. Release evidence boundary
 
 Current release gates (as of 2026-09-27; last tagged release v0.38.0, this release v0.39.0):
 `validate_plugin.py` all 11 checks pass and the full unit/CLI suite
-(764 tests, 32 files) passes on a clean tree; both are rerun before every tag,
+(801 tests, 32 files) passes on a clean tree; both are rerun before every tag,
 and as of v0.25.1 the hosted CI run on the release commit must also be green
 (first green runs: 31133202443 push, 31133215203 manual dispatch).
 
-Historical record — v0.14.0 release gates and their status on 2026-07-12:
-
-- validator and 36 unit/CLI tests after final edits — met (rerun before tag);
-- independent multi-agent review and fixes — met: an adversarially verified Opus review
-  (4 dimensions × 2 verifiers per finding) confirmed 16 findings, all fixed this cycle;
-- real introduction rewrite evidence — met (§11, proposal-only, author disposition
-  pending);
-- confound-aware learned-model status with an explicit degraded result — met (§7): the
-  audit and author hard set keep L3 degraded with no operating point;
-- documentation and release metadata — updated for this release;
-- clean-checkout verification — performed before tag;
-- commit, tag, push, and GitHub release — performed after the gates above are re-run
-  green.
+Earlier releases' gates are recorded with each release in the CHANGELOG and its
+archives (v0.14.0's, the first set, in
+[`CHANGELOG-ARCHIVE-EARLY.md`](../../CHANGELOG-ARCHIVE-EARLY.md)).
 
 Author decisions outside this record, which do not block a release: accepting or
 rejecting the §11 rewrite proposal ([DISPOSITIONS](DISPOSITIONS.md)). The L3

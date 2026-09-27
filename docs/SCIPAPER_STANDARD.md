@@ -131,10 +131,11 @@ quality dimensions.
 
 ### L0: preserved lexical de-AI standard
 
-The canonical Tier A and Tier B lists, em-dash rule, grep patterns, and writing
-examples remain in [`../skills/paper/SKILL.md`](../skills/paper/SKILL.md). The
-field dossier and generated lexicon are calibration data, not a competing
-policy authority.
+The canonical Tier A and Tier B lists are the linter's own patterns in
+`tools/ai_ism_lint.py`; [`../skills/paper/SKILL.md`](../skills/paper/SKILL.md)
+mirrors them, with the em-dash rule, grep patterns, and writing examples, and the
+validator checks that mirror in both directions. The
+field dossier and generated lexicon are calibration data, not a competing policy authority.
 
 L0 contains exactly:
 
@@ -201,8 +202,7 @@ Advisory; a defined term keeps its pair, and no claim is changed to dissolve one
 A **blind perceptual panel** — independent cold-read judges who score AI-feel
 and must name concrete tells with quotes across document versions — is a
 recognized L2 validation instrument, read by *tell inventory turnover* rather
-than mean score: judges saturate on the most visible family, so removing it
-exposes the next stratum at a similar score (protocol in `EVALUATION.md`).
+than mean score (protocol and evidence: EVALUATION §13).
 
 Document-level evidence concerns shape rather than repeated subject matter, and
 is the de-AI center of gravity: field register shifts the *level* of
@@ -270,12 +270,9 @@ text must not say that a low score proves machine authorship. A universal
 
 The per-paragraph learned classifier (`deai_voice`, axis `L3.voice`) is an
 **offline audit instrument, not a product detector one calibration away from an
-operating point**: a decided status, fixed by the three measured facts recorded
-in EVALUATION §10, §7 and §9.8 (the paragraph unit is near-unjudgeable, the
-field-topic level confound cannot be escaped at that unit, and document-level
-surprisal adds nothing to the model-free manifold). L3 therefore stays `degraded`
-with no operating point, emits rank-only triage, and its per-paragraph findings
-are confidence-capped (§3, `calibration_unit`).
+operating point**, a decided status (evidence: EVALUATION §7, §9.8 and §10). L3
+therefore stays `degraded` with no operating point, emits rank-only triage, and
+its per-paragraph findings are confidence-capped (§3, `calibration_unit`).
 
 ### L4: positive scientific voice
 
@@ -742,8 +739,7 @@ engineering item has a decided disposition, so the standard rests on no
 undecided obstacle.
 
 The register itself — every item, its disposition, and the measurement behind it
-— is [`architecture/DISPOSITIONS.md`](architecture/DISPOSITIONS.md), moved there
-on 2026-08-25 when this file passed the repository's line budget. It is a record
+— is [`architecture/DISPOSITIONS.md`](architecture/DISPOSITIONS.md). It is a record
 of decisions, not independent policy: this document stays the single normative
 contract. Adoption of any item requires passing the §9 confound audit and
 keeping the suite and validator green, and updates that register and

@@ -186,13 +186,11 @@ of a definition — counting the 3 in a volume formula as a reported quantity ma
 every derivation paragraph read as a recital of measurements. The LaTeX
 thousands form `1{,}250{,}000` collapses to one numeral rather than three.
 `latex_to_plain` is untouched, so no existing calibration asset moved then.
-One did later, and in the other direction: the bank stored only the
-`latex_to_plain` text, so the salience reference was calibrated on paragraphs
-with no numeral inside math while the manuscript side counted them, and the
-p90 gate fired at 0.45 per held-out passage against the 0.27 union bound. Since
-v0.36.3 every bank row carries `numeral_text`, the same paragraph under this
-projection, and the calibration reads it; the record of the asymmetry and its
-closure is §17.5 in [held-out-labels.md](held-out-labels.md).
+One did later: until v0.36.3 the bank stored only the `latex_to_plain` text,
+so the reference counted no numeral inside math while the manuscript side
+counted every one. Every bank row now carries `numeral_text` and the
+calibration reads it; §17.5 in [held-out-labels.md](held-out-labels.md) is the
+record.
 
 ### 14.2 Salience reference and operating points
 
@@ -200,58 +198,32 @@ Calibrated per section bucket at one shared unit (a passage) on the reference
 and measurement sides, from the field's own banks, on the numeral projection
 of each passage since v0.36.3:
 
-| Bucket | n (v0.36.3) | 2026-08-25 | v0.27.1 | 2026-08-17 | Sources |
-|---|---:|---:|---:|---:|---|
-| abstract | **13,971** | 13,971 | 13,438 | 13,438 | `human_abstracts_extra.jsonl`, `exemplar_paragraphs.jsonl` |
-| method | **6,967** | 6,959 | 130 | 1,303 | `exemplar_paragraphs.jsonl` |
-| data | **3,020** | 3,016 | 102 | — | `exemplar_paragraphs.jsonl` — bucket added 2026-08-25 |
-| intro | **3,239** | 3,264 | 94 | 88 | `exemplar_paragraphs.jsonl` |
-| discussion | **2,954** | 2,958 | 93 | 78 | `exemplar_paragraphs.jsonl` |
-| results | **3,240** | 3,206 | 26 | 10 | `exemplar_paragraphs.jsonl` — clears the floor by 108× |
-| conclusion | **1,999** | 1,994 | 39 | 41 | `exemplar_paragraphs.jsonl` |
+| Bucket | n (v0.39.0) | v0.36.3 | 2026-08-25 | v0.27.1 | 2026-08-17 | Sources |
+|---|---:|---:|---:|---:|---:|---|
+| abstract | **13,970** | 13,971 | 13,971 | 13,438 | 13,438 | `human_abstracts_extra.jsonl`, `exemplar_paragraphs.jsonl` |
+| method | **7,209** | 6,967 | 6,959 | 130 | 1,303 | `exemplar_paragraphs.jsonl` |
+| data | **3,098** | 3,020 | 3,016 | 102 | — | `exemplar_paragraphs.jsonl` — bucket added 2026-08-25 |
+| intro | **3,280** | 3,239 | 3,264 | 94 | 88 | `exemplar_paragraphs.jsonl` |
+| discussion | **3,051** | 2,954 | 2,958 | 93 | 78 | `exemplar_paragraphs.jsonl` |
+| results | **3,337** | 3,240 | 3,206 | 26 | 10 | `exemplar_paragraphs.jsonl` — clears the floor by 111× |
+| conclusion | **2,018** | 1,999 | 1,994 | 39 | 41 | `exemplar_paragraphs.jsonl` |
 
-The 2026-08-25 column is the rebuild that made `method` a reference, and `method` is the headline: **it was never a
-1,303-passage reference.** `method` had no pattern of its own — it was
-`DEFAULT_SECTION_BUCKET`, so it absorbed every heading the classifier could not name,
-and 92% of it was residue. Three sources fed it, all measured: `.tex` corpus files
-carrying no `\section` markup at all (one 100-page review, split into chunks,
-contributed 101 and 88 paragraphs at 100% "method"); PDF table cells accepted as
-headings by the ALL-CAPS heuristic (305 of 325 headings detected across the 90 corpus
-PDFs were cells such as "S", "RA", "NFW", "A85", each one switching the bucket that
-following prose was filed under); and data/observation sections with no bucket of their
-own. Giving `method` explicit vocabulary, giving `data` its own bucket, defaulting to
-`unknown`, and requiring an ALL-CAPS heading to carry ≥ 2 words, ≥ 4 letters and ≥ 75%
-letters produces the left-hand column.
-
-A second fix landed in the same rebuild and pulls the other way. `extract_pdf_text`
-took pymupdf's `get_text("blocks")` to mean paragraphs; on real journal PDFs blocks
-run to a median of 5–16 words and only 21–23% end a sentence, so roughly four in five
-were mid-paragraph line fragments. Rejoining them produces real paragraphs — a corpus
-PDF goes from 438 fragments (median 5 words) to 105 paragraphs (median 84), and
-`document_shape` on it moves from `insufficient_evidence` to `measured` — but real
-paragraphs are fewer than fragments, so every bucket loses some count.
-
-**`results` therefore does not clear the floor.** It moved 10 → 31 on the classifier
-fix alone and settled at **26** once paragraphs and headings were reconstructed
-correctly. Intermediate values of 31 and 24 were recorded here while the PDF fixes were
-landing; 26 is the number that survived all of them.
-
-That 26 was then read as a corpus-size limit — `gather_corpus_files` ingested 31
-documents, so growing `results` was said to need more papers. **That diagnosis was
-wrong**, and the second round of 2026-08-25 fixes says why: the corpus layer treated a
-*file* as a paper, and could only see the three curated tiers. The 500-paper
-`fulltext-arxiv/` corpus that §9 has calibrated against since v0.26 was on the same
-disk, gitignored, and invisible to every paragraph-level baseline. Reading it — with
-`\include` fragments folded back into their documents rather than counted separately,
-and `\subsection`s inheriting their `\section` — takes `results` to **2,541** and the
-bank to 25,005. EVALUATION §2 records all four defects and their measured effect.
-
-The bank therefore reads 1,942 → 593 → 25,005 across three rebuilds, and none of the
-three counts the same thing: 1,942 was inflated by mislabelling and fragment-splitting,
-593 was honest but blind to 94% of the available corpus, and 25,005 is the count of
-correctly-paragraphed passages whose section is identifiable across everything on disk.
-The `abstract` bucket moves only 13,438 → 13,823, because abstracts come from their own
-bank and only the exemplar-side contribution grew.
+The earlier columns are history, not comparable counts; §5 in
+[lexical-structure-uid.md](lexical-structure-uid.md) is the one account of the
+corpus-layer fixes between them. The measurements taken on this reference: the
+2026-08-17 `method` was never a 1,303-passage reference. As the default bucket
+it absorbed every heading the classifier could not name, and 92% of it was
+residue: `.tex` files with no `\section` markup (one 100-page review, split
+into chunks, contributed 101 and 88 paragraphs at 100% `method`), PDF table
+cells accepted as headings by the ALL-CAPS heuristic (305 of the 325 headings
+detected across the 90 corpus PDFs were cells such as "S", "RA", "NFW", "A85"),
+and data sections with no bucket of their own. An ALL-CAPS heading now needs
+≥ 2 words, ≥ 4 letters and ≥ 75% letters. PDF blocks ran to a median of 5–16
+words and only 21–23% ended a sentence; rejoined, one corpus PDF goes from 438
+fragments (median 5 words) to 105 paragraphs (median 84), which is why every
+bucket lost count in that rebuild and `results` settled at 26 before the
+breadth corpus took it past the floor. `abstract` moves least, because
+abstracts come from their own bank.
 
 Human abstract percentiles:
 
@@ -259,7 +231,7 @@ Human abstract percentiles:
 |---|---:|---:|---:|---:|
 | `max_recital_run_frac` | 0.20 | 0.33 | 0.50 | 0.67 |
 | `recital_frac` | 0.29 | 0.50 | 0.67 | 0.78 |
-| `numerals_per_sentence` | 0.57 | 1.25 | 2.00 | 2.70 |
+| `numerals_per_sentence` | 0.57 | 1.25 | 2.09 | 2.71 |
 
 The gate is P(X ≤ x) > 0.90 for an advisory and > 0.95 for a strong one. Two
 implementation facts are load-bearing:
@@ -309,39 +281,39 @@ as observed evidence, gives 19.
 
 ### 14.4 Register reference and precision
 
-Document frequency over **41,644** passages (27,851 exemplar paragraphs + 13,793
-abstracts), **53,367** terms, after the v0.36.3 profile rebuild (41,710 and
-53,414 before it). Firing rule: ≥ 15 manuscript uses **and** corpus df
+Document frequency over **42,237** passages (28,444 exemplar paragraphs + 13,793
+abstracts), **53,668** terms, on the 2026-09-27 rebuild. Firing rule: ≥ 15
+manuscript uses **and** corpus df
 rate < 1e-4. (The use count was 5 until v0.32.0 raised it to 15, and this
 paragraph still said 5 until the 2026-08-26 sweep caught it. §17 records the
 held-out rates at the old setting; §18 records them at the new one.)
 
 The composition bias recorded in §14.6 is largely resolved. Reading the 500-paper
 breadth corpus took the body contribution from 593 to 25,005 passages and it now
-stands at 27,851, so abstracts fell from **96% of the reference to 33%** (13,793
-of 41,644). The axis was biased toward flagging body-section vocabulary precisely
+stands at 28,444, so abstracts fell from **96% of the reference to 33%** (13,793
+of 42,237). The axis was biased toward flagging body-section vocabulary precisely
 because body text was almost absent from its reference; that reference is now
-two-thirds body prose. The threshold's resolution also improves by 2.9×: 41,644
+two-thirds body prose. The threshold's resolution also improves by 3.0×: 42,237
 passages can express a df rate of 2.4e-5, comfortably below the 1e-4 firing rule,
 where 14,235 could express 7.0e-5.
 
-Controls that must not fire:
+Controls that must not fire (re-read on the 2026-09-27 bank of 42,237 passages):
 
 | Term | df | Judged on | Rate | Result |
 |---|---:|---|---:|---|
-| `accuracy` | 774 | itself | 5.0e-2 | not flagged |
-| `epoch` | 402 | itself | 2.6e-2 | not flagged |
-| `aperture-mass` | 313 | `aperture` | 2.0e-2 | not flagged |
-| `training` | 155 | itself | 9.9e-3 | not flagged |
-| `benchmark` | 81 | itself | 5.2e-3 | not flagged |
-| `classifier` | 29 | itself | 1.9e-3 | not flagged |
-| `held-out` | 24 | `held` | 1.5e-3 | not flagged |
+| `accuracy` | 1,612 | itself | 3.8e-2 | not flagged |
+| `epoch` | 615 | itself | 1.5e-2 | not flagged |
+| `aperture-mass` | 627 | `aperture` | 1.5e-2 | not flagged |
+| `training` | 658 | itself | 1.6e-2 | not flagged |
+| `benchmark` | 132 | itself | 3.1e-3 | not flagged |
+| `classifier` | 47 | itself | 1.1e-3 | not flagged |
+| `held-out` | 75 | `held` | 1.8e-3 | not flagged |
 
 `epoch` and `accuracy` are why the rule cannot be a curated list: both are
 ordinary astronomy vocabulary (an observation time; plain English), and both
 appear on any hand-written "machine-learning words" list.
 
-Positives on the case document:
+Positives on the case document, measured on the 15,599-passage bank of v0.26.0:
 
 | Term | Manuscript uses | Corpus df | Rate |
 |---|---:|---:|---:|
@@ -353,7 +325,9 @@ The third term is the concept the paper introduces, so its correct disposition
 is the third the action offers (confirm the first occurrence carries a
 definition) rather than replacement. The axis cannot distinguish an introduced
 concept from a borrowed one and does not try to, which is why it emits
-advisories only.
+advisories only. On the 2026-09-27 bank `AUC` has df 8 and `logit` df 9, both
+above the gate, so neither would be flagged now: the breadth corpus brought both
+terms into the field's own writing.
 
 **Precision history.** The unguarded first implementation produced 48 findings on
 this document, of which roughly six were real. Three construction classes

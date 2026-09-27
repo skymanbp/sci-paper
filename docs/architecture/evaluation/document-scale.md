@@ -14,141 +14,73 @@ nothing here can redefine it. All machine-readable findings use the
 
 ## 9. Whole-document cross-paragraph dispersion (the keystone axis)
 
-> ### ⚠️ Re-measured twice — 2026-08-25
+> ### Re-measured — 2026-09-27 (v0.39.0)
 >
-> **Second pass (v0.28.0).** The corpus-layer rebuild changed section splitting,
-> and `document_shape` is built on sections, so §9 could not carry its figures
-> forward on assertion. Every tier was re-scored through the shipped path
-> against the rebuilt baseline, with the **length-fair protocol restored**
-> (each document compared only against human papers in its own length
-> stratum). The result is a per-value reproduction, not a matching total:
+> The v0.39.0 profile rebuild recalibrated the baseline over **504** complete
+> papers — length-stratum edges 49 and 78 paragraphs, the manifold trained on 302
+> and calibrated on 202, the role axis calibrated on all 504 — and every tier was
+> re-scored through the shipped path. Length-fair AUC compares each AI document
+> only with the human papers in its own length stratum (197 in the short one); the
+> flag columns are the conformal operating point at α = 0.05:
 >
-> | length-fair AUC | recorded | re-measured | Δ |
-> |---|---:|---:|---:|
-> | manifold, natural | 0.928 | 0.933 | +0.005 |
-> | manifold, de-AI'd | 0.939 | 0.943 | +0.004 |
-> | manifold, adversarial | 0.919 | 0.927 | +0.008 |
-> | manifold, skeleton | 0.916 | 0.914 | -0.002 |
-> | role, natural | 0.702 | 0.690 | −0.012 |
-> | role, de-AI'd | 0.751 | 0.742 | −0.009 |
-> | role, adversarial | 0.818 | 0.810 | −0.008 |
-> | role, skeleton | 0.507 | 0.507 | 0.000 |
+> | tier (documents) | manifold AUC | role AUC | manifold flag | role flag | union |
+> |---|---:|---:|---:|---:|---:|
+> | natural (28) | 0.893 | 0.687 | 0.071 | 0.036 | 0.107 |
+> | de-AI'd (15) | unmeasured | unmeasured | unmeasured | unmeasured | unmeasured |
+> | adversarial (38) | 0.953 | 0.803 | 0.184 | 0.316 | 0.447 |
+> | skeleton (24) | 0.866 | 0.526 | 0.250 | 0.083 | 0.292 |
+> | long-form (29) | 0.840 | 0.610 | 0.000 | 0.069 | 0.069 |
+> | human, all 504 (in-sample) | — | — | 0.020 | 0.042 | 0.062 |
 >
-> All eight within 0.012. Human false-flag at the shipped operating point,
-> scored directly over 492 papers: **manifold 0.0325, role 0.0427**, union
-> 0.0752, against nominal α = 0.05.
+> The de-AI'd tier holds 15 documents, under the 20-document floor of
+> `tools/eval_docscale.py`, so it has no rate. The human row is 10, 21 and 31 of
+> 504 papers. No paper is flagged by both axes (independence predicts 0.42), and
+> the pre-conformal 5% tails stay disjoint (the two 26-paper tails share none;
+> independence predicts 1.34).
+> `python tools/eval_docscale.py --field wgl` reproduces the manifold flag column
+> and gives the pooled-AUC view: natural 0.867, adversarial 0.929, skeleton
+> 0.855, long-form 0.832.
 >
-> **A second correction landed in the same release, and it moved the axis.**
-> `_paper_documents` assembled each bundle by sorted FILENAME, so
-> `Conclusion.tex` preceded `Introduction.tex` — and this axis measures section
-> arc. 122 of the 500 bundles hold more than one `.tex`, 12 provably out of
-> order, and all 122 also folded appendices, acknowledgements and the journal's
-> own class documentation in as body prose. Rebuilding in include order raises
-> manifold tail power on natural AI **0.214 → 0.250** and on adversarial
-> **0.158 → 0.184** while *lowering* the human false-flag rate 0.0346 → 0.0325.
-> The role axis trades the other way (natural 0.107 → 0.036, de-AI'd 0.333 →
-> 0.267), so the union moves 0.321 → 0.286 on natural and 0.421 → 0.447 on
-> adversarial. Current tail powers: manifold 0.250 / 0.400 / 0.184 / 0.292;
-> role 0.036 / 0.267 / 0.316 / 0.042; union 0.286 / 0.600 / 0.447 / 0.333.
+> **What moved since the 2026-08-25 table, and why it is not attributed.** The
+> manifold's length-fair AUCs moved by −0.05 to +0.10 (natural 0.933 → 0.893,
+> adversarial 0.927 → 0.953, skeleton 0.914 → 0.866, long-form 0.740 → 0.840).
+> Four changes landed between the two measurements and were not run one at a
+> time: the v0.36.3 corpus rebuild; dropping appendices, reference lists and the
+> other `skip` sections from every measured document; blanking headings and
+> floats before paragraphs are cut (audit B22/B23); and fitting the length-stratum
+> edges on the training split alone (audit B17). The role axis needs no fit:
+> its flag counts reproduce on natural, adversarial and long-form, skeleton moves
+> from 1 to 2 of 24, and its AUCs move by at most 0.024 — the paragraph cut, the
+> strata and the human reference changed, not a fit. The manifold flag rates are single seed
+> draws whose per-seed spread is 0.04–0.18 (§9.4c), so none of their changes is
+> read as a result.
 >
-> **Read every manifold tail-power figure in this paragraph as a single seed
-> draw (§9.4c, 2026-08-26).** The per-seed spread on those tiers is 0.04–0.18,
-> so `0.214 → 0.250` and `0.158 → 0.184` are both well inside it. The
-> *human-side* improvement and the role axis's exact reproduction are the
-> durable parts of this correction; the manifold deltas are not resolvable
-> against seed noise, and the ordering fix should be justified on the grounds
-> that reading a paper in its own order is correct, not on those two deltas.
->
-> The 42× *paragraph-bank* growth did not move document-scale discrimination —
-> the expected result, since §9 always calibrated against `fulltext-arxiv`.
-> What moved it was reading those same papers in the right order. A fifth tier
-> is added below: `ai_long` scores manifold AUC 0.740 with **0.000** tail
-> power, the standing falsification target.
->
-> **First pass.** The 2026-08-17 rebuild regenerated `docstructure_baseline.json`,
-> but §9 was **not** on the v0.27.1 re-measurement list (that release re-measured
-> §5, §6, §7 and §14, and checked §15). Its figures therefore still described the
-> **507**-paper reference while the shipped artifact carried **493**. The notice
-> below records the re-measurement that closed that gap.
->
-> **The control that makes the rest credible.** The role-coupling axis needs no
-> fit, so a refit cannot move it — and it reproduces the pre-rebuild record
-> exactly: conformal flag rates 0.107 / 0.333 / 0.316 / 0.042 across the four
-> tiers, identical to the published table, and length-fair AUC within 0.001 of
-> every published value. Same scoring code, same tier documents, same strata.
-> Whatever *did* move is the refit, not the pipeline.
->
-> **What moved: the manifold improved, and not by trading away false-flag
-> control.** Re-measured on the 493-paper baseline against the same AI tiers:
->
-> | quantity | 507-paper record | 493-paper rebuild |
-> |---|---:|---:|
-> | conformal flag rate, natural | 0.071 | **0.214** |
-> | conformal flag rate, de-AI'd | 0.133 | **0.400** |
-> | conformal flag rate, adversarial | 0.026 | **0.158** |
-> | conformal flag rate, skeleton | 0.125 | **0.292** |
-> | length-fair AUC, natural | 0.873 | **0.928** |
-> | length-fair AUC, de-AI'd | 0.901 | **0.939** |
-> | length-fair AUC, adversarial | 0.836 | **0.919** |
-> | length-fair AUC, skeleton | 0.822 | **0.916** |
->
-> Human false-flag control held. Scoring all 493 reference papers through the
-> shipped operating point directly: **manifold 16/493 = 0.0325**, **role
-> 21/493 = 0.0426**, both under the nominal α = 0.05 (union 37/493 = 0.0751).
-> Leave-one-out over the conformal calibration set alone agrees — manifold
-> 0.0404, role 0.0487. The extra tail power is not borrowed from the human side.
->
-> **The rest of §9, re-measured against the same corpus.** The human corpus is
-> user-supplied and gitignored — CI and a fresh clone cannot see it — but it is
-> present on any machine that holds the profile, at
-> `style-corpus/<field>/fulltext-arxiv/`, keyed by the same arXiv IDs the
-> baseline's `documents` list carries. Every remaining human-side figure was
-> therefore re-measured rather than left at its 507-paper vintage:
->
-> | quantity | 507-paper record | 493-paper rebuild |
-> |---|---:|---:|
-> | §9.1 disjointness, pre-conformal 5% tails | 0 of 507 (independence ~1.3) | **0 of 493** (independence ~1.27) |
-> | §9.1 disjointness, at the conformal operating point | — | **0** (independence ~0.68) |
-> | §9.3 paired skeleton-vs-its-own-twin AUC | 0.934 (twins held out of the fit) | **0.958** (shipped scorer, twins in reference — *not* the same protocol) |
-> | §9.4 r(manifold distance, paragraph count) | 0.353 | **−0.080** |
->
-> Two of those deserve a sentence. The **disjointness result survives the
-> rebuild**: no human paper is flagged by both axes, on either the pre-conformal
-> tails or the shipped operating point, so the axes remain complementary rather
-> than redundant. And the **length confound has essentially gone** on the
-> shipped path — 0.353 was measured against the *pooled* manifold, whereas the
-> shipped scorer now sends each document to its own length-stratum manifold, and
-> against that the correlation is −0.080 with median distances of 2.481 / 2.099 /
-> 2.186 across the three strata. The Mondrian stratification of §9.5 is doing
-> the job it was introduced to do.
->
-> **Still not re-measured:** the document-level surprisal sweep of §9.8, which
-> needs GPT-2 over all 493 papers (hours of compute, and its conclusion — the
-> surprisal path is weaker than the model-free manifold and adds nothing to it —
-> is only reinforced by a rebuild that raised the model-free numbers and left
-> the surprisal path untouched). Bootstrap CIs were not recomputed for any
-> post-rebuild point estimate; the pre-rebuild intervals belong to the
-> pre-rebuild points and are not transferred.
->
-> Reproduce: score `style-profile/<field>/docval/ai_*` and the corpus papers
-> through `manifold_operating_point` and `document_role_coupling`, using the
-> baseline's own per-stratum calibration as the human reference.
+> **Everything below this notice is the 2026-08-25/26 record** on the 493-paper
+> baseline (edges 46 and 76, manifold split 295 / 198), kept for its method and
+> reasoning; where a figure below differs from the table above, the table is
+> current. That record also carried a bundle-assembly correction:
+> `_paper_documents` had joined each bundle's files in sorted filename order, so
+> `Conclusion.tex` could precede `Introduction.tex` — 122 of the 500 bundles hold
+> more than one `.tex`, 12 provably out of order, and all 122 folded appendices,
+> acknowledgements and the journal's class documentation in as body prose.
+> Reading a paper in include order is correct on its face; the tail-power changes
+> it produced are inside the seed spread and are not the evidence for it.
 
 The architecture reflection ([`DEAI_ARCHITECTURE_ROADMAP.md`](../../design-notes/DEAI_ARCHITECTURE_ROADMAP.md))
 identified the document scale as the confound-orthogonal signal: field register shifts the
 *level* of per-paragraph features, while AI-uniformity compresses their *spread* across a
-document, which no per-paragraph score can see (the 32–41% field-topic FPR of §7.2).
+document, which no per-paragraph score can see (the 29–42% field-topic false-positive rate of §7.2).
 
 [`tools/deai_docstructure.py`](../../../tools/deai_docstructure.py) measures, per model-free
 per-paragraph feature, the cross-paragraph dispersion of a complete document
 (`deai_features.cross_paragraph_dispersion`), and flags a document that varies a feature
 below the human low tail. The axis was first calibrated one-observation-per-paper over 14
 complete human `wgl` papers (multi-file papers concatenated to avoid pseudoreplication);
-the current reference is **493** complete papers, and `L2.document_structure` is
-`measured`. Per-stratum leave-one-paper-out false-flag rates on the percentile-threshold
-path are 0.091 / 0.077 / 0.087, above the nominal 0.05 — which is why the shipped
-operating points are the split-conformal ones of §9.5, whose leave-one-out human rate is
-0.040. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field.
+the current reference is **504** complete papers, and `L2.document_structure` is
+`measured`. On the 493-paper reference the in-sample percentile thresholds flagged
+0.091 / 0.077 / 0.087 of human papers per stratum under leave-one-paper-out, above the
+nominal 0.05 — which is why the manifold scores only at the split-conformal operating
+points of §9.5, whose leave-one-out human rate was 0.040. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field.
 
 ### 9.1 Validation against AI documents, including an adversarial de-AI tier
 
@@ -191,10 +123,10 @@ two stages:
    adversarial contrast to AUC 0.801 (CI 0.733–0.867)** while keeping natural at 0.894
    and de-AI'd at 0.932 — on the same held-out protocol.
 
-The shipped detector implements the band view at three levels, calibrated over **493
+The shipped detector implements the band view at three levels, calibrated over **504
 complete human papers** (the bulk full-text fetch grew the reference 14 → 507 within two
-days; the 2026-08-17 rebuild re-ingested it at 493 — see the notice at the top of §9,
-which also carries the post-rebuild operating characteristics):
+days; rebuilds re-ingested it at 493 on 2026-08-17 and at 504 on 2026-09-27 — the notice
+at the top of §9 carries the current operating characteristics):
 
 1. **Joint manifold statistic (primary).** The per-document vector of log dispersion
    ratios is scored by Mahalanobis distance against the human center and covariance
@@ -307,8 +239,8 @@ enforced only at the section/paragraph level.
 > median distances 2.481 / 2.099 / 2.186 across the three strata. In other words the
 > confound this section identifies is real, and the Mondrian stratification introduced in
 > §9.5 in response to it has largely removed it from the shipped path. The role axis's
-> operating characteristics were re-measured and are unchanged to the digit (see the §9
-> notice), so the mechanism described here stands.
+> operating characteristics were re-measured and are unchanged to the digit (§9.5), so
+> the mechanism described here stands.
 
 The adversarial arc in 9.1 proved dispersion *magnitude* is gameable: forced variety
 lands inside (or past) the human band. What forced variety cannot do without actually
@@ -390,8 +322,10 @@ Conformal p = (1 + #{calibration ≥ score}) / (n_cal + 1), flag at p ≤ α = 0
 giving P(false flag) ≤ α finite-sample and distribution-free for exchangeable human
 papers. Calibration is Mondrian-stratified by document-length terciles (edges 46 and
 76 paragraphs) — length is the measured confound (9.4); a thin stratum falls back to
-the pooled calibration set, keeping marginal validity. Legacy baselines without the
-conformal block fall back to the percentile thresholds.
+the pooled calibration set, keeping marginal validity. A baseline whose manifold has no
+conformal block leaves the manifold rule unscored and the axis `degraded` with a rebuild
+reason (audit B24); without one, the role axis falls back to its in-sample percentile
+threshold.
 
 Stratification exposed a second, larger instance of the same confound: **short human
 papers score systematically higher manifold distances** (stratum-0 95th percentile
@@ -408,7 +342,8 @@ operating point (α = 0.05) the measured rates are:
 | role-decoupling | 0.107 | 0.333 | 0.316 | 0.042 |
 | union | **0.321** | **0.667** | **0.421** | **0.333** |
 
-Post-rebuild (2026-08-25, n = 28 / 15 / 38 / 24 measurable tier documents). The
+The first 2026-08-25 pass, before the bundle-assembly correction (n = 28 / 15 / 38 / 24
+measurable tier documents). The
 pre-rebuild record on the 507-paper reference read manifold 0.071 / 0.133 / 0.026 /
 0.125 and union 0.179 / 0.467 / 0.342 / 0.167; the role row is unchanged to the digit,
 which is the control — the role z needs no fit, so a refit cannot move it, and its exact
@@ -443,7 +378,8 @@ conformal calibration set only, which *is* out-of-fit, gives **manifold 0.0404 p
 manifold's higher tail power is not paid for on the human side.
 
 The discrimination signal itself survives length matching. Length-fair AUC against the
-**169** same-stratum (short) humans, post-rebuild:
+**169** same-stratum (short) humans, post-rebuild (the 2026-09-27 figures are in the
+notice at the top of §9):
 
 | length-fair AUC | natural | de-AI'd | adversarial | skeleton | long |
 |---|---|---|---|---|---|
@@ -572,8 +508,9 @@ rather than quoted.
 long-form tail power is 0.003 ± 0.010 at worst and 0.000 in most configurations. That is
 no longer a single-configuration result: it is stable across every variation tried, so
 the axis does not detect long-form generation at α = 0.05 and no tuning of the
-calibration or the covariance changes that. The tier's rank AUC is 0.729, so the signal
-is present and the operating point cannot reach it.
+calibration or the covariance changes that. The tier's mixed-length rank AUC was 0.729 on
+the 507-paper reference (§9.7), and its length-fair AUC reads 0.840 on 2026-09-27, so the
+signal is present and the operating point cannot reach it.
 
 ### 9.6 Claim anchoring: hypothesis refuted for strong-model generations
 
@@ -707,6 +644,6 @@ a guess.
 dispersion reference: for each shape feature it places the draft's within-document
 dispersion in the distribution of the author's own papers. Because that reference
 is same-author, same-field, same-jargon, it sidesteps the field-topic confound
-behind the classifier's 32–41% false-positive rate entirely — the comparison is
+behind the classifier's 29–42% false-positive rate entirely — the comparison is
 you-versus-you. It flags a draft that varies paragraph shape far less than the
 author usually does, and is `unmeasured` below three prior papers.

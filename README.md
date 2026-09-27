@@ -5,14 +5,14 @@
 [![Version](https://img.shields.io/badge/version-0.39.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-764%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-801%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**12 skills · 40 tools · 764 tests · one normative contract · zero authorship verdicts.**
+**12 skills · 40 tools · 801 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) · [How it works](#how-it-works) ·
 [See it work](#see-it-work) · [Benchmarks](#benchmark-dashboard) · [Install](#install) ·
@@ -65,7 +65,7 @@ problem:
 | **standard** | [`paper`](skills/paper/SKILL.md) | The writing framework in context: accuracy rules, formula and citation conventions, forward narrative, the L0 lexical policy with canonical examples, positive-voice guidance, measurement states, stopping semantics. |
 | **measure** | [`physics`](skills/physics/SKILL.md) | Measurement primitive, findings only. First principles P1-P8: dimensional consistency, asymptotic limits, symmetry and parity, conservation, the preconditions of the information-theoretic bounds, algebraic re-derivation, numerical provenance, foundational citations, build integrity. The single source for `paper-review` dimension K; register and L0 delegate to the shared axes, not a private word list. |
 | **measure** | [`logic`](skills/logic/SKILL.md) | Measurement primitive, findings only. Claim graph (circular arguments, broken chains, switched conditions, undeclared assumptions), empirical statistics (splits, leakage, multiple comparisons, priors), and the review side of claim–evidence discipline: verb strength may not exceed evidence strength. The single source for `paper-review` dimension C. |
-| **measure** | [`mainline`](skills/mainline/SKILL.md) | Measurement primitive, findings only. Builds a paper-level purpose record and contribution graph, then answers a cold reader's seven questions — where must a reader backtrack, supply hidden context, or choose between competing readings? No three-act template assumed. The single source for `paper-review` dimension E. |
+| **measure** | [`mainline`](skills/mainline/SKILL.md) | Measurement primitive, findings only. Builds a paper-level purpose record and contribution graph, then answers a cold reader's eight questions — where must a reader backtrack, supply hidden context, or choose between competing readings? No three-act template assumed. The single source for `paper-review` dimension E. |
 | **measure** | [`figure-review`](skills/figure-review/SKILL.md) | Reviews **compiled pages at 150 DPI**, not source. Traces figure/caption/data provenance, measures canvas balance at the pixel level, separates scientific and build contradictions from readability advisories. |
 | **act** | [`de-ai`](skills/de-ai/SKILL.md) | Three chained passes — subsystem measurement (L0–L4), a structural-tell audit, then **claim-first rewriting** that rebuilds prose from the protected claim graph instead of polishing in place. `--audit-only` stops after the structural-tell audit (Pass 2). |
 | **act** | [`condense`](skills/condense/SKILL.md) | Whole-document redundancy elimination under one-canonical-home-per-fact, loop-until-dry convergence, and a **mechanical length gate** as the closing proof that the document actually shrank. |
@@ -81,7 +81,7 @@ object with the same ID. A composite calls primitives; it never restates their c
 
 | It will not | Because |
 |---|---|
-| Output an authorship verdict or an "% AI" score | The learned axis is **field-similarity triage**, capped at 0.5 confidence at paragraph scale. Its false-positive rate on field-topic AI prose is 30–42% ([why](#why-there-is-no-single-score-the-l3-confound)). |
+| Output an authorship verdict or an "% AI" score | The learned axis is **field-similarity triage**, capped at 0.5 confidence at paragraph scale. Its false-positive rate on field-topic AI prose is 29–42% ([why](#why-there-is-no-single-score-the-l3-confound)). |
 | Emit a universal paper-level PASS/FAIL | Terminal state is *disposition-complete*, not "zero advisories". |
 | Convert a missing baseline into zero findings | Unavailable axes report `unmeasured` / `degraded` with the reason. |
 | Optimise prose to evade detectors | Rewrite ranking optimises faithful scientific prose. Fidelity is a hard gate, not a weight. |
@@ -135,8 +135,8 @@ still leaves them uniform *relative to each other*. So the primary detector is a
 the per-document vector of log dispersion ratios scored by Mahalanobis distance against the human centre and
 covariance — pure-stdlib, 11-D, ridge-stabilised. The joint geometry catches what independent marginals cannot:
 a shape adversary can land plausible per-feature spreads with the wrong covariance. An orthogonal axis measures
-**role coupling** — humans vary paragraph shape *where the argument demands it*. On the 493-paper human corpus
-the two axes' 5% tails are **exactly disjoint** (0 flagged by both; independence predicts ~1.3).
+**role coupling** — humans vary paragraph shape *where the argument demands it*. On the 504-paper human corpus
+the two axes' 5% tails are **exactly disjoint** (0 of 26 flagged by both; independence predicts 1.34).
 
 **3 · Operating points are split-conformal and length-stratified.** Percentile
 thresholds fit on the papers that set them are in-sample. The shipped operating
@@ -367,7 +367,7 @@ isolated worktrees and merges typed findings from six independent passes:
 | `paper-review` | 18 dimensions **A–R**: mathematics, physics, logic and statistics, language and de-AI, structure and narrative spine, citation existence and relevance, data/results/figures, interfaces, redundancy, reproducibility, modern-physics checks, systemic consistency, adversarial verification, staleness, process artifacts, draft language, reference precision, glossary alignment |
 | `figure-review` | every figure re-rendered from the compiled PDF at 150 DPI — caption/data consistency, units, readability at print size, colour accessibility, float placement, cross-figure coherence |
 | `de-ai --audit-only` | the L0–L4 measurement stack plus the vendored humanizer structural-tell catalogue |
-| `physics` · `mainline` · `logic` | three measurement primitives, one sibling agent each: first principles P1–P8; the cold reader's seven questions against the contribution graph; claim graph, empirical statistics and claim–evidence discipline |
+| `physics` · `mainline` · `logic` | three measurement primitives, one sibling agent each: first principles P1–P8; the cold reader's eight questions against the contribution graph; claim graph, empirical statistics and claim–evidence discipline |
 
 The merge rule is the point: **integrity blockers must be resolved, L0 targets
 must reach zero, every strong advisory needs a recorded disposition, and ordinary
@@ -395,34 +395,35 @@ The last row moved with the reference: the 2026-08-27 profile read the revision 
 
 Two kinds of number, not interchangeable: **discrimination and calibration**,
 read from the evaluation record; and **latency**, measured first-party for this
-README. All discrimination figures below were **re-scored on 2026-08-25** against
-the rebuilt profile, through the shipped path — not carried forward.
+README. The document-scale table and the L3 figures below were **re-taken on 2026-09-27**
+against the rebuilt profile, through the shipped path — not carried forward.
 
 ### Document-scale discrimination and its false-positive control
 
 AUC is length-fair: each document is compared only against human papers in its
-own length stratum (170 in the short stratum). Flag rates are split-conformal,
+own length stratum (197 in the short stratum). Flag rates are split-conformal,
 Mondrian-stratified by length tercile, giving **finite-sample,
 distribution-free `P(false flag) ≤ α`** for exchangeable human papers. Source:
 [§9.5](docs/architecture/evaluation/document-scale.md).
 
 | Contrast | Manifold AUC | Role AUC | Manifold tail power | Role | union |
 |---|---:|---:|---:|---:|---:|
-| human vs **natural** AI | **0.933** | 0.690 | 0.250 | 0.036 | 0.286 |
-| human vs **de-AI'd** AI (paragraph de-AI as an attack) | **0.943** | 0.742 | 0.400 | 0.268 | **0.600** |
-| human vs **shape-adversarial** AI (deliberate raggedness) | 0.927 | **0.810** | 0.184 | 0.316 | 0.447 |
-| human vs **skeleton-matched** structural clone | 0.914 | 0.507 | 0.292 | 0.042 | 0.333 |
-| human vs **long-form** AI *(standing falsification target)* | 0.740 | 0.634 | **0.000** | 0.069 | 0.069 |
-| **human false-flag**, scored over 492 papers, α = 0.05 | — | — | **0.033** | **0.043** | 0.075 |
+| human vs **natural** AI | 0.893 | 0.687 | 0.071 | 0.036 | 0.107 |
+| human vs **de-AI'd** AI (15 documents, under the 20-document floor) | unmeasured | unmeasured | unmeasured | unmeasured | unmeasured |
+| human vs **shape-adversarial** AI (deliberate raggedness) | **0.953** | **0.803** | 0.184 | 0.316 | **0.447** |
+| human vs **skeleton-matched** structural clone | 0.866 | 0.526 | 0.250 | 0.083 | 0.292 |
+| human vs **long-form** AI *(standing falsification target)* | 0.840 | 0.610 | **0.000** | 0.069 | 0.069 |
+| **human false-flag**, scored over 504 papers, α = 0.05 | — | — | **0.020** | **0.042** | 0.062 |
 
-The axes are complementary by construction: the manifold carries discrimination
-against every tier including structure clones, while the role axis concentrates
-on the tier that narrows the manifold's margin. Every published AUC reproduced
-within **0.012** across the 42× rebuild — all eight, not a matching total.
+The axes are complementary by construction: the manifold carries discrimination against every tier including
+structure clones, while the role axis concentrates on the tier that narrows the manifold's margin. Since the
+2026-08-25 table the length-fair AUCs moved −0.05 to +0.10 (natural 0.933 → 0.893, long-form 0.740 → 0.840) under
+four unseparated changes: the v0.36.3 corpus, dropping appendices and references, blanking headings and floats, and
+fitting the length strata on the training split alone.
 
 Tail power is reported plainly, including where it is weak and where it is zero, and **the tail-power column
-above is a single seed draw**: the per-seed spread on those tiers is 0.04–0.18, so over 12 seeds natural reads
-0.170 ± 0.110. Long-form is not caught at the strict operating point at all, in any configuration tried. The
+above is a single seed draw**: the per-seed spread on those tiers is 0.04–0.18, so over 12 seeds (2026-08-26) natural
+read 0.170 ± 0.110. Long-form is not caught at the strict operating point at all, in any configuration tried. The
 estimator-noise model that was supposed to fix short documents has now been built and refuted — it moves the
 human rate not at all ([§9.4c](docs/architecture/evaluation/document-scale.md)). Re-run the whole table with
 `python tools/eval_docscale.py --field wgl`.
@@ -430,31 +431,31 @@ human rate not at all ([§9.4c](docs/architecture/evaluation/document-scale.md))
 ### Why there is no single score: the L3 confound
 
 The learned paragraph-scale model is good — and ships `degraded` **anyway**, for
-a measured reason. Retrained 2026-09-05 on 44,636 records. Source:
+a measured reason. Retrained 2026-09-27 on 45,153 records. Source:
 [§7](docs/architecture/evaluation/learned-model.md).
 
 | Metric | Value | 95% split range | 17,299-record bank |
 |---|---:|---|---:|
-| Grouped-split AUC (20 splits, complete papers held out) | **0.9487** | 0.9409 – 0.9583 | 0.9320 |
-| Matched-stratum AUC (section × length × math × field-term) | **0.9262** | 0.9063 – 0.9494 | 0.9236 |
-| Balanced accuracy | **0.8704** | 0.8588 – 0.8881 | 0.8445 |
-| Author hard-set, **true provenance** | 0.938 | 0.846 – 0.998 | 0.937 |
-| False-positive rate — public-generic AI text | 0.055 | 0.026 – 0.076 | 0.086 |
-| False-positive rate — **field-topic AI text** | **0.295** | 0.230 – 0.356 | 0.318 |
-| False-positive rate — **field-jargon-dense AI text** | **0.421** | 0.236 – 0.543 | 0.417 |
+| Grouped-split AUC (20 splits, complete papers held out) | **0.9487** | 0.9392 – 0.9587 | 0.9320 |
+| Matched-stratum AUC (section × length × math × field-term) | **0.9250** | 0.9058 – 0.9495 | 0.9236 |
+| Balanced accuracy | **0.8705** | 0.8602 – 0.8883 | 0.8445 |
+| Author hard-set, **true provenance** | 0.937 | 0.842 – 0.999 | 0.937 |
+| False-positive rate — public-generic AI text | 0.057 | 0.026 – 0.076 | 0.086 |
+| False-positive rate — **field-topic AI text** | **0.292** | 0.230 – 0.349 | 0.318 |
+| False-positive rate — **field-jargon-dense AI text** | **0.418** | 0.212 – 0.528 | 0.417 |
 
-A 0.95 AUC headline and a 30–42% false-positive rate on field-topic AI prose are the same model: the learned
+A 0.95 AUC headline and a 29–42% false-positive rate on field-topic AI prose are the same model: the learned
 score partly measures *field register*, so it is unreliable on the exact distribution a de-AI pass must catch.
-**Four retrains across a 2.6× bank range and a profile rebuild agree** — field-topic went 0.318 → 0.285 → 0.280
-→ 0.295, every step inside one retrain's own split range, while headline AUC rose and eased (0.9320 → 0.9518 →
-0.9487). More data buys the easy contrast and nothing on the one that matters, so the roadmap item closes by
+**Five retrains across a 2.6× bank range and two profile rebuilds agree** — field-topic went 0.318 → 0.285 →
+0.280 → 0.295 → 0.292, every step inside one retrain's own split range, while headline AUC rose, eased and held
+(0.9320 → 0.9518 → 0.9487 → 0.9487). More data buys the easy contrast and nothing on the one that matters, so the roadmap item closes by
 decision: **not obtainable from this feature set**; reopening needs different features, not a bigger bank. The
 document-level surprisal path measured 0.757, weaker than the model-free manifold (0.881), and adds nothing to it.
 
-Retraining is not behaviour-preserving and is not claimed to be: on 1,808
-paragraphs scored by the last two bundles the degraded mode's ranking holds at
-Spearman **ρ = 0.991** and the three surfaced paragraphs overlap **0.889** (0.846
-and 0.654 for the 2.6× bank growth before it). Same schema, features and posture.
+Retraining is not behaviour-preserving and is not claimed to be: on 2,080
+paragraphs scored by the last two bundles the degraded mode's ranking holds at a median
+Spearman **ρ = 1.000** and 68 of 69 documents surface the same three paragraphs (0.846
+and 0.654 for the 2.6× bank growth two retrains back). Same schema, features and posture.
 
 ### Latency and repository health
 
@@ -474,11 +475,11 @@ at 100%, and a number taken under that describes the contention, not the axis. V
 | `+ --oracle` (GPT-2-large token surprisal) | 33.8 s (2026-08-27) | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 37.2 s (2026-08-27) | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **11/11 checks pass** | 2.24 s | stdlib |
-| Full test suite — **764 passing**, 32 files (timing from the 2026-09-05 run of the suite as it then stood, median of 3 spanning 49.8 – 51.7 s; not re-taken since) | 51.5 s | stdlib |
+| Full test suite — **801 passing**, 32 files (timing from the 2026-09-05 run of the suite as it then stood, median of 3 spanning 49.8 – 51.7 s; not re-taken since) | 51.5 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs ~1.0 s above the interpreter
 floor**, with no optional dependency installed — and 0.6 s of that is loading the collocation bank (530,677
-pairs in the 2026-09-04 bank the timing was taken on; 530,504 after the v0.36.3 rebuild), which `--no-collocation` drops to ~0.4 s. The two model-backed axes cost 30×–35× more than the full
+pairs in the 2026-09-04 bank the timing was taken on; 535,517 after the v0.39.0 rebuild), which `--no-collocation` drops to ~0.4 s. The two model-backed axes cost 30×–35× more than the full
 model-free pass and are opt-in flags — you should not need a GPU to lint a paper. CI runs validator and suite on every push to main and on every PR, Python 3.11, Ubuntu.
 
 ---
@@ -494,19 +495,12 @@ Skills are then namespaced `/sci-paper:<name>`.
 
 **Python ≥ 3.11.** The shared schema, the deterministic L0 linter, the model-free
 L1/L2 axes, the document-structure analysis, and the validator are **standard
-library only**. Optional capabilities add dependencies:
+library only**. Optional capabilities add dependencies, each listed with what it
+enables in [`requirements.txt`](requirements.txt):
 
 ```bash
 pip install -r requirements.txt      # all optional extras
 ```
-
-| Package | Enables |
-|---|---|
-| `pymupdf` | PDF corpus extraction, compiled-page inspection |
-| `sentence-transformers` | semantic exemplar retrieval, embedding features |
-| `scikit-learn` + `joblib` | legacy and learned field-similarity models |
-| `transformers` + `torch` | token-surprisal / UID measurement |
-| `numpy` | learned feature, cache, and rewrite-score utilities |
 
 > Never install an optional dependency merely to turn an unavailable axis into a
 > nominal score. A missing package keeps its axis `unmeasured`, by design.
@@ -551,12 +545,11 @@ gates, `build` corpus and profile construction, `eval` evidence. Detail: [tools/
 | `tools/rewrite_reward.py` | core | Ranks rewrite candidates **after** hard scientific-fidelity eligibility. Dropping *or inventing* a protected invariant scores `-inf`. |
 | `tools/deai_register.py` | L0 | Domain register: terms the manuscript leans on that the field's own corpus does not carry, judged by corpus document frequency rather than a curated cross-discipline list. Compounds are judged by their rarest part. The zero-hit audit lists every body word with df 0. Advisories only. |
 | `tools/deai_collocation.py` | L2 | Sentences that join common words the field never joins: the fraction of adjacent content-word pairs unattested in the corpus, against a leave-one-out per-section reference; each pair carries its chance-absence probability. Advisories only; a defined term keeps its pair. `--glossary` reads the same bank document-wide and lists the unattested pairs used twice or more, the manuscript's own terms, with the line of first use and whether that sentence defines them. |
-| `tools/ai_ism_negatives_handcrafted.txt` | L0 | Seed negative examples for the legacy classifier (data asset). |
 | `tools/deai_metrics.py` | L1 | Model-free information-distribution findings — sentence-length variation, connective openers — with explicit calibration state. |
 | `tools/deai_oracle.py` | L1 | Optional token-surprisal and Uniform Information Density evidence. Unavailable assets and compatibility thresholds stay explicit. |
 | `tools/deai_structure.py` | L2 | Sentence and paragraph construction: enumeration, repeated frames, parallel runs, symmetry, and related template families; auxiliary families (antithesis, reversal beats, paper-as-agent, wh-cleft, modifier stacks) name the sentence without entering the score. |
 | `tools/deai_salience.py` | L2 | Salience hierarchy: how far a passage's measured quantities run without an interpreting sentence between them, against a per-section human reference. Sole consumer of the numeral-preserving LaTeX projection. |
-| `tools/deai_discourse.py` | L2 | Discourse texture on the LOW tail: given/new linkage per paragraph, and epistemic-marker rate per **section** — hedging has no paragraph-scale lower tail, so the two axes calibrate at different units and each artifact records its own. Hedging speaks only for introductions, where its operating point was shown to transfer. |
+| `tools/deai_discourse.py` | L2 | Discourse texture on the LOW tail: given/new linkage per paragraph, and epistemic-marker rate per **section** — hedging has no paragraph-scale lower tail, so the two axes calibrate at different units and each artifact records its own. Hedging speaks only for introductions and methods, where its operating point was shown to transfer. |
 | `tools/deai_reference.py` | L2 | The one `(feature, unit)` percentile reference every per-bucket axis shares: quantile grid, plateau-top percentile reader, sample floor, paragraph and section sweeps, calibration loop. Holds no policy; its invariant is that calibration and detection never drift apart on what a unit is. |
 | `tools/deai_docshape.py` | L2 | Document-shape measurement and complete-document calibration: the per-paragraph feature vector, cross-paragraph dispersion, the joint Mahalanobis manifold, role coupling, split-conformal operating points, and the baseline builder. Split from `deai_docstructure.py` on 2026-08-25; that module re-exports every public name here. |
 | `tools/deai_docstructure.py` | L2 | Whole-document rhetorical shape and complete-document calibration: dispersion band, per-length-stratum joint manifold, role coupling, split-conformal operating points. |
@@ -582,6 +575,7 @@ gates, `build` corpus and profile construction, `eval` evidence. Detail: [tools/
 | `tools/fetch_arxiv_abstracts.py` | build | Fetches dated abstract corpora for controlled evaluation and training, optionally restricted to a subfield query set and named refereed journals, or complete LaTeX sources for one author (`--author` + `--author-is` + `--max-authors`). Rate limiting **stops the sweep and exits 2** rather than writing a truncated corpus as if it were complete. |
 | `tools/train_ai_ism_classifier.py` | legacy | Trains the legacy word-ngram classifier, used only as degraded advisory evidence. |
 | `tools/extract_md_negatives.py` | legacy | Harvests candidate generated paragraphs for controlled evaluation and training. |
+| `tools/ai_ism_negatives_handcrafted.txt` | legacy | Seed negative examples for the legacy classifier (data asset). |
 
 > `tools/validate_plugin.py` is a release tool, not a product tool, and is excluded above.
 
@@ -594,7 +588,7 @@ Every finding carries exactly one **consequence class**:
 | Class | Meaning | Required consequence |
 |---|---|---|
 | `integrity_blocker` | The scientific record may be wrong, unsupported, inconsistent, unreproducible, or unusable | **Must** be resolved from sources. Cannot be waived as a style preference. |
-| `l0_target` | A Tier A word, an em-dash, or a Tier B word beyond one occurrence per section | Rewrite to zero. Not a claim that the paper is scientifically invalid. |
+| `l0_target` | A Tier A word, an em-dash, or a Tier B word beyond one occurrence per heading unit | Rewrite to zero. Not a claim that the paper is scientifically invalid. |
 | `advisory` | Structural, distributional, learned, rhetorical, clarity, or aesthetic evidence | Rank, act on the strongest, then record a disposition for the rest. |
 
 Every axis reports one **measurement state** — `measured`, `degraded`,
@@ -625,17 +619,16 @@ For scale, the reference profile behind every measured number here carries:
 
 | Asset | Scale |
 |---|---|
-| `exemplar_paragraphs.jsonl` | **27,851** section-typed paragraphs from 19 curated + 500 reference papers |
-| `register_lexicon.json` | 41,644 passages · 53,367 terms |
-| `uid_baseline.json` | 27,851 paragraphs under GPT-2-large · pooled global UID 3.303 ± 0.420 |
-| `structure_baseline.json` | method 9,478 · results 3,978 · data 3,894 · intro 3,812 · discussion 3,635 · conclusion 2,611 · abstract 433 |
-| `salience_baseline.json` | abstract 13,971 · method 6,967 · results 3,240 · intro 3,239 · data 3,020 · discussion 2,954 · conclusion 1,999 |
-| `docstructure_baseline.json` | 507 complete documents · conformal α 0.05 · length strata [46, 75] |
+| `exemplar_paragraphs.jsonl` | **28,444** section-typed paragraphs from 18 of the 19 curated and 498 of the 500 reference papers |
+| `register_lexicon.json` | 42,237 passages · 53,668 terms |
+| `uid_baseline.json` | 28,444 paragraphs under GPT-2-large · pooled global UID 3.301 ± 0.413 |
+| `structure_baseline.json` | method 9,654 · results 4,065 · data 3,953 · intro 3,848 · discussion 3,739 · conclusion 2,747 · abstract 433 |
+| `salience_baseline.json` | abstract 13,970 · method 7,209 · results 3,337 · intro 3,280 · data 3,098 · discussion 3,051 · conclusion 2,018 |
+| `docstructure_baseline.json` | 504 complete documents · conformal α 0.05 · length strata [49, 78] |
 | `anchoring_baseline.json` | 517 documents · all six section classes above the 30-document retention minimum and the 119-document floor of the six-class Bonferroni share |
-| `voice_model.joblib` | 44,636 records · 14 features · **no operating point**, `degraded` |
+| `voice_model.joblib` | 45,153 records · 14 features · **no operating point**, `degraded` |
 
-Every bucket clears the 30-passage floor — untrue before 2026-08-25, when
-`results` held 26 and that was misread as a corpus-size limit.
+Every bucket clears the 30-passage floor.
 Corpus contents are **read-only, copyright-sensitive inputs**, never committed. A
 dossier is evidence, not a standard and not proof of authorship.
 
@@ -663,7 +656,7 @@ dossier is evidence, not a standard and not proof of authorship.
 | Corpus reference | **User-supplied, tiered, gitignored** | Style is field-relative. A generic prior is the thing being replaced. |
 | Optional models | `transformers`+`torch`, `scikit-learn`, `sentence-transformers` | Strictly opt-in flags. Absence degrades an axis, never the run. |
 | Distribution | **Claude Code plugin** (`.claude-plugin/plugin.json`) | Skills at `skills/<name>/SKILL.md`, namespaced `/sci-paper:<name>`. |
-| Contract enforcement | `tools/validate_plugin.py` + GitHub Actions | 11 checks over manifests, registries, doc authority and links, recorded counts, imports, CLI entry points, exit semantics, tests, CI wiring, the residue contract, and the 750-line budget. Drift fails CI instead of accumulating. |
+| Contract enforcement | `tools/validate_plugin.py` + GitHub Actions | 11 checks, listed once in [tools/README.md](tools/README.md). Drift fails CI instead of accumulating. |
 
 ---
 
@@ -677,18 +670,15 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.8)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   12 skills         ├── tests/     32 files, 764 tests
+├── skills/<name>/SKILL.md   12 skills         ├── tests/     32 files, 801 tests
 ├── tools/                   40 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
-`python tools/validate_plugin.py` runs 11 contract checks and `python -m unittest discover -s tests -v` runs the
-764-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
-standard references, documentation boundaries and index completeness, in-page anchors, recorded suite sizes
-against real discovery, product registries, syntax, runtime imports, CLI entry points, schema fields, and linter
-exit semantics — `tools/validate_plugin.py` itself is the authoritative list. A release also requires
-independent review, clean-checkout verification, and green hosted CI.
+`python tools/validate_plugin.py` runs 11 contract checks (listed in [tools/README.md](tools/README.md)) and
+`python -m unittest discover -s tests -v` runs the 801-test suite; both must pass before a release. A release
+also requires independent review, clean-checkout verification, and green hosted CI.
 
 ---
 
@@ -708,16 +698,16 @@ de-AI standard.
 | Limitation | Current state |
 |---|---|
 | **No learned-model operating point** | L3 ships `degraded`. The document-level surprisal path was *measured* not to provide one (0.757 vs the model-free manifold's 0.881). |
-| **Field-topic false positives** | 30–42% on field-topic and jargon-dense AI prose. **Closed by decision:** four retrains across a 2.6× bank range agree the confound is in the feature set, so no field-topic-robust operating point is obtainable from it. |
-| **Short-document tail power, and it is a seed draw** | Manifold 5%-tail power on short natural-AI documents averages **0.170 ± 0.110** over 12 seeds against a 0.933 length-fair ranking; per-tier spread reaches 0.18, wider than several differences the record once read as improvements. Three fixes were built and all three fail: distance normalisation (rejected), finer stratification, and an explicit estimator-noise covariance. `tools/eval_docscale.py` re-runs the table instead of quoting it. |
-| **Long-form generation is not caught** | At α = 0.05, manifold tail power on long-form AI is **0.000** — stable across 2 metrics × 4 calibration splits × 12 seeds. Rank AUC is 0.729, so the signal exists and the operating point cannot reach it. |
+| **Field-topic false positives** | 29–42% on field-topic and jargon-dense AI prose. **Closed by decision:** five retrains across a 2.6× bank range agree the confound is in the feature set, so no field-topic-robust operating point is obtainable from it. |
+| **Short-document tail power, and it is a seed draw** | Manifold 5%-tail power on short natural-AI documents averaged **0.170 ± 0.110** over 12 seeds (2026-08-26) against a 0.933 length-fair ranking; the 2026-09-27 draw reads 0.071 against 0.893; per-tier spread reaches 0.18, wider than several differences the record once read as improvements. Three fixes were built and all three fail: distance normalisation (rejected), finer stratification, and an explicit estimator-noise covariance. `tools/eval_docscale.py` re-runs the table instead of quoting it. |
+| **Long-form generation is not caught** | At α = 0.05, manifold tail power on long-form AI is **0.000** — stable across 2 metrics × 4 calibration splits × 12 seeds. Its length-fair rank AUC is 0.840 (2026-09-27), so the signal exists and the operating point cannot reach it. |
 | **Cooperative-layer tools** | `deai_provenance` and `deai_personal` are honestly `unmeasured` until the author supplies their own draft history or ≥ 3 prior papers. |
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` — and now for a *measured* reason. Burstiness reverses sign on adversarial prose (AUC 0.181) and signposting runs below chance (0.247), so no operating point is available to write. |
-| **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.991 and triage overlap 0.889 for the 2026-09-05 retrain (0.846 / 0.654 across the 2.6× bank growth before it), but an old triage list will not reproduce exactly. |
+| **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 1.000 and triage overlap 0.995 for the 2026-09-27 retrain (0.846 / 0.654 across the 2.6× bank growth), but an old triage list will not reproduce on every document ([§7.0](docs/architecture/evaluation/learned-model.md)). |
 | **A quarter of the corpus is never used** | Headings matching no section bucket are dropped rather than guessed: **2,334 of 9,178 (25.4%)** in `wgl`, 42 of 148 in `wgl-letter`. The remainder is mostly topic headings ("Matter power spectrum"); "Measurements" and "Background" were refused as genuinely ambiguous. |
-| **Register fires on accepted prose, and the vocabulary audits are advice** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0371 findings per 1,000 body words** (57 findings; the same 57 read 0.0247 against a raw-source denominator until v0.36.2, and 0.0858 before the v0.36.0 heading and v0.36.1 float fixes), 22.2% of documents, rank AUC **0.391** against machine text — it still fires *more* on human papers than on AI drafts, and 98.2% of the 57 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector (replicated by author rather than journal, 22 papers, AUC **0.328**, [§21](docs/architecture/evaluation/held-out-labels.md)). The exhaustive zero-hit audit is the same fact at full strength: every refereed paper carries words the corpus never wrote (3.37 per 1,000 body words, AUC 0.174), so it and the collocation axis ship as advice with author dispositions, and the collocation bank costs 0.6 s per run that `--no-collocation` drops ([§23](docs/architecture/evaluation/vocabulary-and-residue.md)). |
-| **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's p90 gate fires at **0.203** per passage on 203 held-out refereed papers, under its 0.271 three-gate union bound ([§17.5](docs/architecture/evaluation/held-out-labels.md)); it read 0.454 under v0.36.2 because the bank stored only the `[math]` projection, so the reference held no numeral inside math while every manuscript did — closed in v0.36.3 by storing each paragraph's numeral projection beside it. 7.00% of the digits it read on LaTeX were citation years until v0.32.0; precision and recall for the advice itself need `tools/label_findings.py`, and running it is the author's act. |
-| **Hedging only speaks about introductions** | The epistemic-marker axis ships restricted to `intro`, where its p10 gate fires at 7.89% on 203 held-out refereed papers. Elsewhere it fires at 15–27% on prose a referee accepted, and at least one generation regime lands below chance. Cohesion needs no such restriction (6.6–14.6% across all seven buckets). |
+| **Register fires on accepted prose, and the vocabulary audits are advice** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0364 findings per 1,000 body words** (56 findings), 22.2% of documents, rank AUC **0.391** against machine text — it fires *more* on human papers than on AI drafts, and 87.5% of the 56 flags would vanish if the paper sat in its own bank ([§17.4](docs/architecture/evaluation/held-out-labels.md)). Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector (replicated by author rather than journal, 22 papers, AUC **0.411**, [§21](docs/architecture/evaluation/held-out-labels.md)). The exhaustive zero-hit audit is the same fact at full strength: every refereed paper carries words the corpus never wrote (3.34 per 1,000 body words, AUC 0.177), so it and the collocation axis ship as advice with author dispositions, and the collocation bank costs 0.6 s per run that `--no-collocation` drops ([§23](docs/architecture/evaluation/vocabulary-and-residue.md)). |
+| **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's p90 gate fires at **0.201** per passage on 203 held-out refereed papers, under its 0.271 three-gate union bound ([§17.5](docs/architecture/evaluation/held-out-labels.md)); precision and recall for the advice itself need `tools/label_findings.py`, and running it is the author's act. |
+| **Hedging speaks only about introductions and methods** | The epistemic-marker axis ships restricted to `intro` and `method`, where its p10 gate fires at 9.09% and 9.62% on 203 held-out refereed papers and every generation regime separates. In `data`, `conclusion` and `results` it fires at 12–14% on prose a referee accepted, and in `discussion` a generation regime lands below chance ([§19](docs/architecture/evaluation/discourse-and-citation.md)). Cohesion needs no such restriction (6.8–14.9% across all seven buckets). |
 | **Two axes can want opposite things** | Cohesion asks a sentence to reuse the previous sentence's nouns; recital counts sentences bearing numerals. In a number-dense passage the noun worth carrying forward is the one the numbers are about, so satisfying one axis costs the other and no rewrite satisfies both ([`examples/`](examples/README.md): the revision carries `bias` into numeral-bearing sentences and restates its headline pair, and its two strong recital findings are led by numeral density at p96 and p99 rather than by a run). Both findings are true; the contract is advisory precisely because the trade-off is the author's to make. |
 | **A fresh clone measures nothing** | All profile assets are gitignored. Until you build a profile from your own papers, every corpus-referenced axis is `unmeasured`. |
 
@@ -727,7 +717,7 @@ Empty. `label_findings.py` ships; running it is the author's business, not the r
 this project measures against is provenance — `eval_findings.py`, on labels that already exist.
 
 **Closed by refutation, not by shipping.** The length-aware manifold, a larger conformal calibration
-set, long-form tail power, four L3 retrains, the leakage contrast, the register operating point, and
+set, long-form tail power, five L3 retrains, the leakage contrast, the register operating point, and
 now citation placement were built or tested and refuted. The last was the strongest model-free
 discriminator in the record (AUC 0.866) and did not survive its own pre-registered test: a second bank
 from a different model scores **0.053** on the same statistic with no citation instruction and **0.734**

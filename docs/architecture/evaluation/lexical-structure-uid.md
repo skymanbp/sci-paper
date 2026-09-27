@@ -37,28 +37,66 @@ These tests are in
 ## 5. Sentence-structure reference evidence
 
 `style-profile/wgl/structure_baseline.json`
-contains 27,841 paragraph observations across seven section buckets — `method` 9,478,
-`results` 3,978, `data` 3,894, `intro` 3,812, `discussion` 3,635, `conclusion` 2,611,
+contains 28,439 paragraph observations across seven section buckets — `method` 9,654,
+`results` 4,065, `data` 3,953, `intro` 3,848, `discussion` 3,739, `conclusion` 2,747,
 `abstract` 433. The file records reference fractions for announced enumeration, ordinal
 runs, tricolon-like setup/list patterns, anaphora, balanced closers, and aggregate
 templating.
 
-Counts are post-2026-09-04 (v0.36.3) and reflect five rounds of corpus-layer fixes
-plus the 500-paper breadth corpus (EVALUATION §2). The third round is the
-heading-coverage work in limit 5 below, which added 2,946 paragraphs (25,005 -> 27,951);
-the fourth is v0.32.0's citation projection fix, which removed 44 (27,951 -> 27,907)
-because a paragraph made only of leaked bibliography keys is no longer a paragraph of
-prose; the fifth is the v0.36.3 profile rebuild on the v0.36.0–v0.36.2 corpus-side
-fixes (heading whitespace and `\texorpdfstring`, floats and citations blanked across
-lines, one assembly reader), which re-cut 66 bank rows (27,907 -> 27,841): 207 rows
-gone, 131 added and 478 re-paragraphed, across 48 of the 516 papers with bank
-rows.
-The v0.27.1 file read 593 observations with
-`results` at 26, under its 30-passage floor; the v0.27.0 file read 1,942 with `method`
-at 1,671, but `method` was then `DEFAULT_SECTION_BUCKET` and absorbed every unnamed
-heading, and paragraphs were split from PDF line fragments rather than reconstructed.
-None of the three is comparable to the others as a count of anything. **Every bucket
-now clears the floor**, so no bucket is rank-only.
+**How the bank reached this shape.** This is the record's one account of the
+corpus-layer history; every section-keyed count elsewhere is read against it.
+
+| bucket | v0.27.1 (31 files) | v0.28.0 | v0.29.0 (heading coverage) | v0.32.0 (citation fix) | v0.36.3 (profile rebuild) | v0.39.0 (profile rebuild) |
+|---|---:|---:|---:|---:|---:|---:|
+| abstract | 15 | 433 | 433 | 433 | 433 | 433 |
+| intro | 109 | 3,753 | 3,844 | 3,840 | 3,812 | 3,848 |
+| data | 112 | 3,929 | 3,915 | 3,908 | 3,894 | 3,953 |
+| method | 163 | 8,144 | 9,522 | 9,512 | 9,478 | 9,654 |
+| discussion | 118 | 3,088 | 3,653 | 3,647 | 3,635 | 3,739 |
+| conclusion | 48 | 2,533 | 2,610 | 2,609 | 2,611 | 2,747 |
+| results | 26 | **3,118** | **3,964** | **3,958** | **3,978** | **4,065** |
+| **total** | **593** | **25,005** | **27,951** | **27,907** | **27,841** | **28,439** |
+
+- **v0.28.0 (2026-08-25), two rounds of corpus-layer defects.** Section labels:
+  `classify_section` matched titles in the singular only, so
+  `Results`/`Conclusions`/`Systematics` fell to `method`; `method` was the default
+  bucket and absorbed every unnamed heading; PDF table cells were accepted as
+  headings and PDF "paragraphs" were line fragments. An unrecognised heading is now
+  `unknown` and is dropped rather than guessed. What counts as a paper: `\include`
+  fragments counted as separate papers (one review entered every distribution
+  twelve times); selecting the root instead lost the body it includes (72 words in
+  place of 64,657); the root selector and the reader resolved `\input` targets
+  differently; a `\subsection` did not inherit its `\section`, sending 54.8% of all
+  section words to `unknown`; and the 500-paper `fulltext-arxiv/` breadth corpus was
+  invisible to every paragraph-level baseline. Register composition moved with it:
+  abstracts fell from 96% of the reference to 35%.
+- **v0.29.0**, the heading-coverage work in limit 5 below: 2,946 paragraphs added.
+- **v0.32.0**, the citation projection fix: 44 removed, because a paragraph made
+  only of leaked bibliography keys is no longer a paragraph of prose.
+- **v0.36.3**, the rebuild on the v0.36.0–v0.36.2 corpus-side fixes (heading
+  whitespace and `\texorpdfstring`, floats and citations blanked across lines, one
+  assembly reader): 66 fewer — 207 rows gone, 131 added and 478 re-paragraphed,
+  across 48 of the 516 papers with bank rows.
+- **v0.39.0 (2026-09-27)**, the rebuild on the corpus-side fixes of the 2026-09-27
+  audit: a paragraph that opens on a citation or an equation enters the bank (D16),
+  placeholders are no longer words (D7), non-ASCII letters are letters (D10), and
+  `\[…\]` and `$$…$$` are mathematics on the corpus side as on the manuscript side
+  (A5, A6). 598 more on the same 516 papers; how the 598 divide between those fixes
+  was not measured.
+
+The v0.27.1 file read 593 observations with `results` at 26, under its 30-passage
+floor; the v0.27.0 file read 1,942 with `method` at 1,671, when `method` absorbed
+every unnamed heading and paragraphs were split from PDF line fragments. None of the
+early counts is comparable to the others as a count of anything. **Every bucket now
+clears the floor** — `results`, under it in v0.27.1, holds 4,065 — so no bucket is
+rank-only.
+
+The curated tiers and the breadth corpus are distinct roles. The tiers carry every
+weighted aggregate and the dossier; the breadth corpus is unweighted and feeds the
+reference distributions only, so it cannot restyle the imitation target.
+`retrieve_exemplars` reads the curated tiers by default. At v0.28.0 one arXiv
+bundle in 500 lost 35% of its prose, because it ships chapter files with no root
+that assembles them.
 
 Interpretation limits:
 
@@ -98,30 +136,31 @@ Interpretation limits:
 
 ## 6. UID reference evidence
 
-`style-profile/wgl/uid_baseline.json` records **27,851** paragraphs that met its
+`style-profile/wgl/uid_baseline.json` records **28,444** paragraphs that met its
 25-token requirement. It stores pooled and section-level means, standard deviations,
 and counts for global UID, local UID, and mean surprisal under GPT-2-large. Pooled
-global UID is **3.303 ± 0.420**; local UID 3.417 ± 0.445; mean surprisal 3.563 ± 0.524.
+global UID is **3.301 ± 0.413**; local UID 3.412 ± 0.439; mean surprisal 3.558 ± 0.519.
 
 | bucket | n | global UID |
 |---|---:|---|
-| method | 9,485 | 3.31 ± 0.45 |
-| results | 3,979 | 3.28 ± 0.26 |
-| data | 3,895 | 3.36 ± 0.51 |
-| intro | 3,812 | 3.26 ± 0.41 |
-| discussion | 3,636 | 3.29 ± 0.37 |
-| conclusion | 2,611 | 3.33 ± 0.43 |
+| method | 9,659 | 3.30 ± 0.44 |
+| results | 4,065 | 3.28 ± 0.26 |
+| data | 3,953 | 3.35 ± 0.50 |
+| intro | 3,848 | 3.26 ± 0.39 |
+| discussion | 3,739 | 3.29 ± 0.37 |
+| conclusion | 2,747 | 3.35 ± 0.43 |
 | abstract | 433 | 3.23 ± 0.49 |
 
-Counts are post-2026-09-05 (fifth rebuild, on the 27,851-row bank). Neither the 593-paragraph / 3.383 ± 0.680
+Counts are from the v0.39.0 rebuild (2026-09-27), on the 28,444-row bank. Neither the 593-paragraph / 3.383 ± 0.680
 nor the 1,942-paragraph / 3.329 ± 0.391 predecessor is comparable: the first was blind
 to the breadth corpus, and the second labelled most of its paragraphs `method` by
 default and split them from PDF line fragments, so both its size and its section keys
-described something other than what they claimed (§14.2, EVALUATION §2).
+described something other than what they claimed (§5).
 
-The section means are strikingly tight — 3.23 to 3.36 across seven buckets, a spread of
-0.13 against within-bucket standard deviations of 0.26–0.51. It was 0.15 before the
-fourth rebuild and 0.13 after, so removing the leaked keys did not disturb the null. **Section identity barely
+The section means are strikingly tight — 3.23 to 3.35 across seven buckets, a spread of
+0.12 against within-bucket standard deviations of 0.26–0.50. It was 0.15 before the
+v0.32.0 citation fix, 0.13 after it and after v0.36.3, and is 0.12 now, so neither removing
+the leaked keys nor the later rebuilds disturbed the null. **Section identity barely
 moves paragraph-level UID in this corpus.** That is a null worth recording rather than
 a defect: it means a per-section UID operating point would be calibrating on a
 difference smaller than its own noise, which is consistent with §9.8's finding that the

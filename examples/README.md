@@ -21,7 +21,7 @@ gitignored — so on a fresh clone both files report `unmeasured` for the
 corpus-referenced axes instead of the numbers below. Build one first with
 `python tools/build_profile.py --field <field>` and the `--calibrate` commands
 in `style-profile/README.md`. The figures here were produced against the `wgl`
-profile on 2026-09-05 (v0.36.3) and will move with the corpus.
+profile on 2026-09-27 (v0.39.0) and will move with the corpus.
 
 ## What it reports
 
@@ -29,22 +29,23 @@ profile on 2026-09-05 (v0.36.3) and will move with the corpus.
 |---|---:|---:|
 | L0 targets | 1 | **0** |
 | integrity blockers | 0 | 0 |
-| total advisories | 20 | **15** |
-| strong advisories | 7 | **5** |
-| document-scale findings | 8 | **6** |
+| total advisories | 22 | **17** |
+| strong advisories | 8 | **6** |
+| document-scale findings | 9 | **7** |
 
 Per rule:
 
 | rule | before | after | |
 |---|---:|---:|---|
 | `discourse-cohesion` | 3 | **1** | intro passage cleared from p1 |
+| `discourse-hedging` | 0 | 1 | the revised method states no hedge — see below |
 | `em-dash` (L0) | 1 | **0** | |
 | `ing-tail:highlighting` | 1 | **0** | |
 | `document-uniformity` | 6 | **5** | |
 | `document-role-decoupling` | 1 | **0** | |
 | `structure-template` | 1 | 2 | announced enumeration gone, two announced counts remain |
 | `salience-recital` | 4 | **3** | fell, and the two strong ones changed kind — see below |
-| `collocation-novel` | 2 | **3** | rose for the same reason, and for one of its own — see below |
+| `collocation-novel` | 3 | 3 | the same count, not the same pairs — see below |
 
 ## Nothing was deleted to make a finding go away
 
@@ -63,11 +64,13 @@ that fake a link.
 ## A coined term keeps its pair
 
 `collocation-novel` counts, per sentence, the adjacent common-word pairs that
-no passage of the field's corpus has ever written. It went from 2 findings to 3
-because the revision says `blending fraction` and `blending term` — this
-synthetic paper's own parameter, a pair the real literature does not use — in
-more sentences, and because carrying `bias` forward for cohesion puts it next
-to words it had not stood beside before (`bias runs`). That is the axis's stated exception, not a defect to fix:
+no passage of the field's corpus has ever written. It reads 3 findings before
+and 3 after, and they are not the same three. Both versions are flagged for
+this synthetic paper's own parameter — `blending term`, `blending fraction`, a
+pair the real literature does not use — and the revision adds one of its own
+making: carrying `bias` forward for cohesion puts it next to words it had not
+stood beside before (`bias runs`, the one strong collocation finding left).
+The coined pair is the axis's stated exception, not a defect to fix:
 a term this paper defines keeps its pair and gets its definition at first use,
 and the disposition is recorded as *kept*, never answered by dissolving the pair
 or changing the claim.
@@ -104,13 +107,23 @@ paragraph that writes its numbers inside math looked numeral-free, so any
 density looked like recital. v0.36.3 calibrates on the numeral projection of
 each passage (EVALUATION §17.5), and the same revision reads 3.
 
+## A finding the revision earned
+
+`discourse-hedging` speaks for methods as well as introductions since v0.39.0
+([§19](../docs/architecture/evaluation/discourse-and-citation.md)). The revised
+method section states its procedure in 160 words without one epistemic marker,
+the 2nd percentile of human method sections, so it is flagged; the original's
+is not. A method section certain of what it did may be right to say so: the
+finding is an advisory, and whether to act on it is the author's call.
+
 ## The part that barely moved, and why
 
-Document-scale findings go from 8 to 6, and five of the six that remain are
+Document-scale findings go from 9 to 7, and five of the seven that remain are
 `document-uniformity`.
 
 Cross-paragraph dispersion is measured over the paragraphs a document has, and
-this one has eleven. An eleven-paragraph file cannot demonstrate that its paragraph
+the measured parts of these files hold six (original) and ten (revision). A file
+that short cannot demonstrate that its paragraph
 shape varies with rhetorical role, because there is little variation to measure
 and no room to show a pattern is not chance. The conformal p-values behind
 these axes are calibrated against complete papers of ordinary length, so a

@@ -53,6 +53,34 @@ Read-only review of `git diff 9f0b920..edd480c`; session `01a06ebe-b4c5-7802-bfe
 2. **应改文档/元数据**：`/1k` 分母口径；collocation scope=sentence；`presents`；定义豁免、名字豁免写进 standard；p_absent 降为 co-presence heuristic 或改名；tie policy。
 3. **可延后**：A10 相邻 null；A15/A16 评估器与标注器；A14 pair 边界；统一 TeX 分解层（大工程）。
 
+## 逐条处理（2026-09-27 补记）
+
+v0.36.2 的发布说明按根因而非按编号写（`CHANGELOG.md` v0.36.2，提交 `3ea7699`）；本表把它逐条对回编号。三条在 v0.36.2 只落地了一侧，另一侧由 [2026-09-27 全库审计](full-review-2026-09-27.md) 发现并在 v0.39.0 补上。
+
+| # | 处理 | 版本 |
+|---|---|---|
+| A1 | 已修：restatement 与 zero-gain 取并集，被删段落内的句子不再重计 | v0.36.2 |
+| A2 | 已修：v0.36.2 挡住 canonical home 丢掉副本所带否定、比较、数字这一方向；反方向在 v0.39.0 补上（2026-09-27 审计 A12） | v0.36.2、v0.39.0 |
+| A3 | 已修：开头套语只在它自己至多三个内容词会被删时才算整句零增益 | v0.36.2 |
+| A4 | 已修：`--require-shrink` 读作百分比、分数或词数，拒绝 `100%`、`0%`、`inf`、`30%%`，分数向上取整到一个词 | v0.36.2 |
+| A5 | 已修：gate 一侧不计占位符；map 一侧在 v0.39.0 补上（2026-09-27 审计 A13） | v0.36.2、v0.39.0 |
+| A6 | 已修：统一段落扫描 `deai_reference.paragraphs`，float 在两侧都整块置空 | v0.36.2 |
+| A7 | 已修：edit-meta 在可见正文（含 heading、caption）上整体扫描 | v0.36.2 |
+| A8 | 已修：diff 规则比较完整的被否定对象，旧版本已有的否定不算新增 | v0.36.2 |
+| A9 | 已修：`section_units` 改由 `extract_sections.RE_SECTION` 派生并继承，无标题文档为一个单元；`deai_residue.RE_LABEL` 一侧在 v0.39.0 补上（2026-09-27 审计 C4） | v0.36.2、v0.39.0 |
+| A10 | 以改名收口：权重改名为 `expected_copresent_passages` / `p_copresence_absent`，只用于排序与展示，不进 gate | v0.36.2 |
+| A11 | 已收窄：只有定义短语的宾语获得 `defined-here`，不再豁免整句 | v0.36.2 |
+| A12 | 已修：宏定义按行首匹配，不再吞掉前面的空行 | v0.36.2 |
+| A13 | 已修：`tex_assembly.py` 保留同一行 `\input` 前后的文字，重复 include 再次展开，只有当前 include 栈内的子文件算环 | v0.36.2 |
+| A14 | 已修：词对在 `/`、`.` 和数字处断开，bank 重建 | v0.36.2 |
+| A15 | 已修：可打分文档少于 20 篇时 AUC 为 `unmeasured` | v0.36.2 |
+| A16 | 已修：对照样本按行跨度排除任何被 finding 触及的段落 | v0.36.2 |
+| 结构 | 已修：structure 读统一段落扫描，heading 先置空 | v0.36.2 |
+| 口径 | 已修：每千词分母是正文 prose 词（`prose_words(body_only(text))`） | v0.36.2 |
+| 漂移（scope） | 已修：collocation 的 scope 与 calibration unit 都是 `sentence` | v0.36.2 |
+| 漂移（`presents`） | 以改文档收口：标准与 skill 在 v0.36.2 改；DEAI_SUBSYSTEM 的例句在 v0.39.0 改（2026-09-27 审计 I25） | v0.36.2、v0.39.0 |
+| tie policy | 已记录：plateau 顶端读法写入 EVALUATION §23.2；分位网格在 v0.39.0 改为最近秩（2026-09-27 审计 C12） | v0.36.2、v0.39.0 |
+
 ---
 
 # Part 2 —— Codex 报告原文

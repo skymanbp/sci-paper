@@ -18,14 +18,14 @@ thing: which papers are held out, and what it costs when one quietly is not.
 
 ---
 
-## 17. Held-out refereed papers as labels: register and salience measured (v0.30.0, corrected v0.31.0, superseded by §18)
+## 17. Held-out refereed papers as labels: register and salience measured (v0.30.0; every re-measurement since is tabled in §17.4)
 
-> **Read §18 for the current register numbers.** Every register figure below was
-> measured at `MIN_MANUSCRIPT_USES = 5`; v0.32.0 raised it to 15, which cut the
-> held-out findings from 887 to 198 and the rate from 0.3842 to 0.0858 per 1,000
-> words. §18's table carries the pairs. The section is kept because the reasoning
-> — why provenance is a label, why held-out had to be enforced, what the paired
-> leakage measurement controls for — is unchanged by the threshold.
+> **The current register numbers are the last row of the table closing §17.4**,
+> which carries every re-measurement of this population. The figures above that
+> table were measured at `MIN_MANUSCRIPT_USES = 5`, the setting v0.31.0 shipped.
+> The section is kept because the reasoning — why provenance is a label, why
+> held-out had to be enforced, what the paired leakage measurement controls for
+> — is unchanged by the threshold.
 
 Both axes had stood at "precision `unmeasured`, pending hand labels" since
 v0.26.0. Half of that gap never needed a labeller. A refereed ApJ/ApJL/A&A
@@ -128,27 +128,27 @@ rate. That open item was closed in [§18.4](projection-and-operating-point.md)
 by refuting its premise: rank AUC stays below 0.5 at every setting, so no
 operating point makes this a detector.
 
-> **⚠️ Superseded (v0.32.0).** Every register figure in §17.2–17.4 was
-> re-measured in [§18.4](projection-and-operating-point.md): **0.0858** per
-> 1,000 words on **44.83%** of documents, AUC **0.2856**, leakage **94.44% of
-> 198**. Two changes, both in that release — the citation projection stopped
-> leaking bibliography keys into prose (§18.1), and `MIN_MANUSCRIPT_USES` moved
-> 5 → 15 once the sweep showed rank AUC below 0.5 at every setting. The salience
-> figures below also moved slightly, because removing 7.00% of the digits the
-> numeral projection carried (§18.2) shifted both the reference and the measured
-> side. Read §18 for current values; this section is kept for its method and its
-> history.
->
-> **⚠️ Correction (2026-08-27, v0.31.0).** The figures above replace those
-> v0.30.0 published — **0.991** per 1,000 words on **93.6%** of documents, AUC
-> 0.080, leakage 72.7% of 2,287. Those were measured with a projection defect:
-> `manuscript_terms` read the whole raw file while the corpus df was built from
-> body prose only, so front matter and bibliographies were compared against a
-> reference that had excluded them. **58.7%** of the findings came from outside
-> body prose (27.5% preamble, 26.3% bibliography, 4.1% TeX control words, 0.9%
-> `skip` sections). No threshold changed; the projection did. Salience was
-> unaffected and reproduces byte-for-byte — 0 of its 1,077 findings on these
-> papers fall in a bibliography.
+**How the held-out rate moved.** This table is the one account of the chain;
+every other place that quotes the rate gives its last row and points here. One
+population throughout, the 203 papers of §17.1, and one statistic. Every step is
+a projection fix or the use floor, never a change of population.
+
+| release | what changed | findings | per 1,000 words | documents flagged | rank AUC vs machine | own-membership suppression | measured in |
+|---|---|---:|---:|---:|---:|---:|---|
+| v0.30.0 | first measurement: the manuscript side read the whole raw file, the corpus side body prose only | — | 0.991 | 93.6% | 0.080 | 72.7% of 2,287 | — |
+| v0.31.0 | one projection on both sides: 58.7% of the v0.30.0 findings came from outside body prose (27.5% preamble, 26.3% bibliography, 4.1% TeX control words, 0.9% `skip` sections) | 887 | 0.384 | 87.2% | 0.148 | 86.3% of 887 | §17.2–17.4 |
+| v0.32.0 | citation keys no longer leak into prose (§18.1); use floor 5 → 15 (§18.4) | 198 | 0.0858 | 44.83% | 0.2856 | 94.44% of 198 | §18.4 |
+| v0.36.0 | headings out of the manuscript's body projection | 81 (196 before, same process) | 0.0351 | 30.0% | 0.352 | 95.1% of 81 | §23.1 |
+| v0.36.1 | floats blanked on the manuscript side as on the corpus side | 57 | 0.0247 | 22.2% | 0.392 | 98.2% of 57 | §23.1 |
+| v0.36.2 | per body prose word instead of per raw-source word | 57 | 0.0371 | 22.2% | 0.391 | — | §23.1 |
+| **v0.39.0** (2026-09-27) | profile rebuilt on the audit's corpus-side fixes; own membership counted as the bank holds a paper (audit E17) | **56** | **0.0364** | **22.17%** | **0.391** | **87.5% of 56** | this table |
+
+No threshold changed at v0.31.0; the projection did. Salience was unaffected and
+reproduced byte-for-byte — 0 of its 1,077 findings on these papers fell in a
+bibliography. The own-membership column before v0.39.0 matched terms by
+substring over blank-line blocks of the raw source, preamble and bibliography
+included, which overstated suppression; from v0.39.0 the paper's own passages
+are the ones the bank would admit, indexed as the bank indexes them.
 
 **Guarded since v0.30.1.** §15.5 derived that a bank of n passages cannot express
 a rate below 1/n, so under 10,000 passages this gate collapses to "df == 0". That
@@ -217,6 +217,12 @@ papers whose rows the reference contains — with per-bucket rates method
 0.233, abstract 0.342 (26 of 76). Rank AUC against machine text on body-word
 density rises to **0.663**. Nothing about the salience gate is open.
 
+**Re-taken on the 2026-09-27 rebuild**, on the nearest-rank quantile grid
+(audit C12): **1,975 findings over 9,840 scorable paragraphs = 0.2007** per
+passage, and rank AUC **0.666** on body-word density. This paragraph and the
+one above are the record of the seam; everything else that quotes the rate
+gives this value and points here.
+
 ### 17.6 Limits
 
 The register figure is an upper bound on advice-quality false positives, not a
@@ -227,7 +233,9 @@ one journal family, 2012–2018, and the fetch stopped at the `--max-papers 200`
 cap rather than at exhaustion, so 203 is not a power calculation. `machine:ai`
 tiers are short (median 1,266–1,788 words) against 9,793, so every
 machine-vs-human AUC inherits the length asymmetry of §9. The paired leakage
-test adds only the paper's own passages, so 86.3% is a lower bound.
+test adds only the paper's own passages, so it bounds leakage from below;
+before v0.39.0 it also matched terms by substring over raw-source blocks, which
+pushed the other way (audit E17).
 
 ---
 
@@ -333,7 +341,10 @@ same way §17.5 does once subsections inherit their parent bucket (v0.36.2):
 and back the same way once the reference is calibrated on the numeral
 projection (v0.36.3): **0.1943**, 197 findings over the same 1,014, with
 salience's rank AUC 0.567 and register's **0.412** (5 findings) on the
-rebuilt profile, register still below 0.5.
+rebuilt profile, register still below 0.5. On the 2026-09-27 rebuild the same
+22 papers read salience **0.1933** (196 findings over the same 1,014) at rank
+AUC 0.569, and register **0.411** (5 findings, all 5 suppressed by the paper's
+own membership under the corrected estimator), still below 0.5.
 
 **What this does not establish.** One field, one advisor, 22 papers. The
 population is small enough that one paper is 4.5 percentage points of the

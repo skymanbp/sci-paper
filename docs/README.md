@@ -60,7 +60,7 @@ universal paper PASS/FAIL.
 | Per-tool registry, calibration, and failure behavior | [../tools/README.md](../tools/README.md) |
 | Supplying a field corpus | [../style-corpus/README.md](../style-corpus/README.md) |
 | Generated profile assets and build boundaries | [../style-profile/README.md](../style-profile/README.md) |
-| Per-version history | [../CHANGELOG.md](../CHANGELOG.md) · [../CHANGELOG-ARCHIVE-v0.33-v0.34.md](../CHANGELOG-ARCHIVE-v0.33-v0.34.md) (v0.33.0-v0.34.0) · [../CHANGELOG-ARCHIVE-RECENT.md](../CHANGELOG-ARCHIVE-RECENT.md) (v0.27.1-v0.32.0) · [../CHANGELOG-ARCHIVE.md](../CHANGELOG-ARCHIVE.md) (v0.22.0-v0.27.0) · [../CHANGELOG-ARCHIVE-EARLY.md](../CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0) |
+| Per-version history | [../CHANGELOG.md](../CHANGELOG.md) · [../CHANGELOG-ARCHIVE-v0.35.md](../CHANGELOG-ARCHIVE-v0.35.md) (v0.35.0-v0.35.1) · [../CHANGELOG-ARCHIVE-v0.33-v0.34.md](../CHANGELOG-ARCHIVE-v0.33-v0.34.md) (v0.33.0-v0.34.0) · [../CHANGELOG-ARCHIVE-RECENT.md](../CHANGELOG-ARCHIVE-RECENT.md) (v0.27.1-v0.32.0) · [../CHANGELOG-ARCHIVE.md](../CHANGELOG-ARCHIVE.md) (v0.22.0-v0.27.0) · [../CHANGELOG-ARCHIVE-EARLY.md](../CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0) |
 | Worked example: a synthetic manuscript before and after acting on the findings | [../examples/README.md](../examples/README.md) |
 | Working rules for this repository | [../CLAUDE.md](../CLAUDE.md) |
 | Adapted-material attribution and adoption boundaries | [../ACKNOWLEDGMENTS.md](../ACKNOWLEDGMENTS.md) |
@@ -79,13 +79,10 @@ accumulating:
 - no tracked source or document exceeds 750 lines, the same cap the author's local editing hook enforces;
 - every relative link, in-page anchor and numbered cross-reference in the READMEs and `docs/` resolves.
 
-One convention it cannot enforce lives in the suite instead. The figures these
-documents quote come from `style-profile/<field>/`, which is gitignored, so no
-CI check can open the source of a published number.
-`tests/test_published_figures.py` therefore renders each figure *from* the
-artifact and looks for it in the document, and skips — rather than passes — when
-a clean clone has no profile to read. The drift it exists to stop is recorded in
-[§18.8](architecture/evaluation/projection-and-operating-point.md).
+One convention it cannot enforce lives in the suite instead: the figures these
+documents quote come from the gitignored `style-profile/<field>/`, so
+`tests/test_published_figures.py` checks each against its artifact
+([§18.8](architecture/evaluation/projection-and-operating-point.md)).
 
 Historical `CHANGELOG.md` entries quote the documentation paths that were current
 at that release; documents moved into `architecture/` and `design-notes/` in

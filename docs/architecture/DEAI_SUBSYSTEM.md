@@ -45,7 +45,7 @@ A narrow deterministic rewrite target:
 
 - Tier A lexical occurrence;
 - em-dash occurrence;
-- Tier B occurrence above the cap of one occurrence per section and word.
+- Tier B occurrence above the cap of one occurrence per heading unit and word.
 
 The target count is reduced to zero during editing, but an L0 target does not imply
 that the manuscript is scientifically invalid.
@@ -110,8 +110,9 @@ axis at this layer that never joins the to-zero set. It asks whether the draft
 speaks its own field's vocabulary, by comparing terms the manuscript leans on
 (≥ 15 uses) against document frequency in the field's own corpus. The evidence is
 frequency, never a curated list of a neighbouring discipline's words, because a
-list cannot separate `AUC` (1 corpus passage) from `epoch` (402) and `accuracy`
-(774). Three constructions are handled rather than thresholded: hyphenated
+list cannot separate `AUC`, which the field's corpus almost never writes, from
+`epoch` and `accuracy`, which it writes routinely (EVALUATION §14.4). Three
+constructions are handled rather than thresholded: hyphenated
 compounds are judged by their rarest part, `\mathrm{}` preceded by `_` or `^` in
 a macro body is a subscript decoration rather than a term, and possessives fold
 onto the bare term. Macro bodies are read because the shared reduction erases
@@ -191,8 +192,10 @@ to find. Where a reference has no spread above the advisory gate the feature
 abstains rather than reporting an ordinary passage as the 100th percentile.
 
 This detector is the only one that reads
-[`extract_style.latex_to_numeral_text`](../../tools/extract_style.py), the second
-LaTeX projection (the bank writer runs it too, to store `numeral_text`). `latex_to_plain` replaces every math span with `[math]`, which
+[`extract_sections.latex_to_numeral_text`](../../tools/extract_sections.py), the second
+LaTeX projection (`rewrite_reward` reads numbers through it too, and the bank
+stores each paragraph's `numeral_text` under the same projection through
+`extract_style.paired_paragraphs`). `latex_to_plain` replaces every math span with `[math]`, which
 is right for lexical and shape statistics and zeroes every numeral signal on
 `.tex` input; the numeral-preserving projection shares the same pattern set and
 differs only in what happens inside an inline math span. Displayed equations are
@@ -200,15 +203,14 @@ dropped by both. The reference is built from the same projection: every bank
 row carries `numeral_text` beside `text`, paired paragraph by paragraph by
 `extract_style.paired_paragraphs`, and the calibration reads that field. Until
 v0.36.3 it read `text`, so the reference held no numeral inside math while the
-manuscript did, and the p90 gate fired at 0.45 per held-out passage against a
-0.27 bound (EVALUATION §17.5).
+manuscript did (EVALUATION §17.5).
 
 ### L2: collocation
 
 [`../tools/deai_collocation.py`](../../tools/deai_collocation.py) asks a question
 the register axis cannot: whether a sentence joins words the field never joins.
-Each word may be ordinary — `physical` and `cells` both are — and the pair still
-one no passage of 41,644 has written. The unit is the sentence, the feature the
+Each word may be ordinary — `binned` and `kernel` both are — and the pair still
+one no passage of the field's banks has written. The unit is the sentence, the feature the
 fraction of its distinct adjacent content-word pairs that the bank does not
 attest, and the reference is leave-one-out per bucket: at calibration a pair the
 bank saw in exactly one passage is treated as that passage's own, so the
@@ -219,8 +221,8 @@ breaks at punctuation, a `[math]`/`[CITE]` placeholder, a dash, a slash, a
 period or a digit, because `yields, separate` is two clauses. Each flagged pair
 carries its expected passage co-presence λ = df(a)·df(b)/N and e^−λ
 (`expected_copresent_passages`, `p_copresence_absent`; a ranking aid, never a
-filter), so a reader can see that `measurements projected` (λ = 183) is a
-stronger absence than `sub-halo abundances` (λ = 0.3).
+filter), so a reader can see that a pair of two frequent words is a stronger
+absence than a pair of two rare ones.
 A document-level novel-pair fraction is reported as evidence and used by
 `eval_findings`; it is not a percentile, because the reference is per sentence.
 
@@ -241,11 +243,10 @@ appeared in the sentence before it, and `L2.hedging`, epistemic markers per
 1,000 words.
 
 They are the first axes in the subsystem to measure at **different units**, and
-that is forced rather than chosen. Hedging has no paragraph-scale lower tail at
-all: on the `wgl` bank its tenth percentile is exactly 0.000 in every one of the
-seven section buckets, because a 40-word paragraph that hedges nowhere is
-entirely ordinary. Calibrating there produces a gate no passage can fall below.
-Regrouped so one section is one unit, six of seven buckets separate. So cohesion
+that is forced rather than chosen. Hedging has no paragraph-scale lower tail
+(EVALUATION §19.1), because a 40-word paragraph that hedges nowhere is entirely
+ordinary, and calibrating there produces a gate no passage can fall below.
+Regrouped so one section is one unit, the buckets separate. So cohesion
 calibrates and detects per paragraph, hedging per section, each artifact records
 its own `unit`, and the two are never read against each other.
 
@@ -260,7 +261,7 @@ drift apart on what "the reference cannot resolve this" means. That guard is wha
 surfaced the hedging unit problem instead of shipping it.
 
 Hedging additionally speaks only for buckets whose operating point was shown to
-transfer — `intro` on `wgl`. Two independent measurements put the boundary in the
+transfer — `intro` and `method` on `wgl`. Two independent measurements put the boundary in the
 same place, and both are recorded in EVALUATION §19. Neither axis is an
 authorship claim: a passage below the field's tenth percentile is unusual for the
 field, which is worth telling an author, and is not evidence about who wrote it.
@@ -284,7 +285,7 @@ The sweep drops the preamble and every `skip` unit (acknowledgements, appendices
 references) on both sides, and a document-shape metric is strong when it exceeds the
 quoted quantile threshold. If the corpus does not contain enough complete and
 measurable papers, the axis is `unmeasured`; the `wgl` figures in EVALUATION §9
-predate the rebuild these changes require. The implementation must not synthesize a
+were re-measured on the rebuilt reference on 2026-09-27. The implementation must not synthesize a
 document baseline from paragraph exemplars.
 
 ### L3: learned field similarity
@@ -298,13 +299,12 @@ field-similarity triage.
 A bundle without a documented calibrated operating point is degraded. Evaluation
 must separate source-paper groups and audit mathematical-placeholder density,
 jargon density, section type, and paragraph length. The mathematical-density
-confound was audited (EVALUATION §7.1: matched-stratum AUC within 0.02 of
-overall); the field-topic confound is decided not resolvable from this feature
-set (§7.0a).
+confound was audited (EVALUATION §7.1); the field-topic confound is decided
+not resolvable from this feature set (§7.0a).
 
 The per-paragraph learned classifier is an **offline audit instrument, not a
 product detector one calibration away from an operating point**: the paragraph
-unit is near-unjudgeable for AI-ness (perceptual AUC 0.444, EVALUATION.md §7), and the document-level
+unit is near-unjudgeable for AI-ness (EVALUATION §7, §13), and the document-level
 surprisal path is now measured (EVALUATION.md §9.8) to be weaker than the
 model-free manifold and to add nothing to it. Accordingly, `make_finding` carries
 a `calibration_unit` (paragraph|section|document) that structurally caps
@@ -323,22 +323,24 @@ sentence defining the paper's own object by what it never does or has, the
 prose form of the negative label, deleted outright where the neighbouring
 sentences already carry the positive statement and rewritten only where they
 do not: `never` and the `nothing is` / `none sees` /
-`no … is applied` forms are strong, at 0.008 per 1,000 words in refereed prose;
-`carries no`, `is not applied`, `does not participate` are ordinary, at
-0.02–0.05 per 1,000 and mostly procedure; a citation in the sentence makes it a
+`no … is applied` forms are strong, being rare in refereed prose; `carries no`,
+`is not applied`, `does not participate` are ordinary, being common there and
+mostly procedure (EVALUATION §23.4a); a citation in the sentence makes it a
 baseline contrast and exempts it); `residue-edit-meta`
 (`TODO`, `see previous version`, case-sensitive for the upper-case markers;
 `we have added` only with a document object, since in refereed prose it is a
 procedure); `residue-negative-label` (a heading or caption whose object head
 stems never occur in the body, on documents of 400 words or more — ordinary,
-because it names 26% of refereed papers); and, given `--before` or `--git-ref`,
+because refereed papers carry it routinely, EVALUATION §23.4); and, given
+`--before` or `--git-ref`,
 `residue-negative-label-added` (a label the edit introduced and the body does
 not earn — strong). The literal and label rules read `deai_register.body_only`,
 because a `\newcommand{\TODO}` in a preamble and a bibliography title are not
 prose an edit left. The history and absence families are defined once
 in the tool and mirrored between markers in `skills/paper/SKILL.md`;
 `validate_plugin` calls the tool's own `validator_check`, which proves the mirror
-and scans the shipped documentation for the edit-meta literals. A strong finding
+and scans both READMEs, the standard and every skill for the edit-meta literals.
+A strong finding
 exits 1, one of the four narrow exit contracts the standard's §0.1 registers
 (with `length_gate`, `rewrite_reward` and `verify_references`).
 
@@ -440,26 +442,10 @@ standard.
 
 ## 10. Validation and release boundary
 
-[`../tools/validate_plugin.py`](../../tools/validate_plugin.py) checks:
-
-- manifest, README, and CHANGELOG version agreement;
-- skill frontmatter and standard references;
-- stale review-contract markers;
-- README and manifest skill/tool counts;
-- exact README product-tool registry;
-- Python syntax and core imports;
-- core command-line entry points;
-- shared schema fields and allowed enums;
-- linter exit and Tier B cap semantics;
-- normative/evaluation document authority boundaries;
-- required tests and CI wiring;
-- the residue contract: the history families the paper skill quotes match the
-  tool's, and no shipped document carries an edit-meta literal;
-- every tracked file within the 750-line budget;
-- relative links, in-page anchors and numbered cross-references resolve.
-
-The authoritative check list is `validate_plugin.py` itself (`tools/README.md`
-mirrors it); this summary is descriptive.
+[`../tools/validate_plugin.py`](../../tools/validate_plugin.py) runs the
+repository's release checks. What each one covers is listed once, in
+[`tools/README.md`](../../tools/README.md), which mirrors the validator's own
+`CHECKS` tuple.
 
 CI also runs the unit and CLI test suite. A release additionally requires an
 independent code review, a clean-checkout verification, release metadata updates,
@@ -476,7 +462,7 @@ open:
    invariant verification — EVALUATION §11 and §13;
 2. learned-model audits for mathematics, jargon, section, length, and source-paper
    confounds — §7;
-3. complete-document calibration — §9, measured over 507 complete papers;
+3. complete-document calibration — §9, measured over the field's complete papers;
 4. UID and learned-model operating points — both `degraded` by measurement, §6
    and §7, with the refutations that keep them so in
    [`DISPOSITIONS.md`](DISPOSITIONS.md);

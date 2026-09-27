@@ -101,28 +101,12 @@ python tools/deai_anchoring.py --field <name> --calibrate
 python tools/train_voice_model.py --field <name>
 ```
 
-> **Recalibrate after every corpus-side fix the CHANGELOG records** (the last
-> full rebuild shipped with v0.36.3 on 2026-09-05: 27,851 bank rows, `results`
-> 3,240). The v0.28.0 notice below is kept as the record of why.
->
-> **Recalibrate after v0.28.0.** Two rounds of corpus-layer defects were fixed
-> on 2026-08-25. Section labelling: `classify_section` matched titles in the
-> singular only, `method` was itself the default bucket and absorbed every
-> unnamed heading, and PDF "paragraphs" were line fragments. Then what counts as
-> a paper: `\include` fragments were counted as separate papers, selecting the
-> root instead lost the body it includes, the root-selector and the reader
-> resolved `\input` targets differently, and a `\subsection` did not inherit
-> its `\section` — which sent 54.8% of all section words to `unknown`. The
-> 500-paper `fulltext-arxiv/` breadth corpus was also invisible to every
-> paragraph-level baseline.
->
-> Rebuilding against all of it takes the exemplar bank from 593 to **25,005**
-> paragraphs and `results` from 26 to **3,118**, so every bucket clears the
-> 30-passage floor and none is rank-only.
->
-> **Until you rebuild, treat every section-keyed axis as `degraded`** whatever
-> its recorded status says: rerun `build_profile.py` and then each `--calibrate`
-> above. `docs/architecture/EVALUATION.md` §2 carries the same notice.
+> **Recalibrate after every corpus-side fix the CHANGELOG records, and until
+> you do, treat every section-keyed axis as `degraded`** whatever its recorded
+> status says: rerun `build_profile.py` and then each `--calibrate` above. The
+> last full rebuild shipped with v0.39.0 on 2026-09-27.
+> `docs/architecture/EVALUATION.md` §2 carries the same notice, and its §5
+> records how the bank reached its present shape.
 
 Snapshot before any rebuild — a recalibration overwrites artifacts that can take
 hours of GPU time to regenerate:
@@ -138,7 +122,11 @@ rules exclude, so it must not drift outside the repository's ignore rules.
 
 `deai_policy.json` is not synthesized by the basic builder. Add it only when the
 sample unit, corpus selection, uncertainty, applicability, operating point, and
-validation behavior are documented in the asset and `EVALUATION.md`. For the
+validation behavior are documented in the asset and `EVALUATION.md`. It holds
+one block per axis: `distribution` (`burstiness_ratio` and `signpost_fraction`,
+which replace the compatibility defaults 0.60 and 0.20) and `structure`
+(`rare_template_fraction`, at or below which a template counts as rare); a file
+written without blocks is read as the block itself. For the
 `wgl` field this asset is **not** obtainable: EVALUATION §16 measures both
 statistics it would threshold and finds burstiness reverses sign on adversarial
 prose while signposting runs below chance, so `L1.distribution` and
