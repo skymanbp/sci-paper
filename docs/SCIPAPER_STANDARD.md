@@ -6,13 +6,13 @@
 > implement this document. If a skill,
 > tool, style profile, or workflow conflicts with this file, this file wins.
 >
-> Status: **v3.8 (2026-09-04)**. v3.8 adds the zero-hit audit to `L0.register`,
-> the `L2.collocation` axis, three auxiliary structure families, the `L4.residue`
-> axis with its diff gate, and a third mechanical enforcement point in §5.3
-> (the removal map and `--require-shrink`). No consequence class changed; one
-> exit contract was added (§0.1, `deai_residue.py`). The disposition register is
-> [`architecture/DISPOSITIONS.md`](architecture/DISPOSITIONS.md) and the
-> version history [`../CHANGELOG.md`](../CHANGELOG.md).
+> Status: **v3.9 (2026-09-27)**. v3.8 (2026-09-04) added the zero-hit audit,
+> `L2.collocation`, three auxiliary structure families, `L4.residue` with its
+> diff gate and the §5.3 removal map; v3.9 records the absence residue (§2 L4,
+> v0.37.0), the collocation glossary reading (v0.38.0) and the fourth narrow
+> exit contract (§0.1, `verify_references.py`). No consequence class changed.
+> The disposition register is [`architecture/DISPOSITIONS.md`](architecture/DISPOSITIONS.md)
+> and the version history [`../CHANGELOG.md`](../CHANGELOG.md).
 
 ---
 
@@ -32,7 +32,7 @@ classes with different consequences:
 | Class | Meaning | Required consequence |
 |---|---|---|
 | `integrity_blocker` | The scientific record may be wrong, unsupported, internally inconsistent, unreproducible, or unusable | Must be resolved from sources. The author cannot waive it as a style preference. |
-| `l0_target` | A preserved lexical de-AI target: Tier A, Tier B excess above its calibrated cap, or em-dash | Rewrite to zero applicable targets. This is a prose target, not a judgement that the paper is scientifically invalid. |
+| `l0_target` | A preserved lexical de-AI target: Tier A, Tier B excess above its section cap (one occurrence per word per heading unit), or em-dash | Rewrite to zero applicable targets. This is a prose target, not a judgement that the paper is scientifically invalid. |
 | `advisory` | Calibrated L1-L4 or editorial evidence that a passage may be templated, distant from the field reference, unclear, or weaker than an available alternative | Rank, act on the strongest items, then record an author disposition for any residual. |
 
 Examples of `integrity_blocker` include incorrect mathematics or physics,
@@ -57,7 +57,7 @@ reference. They must not claim that a machine wrote it.
 
 Standalone advisory tools return `0` when measurement completes, whether or
 not advisories are found. They return nonzero only for invalid input,
-configuration failure, or execution failure. Three exceptions carry their own
+configuration failure, or execution failure. Four exceptions carry their own
 narrow actionable contracts, and in each the meaning of `1` is a measured
 outcome the caller must act on, never a failure:
 
@@ -69,7 +69,9 @@ outcome the caller must act on, never a failure:
 - `rewrite_reward.py` returns 0 when at least one candidate is eligible, 1 when
   every candidate fails scientific-fidelity or length-budget eligibility (the
   caller preserves the original and regenerates tighter, §6), and 2 for invalid
-  input or missing required configuration.
+  input; a missing learned model leaves the voice term unmeasured, never exit 2;
+- `verify_references.py` returns 0 when no entry is a blocker, 1 when an identifier
+  cannot be resolved or a cited key has no entry, 2 for invalid input; an outage is `unmeasured`.
 
 Scientific-integrity review is broader than the linter and is reported through
 typed findings. It is never compressed into the linter's L0 exit status.
@@ -268,14 +270,12 @@ text must not say that a low score proves machine authorship. A universal
 
 The per-paragraph learned classifier (`deai_voice`, axis `L3.voice`) is an
 **offline audit instrument, not a product detector one calibration away from an
-operating point.** This is a decided status fixed by three measured facts: the
-single-paragraph unit is near-unjudgeable (perceptual AUC at chance, EVALUATION
-§10); on field-topic text the classifier mis-flags at a high rate while overall
-separation stays high (a level confound the paragraph unit cannot escape,
-EVALUATION §7); and document-level surprisal dispersion is weaker than the
-model-free manifold and adds nothing to it (EVALUATION §9.8). L3 therefore stays
-`degraded` with no operating point, emits rank-only triage, and its per-paragraph
-findings are confidence-capped (§3, `calibration_unit`).
+operating point**: a decided status, fixed by the three measured facts recorded
+in EVALUATION §10, §7 and §9.8 (the paragraph unit is near-unjudgeable, the
+field-topic level confound cannot be escaped at that unit, and document-level
+surprisal adds nothing to the model-free manifold). L3 therefore stays `degraded`
+with no operating point, emits rank-only triage, and its per-paragraph findings
+are confidence-capped (§3, `calibration_unit`).
 
 ### L4: positive scientific voice
 
@@ -509,7 +509,7 @@ confound-free self-checks.
    argument demands it* (role coupling), never at random. Length is handled by the
    per-stratum plus conformal calibration, never by normalizing a distance.
 
-5. **L4 anchoring and voice.** Anchor unanchored Results and Methods claims to
+5. **L2 anchoring and L4 voice.** Anchor unanchored Results and Methods claims to
    numbers, citations, references, or comparisons (a writing-quality gain, not an
    AI verdict); strengthen the specific claim, the stance, and faithful
    compression using author exemplars. Every added fact is source-traceable.

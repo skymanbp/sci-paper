@@ -120,27 +120,30 @@ macro-bound vocabulary entirely. Findings are always advisories.
 The same tool carries the **zero-hit audit** (`register-zero:<term>`), which is
 exhaustive where the threshold rule is selective: every body word with corpus
 document frequency 0 is listed, once, with its sentence. Both sides of the
-comparison use one projection — preamble, bibliography, comments and section
-headings excluded from the manuscript exactly as they are absent from the
-passage banks (`body_only`, built on `extract_sections.RE_HEADING_COMMAND`) —
-because a word present on one side only is a projection defect, not a finding.
-Exemptions are mechanical and few: a formation of an attested stem
-(`clamped`/`clamp`, `holdouts`/`holdout`) is ordinary rather than strong; a word
-the paper defines or a cited method's name is the author's disposition, not the
-tool's. The audit is not a detector — refereed papers carry more zero-hit words
+comparison use one projection — preamble, bibliography, comments, floats and
+section headings excluded from the manuscript exactly as they are absent from
+the passage banks (`body_only`, built on `extract_sections.RE_HEADING_COMMAND`)
+— because a word present on one side only is a projection defect, not a finding.
+Exemptions are mechanical and three: a formation of an attested stem
+(`clamped`/`clamp`, `holdouts`/`holdout`), a defining sentence or acronym
+expansion at first use, and a proper name capitalised at every use are ordinary
+rather than strong; a cited method's own name is the author's disposition, not
+the tool's. The audit is not a detector — refereed papers carry more zero-hit words
 than machine drafts (EVALUATION §23.1) — and ships as advice.
 
 ### L1: information distribution
 
 [`../tools/deai_metrics.py`](../../tools/deai_metrics.py) measures section-aware
 sentence-length variation and paragraph-opening connective density. A compatibility
-heuristic may produce degraded evidence. A strong advisory requires an applicable
-calibrated policy and sufficient reference support.
+heuristic may produce degraded evidence. A strong advisory would require an
+applicable calibrated policy; none is written, because the operating point was
+refuted by measurement (EVALUATION §16), so the axis stays `degraded`.
 
 [`../tools/deai_oracle.py`](../../tools/deai_oracle.py) optionally measures token
 surprisal and Uniform Information Density features. Missing model assets leave the
-axis unmeasured. The compatibility `FLAG_Z` remains degraded until field calibration
-provides an operating point with provenance and uncertainty.
+axis unmeasured. The compatibility `FLAG_Z` is `degraded` by decision: no field
+operating point is written, and the document-level path was measured not to add
+power (EVALUATION §9.8, DISPOSITIONS).
 
 ### L2: sentence and paragraph construction
 
@@ -155,7 +158,7 @@ structural patterns that keyword replacement cannot repair:
 - repeated paragraph templates.
 
 An auxiliary class — antithesis clusters, short reversal beats, paper-as-agent
-subjects ("This paper presents"), wh-cleft openers ("What matters is") and
+subjects ("This Letter asks whether"), wh-cleft openers ("What matters is") and
 modifier stacks (a run of three or more tokens before a head noun carrying at
 least two hyphenated compounds) — is reported under `structure-auxiliary` and
 never enters `template_score`, so the calibrated manifold does not move when a
@@ -185,9 +188,9 @@ coarse grid or a lower-edge reading swallows exactly the passages the axis exist
 to find. Where a reference has no spread above the advisory gate the feature
 abstains rather than reporting an ordinary passage as the 100th percentile.
 
-This detector is the sole consumer of
+This detector is the only one that reads
 [`extract_style.latex_to_numeral_text`](../../tools/extract_style.py), the second
-LaTeX projection. `latex_to_plain` replaces every math span with `[math]`, which
+LaTeX projection (the bank writer runs it too, to store `numeral_text`). `latex_to_plain` replaces every math span with `[math]`, which
 is right for lexical and shape statistics and zeroes every numeral signal on
 `.tex` input; the numeral-preserving projection shares the same pattern set and
 differs only in what happens inside an inline math span. Displayed equations are
@@ -203,17 +206,19 @@ manuscript did, and the p90 gate fired at 0.45 per held-out passage against a
 [`../tools/deai_collocation.py`](../../tools/deai_collocation.py) asks a question
 the register axis cannot: whether a sentence joins words the field never joins.
 Each word may be ordinary — `physical` and `cells` both are — and the pair still
-one no passage of 41,710 has written. The unit is the sentence, the feature the
+one no passage of 41,644 has written. The unit is the sentence, the feature the
 fraction of its distinct adjacent content-word pairs that the bank does not
 attest, and the reference is leave-one-out per bucket: at calibration a pair the
 bank saw in exactly one passage is treated as that passage's own, so the
 reference distribution is what a held-out sentence would see. Only common words
 are judged as partners (`COMMON_RATE`, unigram df ≥ 2 × 10⁻⁴), because a rare
 word's pairs are rare for the reason the register axis already reports; a pair
-breaks at punctuation, a `[math]`/`[CITE]` placeholder or a dash, because
-`yields, separate` is two clauses. Each flagged pair carries its expected
-co-occurrence λ = df(a)·df(b)/N and e^−λ, so a reader can see that `measurements
-projected` (λ = 183) is a stronger absence than `sub-halo abundances` (λ = 0.3).
+breaks at punctuation, a `[math]`/`[CITE]` placeholder, a dash, a slash, a
+period or a digit, because `yields, separate` is two clauses. Each flagged pair
+carries its expected passage co-presence λ = df(a)·df(b)/N and e^−λ
+(`expected_copresent_passages`, `p_copresence_absent`; a ranking aid, never a
+filter), so a reader can see that `measurements projected` (λ = 183) is a
+stronger absence than `sub-halo abundances` (λ = 0.3).
 A document-level novel-pair fraction is reported as evidence and used by
 `eval_findings`; it is not a percentile, because the reference is per sentence.
 
@@ -274,7 +279,7 @@ length stratum (`fit_dispersion_manifold`, `manifold_distance`), role-coupled di
 Document calibration records one observation per verified complete paper, bootstrap
 uncertainty, leave-one-document-out human flag behavior, and empirical percentiles.
 If the corpus does not contain enough complete and measurable papers, the axis is
-`unmeasured`; for `wgl` it is `measured` on a 14-paper calibration (EVALUATION §9). The
+`unmeasured`; for `wgl` it is `measured` on a complete-paper baseline (EVALUATION §9). The
 implementation must not synthesize a document baseline from paragraph exemplars.
 
 ### L3: learned field similarity
@@ -288,7 +293,9 @@ field-similarity triage.
 A bundle without a documented calibrated operating point is degraded. Evaluation
 must separate source-paper groups and audit mathematical-placeholder density,
 jargon density, section type, and paragraph length. The mathematical-density
-confound is unresolved until the evidence in `EVALUATION.md` demonstrates otherwise.
+confound was audited (EVALUATION §7.1: matched-stratum AUC within 0.02 of
+overall); the field-topic confound is decided not resolvable from this feature
+set (§7.0a).
 
 The per-paragraph learned classifier is an **offline audit instrument, not a
 product detector one calibration away from an operating point**: the paragraph
@@ -327,7 +334,8 @@ prose an edit left. The history and absence families are defined once
 in the tool and mirrored between markers in `skills/paper/SKILL.md`;
 `validate_plugin` calls the tool's own `validator_check`, which proves the mirror
 and scans the shipped documentation for the edit-meta literals. A strong finding
-exits 1, the third narrow exit contract after `length_gate` and `rewrite_reward`.
+exits 1, one of the four narrow exit contracts the standard's §0.1 registers
+(with `length_gate`, `rewrite_reward` and `verify_references`).
 
 [`../tools/condense_map.py`](../../tools/condense_map.py) is the measurement
 behind `/sci-paper:condense`: six scans (restatement with its canonical home,
@@ -382,7 +390,9 @@ All active writing and review skills implement the same standard:
 
 `brainstorm` is pre-draft ideation; it loads the field dossier but is not a
 normative implementer of this standard (see `validate_plugin.py`
-`NORMATIVE_SKILLS`).
+`NORMATIVE_SKILLS`). The binding role of every skill — the `calibrate` setup
+skill and the `physics` / `mainline` / `logic` measurement primitives included —
+is the table in [`RESPONSIBILITIES.md`](RESPONSIBILITIES.md) §7.
 
 `CONFIRMED`, `REFUTED`, and `MARGINAL` in the escalation record describe whether a
 critique survived evidentiary verification. They do not select its consequence class.
@@ -411,7 +421,9 @@ A field profile may contain:
 - L1/L2 calibrated reference distributions;
 - a complete-document structure baseline;
 - learned-model bundles and operating points;
-- `deai_policy.json` with provenance, sample unit, uncertainty, and applicability.
+- (`deai_policy.json`, once planned here with provenance, sample unit, uncertainty
+  and applicability, is withdrawn: no tool writes it and its operating points are
+  refuted, EVALUATION §16; its consumers report `degraded` without it).
 
 A policy asset must state what was measured, the independent unit, the corpus
 selection rule, sample size, uncertainty method, and validation behavior. If any
@@ -437,7 +449,9 @@ standard.
 - normative/evaluation document authority boundaries;
 - required tests and CI wiring;
 - the residue contract: the history families the paper skill quotes match the
-  tool's, and no shipped document carries an edit-meta literal.
+  tool's, and no shipped document carries an edit-meta literal;
+- every tracked file within the 750-line budget;
+- relative links, in-page anchors and numbered cross-references resolve.
 
 The authoritative check list is `validate_plugin.py` itself (`tools/README.md`
 mirrors it); this summary is descriptive.

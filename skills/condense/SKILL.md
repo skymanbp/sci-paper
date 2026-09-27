@@ -75,9 +75,12 @@ condense's ranked sweep.
 
 1. Read the target file completely. Resolve `--field` as in
    `/sci-paper:de-ai` §1 (shared style-profile convention).
-2. **Snapshot the length baseline** before any edit:
-   `cp <file> <scratch>/length-baseline.tex` (or record the clean git ref).
-   Without an honest baseline the closing gate is meaningless.
+2. **Snapshot the length baseline** before any edit. The baseline is the
+   whole document, not the root file: copy the include tree
+   (`cp -r <paper-dir> <scratch>/baseline/`, then gate against
+   `<scratch>/baseline/<root>.tex`) or record the clean git ref and use
+   `--git-ref`. A root copied alone cannot resolve its `\input` children,
+   reads as ~0 words, and every section then registers as growth.
 3. Build the map:
    `python tools/condense_map.py <file> --format json --output <scratch>/condense-map.json`.
    Six scans, each entry with `removable_words`:
@@ -92,7 +95,7 @@ condense's ranked sweep.
      (`may possibly`), each with the words its replacement saves.
    - `condense-regloss` — the same symbol glossed twice.
    - `condense-duplicate` — a paragraph repeated across sections (Jaccard
-     ≥ 0.60 over ≥ 30 content words).
+     ≥ 0.60 of content words, both paragraphs ≥ 30 prose words).
    `condense_budget` totals them: `removable_total`, `removable_by_rule`, and
    `default_target_words` = restatement + zero-gain outside the carve-out.
    The map is exhaustive for what it scans and blind to what it does not
@@ -117,8 +120,10 @@ For each map entry, in rank order, record `deleted` / `merged` / `kept:<reason>`
    shortened rewrite with `python tools/rewrite_reward.py --field <field>
    --reference <claim-record> --original <span> --candidates ...` — a
    candidate that drops a protected invariant is ineligible regardless of its
-   brevity; among eligible candidates the shorter wins. `--field` is required
-   by the tool (it exits 2 without one); resolve it as in §1 step 1.
+   brevity; among eligible candidates the shorter wins. `--field` resolves as
+   in §1 step 1 (one profile auto-resolves); without a `voice_model.joblib`
+   the learned score is reported unmeasured and the deterministic gate still
+   decides eligibility. Exit 2 is invalid input, never a missing model.
 
 Apply each change with a minimal Edit and re-read the affected region plus
 every cross-reference into it.
@@ -126,14 +131,15 @@ every cross-reference into it.
 ## 3. Verify — prove the shrink
 
 1. **Length gate against the target:**
-   `python tools/length_gate.py <file> --before <scratch>/length-baseline.tex
+   `python tools/length_gate.py <file> --before <scratch>/baseline/<root>.tex
    --require-shrink <default_target_words>` (a percentage such as `8%` or a
-   fraction is also accepted). Exit 0 requires both no unjustified growth and
+   fraction is also accepted; a target of 0 means the map found nothing to
+   cut and only the growth gate applies). Exit 0 requires both no unjustified growth and
    a net cut of at least the target; a cut short of it is a strong
    `length-shrink-short` finding with exit 1, and the pass may not close on
    it — either remove more, or record which kept entries account for the gap.
 2. **Residue:** `python tools/deai_residue.py <file> --before
-   <scratch>/length-baseline.tex`. A condensation must not leave a heading or
+   <scratch>/baseline/<root>.tex`. A condensation must not leave a heading or
    caption promising what the body no longer says; exit 1 blocks closing.
 3. **No orphans:** rebuild/compile the document if it is LaTeX (0 errors,
    0 undefined references, no newly-missing labels); re-run the map and grep

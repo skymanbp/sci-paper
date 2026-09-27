@@ -272,7 +272,7 @@ python tools/ai_ism_lint.py <file> --field <field> \
 
 | 类别 | 词 |
 |---|---|
-| 动词类 | `delve / delves / delving / delved`, `leverages / leveraging / leveraged`, `pave / paves / paving`, `shed / sheds / shedding`（含 "shed light on"）, `showcase / showcases / showcasing`, `utilizing / utilizes`, `underscore / underscores / underscored / underscoring` |
+| 动词类 | `delve / delves / delving / delved`, `leverages / leveraging / leveraged`, `pave / paves / paved / paving`, `shed / sheds / shedding`（含 "shed light on"）, `showcase / showcases / showcased / showcasing`, `utilizing / utilizes`, `underscore / underscores / underscored / underscoring` |
 | 形容词/副词 | `seamless / seamlessly`, `holistic / holistically`, `comprehensively`, `crucially`, `pivotal` |
 | 名词类 | `tapestry`, `testament`, `realm / realms` |
 | 段首套话 | `Recent advances in...`, `Despite significant progress...`, `With the advent of...`, `In recent years,...`, `It is worth noting`, 段首 `Crucially,`, `Importantly,`, `Notably,`, `Interestingly,` |
@@ -288,9 +288,11 @@ corpus 复核为 0 出现后才入 Tier A；`landscape` 虽在其词表中，但
 
 **Tier B — per-section/per-word cap**
 
-Tier B 可以使用，但同一个 Tier B 词在同一 section 最多出现 1 次。第 2 次及
-以后是 `l0_target`；cap 内的出现不是 finding。当前词表由 linter 与 profile
-共同维护，常见项包括 `Furthermore`, `Moreover`, `Additionally`,
+Tier B 可以使用，但同一个 Tier B 词在同一 heading 单元（`\section` 与
+`\subsection` 各算一个单元，linter 按此计）最多出现 1 次。第 2 次及
+以后是 `l0_target`；cap 内的出现不是 finding。规范词表是
+`tools/ai_ism_lint.py` 的 `TIER_A_PATTERN` / `TIER_B_PATTERN`，本表是它的
+人读镜像，常见项包括 `Furthermore`, `Moreover`, `Additionally`,
 `robust/robustly`, `comprehensive`, `utilize/utilized`, `leverage`,
 `Importantly`, `Interestingly`, `Notably`, `intricate`,
 `foster/fosters/fostering/fostered`（后两组 2026-07-16 加入；curated corpus
@@ -342,10 +344,12 @@ grep -n -E '—|---|\\textemdash' main.tex
 
 # Tier A（必删；正文中不允许出现，包括变体）
 grep -n -E -i '(delve|leveraged|leverages|leveraging|paved?|paves|paving|shed[s]?|shedding|showcase[sd]?|showcasing|seamless(ly)?|holistic(ally)?|comprehensively|crucially|utilizes|utilizing|underscor(e|es|ed|ing)|tapestry|testament|pivotal|realms?|recent advances|despite significant|with the advent|in recent years|it is worth)' main.tex
+# 段首套话（Tier A）：只有位于段落第一行时才算段首；linter 按段落判定，不按物理行
+grep -n -E '^\s*(Importantly|Interestingly|Notably|Crucially),' main.tex
 
-# Tier B（定位；是否超过每节每词 cap 由 linter 按 section 计算）
-grep -n -E -i '^\s*(Furthermore|Moreover|Additionally|Importantly|Interestingly|Notably),' main.tex
-grep -n -E -i '\b(robust|robustly|comprehensive|utilize|utilized|leverage|intricate|foster(s|ing|ed)?)\b' main.tex
+# Tier B（定位；是否超过每 heading 单元每词 cap 由 linter 计算）
+grep -n -E -i '^\s*(Furthermore|Moreover|Additionally),' main.tex
+grep -n -E -i '\b(robust|robustly|comprehensive|utilize|utilized|leverage|importantly|interestingly|notably|intricate|foster(s|ing|ed)?)\b' main.tex
 
 # 顽固替换组（不分级）
 grep -n -E -i '\b(in order to|aim to|facilitate|serves as)\b' main.tex

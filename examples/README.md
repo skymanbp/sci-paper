@@ -21,7 +21,7 @@ gitignored — so on a fresh clone both files report `unmeasured` for the
 corpus-referenced axes instead of the numbers below. Build one first with
 `python tools/build_profile.py --field <field>` and the `--calibrate` commands
 in `style-profile/README.md`. The figures here were produced against the `wgl`
-profile on 2026-09-04 (v0.36.3) and will move with the corpus.
+profile on 2026-09-05 (v0.36.3) and will move with the corpus.
 
 ## What it reports
 
@@ -51,7 +51,7 @@ Per rule:
 Every measured value in the original survives in the revision, and the header
 of `sample-manuscript-revised.tex` lists them. Two of them are also *restated*
 where the argument now needs them: the headline 0.052 at a blending fraction of
-0.40 appears in the abstract and again in the discussion. No value is invented
+0.40 appears in the results and again in the abstract. No value is invented
 and none is dropped. The recital advisories
 were answered the way their action text asks — by saying what the quantities
 establish, so a passage stops being an uninterrupted run of numeral-bearing
@@ -84,8 +84,8 @@ That density is the revision's own doing. The cohesion axis asks each
 sentence to reuse a content word from the sentence before it. In a results
 paragraph, the word available to carry forward is usually the one the numbers
 are about — here, `bias`. Repeating it pulls the subject into sentences that
-also carry a numeral, and restating the headline pair where the discussion
-needs it puts numerals into a passage that had none; both are exactly what
+also carry a numeral, and restating the headline pair in the abstract puts
+numerals into a passage that had none; both are exactly what
 `salience-recital` counts, the fraction of sentences bearing numerals and the
 longest uninterrupted run of them.
 

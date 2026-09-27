@@ -28,12 +28,14 @@ style-profile/
     ├── register_lexicon.json               # corpus document frequency (deai_register.py --calibrate)
     ├── collocation_bank.json               # unigram + adjacent-pair document frequency (deai_collocation.py --calibrate)
     ├── collocation_baseline.json           # per-section leave-one-out novel-pair reference, sentence unit
+    ├── cohesion_baseline.json              # given/new linkage reference, paragraph unit (deai_discourse.py --calibrate)
+    ├── hedging_baseline.json               # epistemic-marker reference, section unit (same command)
     ├── deai_policy.json                    # optional calibrated operating points
     ├── voice_model.joblib                  # optional learned field-similarity model
     ├── voice_features_cache.npz            # learned-model feature cache
     ├── voice_model_evaluation.json         # learned-model audit record (train_voice_model.py)
     ├── anchoring_baseline.json             # claim-anchoring band (deai_anchoring.py --calibrate)
-    ├── ai_ism_negatives_*.jsonl            # harvested negative paragraph banks
+    ├── ai_ism_negatives_extracted.txt      # harvested negative paragraphs (extract_md_negatives.py)
     ├── human_*_extra.jsonl                 # supplementary human-positive banks
     ├── human_wl_toptier.jsonl              # subfield-restricted human bank (stored, not wired)
     ├── docval/                             # document-level validation working set
@@ -88,11 +90,21 @@ python tools/deai_register.py --field <name> --calibrate
 # Pair bank and leave-one-out sentence reference for the collocation axis (L2.collocation)
 python tools/deai_collocation.py --field <name> --calibrate
 
+# Cohesion (paragraph unit) and hedging (section unit) references (L2.cohesion / L2.hedging)
+python tools/deai_discourse.py --field <name> --calibrate
+
+# Section-class claim-anchoring band (L2.claim_anchoring)
+python tools/deai_anchoring.py --field <name> --calibrate
+
 # Optional learned field-similarity model; still degraded until the recorded
 # confound audit and operating point justify stronger use
 python tools/train_voice_model.py --field <name>
 ```
 
+> **Recalibrate after every corpus-side fix the CHANGELOG records** (the last
+> full rebuild shipped with v0.36.3 on 2026-09-05: 27,851 bank rows, `results`
+> 3,240). The v0.28.0 notice below is kept as the record of why.
+>
 > **Recalibrate after v0.28.0.** Two rounds of corpus-layer defects were fixed
 > on 2026-08-25. Section labelling: `classify_section` matched titles in the
 > singular only, `method` was itself the default bucket and absorbed every

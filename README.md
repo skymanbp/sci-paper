@@ -67,14 +67,14 @@ problem:
 | **measure** | [`logic`](skills/logic/SKILL.md) | Measurement primitive, findings only. Claim graph (circular arguments, broken chains, switched conditions, undeclared assumptions), empirical statistics (splits, leakage, multiple comparisons, priors), and the review side of claim–evidence discipline: verb strength may not exceed evidence strength. The single source for `paper-review` dimension C. |
 | **measure** | [`mainline`](skills/mainline/SKILL.md) | Measurement primitive, findings only. Builds a paper-level purpose record and contribution graph, then answers a cold reader's seven questions — where must a reader backtrack, supply hidden context, or choose between competing readings? No three-act template assumed. The single source for `paper-review` dimension E. |
 | **measure** | [`figure-review`](skills/figure-review/SKILL.md) | Reviews **compiled pages at 150 DPI**, not source. Traces figure/caption/data provenance, measures canvas balance at the pixel level, separates scientific and build contradictions from readability advisories. |
-| **act** | [`de-ai`](skills/de-ai/SKILL.md) | Three chained passes — subsystem measurement (L0–L4), a structural-tell audit, then **claim-first rewriting** that rebuilds prose from the protected claim graph instead of polishing in place. `--audit-only` stops after measurement. |
+| **act** | [`de-ai`](skills/de-ai/SKILL.md) | Three chained passes — subsystem measurement (L0–L4), a structural-tell audit, then **claim-first rewriting** that rebuilds prose from the protected claim graph instead of polishing in place. `--audit-only` stops after the structural-tell audit (Pass 2). |
 | **act** | [`condense`](skills/condense/SKILL.md) | Whole-document redundancy elimination under one-canonical-home-per-fact, loop-until-dry convergence, and a **mechanical length gate** as the closing proof that the document actually shrank. |
-| **compose** | [`paper-review`](skills/paper-review/SKILL.md) | Source-traced **A–R review**: mathematics, physics, logic and statistics, language, structure and narrative spine, citations, data and figures, interfaces, redundancy, reproducibility, modern-physics checks, consistency, adversarial verification (three passes + twelve-framing escalation), staleness, process artifacts, citation precision, glossary alignment. |
+| **compose** | [`paper-review`](skills/paper-review/SKILL.md) | Source-traced **A–R review**: mathematics, physics, logic and statistics, language, structure and narrative spine, citations, data and figures, interfaces, redundancy, reproducibility, modern-physics checks, consistency, adversarial verification (three passes + twelve-framing escalation), staleness, process artifacts, draft language, citation precision, glossary alignment. |
 | **compose** | [`final-review`](skills/final-review/SKILL.md) | Parent orchestrator: runs paper-review, figure-review, de-ai `--audit-only`, and the physics / mainline / logic primitives as **isolated worktree agents**, merges their typed findings, and verifies a stable disposition-complete state across consecutive rounds. |
 | **genre** | [`proposal-polish`](skills/proposal-polish/SKILL.md) | NSF Project Summary/Description, NIH Specific Aims, fellowships. Keeps the vision-and-feasibility register a paper would trim, enforces claim–feasibility matching, edits the score-forming first pages hardest. |
 | **explore** | [`brainstorm`](skills/brainstorm/SKILL.md) | Radial research-direction explorer: twelve framing passes per node, glossary-anchored terminology, complete derivation per branch, recursive divergence to convergence. Deferred or incomplete leaves are hard-banned. |
 
-Every skill that emits a finding runs over the same evidence layer — 35 tools emitting one schema, `sci-paper.feedback.v1` — so a finding from the linter, a measurement primitive and the orchestrator are the same
+Every skill that emits a finding runs over the same evidence layer — one schema, `sci-paper.feedback.v1`, whatever tool emits it — so a finding from the linter, a measurement primitive and the orchestrator are the same
 object with the same ID. A composite calls primitives; it never restates their checks. `calibrate` builds the layer they measure on.
 
 ### Scope boundary — what it deliberately will not do
@@ -268,7 +268,7 @@ and a six-sentence recital of a parameter grid.
 
 ```console
 $ python tools/ai_ism_lint.py before.tex --field wgl \
-    --structure --distribution --register --salience --document-structure --no-discourse
+    --structure --distribution --register --salience --document-structure --no-discourse --no-collocation --no-residue
 
 findings: blockers=0 L0=8 advisories=10 (strong=1)
 axis L0.lexical: measured   axis L0.register: measured   axis L2.salience_hierarchy: measured
@@ -387,9 +387,9 @@ disagreements through twelve framings to `CONFIRMED` / `REFUTED` / `MARGINAL`.
 |---|---:|---:|
 | L0 targets | 1 | **0** |
 | `discourse-cohesion` | 3 | **1** |
-| `salience-recital` | 4 | **6** |
+| `salience-recital` | 4 | **3** |
 
-The last row is the point: carrying a noun forward to link two sentences pulls the subject into sentences that also carry a numeral, so in a number-dense passage cohesion and recital want opposite things and no rewrite satisfies both. Both findings are true, and which to act on is the author's judgement — which is why neither is a blocker and there is no score. Walkthrough: [`examples/README.md`](examples/README.md).
+The last row moved with the reference: the 2026-08-27 profile read the revision at 6, and the v0.36.3 rebuild, which calibrates on the numeral projection, reads the same file at 3, the two findings that stay strong having changed kind from run length to density. The tension is still real: carrying a noun forward to link two sentences pulls the subject into sentences that also carry a numeral, so in a number-dense passage cohesion and recital want opposite things and no rewrite satisfies both. Both findings are true, and which to act on is the author's judgement — which is why neither is a blocker and there is no score. Walkthrough: [`examples/README.md`](examples/README.md).
 
 ## Benchmark dashboard
 
@@ -477,8 +477,8 @@ at 100%, and a number taken under that describes the contention, not the axis. V
 | Full test suite — **529 passing**, 27 files (median of 3, spanning 49.8 – 51.7 s) | 51.5 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs ~1.0 s above the interpreter
-floor**, with no optional dependency installed — and 0.6 s of that is loading the 530,677-pair collocation
-bank, which `--no-collocation` drops to ~0.4 s. The two model-backed axes cost 30×–35× more than the full
+floor**, with no optional dependency installed — and 0.6 s of that is loading the collocation bank (530,677
+pairs in the 2026-09-04 bank the timing was taken on; 530,504 after the v0.36.3 rebuild), which `--no-collocation` drops to ~0.4 s. The two model-backed axes cost 30×–35× more than the full
 model-free pass and are opt-in flags — you should not need a GPU to lint a paper. CI runs validator and suite on every push to main and on every PR, Python 3.11, Ubuntu.
 
 ---
@@ -544,7 +544,7 @@ gates, `build` corpus and profile construction, `eval` evidence. Detail: [tools/
 |---|---|---|
 | `tools/deai_feedback.py` | core | Implements `sci-paper.feedback.v1`: stable IDs, consequence classes, measurement states, dispositions, ranking, summaries, rendering. Standard library only. |
 | `tools/ai_ism_lint.py` | core | The unified CLI. Aggregates L0 and every advisory axis into one ranked text/JSON report. Exit `0` = no L0 target, `1` = L0 target present, `2` = invalid input or execution failure. |
-| `tools/length_gate.py` | core | Per-section prose length-budget delta gate (standard §5.3). Exit 1 on net unjustified growth between two document versions, or on a net cut short of `--require-shrink`; `--allow` records justifications. |
+| `tools/length_gate.py` | core | Per-section prose length-budget delta gate (standard §5.3). Exit 1 on net unjustified growth between two document versions, or on a net cut short of `--require-shrink` (0 = no cut required); exit 2 on an unreadable document or baseline, never a verdict; `--allow` records justifications. |
 | `tools/verify_references.py` | core | Verifies a bibliography against the registries its identifiers name (CrossRef, DataCite, arXiv): a DOI or arXiv identifier that resolves nowhere, or a cited key with no entry, is an integrity blocker; a first author, year or title that disagrees with the record is a strong advisory; journal, volume and page differences are ordinary. An entry the network could not answer for stays `unmeasured`. Exit 1 on a blocker. |
 | `tools/condense_map.py` | core | The removal map behind `/sci-paper:condense`: restatements with their canonical home, zero-gain sentences, dead figures/tables/labels/macros/acronyms, verbose constructions, repeated glosses, duplicated paragraphs — each with the words it frees, totalled into a shrink target. Deletes nothing. |
 | `tools/deai_residue.py` | core | The trace an edit leaves: first-person drafting history, a sentence that defines its object by what it never does, edit-meta text, a heading or caption the body never earns, and with `--before` the label an edit added. Exit 1 on a strong finding. |
@@ -573,7 +573,7 @@ gates, `build` corpus and profile construction, `eval` evidence. Detail: [tools/
 | `tools/eval_findings.py` | eval | Scores register, salience, cohesion, hedging and collocation against **provenance** labels instead of hand labels: their firing rate on held-out refereed ApJ/ApJL/A&A papers, on the in-sample papers, and on the `docval` machine tiers, plus a paired test that isolates calibration leakage from publication era. |
 | `tools/label_findings.py` | eval | Samples findings from all five finding-emitting axes (register, salience, cohesion, hedging, collocation) into a human-labelling sheet, re-serves a blind subset for intra-rater agreement, and reports per-axis precision plus **pooled** recall, stratified by named `--population NAME=DIR` sets. Reports `unmeasured` for any stratum under 20 labels. |
 | `tools/build_profile.py` | build | Builds the basic field profile: extraction, optional legacy classifier, exemplar-cache warm-up. |
-| `tools/cli_common.py` | build | Shared command-line preamble and field resolution, used by 28 of 40 tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
+| `tools/cli_common.py` | build | Shared command-line preamble and field resolution (one profile auto-resolves; several run without one and say so), used by 30 of the 39 Python tools. Holds no policy: no default beyond the two roots, reads no profile, emits no findings. |
 | `tools/extract_style.py` | build | Extracts lexicon, sentence statistics, transitions, a descriptive dossier, and a section-typed exemplar bank. Re-exports every public name from `extract_sections.py`. |
 | `tools/extract_sections.py` | build | Source-text projection and section splitting: the section vocabulary and its classifier, both named LaTeX projections, and the PDF heading heuristic. Section buckets key every per-section reference, so changing this requires a profile rebuild. |
 | `tools/tex_assembly.py` | build | Assembles a LaTeX document from its root: `\input`/`\include` children spliced in place (a call mid-line keeps the words around it, a second call splices again, a cycle stops), from the file system or from a git ref so a `--git-ref` baseline is the assembled document at that ref. Owner of the comment and include patterns every reader shares. |
@@ -663,7 +663,7 @@ dossier is evidence, not a standard and not proof of authorship.
 | Corpus reference | **User-supplied, tiered, gitignored** | Style is field-relative. A generic prior is the thing being replaced. |
 | Optional models | `transformers`+`torch`, `scikit-learn`, `sentence-transformers` | Strictly opt-in flags. Absence degrades an axis, never the run. |
 | Distribution | **Claude Code plugin** (`.claude-plugin/plugin.json`) | Skills at `skills/<name>/SKILL.md`, namespaced `/sci-paper:<name>`. |
-| Contract enforcement | `tools/validate_plugin.py` + GitHub Actions | 10 checks over manifests, registries, doc authority, recorded counts, imports, CLI entry points, exit semantics, tests, CI wiring, and the residue contract. Drift fails CI instead of accumulating. |
+| Contract enforcement | `tools/validate_plugin.py` + GitHub Actions | 11 checks over manifests, registries, doc authority and links, recorded counts, imports, CLI entry points, exit semantics, tests, CI wiring, the residue contract, and the 750-line budget. Drift fails CI instead of accumulating. |
 
 ---
 
@@ -713,7 +713,7 @@ de-AI standard.
 | **Long-form generation is not caught** | At α = 0.05, manifold tail power on long-form AI is **0.000** — stable across 2 metrics × 4 calibration splits × 12 seeds. Rank AUC is 0.729, so the signal exists and the operating point cannot reach it. |
 | **Cooperative-layer tools** | `deai_provenance` and `deai_personal` are honestly `unmeasured` until the author supplies their own draft history or ≥ 3 prior papers. |
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` — and now for a *measured* reason. Burstiness reverses sign on adversarial prose (AUC 0.181) and signposting runs below chance (0.247), so no operating point is available to write. |
-| **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.846 and triage overlap 0.654, but an old triage list will not reproduce exactly. |
+| **Retrains are not behaviour-preserving** | Rebuilding the profile refits L3. Ranking holds at ρ 0.991 and triage overlap 0.889 for the 2026-09-05 retrain (0.846 / 0.654 across the 2.6× bank growth before it), but an old triage list will not reproduce exactly. |
 | **A quarter of the corpus is never used** | Headings matching no section bucket are dropped rather than guessed: **2,334 of 9,178 (25.4%)** in `wgl`, 42 of 148 in `wgl-letter`. The remainder is mostly topic headings ("Matter power spectrum"); "Measurements" and "Background" were refused as genuinely ambiguous. |
 | **Register fires on accepted prose, and the vocabulary audits are advice** | Measured on 203 held-out refereed ApJ/ApJL/A&A papers it never saw: **0.0371 findings per 1,000 body words** (57 findings; the same 57 read 0.0247 against a raw-source denominator until v0.36.2, and 0.0858 before the v0.36.0 heading and v0.36.1 float fixes), 22.2% of documents, rank AUC **0.391** against machine text — it still fires *more* on human papers than on AI drafts, and 98.2% of the 57 remaining flags would vanish if the paper sat in its own bank. Sweeping the use floor 5 → 50 keeps AUC below 0.5 **everywhere**, so no setting makes this a detector (replicated by author rather than journal, 22 papers, AUC **0.328**, [§21](docs/architecture/evaluation/held-out-labels.md)). The exhaustive zero-hit audit is the same fact at full strength: every refereed paper carries words the corpus never wrote (3.37 per 1,000 body words, AUC 0.174), so it and the collocation axis ship as advice with author dispositions, and the collocation bank costs 0.6 s per run that `--no-collocation` drops ([§23](docs/architecture/evaluation/vocabulary-and-residue.md)). |
 | **Advice quality is still unlabelled** | Provenance answers "does it fire on accepted prose", not "is this advisory right". Salience's p90 gate fires at **0.203** per passage on 203 held-out refereed papers, under its 0.271 three-gate union bound ([§17.5](docs/architecture/evaluation/held-out-labels.md)); it read 0.454 under v0.36.2 because the bank stored only the `[math]` projection, so the reference held no numeral inside math while every manuscript did — closed in v0.36.3 by storing each paragraph's numeral projection beside it. 7.00% of the digits it read on LaTeX were citation years until v0.32.0; precision and recall for the advice itself need `tools/label_findings.py`, and running it is the author's act. |

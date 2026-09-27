@@ -99,6 +99,9 @@ Workflow states:
 5. Initialize a finding registry keyed by stable finding ID plus semantic deduplication key
    `(rule, location, evidence)`.
 6. Record target path, current revision/hash, build system and selected field.
+7. Snapshot the target document before the first edit of round 1 — the whole include tree
+   (`cp -r`) under `<out>/baseline/`, or the clean git ref — and again at the end of every
+   round, so the §5.3 loop-close gates of §3.7 always have an honest baseline.
 
 ## 3. Each review round
 
@@ -107,16 +110,21 @@ Workflow states:
 In the parent context, invoke `/sci-paper:paper` and read the normative standard. Record their
 current versions/paths in `paper-baseline.md`. This provides policy, not a child verdict.
 
+### 3.1b Verify the bibliography
+
+In the parent context, before launching the reviewer, run
+`python tools/verify_references.py <bib> --tex <target> --format json --output
+<round>/references.json`. An unresolvable identifier or a cited key with no entry is an
+integrity blocker; unmeasured entries stay visible. Pass the report path into the reviewer's
+prompt.
+
 ### 3.2 Isolated paper-review
 
 Launch a worktree agent with a self-contained prompt:
 
 - cold-read the current target and all sources;
-- read the reference report the parent produced for this round with
-  `python tools/verify_references.py <bib> --tex <target> --format json --output
-  <round>/references.json` (an unresolvable identifier or a cited key with no entry is an
-  integrity blocker; unmeasured entries stay visible) and judge relevance, which no
-  registry measures, for every entry;
+- read `<round>/references.json` (§3.1b) and judge relevance, which no registry measures,
+  for every entry;
 - invoke `/sci-paper:paper-review <target> --orchestrated --field <field>`;
 - do not spawn any child agent (M.2 escalation runs in-process);
 - return the complete typed report, including A–R coverage (dimension E narrative-spine
@@ -219,6 +227,13 @@ For each action:
 - rerun the relevant build, scientific check, figure render, linter or claim-fidelity check;
 - record `acted`, `accepted`, `rejected_as_false_positive` or `pending`.
 
+Close the round with the §5.3 loop-close gates against the round's baseline (§2 step 7):
+`python tools/length_gate.py <target> --before <baseline-root>` and
+`python tools/deai_residue.py <target> --before <baseline-root>` (or `--git-ref`). A strong
+`length-growth`, `length-shrink-short` or residue finding needs a disposition before the round
+can be disposition-complete; record `--allow "<section>=<reason>"` justifications in the
+round record.
+
 Subjective strong advisories that require author preference may remain pending with a precise
 question. Do not erase them merely to make counts zero.
 
@@ -231,6 +246,8 @@ A round is **disposition-complete** when:
 - critical derivations under scrutiny = 0;
 - required build/artifacts are valid;
 - every strong advisory has a disposition or stated pending reason;
+- the length and residue gates of §3.7 have run and every strong
+  `length-growth` / `length-shrink-short` / residue finding has a disposition;
 - ordinary advisories and unmeasured/degraded axes are reported;
 - skipped reviewers are labeled unmeasured;
 - no child report or merge failed.

@@ -16,17 +16,20 @@ style-corpus/
 └── <field>/
     ├── tier-1-top/         # top-journal exemplars
     ├── tier-2-mentor/      # mentor or target-author exemplars
-    └── tier-3-reference/   # other relevant field papers
+    ├── tier-3-reference/   # other relevant field papers
+    ├── fulltext-arxiv/     # breadth corpus (fetch_arxiv_abstracts.py --fulltext); bank only
+    └── fulltext-*/         # any other fulltext-* directory is a HELD-OUT set, never calibration
 ```
 
 A field is a writing domain such as `wgl`, `cosmology`, or `ml-methods`. Each
 field produces an independent `style-profile/<field>/`. Tools auto-detect only
 when exactly one field exists; otherwise pass `--field <name>`.
 
-`tools/extract_style.py` currently aggregates the three tiers with fixed weights
-`0.5 / 0.3 / 0.2`. These weights describe the current implementation, not a
-calibrated consequence rule. Change them only together with an evaluation of how
-the resulting profile behaves.
+`tools/extract_style.py` records the tier of every observation with the
+nominal weights `0.5 / 0.3 / 0.2`, but every aggregate it writes pools the
+three tiers **unweighted**; the weights are metadata, not a calibrated rule
+(the dossier and the reference distributions were all built that way). Apply
+them only together with an evaluation of how the resulting profile behaves.
 
 ## Accepted sources
 
@@ -63,9 +66,9 @@ threshold:
 | 3 (reference) | 0 | 5–15 |
 | **Total** | **8** | **25–50** |
 
-Small corpora produce uncertain per-section distributions. The extractor does
-not currently enforce or guarantee a minimum-paper warning, so downstream
-reports must preserve the actual sample count and use `degraded` or
+Small corpora produce uncertain per-section distributions. The extractor warns
+below 5 curated files (it recommends 8 or more) and enforces nothing, so
+downstream reports must preserve the actual sample count and use `degraded` or
 `unmeasured` when the intended inference is unsupported.
 
 Whole-document calibration has a stricter unit rule: each observation must be an

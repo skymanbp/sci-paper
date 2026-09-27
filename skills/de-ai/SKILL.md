@@ -96,8 +96,10 @@ condense's ranked sweep.
    standards, canonical L0 examples).
 3. Read `style-profile/<field>/style_dossier.md` in full when it exists, and
    check freshness: if the corpus under `style-corpus/<field>/` is newer than
-   the dossier, stop and regenerate with `python tools/extract_style.py`. A
-   stale profile is `unmeasured`, never treated as conformity.
+   the dossier, stop and rebuild with `/sci-paper:calibrate <field>` (§3–§4
+   there: `extract_style --field <field>` alone rewrites the dossier and the
+   bank, and every `--calibrate` axis keeps describing the old corpus while
+   reporting `measured`). A stale profile is `unmeasured`, never conformity.
 4. Retrieve section-typed positive anchors only when the bank exists:
    `python tools/retrieve_exemplars.py --field <field> --section <type>
    --topic "<verified one-sentence topic>" --k 5`. Read every returned
@@ -108,7 +110,7 @@ condense's ranked sweep.
 ```bash
 python tools/ai_ism_lint.py <file> --field <field> \
   --structure --distribution --document-structure --register --salience \
-  --oracle --voice --summary --format json --output <scratch>/feedback-before.json
+  --oracle --voice --format json --output <scratch>/feedback-before.json
 ```
 
 Read the output as `sci-paper.feedback.v1`; record every axis state
@@ -135,9 +137,12 @@ Axes and tools:
   or the concept the paper introduces. The same tool's **zero-hit audit**
   (`register-zero:<term>`) is exhaustive rather than thresholded: every body
   word the manuscript uses that no corpus passage carries is listed, strong
-  unless the word is a mechanical formation of an attested stem (`clamped` from
-  `clamp`). A strong hit is answered by one of the §4.2 dispositions, never by
-  silence.
+  unless the manuscript supplies a reason the tool can read — a mechanical
+  formation of an attested stem (`clamped` from `clamp`), a defining sentence
+  or acronym expansion at first use, or a proper name capitalised at every
+  use. "The cited method's own name" is an author disposition, not an
+  exemption. A strong hit is answered by one of the §4.2 dispositions, never
+  by silence.
 - **L2 collocation** (`deai_collocation`) — sentences that join common words
   the field never joins (`physical cells`, `controlled grid`): the fraction of a
   sentence's adjacent content-word pairs that no corpus passage attests, against
@@ -316,7 +321,10 @@ findings. For each selected paragraph:
    entities, inline math and acronyms, comparison/negation/causal direction,
    scope, stance, qualifiers. Re-read every numeric and citation source in
    the same turn. Snapshot the original verbatim (`<scratch>/original.txt`)
-   as the §5.3 length baseline.
+   as the §5.3 length baseline. Before the FIRST paragraph of a pass, also
+   snapshot the whole document once (`<scratch>/document-baseline.tex`, the
+   include tree, or the clean git ref): the loop-close gates of step 6
+   compare against it.
 1b. **Bind.** Fill the binding ledger (§4.3) for the paragraph. It is not
    optional and no detector emits it; every `none` row is a clause the rewrite
    must drop rather than carry forward.
@@ -336,7 +344,10 @@ findings. For each selected paragraph:
    `eligible=False` (fidelity failure, or longer than the original → `-inf`)
    cannot be selected; the tool exits 1 when NO candidate is eligible (a
    measured outcome, not a failure — regenerate tighter) and 2 only on invalid
-   input or a missing profile; `--allow-growth "<reason>"` only with an
+   input. Without a `voice_model.joblib` the learned score is reported
+   unmeasured and the deterministic gate still decides; the set comparison of
+   invariants is blind to a negation MOVED between clauses, so step 3's
+   hand check is where that is caught. `--allow-growth "<reason>"` only with an
    author-approved justification, printed into the run record. Among
    eligible candidates rank by L0 reduction, semantic fidelity, voice score,
    and condensation. If none is eligible, preserve the original and
@@ -353,6 +364,13 @@ findings. For each selected paragraph:
    findings, and dispositions; apply with a minimal Edit and re-read the
    changed region in context. Run the Pass-2 self-interrogation on the
    applied text.
+6. **Close the loop (§5.3).** Before the pass stops, run
+   `python tools/length_gate.py <file> --before <scratch>/document-baseline.tex`
+   (or `--git-ref <ref>`) and `python tools/deai_residue.py <file> --before
+   <scratch>/document-baseline.tex`. A strong `length-growth`,
+   `length-shrink-short` or residue finding blocks the stop until it has a
+   disposition; the per-candidate `--original` budget of step 3 is the
+   candidate-time gate, not this one.
 
 ### 4.1 Ranking a recital passage (`salience-recital`)
 
@@ -474,8 +492,10 @@ heavy run executes on the authorized compute environment, not locally.
 Stop only when: all integrity blockers are resolved or verified false
 positives; applicable L0 targets are zero; every strong advisory is `acted`,
 `accepted`, `rejected_as_false_positive`, or `pending` with a stated reason;
-ordinary advisories and unavailable axes are reported; and every changed
-paragraph passes scientific-fidelity verification. This is a
+ordinary advisories and unavailable axes are reported; every changed
+paragraph passes scientific-fidelity verification; and the Pass-3 step-6
+loop-close gates have run against the document snapshot with every strong
+length or residue finding dispositioned. This is a
 disposition-complete feedback state, not a universal prose verdict. If the
 iteration budget is exhausted, leave the original text for unresolved cases
 and return the pending findings.
@@ -522,8 +542,9 @@ No number, equation, or citation changed.
 Layer-4 failure, never as bare words. The enforced Tier A/B lists live in
 `tools/ai_ism_lint.py`; this skill defers to them. The corpus-derived
 `style-profile/<field>/lexicon.json` feeds the advisory `corpus-zero:` rule only.
-When the corpus changes, re-run `tools/extract_style.py` and
-`tools/build_profile.py`.
+When the corpus changes, re-run `/sci-paper:calibrate <field>` (its §3–§4:
+extraction plus every `--calibrate` axis); `extract_style` and
+`build_profile` alone leave the calibrated references stale.
 
 **Interfaces:**
 - `docs/SCIPAPER_STANDARD.md` — consequence classes, ranking, disposition,
