@@ -202,17 +202,19 @@ def resolves_below_gate(ref: dict[str, Any], feature: str) -> bool:
 def live_buckets(feature: str, field_profile_dir: Path | None) -> list[str]:
     """The buckets this axis may speak about here, or [] if it may not speak.
 
-    Three conditions, all necessary: the bucket is one the axis is calibrated
-    for, its reference clears the sample floor, and that reference has spread
-    below the gate. Detection and status read this same function, so an axis
-    cannot report `measured` for a bucket it then declines to judge.
+    Four conditions, all necessary: the bucket is one the axis is calibrated
+    for, its artifact records the unit this axis measures at, its reference
+    clears the sample floor, and that reference has spread below the gate.
+    Detection and status read this same function, so an axis cannot report
+    `measured` for a bucket it then declines to judge.
     """
     baseline = LOADERS[feature](field_profile_dir)
     if baseline is None:
         return []
     allowed = AXES[feature]["buckets"]
     return [bucket for bucket in reference.usable_buckets(
-                baseline, feature, ADVISORY_PERCENTILE, high=False)
+                baseline, feature, ADVISORY_PERCENTILE, high=False,
+                unit=AXES[feature]["unit"])
             if allowed is None or bucket in allowed]
 
 
@@ -228,30 +230,40 @@ def axis_name(feature: str) -> str:
     return f"L2.{feature}"
 
 
-def discourse_axis_status(field_profile_dir: Path | None) -> list[dict[str, Any]]:
+def discourse_axis_status(field_profile_dir: Path | None,
+                          text: str | None = None) -> list[dict[str, Any]]:
     """One status per feature: the two travel together but fail separately.
 
     They calibrate from the same corpus at different granularities, so a field
     can support one and not the other -- and does: `abstract` resolves for
     cohesion and never for hedging. A single joint status would hide which of
     the two a reader is allowed to act on.
+
+    `text` makes each status about this document: a unit in the `unknown`
+    bucket has no reference and is skipped, and a status computed from the
+    profile alone said `measured` over a document skipped whole.
     """
     statuses = []
     for feature, axis in AXES.items():
         name = axis_name(feature)
-        if LOADERS[feature](field_profile_dir) is None:
+        baseline = LOADERS[feature](field_profile_dir)
+        if baseline is None:
             statuses.append(feedback.axis_status(
                 name, "unmeasured",
                 reason=f"{axis['baseline']} is unavailable",
                 detector="deai_discourse"))
             continue
         live = live_buckets(feature, field_profile_dir)
-        if not live:
+        reasons = [None if live else
+                   (f"no calibrated {axis['unit']} bucket both reaches the "
+                    f"{MIN_REFERENCE_N}-unit floor and has spread below the "
+                    "advisory gate"),
+                   reference.unit_reason(baseline, axis["unit"])]
+        if text is not None:
+            reasons.append(reference.unbucketed_reason(axis["spans"](text), axis["unit"]))
+        if any(reasons):
             statuses.append(feedback.axis_status(
-                name, "degraded",
-                reason=(f"no calibrated {axis['unit']} bucket both reaches the "
-                        f"{MIN_REFERENCE_N}-unit floor and has spread below the "
-                        "advisory gate"),
+                name, "degraded", reason="; ".join(part for part in reasons if part),
                 detector="deai_discourse"))
         else:
             statuses.append(feedback.axis_status(
@@ -263,9 +275,14 @@ def discourse_axis_status(field_profile_dir: Path | None) -> list[dict[str, Any]
 
 def _advisory(feature: str, value: float, values: dict[str, Any], found: float, *,
               bucket: str, start: int, end: int, path: str | Path | None,
-              ref: dict[str, Any], reference_n: int, measured: bool,
+              ref: dict[str, Any], reference_n: int,
               field_profile_dir: Path | None) -> dict[str, Any]:
-    """The finding for one unit on one feature."""
+    """The finding for one unit on one feature.
+
+    Always `measured`: a bucket reaches this only through `live_buckets`,
+    which requires the sample floor, so the degraded branch this once carried
+    could not be taken and was deleted rather than kept as a promise.
+    """
     axis = AXES[feature]
     return feedback.make_finding(
         kind="advisory", layer="L2",
@@ -273,9 +290,8 @@ def _advisory(feature: str, value: float, values: dict[str, Any], found: float, 
         calibration_unit=axis["unit"],
         line=start, end_line=end, section=bucket, path=path,
         detector="deai_discourse",
-        measurement_status="measured" if measured else "degraded",
-        strength=("strong" if measured and found < STRONG_PERCENTILE
-                  else "ordinary"),
+        measurement_status="measured",
+        strength="strong" if found < STRONG_PERCENTILE else "ordinary",
         observed=dict(values, feature=feature, value=round(value, 4),
                       percentile=round(found, 4)),
         reference=feedback.reference_block(
@@ -322,22 +338,28 @@ def discourse_findings(text: str, field_profile_dir: Path | None,
             found = reference.percentile_of(ref, feature, value)
             if found is None or found >= ADVISORY_PERCENTILE:
                 continue
-            reference_n = int(ref.get("n", 0))
             findings.append(_advisory(
                 feature, value, values, found, bucket=bucket, start=start,
-                end=end, path=path, ref=ref, reference_n=reference_n,
-                measured=reference_n >= MIN_REFERENCE_N,
+                end=end, path=path, ref=ref, reference_n=int(ref.get("n", 0)),
                 field_profile_dir=field_profile_dir))
     return findings
 
 
-def calibrate(field_profile_dir: Path) -> dict[str, Any]:
-    """Build both references, each at its own granularity."""
+def calibrate(field_profile_dir: Path) -> dict[str, Any] | None:
+    """Build both references, each at its own granularity.
+
+    An axis whose sweep read no record (a bank without `source` cannot form
+    a section) comes back as `{}` and writes nothing; None, and exit 2 from
+    `axis_main`, only when neither axis read a record.
+    """
     banks = reference.passage_banks(field_profile_dir)
-    return {feature: reference.calibrate(
-                field_profile_dir, axis["baseline"], (feature,),
-                axis["extract"], banks, unit=axis["unit"])
-            for feature, axis in AXES.items()}
+    results = {feature: reference.calibrate(
+                   field_profile_dir, axis["baseline"], (feature,),
+                   axis["extract"], banks, unit=axis["unit"])
+               for feature, axis in AXES.items()}
+    if all(result is None for result in results.values()):
+        return None
+    return {feature: result or {} for feature, result in results.items()}
 
 
 def _written(result: dict[str, Any], field_profile_dir: Path) -> str:
@@ -349,7 +371,8 @@ def _written(result: dict[str, Any], field_profile_dir: Path) -> str:
     """
     return " | ".join(
         f"{AXES[feature]['baseline']} ({AXES[feature]['unit']}: "
-        + ", ".join(f"{bucket}={ref['n']}" for bucket, ref in sorted(buckets.items()))
+        + (", ".join(f"{bucket}={ref['n']}" for bucket, ref in sorted(buckets.items()))
+           or "no reference record read, nothing written")
         + ")" for feature, buckets in result.items())
 
 
@@ -359,7 +382,7 @@ def main(argv: list[str] | None = None) -> int:
         summary=_written,
         report=lambda text, field_dir, path: feedback.build_report(
             path=path, findings=discourse_findings(text, field_dir, path),
-            axes=discourse_axis_status(field_dir)),
+            axes=discourse_axis_status(field_dir, text)),
         render=feedback.render_text)
 
 

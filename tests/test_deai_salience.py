@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -115,6 +117,15 @@ def synthetic_passage(run_length: int, total: int = 8) -> str:
     return numeric * run_length + plain * (total - run_length)
 
 
+def with_numerals(records: list[dict]) -> list[dict]:
+    """The records as the bank writer stores them: `text` projected, and
+    `numeral_text` beside it. A row without the key is a projection fallback
+    the calibration warns about, which a fixture should not trip by accident."""
+    return [dict(record, text=es.latex_to_plain(record["text"]),
+                 numeral_text=es.latex_to_numeral_text(record["text"]))
+            for record in records]
+
+
 def graded_bank(directory: Path, section: str = "abstract") -> Path:
     """A reference with spread in its upper tail, as a real corpus has.
 
@@ -122,13 +133,9 @@ def graded_bank(directory: Path, section: str = "abstract") -> Path:
     that the p90 gate and the maximum differ, which is the condition a
     reference must meet before it can rank anything.
     """
-    bank = directory / "exemplar_paragraphs.jsonl"
     lengths = [0] * 10 + [1] * 10 + [2] * 10 + [3] * 9 + [8]
-    with bank.open("w", encoding="utf-8") as handle:
-        for run in lengths:
-            handle.write(json.dumps({"section": section,
-                                     "text": synthetic_passage(run)}) + "\n")
-    return bank
+    return fixture.write_bank(directory, with_numerals(
+        [{"section": section, "text": synthetic_passage(run)} for run in lengths]))
 
 
 class TestFindingsAndCalibration(unittest.TestCase):
@@ -169,14 +176,33 @@ class TestFindingsAndCalibration(unittest.TestCase):
                  "text": es.latex_to_plain(synthetic_passage(run)),
                  "numeral_text": synthetic_passage(run)} for run in lengths]
         with fixture.temp_profile(rows) as profile:
-            p90 = salience.calibrate(profile)["abstract"]["percentiles"][
-                "max_recital_run_frac"]["0.9"]
-        self.assertGreater(p90, 0.0)
-        with fixture.temp_profile([{k: v for k, v in row.items()
-                                    if k != "numeral_text"} for row in rows]) as profile:
-            fallback = salience.calibrate(profile)["abstract"]["percentiles"][
-                "max_recital_run_frac"]["0.9"]
-        self.assertEqual(fallback, 0.0)
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                abstract = salience.calibrate(profile)["abstract"]
+        self.assertGreater(abstract["percentiles"]["max_recital_run_frac"]["0.9"], 0.0)
+        self.assertEqual((abstract["text_key"], abstract["text_fallback_rows"]),
+                         (salience.BANK_TEXT_KEY, 0))
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_a_bank_without_the_numeral_projection_is_recorded_and_warned_about(self):
+        # The fallback to `text` mixes projections: the reference then holds
+        # no numeral for those rows. It used to be silent, and this test once
+        # pinned the silent p90 of 0.0 as the correct result.
+        rows = [{"section": "abstract", "text": es.latex_to_plain(synthetic_passage(run))}
+                for run in [0] * 10 + [1] * 10 + [2] * 10 + [3] * 9 + [8]]
+        with fixture.temp_profile(rows) as profile:
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                abstract = salience.calibrate(profile)["abstract"]
+        self.assertEqual(abstract["text_fallback_rows"], 40)
+        self.assertEqual(abstract["text_key"], salience.BANK_TEXT_KEY)
+        self.assertIn("WARNING", stderr.getvalue())
+        self.assertIn("abstract=40", stderr.getvalue())
+
+    def test_no_passage_means_nothing_calibrated(self):
+        with tempfile.TemporaryDirectory(prefix="salience-") as raw:
+            self.assertIsNone(salience.calibrate(Path(raw)))
+            self.assertEqual(list(Path(raw).iterdir()), [])
 
     def test_a_typical_passage_is_not_flagged(self):
         with tempfile.TemporaryDirectory(prefix="salience-") as raw:
@@ -191,19 +217,55 @@ class TestFindingsAndCalibration(unittest.TestCase):
         # Forty identical passages give P(X <= x) = 1.0 for the value they all
         # share, so an unguarded reading would flag a perfectly typical
         # passage as the 100th percentile.
-        with fixture.temp_profile(fixture.uniform(RANKED, 40)) as profile:
+        with fixture.temp_profile(with_numerals(fixture.uniform(RANKED, 40))) as profile:
             salience.calibrate(profile)
             baseline = salience.load_baseline(profile)
             self.assertFalse(salience.resolves_above_gate(
                 baseline["abstract"], "max_recital_run_frac"))
             document = "\\begin{abstract}\n" + RANKED + "\n\\end{abstract}\n"
             self.assertEqual(salience.salience_findings(document, profile), [])
+            # The status said `measured` here while detection abstained on
+            # every bucket: a confident zero findings forever.
+            status = salience.salience_axis_status(profile, document)
+            self.assertEqual(status["status"], "degraded")
+            self.assertIn("spread above the advisory gate", status["reason"])
 
     def test_small_reference_is_degraded_not_measured(self):
-        with fixture.temp_profile(fixture.uniform(RANKED, 5)) as profile:
+        with fixture.temp_profile(with_numerals(fixture.uniform(RANKED, 5))) as profile:
             salience.calibrate(profile)
             self.assertEqual(salience.salience_axis_status(profile)["status"],
                              "degraded")
+
+    def test_a_document_of_unknown_units_is_degraded_not_measured(self):
+        # Untitled prose lands in `unknown`, which no bank holds, so the axis
+        # skips it; the status used to be computed from the profile alone.
+        with tempfile.TemporaryDirectory(prefix="salience-") as raw:
+            profile = Path(raw)
+            graded_bank(profile)
+            salience.calibrate(profile)
+            status = salience.salience_axis_status(profile, RECITAL_HEAVY + "\n")
+            self.assertEqual(status["status"], "degraded")
+            self.assertIn("1 of 1 paragraph units carry no calibrated bucket",
+                          status["reason"])
+            titled = "\\begin{abstract}\n" + RECITAL_HEAVY + "\n\\end{abstract}\n"
+            status = salience.salience_axis_status(profile, titled)
+            self.assertEqual(status["status"], "measured")
+            self.assertIn("buckets: abstract", status["reason"])
+
+    def test_a_reference_built_at_another_unit_is_refused_and_named(self):
+        with tempfile.TemporaryDirectory(prefix="salience-") as raw:
+            profile = Path(raw)
+            graded_bank(profile)
+            salience.calibrate(profile)
+            path = profile / salience.BASELINE_FILENAME
+            baseline = json.loads(path.read_text("utf-8"))
+            baseline["abstract"]["unit"] = "section"
+            path.write_text(json.dumps(baseline), encoding="utf-8")
+            document = "\\begin{abstract}\n" + RECITAL_HEAVY + "\n\\end{abstract}\n"
+            self.assertEqual(salience.salience_findings(document, profile), [])
+            status = salience.salience_axis_status(profile, document)
+            self.assertEqual(status["status"], "degraded")
+            self.assertIn("abstract (section)", status["reason"])
 
 
 class TestLocalReference(unittest.TestCase):

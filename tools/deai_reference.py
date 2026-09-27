@@ -21,7 +21,9 @@ percentile is this" get the same answer for the same number.
 from __future__ import annotations
 
 import json
+import re
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
@@ -40,13 +42,29 @@ MIN_REFERENCE_N = 30
 
 
 def quantiles(values: list[float]) -> dict[str, float]:
-    """The stored grid for one feature's reference values."""
+    """The stored grid for one feature's reference values.
+
+    Nearest rank: the point stored at q is the ceil(q * n)-th smallest value,
+    the first order statistic with P(X <= x) >= q; q = 0 stores the minimum
+    and q = 1 the maximum. The rank is computed in integers (a grid point is
+    a whole hundredth) because 0.9 * 100 is 90.00000000000001 in floating
+    point, and a ceiling taken there reads one rank high again.
+
+    Until 2026-09-27 the index was floor(q * n), one order statistic further
+    up: the stored p90 of 100 values was the 91st smallest (P(X <= x) = 0.91),
+    and at the 30-unit floor the stored p10 and p90 sat at P = 0.133 and
+    0.933. Every artifact calibrated before that date, and every held-out
+    rate measured against one, was read one order statistic high -- widest
+    at the smallest buckets, which is where the floor matters. Recalibrate
+    to move the grid; the artifacts do not move on their own.
+    """
     ordered = sorted(values)
-    if not ordered:
+    n = len(ordered)
+    if not n:
         return {}
     out: dict[str, float] = {}
-    for q in QUANTILE_GRID:
-        index = min(len(ordered) - 1, int(q * len(ordered)))
+    for step, q in enumerate(QUANTILE_GRID):
+        index = min(n - 1, max(0, (step * n + 99) // 100 - 1))
         out[str(q)] = round(float(ordered[index]), 6)
     return out
 
@@ -95,8 +113,6 @@ def percentile_of(reference: dict[str, Any], feature: str,
         return 1.0
     q_low, v_low = below[-1]
     q_high, v_high = above[0]
-    if v_high == v_low:
-        return q_high
     span = (value - v_low) / (v_high - v_low)
     return q_low + span * (q_high - q_low)
 
@@ -128,15 +144,67 @@ def resolves_gate(reference: dict[str, Any], feature: str, gate: float, *,
     return at_edge > at_gate if high else at_gate > at_edge
 
 
+def unit_matches(reference: dict[str, Any], unit: str) -> bool:
+    """Whether one bucket's artifact was built at the unit the caller measures."""
+    return reference.get("unit") == unit
+
+
+def foreign_units(baseline: dict[str, Any] | None, unit: str) -> dict[str, str]:
+    """bucket -> the unit its artifact records, for every bucket NOT built at `unit`.
+
+    `calibrate` has written `unit` into every bucket since the module existed
+    and nothing read it back: a mislabelled or stale artifact -- a hedging
+    reference rebuilt at paragraph unit, say -- was read against section
+    measurements without a word in the output. The invariant this module is
+    for was a declaration until the reader checked it. An artifact with no
+    `unit` key predates the key and is reported as `unrecorded`.
+    """
+    return {bucket: str(reference.get("unit") or "unrecorded")
+            for bucket, reference in (baseline or {}).items()
+            if isinstance(reference, dict) and not unit_matches(reference, unit)}
+
+
+def unit_reason(baseline: dict[str, Any] | None, unit: str) -> str | None:
+    """The status text for buckets an axis refuses because of their unit, or None."""
+    foreign = foreign_units(baseline, unit)
+    if not foreign:
+        return None
+    listed = ", ".join(f"{bucket} ({recorded})" for bucket, recorded in sorted(foreign.items()))
+    return (f"bucket(s) recorded at another unit are not read: {listed}; this axis "
+            f"measures {unit} units, so recalibrate")
+
+
 def usable_buckets(baseline: dict[str, Any] | None, feature: str, gate: float, *,
-                   high: bool) -> list[str]:
-    """Buckets that clear the sample floor AND resolve on the flagged side."""
+                   high: bool, unit: str) -> list[str]:
+    """Buckets built at `unit` that clear the sample floor AND resolve on the flagged side."""
     if not baseline:
         return []
     return [bucket for bucket, reference in baseline.items()
             if isinstance(reference, dict)
+            and unit_matches(reference, unit)
             and int(reference.get("n", 0)) >= MIN_REFERENCE_N
             and resolves_gate(reference, feature, gate, high=high)]
+
+
+def unbucketed_reason(spans: Iterable[tuple[int, int, str, Any]], unit: str) -> str | None:
+    """Why part of a document went unmeasured: its units in the `unknown` bucket.
+
+    A document with no heading, or with headings that name a topic rather than
+    a role (`\\section{Weak lensing}`), lands in `unknown`, and no bank holds
+    that bucket, so every per-bucket axis skips such a unit. Until 2026-09-27
+    an axis status was computed from the profile alone and reported `measured`
+    with zero findings on a document it had not read (CLAUDE.md rule 3). Each
+    status function now takes the text and reports this count, so "nothing
+    found" and "nothing measured" stay two different sentences.
+    """
+    spans = list(spans)
+    unknown = sum(1 for _start, _end, bucket, _block in spans
+                  if bucket == es.DEFAULT_SECTION_BUCKET)
+    if not unknown:
+        return None
+    return (f"{unknown} of {len(spans)} {unit} units carry no calibrated bucket "
+            "(no section heading, or one naming a topic rather than a role) "
+            "and were not measured")
 
 
 def _abstracts(text: str) -> list[tuple[int, int, str, str]]:
@@ -185,7 +253,7 @@ def without_headings(block: str) -> str:
 
 
 def sections(text: str) -> list[tuple[int, int, str, str]]:
-    """(start_line, end_line, bucket, block) for every SECTION-sized unit.
+    """(start_line, end_line, bucket, block): one SECTION-sized unit per bucket.
 
     The coarser sibling of :func:`units`. A feature whose paragraph-scale
     distribution has no lower tail can still have one here -- more than a tenth
@@ -193,18 +261,34 @@ def sections(text: str) -> list[tuple[int, int, str, str]]:
     section that hedges nowhere is genuinely unusual. Which granularity an axis
     calibrates and detects at is the axis's choice; mixing the two is the one
     thing this module exists to prevent.
+
+    One unit per BUCKET, not per heading. The reference side pools every
+    paragraph a paper holds in a bucket into one section (`_section_records`),
+    because that is how the corpus splitter cuts a paper -- it keys a paper's
+    text by bucket -- so a manuscript's four Methods subsections are one unit
+    here as well. Read per heading span until 2026-09-27, a 150-word
+    subsection was compared with references pooled over whole papers: the
+    mixing of granularities this module exists to prevent, on the side where
+    nothing recorded it. The span runs from the bucket's first line to its
+    last, and the block joins its spans in document order.
     """
-    found = _abstracts(text)
-    consumed = {line for start, end, _, _ in found
-                for line in range(start, end + 1)}
     lines = text.splitlines()
+    spans: dict[str, list[tuple[int, int, str]]] = {}
+    consumed: set[int] = set()
+    for start, end, bucket, body in _abstracts(text):
+        spans.setdefault(bucket, []).append((start, end, body))
+        consumed.update(range(start, end + 1))
     for start, end, _label, bucket in _labelled_sections(text):
         body = without_headings("\n".join(
             line for number, line in enumerate(lines[start - 1:end], start)
             if number not in consumed))
-        if has_prose(body):
-            found.append((start, end, bucket, body))
-    return found
+        spans.setdefault(bucket, []).append((start, end, body))
+    found = []
+    for bucket, parts in spans.items():
+        block = "\n\n".join(body for _start, _end, body in parts)
+        if has_prose(block):
+            found.append((parts[0][0], parts[-1][1], bucket, block))
+    return sorted(found)
 
 
 def has_prose(block: str) -> bool:
@@ -217,8 +301,12 @@ def has_prose(block: str) -> bool:
     them here was measured against a reference that holds none: GPT-2 read
     forty-eight spaces as more tokens than the UID minimum and scored four of
     the Letter's heading lines as paragraphs of near-zero surprisal variance.
-    A display-equation-only paragraph projects to `[MATH]` and stays a unit,
-    as it is a row on the corpus side.
+    A display-equation-only paragraph projects to `[MATH]` and stays a unit
+    here, although the corpus side writes no row for it (the bank writer drops
+    a placeholder-only paragraph and anything under 30 words): the axes with
+    no reference -- residue, the removal map -- still see it and every later
+    unit keeps its line number, while each calibrated axis's extractor returns
+    None on it (too few sentences or words) and measures nothing.
     """
     return bool(es.latex_to_plain(block).strip())
 
@@ -252,6 +340,47 @@ def units(text: str) -> list[tuple[int, int, str, str]]:
             for start, end, _label, bucket, block in paragraphs(text)]
 
 
+RE_PLACEHOLDER_TOKEN = re.compile(r"\[[A-Za-z\-]+\]")
+# What may sit between two consecutive words of one projected sentence in the
+# raw block: anything but a letter (space, line break, punctuation, digit), a
+# command with its bracketed and braced arguments (a citation, a reference),
+# a bare command name, or an inline math span. Never prose: a gap that could
+# cross words matched `The map` from an earlier sentence's `The`.
+_GAP = (r"(?:[^A-Za-z]|\\[A-Za-z]+\*?(?:\[[^\]\n]*\])?\{[^{}]*\}"
+        r"|\\[A-Za-z]+\*?|\$[^$\n]*\$){0,60}?")
+
+
+def _word_run(words: list[str]) -> str:
+    """A pattern matching `words` in order with only markup between them."""
+    return _GAP.join(rf"\b{re.escape(word)}\b" for word in words)
+
+
+def sentence_lines(block: str, start: int, sentence: str) -> tuple[int, int]:
+    """(first, last) source line of one projected sentence inside its unit.
+
+    A sentence-scope finding pointed at its PARAGRAPH's line range, so a reader
+    following `L 41` to a sentence on line 44 met the wrong one. The projected
+    sentence is looked up in the raw block by its first two words, then its
+    last three from that point (a command, a citation, a math span or a line
+    break may sit between any two, but no prose), and the lines are counted
+    from the unit's first line. A sentence whose head cannot be found keeps
+    the unit's whole range, and one whose tail cannot be found keeps the
+    unit's last line, so a finding is never anchored on a guess.
+    """
+    words = es.words(RE_PLACEHOLDER_TOKEN.sub(" ", sentence))
+    end = start + block.count("\n")
+    if not words:
+        return start, end
+    head = re.search(_word_run(words[:2]), block, re.IGNORECASE)
+    if head is None:
+        return start, end
+    first = start + block[:head.start()].count("\n")
+    tail = re.search(_word_run(words[-3:]), block[head.start():], re.IGNORECASE)
+    if tail is None:
+        return first, end
+    return first, first + block[head.start():head.start() + tail.end()].count("\n")
+
+
 def passage_banks(field_profile_dir: Path) -> list[tuple[str, Path, str | None]]:
     """(label, path, forced_bucket) for every bank of human passages in a field.
 
@@ -269,13 +398,20 @@ def passage_banks(field_profile_dir: Path) -> list[tuple[str, Path, str | None]]
     ]
 
 
+# Banks whose `text` is already the `[math]` projection. A record there
+# without the projection an axis asks for can only be read on `text`, which
+# is a different projection of the same paragraph; the abstract bank stores
+# LaTeX source instead, which every key projects the same way.
+PROJECTED_BANKS = frozenset({"exemplar_paragraphs"})
+
+
 def _bank_records(sources: Iterable[tuple[str, Path, str | None]], *,
-                  text_key: str = "text"):
-    """(label, bucket, text) for every readable record in every bank present.
+                  text_key: str = "text", fallbacks: Counter[str] | None = None):
+    """(label, bucket, text, source) for every readable record in every bank present.
 
     `sources` is (label, path, forced_bucket): a bank whose records all belong
     to one bucket names it, because an abstract-only bank has no `section` key
-    to read.
+    to read. `source` is the record's own document id, or None.
 
     `text_key` names the projection the axis measures. The exemplar bank
     stores each paragraph twice, as `text` (math spans reduced to `[math]`)
@@ -283,7 +419,10 @@ def _bank_records(sources: Iterable[tuple[str, Path, str | None]], *,
     on the manuscript must calibrate on the second, or its reference holds
     fewer numerals than any manuscript it reads. A record without the key
     falls back to `text`: the abstract bank stores its LaTeX source, which
-    the axis projects itself.
+    the axis projects itself. In a bank of `PROJECTED_BANKS` that fallback
+    mixes projections, and `fallbacks`, when given, counts such records per
+    bucket so the artifact records the mix and the axis can warn about it
+    instead of calibrating on it silently.
     """
     for label, bank, forced_bucket in sources:
         if not bank.exists():
@@ -294,24 +433,29 @@ def _bank_records(sources: Iterable[tuple[str, Path, str | None]], *,
                     record = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                yield (label, forced_bucket or record.get("section") or "unknown",
-                       record.get(text_key) or record.get("text", ""),
+                bucket = forced_bucket or record.get("section") or "unknown"
+                if (fallbacks is not None and label in PROJECTED_BANKS
+                        and text_key != "text" and not record.get(text_key)):
+                    fallbacks[bucket] += 1
+                yield (label, bucket, record.get(text_key) or record.get("text", ""),
                        record.get("source"))
 
 
 def _section_records(sources: Iterable[tuple[str, Path, str | None]], *,
-                     text_key: str = "text"):
-    """The same records regrouped so one whole section is one unit.
+                     text_key: str = "text", fallbacks: Counter[str] | None = None):
+    """(label, bucket, text, source): the same records regrouped, one section each.
 
     The banks store paragraphs, so a section-unit reference has to be assembled
     from them: every paragraph sharing a source document and a bucket is one
-    section. A record with no `source` cannot be attributed to a document and is
-    dropped rather than pooled into a fictitious one -- pooling would join
-    paragraphs from unrelated papers into a section no author ever wrote.
+    section, its paragraphs joined by blank lines. A record with no `source`
+    cannot be attributed to a document and is dropped rather than pooled into
+    a fictitious one -- pooling would join paragraphs from unrelated papers
+    into a section no author ever wrote.
     """
     grouped: dict[tuple[str, str], list[str]] = {}
     labels: dict[tuple[str, str], str] = {}
-    for label, bucket, text, source in _bank_records(sources, text_key=text_key):
+    for label, bucket, text, source in _bank_records(sources, text_key=text_key,
+                                                     fallbacks=fallbacks):
         if not source:
             continue
         key = (source, bucket)
@@ -324,24 +468,32 @@ def _section_records(sources: Iterable[tuple[str, Path, str | None]], *,
 def calibrate(field_profile_dir: Path, filename: str, features: Iterable[str],
               extract: Callable[[str], dict[str, Any] | None],
               sources: Iterable[tuple[str, Path, str | None]], *,
-              unit: str = "paragraph", text_key: str = "text") -> dict[str, Any]:
+              unit: str = "paragraph", text_key: str = "text") -> dict[str, Any] | None:
     """Build a per-bucket reference at one granularity from the field's banks.
 
     `unit` is written into every bucket of the artifact, because it is the fact
-    a later reader most needs and the one nothing else records: two references
-    built from the same corpus at different granularities are both valid and
-    are not comparable, and a detector reading the wrong one would compare a
-    value against a distribution that could not have produced it.
+    a later reader most needs: two references built from the same corpus at
+    different granularities are both valid and are not comparable, and a
+    detector reading the wrong one would compare a value against a
+    distribution that could not have produced it. `usable_buckets` reads it
+    back and refuses a bucket built at any other unit.
 
     `text_key` is the same invariant on the other axis: the reference must be
     built from the projection the detector measures (see `_bank_records`).
+    Each bucket records the key it was read on and `text_fallback_rows`, the
+    records of a projected bank that lacked it and were read on `text`.
 
     A record `extract` cannot measure is skipped rather than contributing a
     zero, which would pull every quantile toward a value no passage ever had.
+    None when no record contributed at all: nothing is written, because an
+    empty artifact reported as calibrated is a missing calibration wearing a
+    file name, and `cli_common.axis_main` turns None into exit 2.
     """
     names = tuple(features)
-    stream = (_section_records(sources, text_key=text_key) if unit == "section"
-              else _bank_records(sources, text_key=text_key))
+    fallbacks: Counter[str] = Counter()
+    stream = (_section_records(sources, text_key=text_key, fallbacks=fallbacks)
+              if unit == "section"
+              else _bank_records(sources, text_key=text_key, fallbacks=fallbacks))
     collected: dict[str, dict[str, list[float]]] = {}
     contributing: dict[str, list[str]] = {}
     for label, bucket, text, _source in stream:
@@ -354,11 +506,15 @@ def calibrate(field_profile_dir: Path, filename: str, features: Iterable[str],
         if label not in contributing.setdefault(bucket, []):
             contributing[bucket].append(label)
 
+    if not collected:
+        return None
     output: dict[str, Any] = {}
     for bucket, gathered in collected.items():
         output[bucket] = {
             "n": len(gathered[names[0]]),
             "unit": unit,
+            "text_key": text_key,
+            "text_fallback_rows": fallbacks.get(bucket, 0),
             "sources": contributing.get(bucket, []),
             "percentiles": {name: quantiles(values)
                             for name, values in gathered.items()},

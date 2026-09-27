@@ -22,10 +22,11 @@ Two rules share the one lexicon:
   name, or the field writes its stem and only the derived form is unattested.
   Those three are read mechanically and downgrade the finding to ordinary;
   "first use of this method in the field" is a disposition the author records.
-  This is a vocabulary AUDIT, not a detector, and the record says so: on 40
-  held-out refereed papers the median is 2.57 zero-hit words per 1,000 against
-  1.25 on machine documents, rank AUC 0.242 (EVALUATION §23) -- human papers
-  carry MORE unattested words. What it finds is register leakage a referee
+  This is a vocabulary AUDIT, not a detector, and the record says so: all
+  203 held-out refereed papers carry zero-hit words, 3.37 per 1,000 body
+  prose words against 1.05 on 173 machine documents, rank AUC 0.174 under the
+  v0.36.2 projection (EVALUATION §23.1) -- human papers carry MORE unattested
+  words. What it finds is register leakage a referee
   would stop on: software vocabulary in an astronomy manuscript, or a coined
   term with no definition.
 * `register-foreign`: a term the manuscript leans on (`MIN_MANUSCRIPT_USES`
@@ -69,13 +70,13 @@ import deai_feedback as feedback  # noqa: E402 because sibling tools are importa
 import deai_metrics as metrics  # noqa: E402 because sibling tools are importable only after the sys.path insert above
 import extract_style as es  # noqa: E402 because sibling tools are importable only after the sys.path insert above
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 LEXICON_FILENAME = "register_lexicon.json"
 
 RE_WORD = re.compile(r"[A-Za-z][A-Za-z'\-]{2,}")
+# `\newcommand*` is the same definition with a long-argument check; without
+# the `\*?` a starred `\AUC` expanded to nothing, neither counted nor audited.
 RE_NEWCOMMAND = re.compile(
-    r"\\(?:newcommand|renewcommand|providecommand)\s*\{?\\([A-Za-z]+)\}?"
+    r"\\(?:newcommand|renewcommand|providecommand)\*?\s*\{?\\([A-Za-z]+)\}?"
     r"\s*(?:\[\d+\])?\s*\{(.*)")
 # A word-rendering macro body, with the character before it captured so a
 # subscript or superscript decoration can be told from a term.
@@ -86,7 +87,6 @@ RE_POSSESSIVE = re.compile(r"'s$")
 # bucket never sees it: it sits inside the span of whatever section precedes it.
 RE_BIB_ENV = re.compile(r"\\begin\{thebibliography\}.*?\\end\{thebibliography\}",
                         re.DOTALL)
-RE_BIBITEM = re.compile(r"^\s*\\bibitem\b", re.MULTILINE)
 # Mathematics never contributes vocabulary on the corpus side: the passage
 # projection replaces every math span with `[math]` before counting words.
 # Detection ran `latex_to_plain` one LINE at a time, so a `$...$` or an
@@ -104,11 +104,12 @@ RE_MATH_SPAN = re.compile(
 # stripper downstream still sees it.
 RE_FLOAT_OPTION = re.compile(r"(\\begin\{[A-Za-z*]+\})\[[^\]\n]*\]")
 # Length settings and table-note commands outside a float render no prose.
-# Floats themselves are blanked whole in `body_only` (the fourth line seam,
-# after RE_MATH_SPAN): the corpus side replaces `\begin{table}...\end{table}`
-# with a placeholder in one pass over the passage, detection projected one
-# LINE at a time, so a `tabular*` column specification and a caption's words
-# counted on this side only -- `filllll`, `crimson`, `isosurfaces` at df 0,
+# Floats themselves are blanked whole in `body_only` (the fourth seam in the
+# count above, found after the RE_MATH_SPAN one): the corpus side replaces
+# `\begin{table}...\end{table}` with a placeholder in one pass over the
+# passage, detection projected one LINE at a time, so a `tabular*` column
+# specification and a caption's words counted on this side only --
+# `filllll`, `crimson`, `isosurfaces` at df 0,
 # 14 of 90 zero-hit terms on one manuscript (2026-09-04).
 RE_LENGTH_CMD = re.compile(
     r"\\(?:setlength|addtolength|tabletypesize|tablewidth|tablenotemark"
@@ -292,7 +293,7 @@ def macro_terms(text: str) -> dict[str, str]:
     return out
 
 
-def body_only(text: str) -> str:
+def body_only(text: str, *, drop_skip: bool = True) -> str:
     """Blank the regions the corpus side never saw, keeping line numbers.
 
     The corpus document frequency is built from `exemplar_paragraphs.jsonl`,
@@ -320,9 +321,14 @@ def body_only(text: str) -> str:
     by character for the same reason (`extract_sections.blank_preserving`).
     Headings too: the corpus passages are the prose UNDER a heading, never its
     words, so a section title counted here and nowhere else.
+
+    `drop_skip` is `body_lines`'s switch, passed through: the vocabulary
+    comparison drops the `skip` sections the corpus dropped, while a rule that
+    asks whether the PAPER names a thing (`deai_residue`'s labels) keeps them.
     """
     body = es.blank_preserving(
-        body_lines(text), RE_MATH_SPAN, es.RE_TEX_ENV_FIGURE_TABLE, RE_LENGTH_CMD,
+        body_lines(text, drop_skip=drop_skip), RE_MATH_SPAN,
+        es.RE_TEX_ENV_FIGURE_TABLE, RE_LENGTH_CMD,
         RE_BIB_COMMAND, RE_CODE_SPAN, RE_HEADING, es.RE_TEX_CITE_SILENT,
         es.RE_TEX_CITE, es.RE_TEX_LABEL_REF)
     return RE_FLOAT_OPTION.sub(
@@ -330,25 +336,30 @@ def body_only(text: str) -> str:
         body)
 
 
-def body_lines(text: str) -> str:
+def body_lines(text: str, *, drop_skip: bool = True) -> str:
     """The lines of `text` that are body prose, every other line emptied.
 
-    Drops the preamble, every `skip` section (bucket inherited, so a
-    `\\subsection` under Acknowledgments goes with it) and the bibliography,
-    and restores the abstract, which in AASTeX sits inside the preamble. What
-    it keeps is everything a reader SEES -- headings, captions, table cells
-    included -- which is the projection an editing-mark scan needs; the
-    vocabulary projection `body_only` blanks those on top of this.
+    Drops the preamble, the bibliography and, by default, every `skip`
+    section (bucket inherited, so a `\\subsection` under Acknowledgments goes
+    with it), and restores the abstract, which in AASTeX sits inside the
+    preamble. What it keeps is everything a reader SEES -- headings, captions,
+    table cells included -- which is the projection an editing-mark scan
+    needs; the vocabulary projection `body_only` blanks those on top of this.
+
+    `drop_skip=False` keeps the `skip` sections. The corpus never held them,
+    so the vocabulary comparison must drop them; an editing mark is as left
+    behind in an appendix as in a paragraph, and `deai_residue` was blind to a
+    `TODO` there because it scanned this projection with the default.
     """
     lines = text.splitlines()
     drop: set[int] = set()
+    dropped = (metrics.PREAMBLE_BUCKET, "skip") if drop_skip else (metrics.PREAMBLE_BUCKET,)
     for start, end, _label, bucket in metrics.section_units(text):
-        if bucket in (metrics.PREAMBLE_BUCKET, "skip"):
+        if bucket in dropped:
             drop.update(range(start, end + 1))
-    for pattern in (RE_BIB_ENV, RE_BIBITEM):
-        for match in pattern.finditer(text):
-            first = text[:match.start()].count("\n") + 1
-            drop.update(range(first, first + match.group(0).count("\n") + 1))
+    for match in RE_BIB_ENV.finditer(text):
+        first = text[:match.start()].count("\n") + 1
+        drop.update(range(first, first + match.group(0).count("\n") + 1))
     for match in es.RE_ABSTRACT_ENV.finditer(text):
         first = text[:match.start()].count("\n") + 1
         drop.difference_update(
@@ -447,9 +458,10 @@ RE_DEFINING_OBJECT_BEFORE = re.compile(
 def defined_terms(sentence: str) -> set[str]:
     """The words a defining sentence defines: the object of each defining phrase.
 
-    A phrase of the `we define X` / `hereafter X` / `which we call X` kind
-    names its object AFTER it, up to the next clause edge; `X is defined as`,
-    `X, denoted Y` name it BEFORE. Only those words earn `defined-here`.
+    A phrase of the `we define X` / `hereafter X` / `which we call X` /
+    `denoted X` kind names its object AFTER it, up to the next clause edge;
+    `X is defined as` and `X is referred to as` name it BEFORE, back to the
+    previous clause edge. Only those words earn `defined-here`.
     """
     found: set[str] = set()
     for match in RE_DEFINING.finditer(sentence):
@@ -604,7 +616,9 @@ def register_findings(text: str, field_profile_dir: Path | None,
                       "corpus_df_rate": round(rate, 8)},
             reference=reference,
             normalized_distance=RARE_DF_RATE - rate,
-            confidence={"value": min(1.0, usage["count"] / 10.0),
+            # `min(1.0, uses / 10)` dated from the five-use floor; at fifteen
+            # uses and above it was 1.0 on every finding that reached it.
+            confidence={"value": 1.0,
                         "basis": (f"{usage['count']} manuscript uses against "
                                   f"{df}/{n_passages} corpus passages")},
             message=(
@@ -618,8 +632,12 @@ def register_findings(text: str, field_profile_dir: Path | None,
     return findings
 
 
-def calibrate(field_profile_dir: Path) -> dict[str, Any]:
-    """Count per-term document frequency across the field's own passage banks."""
+def calibrate(field_profile_dir: Path) -> dict[str, Any] | None:
+    """Count per-term document frequency across the field's own passage banks.
+
+    None when no bank held a passage: nothing is written, since a lexicon of
+    zero passages is not a calibration, and `axis_main` reports exit 2.
+    """
     banks = [field_profile_dir / "exemplar_paragraphs.jsonl",
              field_profile_dir / "human_abstracts_extra.jsonl"]
     document_frequency: Counter[str] = Counter()
@@ -650,6 +668,8 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
                             seen.add(part)
                 document_frequency.update(seen)
 
+    if not n_passages:
+        return None
     payload = {
         "n_passages": n_passages,
         "n_terms": len(document_frequency),

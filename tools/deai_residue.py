@@ -1,8 +1,9 @@
 """Edit-residue feedback for scientific prose (L4): traces an editing loop leaves behind.
 
 A manuscript revised in many passes accumulates marks that were true of the
-process and are not true of the science. Four static rules and one diff rule
-find them; none is an authorship claim and none touches the L0 exit status.
+process and are not true of the science. Four static rules (1-4 below, in
+that order) and one diff rule (5) find them; none is an authorship claim and
+none touches the L0 exit status.
 
 - `residue-self-history` -- the text narrates its own drafting: `initially`,
   `we tried`, `no longer`, `superseded` in a sentence about *us* with no
@@ -42,7 +43,7 @@ exit contract of `length_gate`: 0 clean, 1 a strong residue finding is
 present, 2 invalid input. Both are mechanical gates of SCIPAPER_STANDARD
 section 5.3 (condense, do not accumulate): a patch is not a fix.
 
-The rule-1 and rule-6 word families defined here are the SINGLE SOURCE.
+The rule-1 and rule-4 word families defined here are the SINGLE SOURCE.
 `skills/paper/SKILL.md` lists them verbatim between `residue-family` and
 `absence-family` markers and `validate_plugin` compares the two, so the
 writer and the detector cannot drift apart on which words count.
@@ -50,7 +51,6 @@ writer and the detector cannot drift apart on which words count.
 
 from __future__ import annotations
 
-import argparse
 import re
 import sys
 from pathlib import Path
@@ -92,7 +92,7 @@ RE_SELF = re.compile(
     re.I)
 CITATION_TOKEN = "[CITE]"
 
-# Rule 6. The absence families (see the module docstring for the corpus
+# Rule 4. The absence families (see the module docstring for the corpus
 # rates behind the tiers). `no ... is applied` is a template: `no` and an
 # object of one to three words, then a passive of the listed verbs. A
 # hyphenated compound (`never-touched controls`) is a name, not a predicate,
@@ -169,9 +169,12 @@ RE_EDIT_META = (
 # the marker to the next punctuation (a sentence end included: a caption is
 # several sentences, and "not a mass reconstruction. The solid spheres..."
 # once made `solid` the absent object) or coordinating word.
+# `\s*` before the brace and the optional argument, as in
+# `extract_sections.RE_HEADING_COMMAND`: LaTeX allows a space after a control
+# word, and `\section {X}` was no label at all to this rule until 2026-09-27.
 RE_LABEL = re.compile(
     r"\\(?:chapter|section|subsection|subsubsection|paragraph|caption)\*?"
-    r"(?:\[[^\]]*\])?\{((?:[^{}]|\{[^{}]*\})*)\}")
+    r"\s*(?:\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})*)\}")
 RE_NEGATION = re.compile(
     r"\b(?:no|non|not|without|excluding|neither|nor|absent|minus|free of|lacking)"
     r"\b[-\s]*((?:[^,;:.!?()\[\]]|\[math\])+?)"
@@ -193,23 +196,41 @@ def _content_stems(text: str) -> list[str]:
     return stems
 
 
+# The -ate family first: one suffix off the register list left `truncation`
+# as `trunc` and `truncated` as `truncat`, so a caption "without truncation"
+# never found the body's "truncated at" and reported the object absent.
+ATE_FAMILY = ("ations", "ation", "ating", "ated", "ates", "ate")
+
+
 def stem(word: str) -> str:
-    """One suffix off, when a root of three or more letters remains."""
-    for suffix in register.STEM_SUFFIXES:
+    """One suffix off, when a root of three or more letters remains.
+
+    The `-ation/-ated/-ating/-ate(s)` forms reduce to one root before the
+    general list is tried, because the label rule compares a caption's word
+    with the body's and those forms are how the same thing is named in each.
+    """
+    for suffix in ATE_FAMILY + register.STEM_SUFFIXES:
         if word.endswith(suffix) and len(word) - len(suffix) >= 3:
             return word[: -len(suffix)]
     return word
 
 
 def _sentences(text: str) -> Iterable[tuple[int, int, str, str]]:
-    # Prose units only: the reference layer already drops the preamble, and a
-    # `skip` bucket (references, acknowledgments) is not prose an edit left.
-    for start, end, bucket, block in reference.units(text):
+    """(first_line, last_line, bucket, sentence) for every body sentence.
+
+    Prose units only: the reference layer already drops the preamble, and a
+    `skip` bucket (references, acknowledgments) is not prose an edit left. The
+    lines are the sentence's own, located in the raw unit
+    (`reference.sentence_lines`); until 2026-09-27 they were the paragraph's.
+    """
+    for start, _end, bucket, block in reference.units(text):
         if bucket == "skip":
             continue
         for sentence in es.sentences(es.latex_to_plain(block)):
             if sentence.strip():
-                yield start, end, bucket, " ".join(sentence.split())
+                sentence = " ".join(sentence.split())
+                first, last = reference.sentence_lines(block, start, sentence)
+                yield first, last, bucket, sentence
 
 
 def _finding(*, rule: str, path: str | Path | None, line: int, end_line: int | None,
@@ -268,7 +289,7 @@ ABSENCE_ACTION = (
 
 
 def absence_findings(text: str, path: str | Path | None = None) -> list[dict[str, Any]]:
-    """Rule 6. A sentence contrasting this work with cited work is a baseline
+    """Rule 4. A sentence contrasting this work with cited work is a baseline
     comparison, not a tombstone, so a citation in the sentence exempts it as
     in rule 1."""
     findings = []
@@ -354,15 +375,28 @@ NEGATIVE_LABEL_ACTION = (
     "remains. The negation itself is not the defect; the missing referent is.")
 
 
+def paper_prose(text: str) -> str:
+    """The prose a label's object may be named in: `deai_register.body_only`
+    with the `skip` sections kept.
+
+    Labels are read from the whole text, appendix captions included, so the
+    object has to be looked for in the whole paper too: with the vocabulary
+    projection (which drops `skip` for the corpus's sake) an appendix figure
+    "without the saddle correction" was reported absent from the body while
+    the appendix explained the correction three lines above it. The preamble
+    and the bibliography stay out -- neither is prose the reader meets."""
+    return register.body_only(text, drop_skip=False)
+
+
 def negative_label_findings(text: str, path: str | Path | None = None,
                             body_text: str | None = None) -> list[dict[str, Any]]:
     """Labels come from `text` (headings are blanked in the body projection);
-    the object is looked for in body prose only. Ordinary, not strong: on 203
+    the object is looked for in `paper_prose`. Ordinary, not strong: on 203
     refereed papers the static rule fires in 30% of documents, so it names a
     label to check, and the diff rule is the one that gates."""
     if len(es.prose_words(text)) < MIN_WORDS_NEGATIVE_LABEL:
         return []
-    body = _body_stems(register.body_only(text) if body_text is None else body_text)
+    body = _body_stems(paper_prose(text) if body_text is None else body_text)
     findings = []
     for line, label in _labels(text):
         for obj, stems in negated_objects(label):
@@ -395,8 +429,8 @@ def negative_label_added_findings(before: str, after: str,
     old_labels = {label for _line, label in _labels(before)}
     old_negations = {obj.lower() for label in old_labels
                      for obj, _stems in negated_objects(label)}
-    old_body = _body_stems(register.body_only(before))
-    new_body = _body_stems(register.body_only(after))
+    old_body = _body_stems(paper_prose(before))
+    new_body = _body_stems(paper_prose(after))
     findings = []
     for line, label in _labels(after):
         if label in old_labels:
@@ -421,18 +455,20 @@ def negative_label_added_findings(before: str, after: str,
 
 
 def residue_findings(text: str, path: str | Path | None = None) -> list[dict[str, Any]]:
-    # Two projections of one line-drop (`deai_register.body_lines`): the
-    # preamble (`\newcommand{\TODO}`) and the bibliography are not prose an
-    # edit left behind, so both rules skip them. The label rule then reads the
-    # vocabulary projection (`body_only`, headings and floats blanked) because
-    # the object must be in the BODY; the mark rule reads the visible lines,
-    # because a `TODO` in a caption or a heading is as left behind as one in a
-    # paragraph and the vocabulary projection was hiding it. The sentence rule
-    # keeps the raw text because `reference.units` needs the headings.
+    # Two projections of one line-drop (`deai_register.body_lines` with the
+    # `skip` sections kept): the preamble (`\newcommand{\TODO}`) and the
+    # bibliography are not prose an edit left behind, so both rules skip them,
+    # while an appendix is -- read with the vocabulary default, which drops
+    # `skip` because the corpus did, a `TODO` in an appendix was invisible and
+    # the strong gate returned 0. The label rule reads `paper_prose` (headings
+    # and floats blanked) because the object must be in the paper's prose; the
+    # mark rule reads the visible lines, because a `TODO` in a caption or a
+    # heading is as left behind as one in a paragraph. The sentence rules keep
+    # the raw text because `reference.units` needs the headings.
     return (self_history_findings(text, path)
             + absence_findings(text, path)
-            + negative_label_findings(text, path, body_text=register.body_only(text))
-            + edit_meta_findings(register.body_lines(text), path))
+            + negative_label_findings(text, path, body_text=paper_prose(text))
+            + edit_meta_findings(register.body_lines(text, drop_skip=False), path))
 
 
 def residue_axis_status(text: str) -> dict[str, Any]:
@@ -538,10 +574,16 @@ def main(argv: list[str] | None = None) -> int:
                               "gate_exit": 1 if strong else 0}
     rendered = (feedback.dump_report(report) if args.format == "json"
                 else feedback.render_text(report) + "\n")
-    if args.output is not None:
-        args.output.write_text(rendered, encoding="utf-8")
-    else:
-        print(rendered, end="")
+    try:
+        if args.output is not None:
+            args.output.write_text(rendered, encoding="utf-8")
+        else:
+            print(rendered, end="")
+    except OSError as error:
+        # An unwritable report is exit 2, not the exit 1 a traceback out of
+        # `write_text` used to hand the caller as if a strong finding stood.
+        print(f"[deai_residue] cannot write {args.output}: {error}", file=sys.stderr)
+        return 2
     return report["residue_gate"]["gate_exit"]
 
 

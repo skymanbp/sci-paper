@@ -23,7 +23,6 @@ point remains degraded until field-policy calibration is documented.
 
 from __future__ import annotations
 
-import argparse
 import json
 import statistics
 import sys
@@ -35,8 +34,6 @@ import deai_feedback as feedback  # noqa: E402  shared finding contract
 import deai_reference as reference  # noqa: E402 because sibling tools are importable only after the sys.path insert above
 import extract_style as es  # noqa: E402  same reason
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 BASELINE_NAME = "uid_baseline.json"
 
 # Retained for compatibility with the recorded UID baseline and learned bundle.
@@ -65,6 +62,16 @@ def _get_model(model_name: str, device: str | None = None):
 
 _GPU_FAILURES = 0
 _GPU_FAILURE_LIMIT = 3
+
+
+def _first_line(error: BaseException) -> str:
+    """The first line of an exception's message, or `?` when it has none.
+
+    A CUDA error can carry an empty message, and `str(exc).splitlines()[0]`
+    then raised IndexError inside the handler that existed to keep the run
+    alive -- the fallback died on the way to the fallback.
+    """
+    return (str(error).splitlines() or ["?"])[0]
 
 
 def _surprisals(ids, model):
@@ -101,7 +108,7 @@ def token_surprisals(text: str, model_name: str = DEFAULT_MODEL) -> list[float]:
             # than probing a broken context once per paragraph.
             _GPU_FAILURES += 1
             print(f"[deai_oracle] GPU scoring failed ({type(exc).__name__}: "
-                  f"{str(exc).splitlines()[0]}); scoring on the CPU "
+                  f"{_first_line(exc)}); scoring on the CPU "
                   f"(failure {_GPU_FAILURES}/{_GPU_FAILURE_LIMIT})",
                   file=sys.stderr)
     _tok, model_cpu, _dev = _get_model(model_name, device="cpu")
@@ -133,7 +140,14 @@ def calibrate(field_profile_dir: Path, model_name: str = DEFAULT_MODEL) -> dict:
     n_used = 0
     with exemplars.open(encoding="utf-8") as f:
         for line in f:
-            rec = json.loads(line)
+            # A blank or undecodable line is skipped, as `deai_reference` and
+            # `deai_register` skip it; here it aborted an hour-long run.
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
             text = rec.get("text", "")
             bucket = rec.get("section", "unknown")
             feats = uid_features(token_surprisals(text, model_name))
@@ -295,15 +309,9 @@ def main(argv: list[str] | None = None) -> int:
                         "to style-profile/<field>/uid_baseline.json.")
     args = p.parse_args(argv)
 
-    # Resolve field dir.
-    field_dir = None
-    if args.field:
-        field_dir = args.profile_root / args.field
-    elif args.profile_root.exists():
-        fields = [d for d in args.profile_root.iterdir()
-                  if d.is_dir() and not d.name.startswith(".")]
-        if len(fields) == 1:
-            field_dir = fields[0]
+    # Unlike the axis tools this one cannot run without a profile: a
+    # calibration needs somewhere to write and a score needs a baseline.
+    field_dir = cli_common.optional_field_dir(args, tool="deai_oracle")
     if field_dir is None:
         print("[deai_oracle] need --field (multiple/zero profiles).", file=sys.stderr)
         return 2
@@ -321,7 +329,13 @@ def main(argv: list[str] | None = None) -> int:
         model_name = args.model or DEFAULT_MODEL
         print(f"[deai_oracle] calibrating UID baseline on {field_dir.name} "
               f"with {model_name} ...", file=sys.stderr)
-        b = calibrate(field_dir, model_name)
+        try:
+            b = calibrate(field_dir, model_name)
+        except FileNotFoundError as error:
+            # A --field with no bank is configuration, exit 2, as
+            # `cli_common.axis_main` reports it; it was a traceback (exit 1).
+            print(f"[deai_oracle] cannot calibrate: {error}", file=sys.stderr)
+            return 2
         print(f"[deai_oracle] baseline written: {b['n_paragraphs_used']} "
               f"paragraphs, {len(b['by_section'])} sections, model {b['model']}.")
         for sec, feats in sorted(b["by_section"].items()):

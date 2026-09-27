@@ -48,6 +48,7 @@ MIN_SENTENCES = 3
 # degraded: the percentile of a 12-passage reference is not an operating point.
 MIN_REFERENCE_N = reference.MIN_REFERENCE_N
 BASELINE_FILENAME = "salience_baseline.json"
+UNIT = "paragraph"
 # The bank field holding each paragraph under the numeral-preserving projection.
 BANK_TEXT_KEY = "numeral_text"
 FEATURES = ("max_recital_run_frac", "recital_frac", "numerals_per_sentence")
@@ -84,10 +85,7 @@ def salience_features(block: str) -> dict[str, Any] | None:
 
 load_baseline = reference.baseline_loader(BASELINE_FILENAME)
 percentile_of = reference.percentile_of
-grid_value = reference.grid_value
 _units = reference.units
-_quantiles = reference.quantiles
-QUANTILE_GRID = reference.QUANTILE_GRID
 
 
 def resolves_above_gate(ref: dict[str, Any], feature: str) -> bool:
@@ -95,7 +93,25 @@ def resolves_above_gate(ref: dict[str, Any], feature: str) -> bool:
     return reference.resolves_gate(ref, feature, ADVISORY_PERCENTILE, high=True)
 
 
-def salience_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
+def live_buckets(baseline: dict[str, Any] | None) -> list[str]:
+    """The buckets the axis may speak about as `measured`: built at this
+    unit, past the sample floor, and with spread above the gate on at least
+    one feature -- the condition detection itself applies per feature."""
+    return sorted({bucket for feature in FEATURES
+                   for bucket in reference.usable_buckets(
+                       baseline, feature, ADVISORY_PERCENTILE, high=True, unit=UNIT)})
+
+
+def salience_axis_status(field_profile_dir: Path | None,
+                         text: str | None = None) -> dict[str, Any]:
+    """The axis status; `degraded` names each reason it did not measure.
+
+    Until 2026-09-27 the status looked only at the sample floor while
+    detection also required spread above the gate, so a flat reference read
+    `measured` with zero findings forever; and it never read the text, so a
+    document whose paragraphs sit in the `unknown` bucket -- skipped whole --
+    read `measured` too.
+    """
     baseline = load_baseline(field_profile_dir)
     if baseline is None:
         return feedback.axis_status(
@@ -103,16 +119,21 @@ def salience_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
             reason=f"{BASELINE_FILENAME} is unavailable",
             detector="deai_salience",
         )
-    usable = [bucket for bucket, ref in baseline.items()
-              if isinstance(ref, dict) and int(ref.get("n", 0)) >= MIN_REFERENCE_N]
-    if not usable:
+    live = live_buckets(baseline)
+    reasons = [None if live else
+               (f"no calibrated {UNIT} bucket both reaches the {MIN_REFERENCE_N}-unit "
+                "floor and has spread above the advisory gate"),
+               reference.unit_reason(baseline, UNIT)]
+    if text is not None:
+        reasons.append(reference.unbucketed_reason(_units(text), UNIT))
+    if any(reasons):
         return feedback.axis_status(
             "L2.salience_hierarchy", "degraded",
-            reason=(f"no section bucket reaches the {MIN_REFERENCE_N}-passage "
-                    "reference floor; percentiles are rank-only"),
+            reason="; ".join(part for part in reasons if part),
             detector="deai_salience",
         )
     return feedback.axis_status("L2.salience_hierarchy", "measured",
+                                reason=f"{UNIT} unit; buckets: {', '.join(live)}",
                                 detector="deai_salience")
 
 
@@ -132,17 +153,19 @@ def salience_findings(text: str, field_profile_dir: Path | None,
         values = salience_features(block)
         if values is None:
             continue
-        reference = baseline.get(bucket)
-        if not isinstance(reference, dict):
+        ref = baseline.get(bucket)
+        # A bucket under the floor still speaks, as a degraded finding; one
+        # built at another unit does not speak at all (the status says why).
+        if not isinstance(ref, dict) or not reference.unit_matches(ref, UNIT):
             continue
-        reference_n = int(reference.get("n", 0))
+        reference_n = int(ref.get("n", 0))
         measured = reference_n >= MIN_REFERENCE_N
 
         percentiles: dict[str, float] = {}
         for feature in FEATURES:
-            if not resolves_above_gate(reference, feature):
+            if not resolves_above_gate(ref, feature):
                 continue
-            found = percentile_of(reference, feature, float(values[feature]))
+            found = percentile_of(ref, feature, float(values[feature]))
             if found is not None:
                 percentiles[feature] = found
         if not percentiles:
@@ -157,8 +180,8 @@ def salience_findings(text: str, field_profile_dir: Path | None,
             for feature in FEATURES if feature in percentiles)
         findings.append(feedback.make_finding(
             kind="advisory", layer="L2",
-            rule=f"salience-recital:{bucket}", scope="paragraph",
-            calibration_unit="paragraph",
+            rule=f"salience-recital:{bucket}", scope=UNIT,
+            calibration_unit=UNIT,
             line=start, end_line=end, section=bucket, path=path,
             detector="deai_salience",
             measurement_status="measured" if measured else "degraded",
@@ -195,7 +218,7 @@ def salience_findings(text: str, field_profile_dir: Path | None,
     return findings
 
 
-def calibrate(field_profile_dir: Path) -> dict[str, Any]:
+def calibrate(field_profile_dir: Path) -> dict[str, Any] | None:
     """Build the per-bucket human reference from the field's own passage banks.
 
     Calibration and detection share one unit (a passage), so a percentile means
@@ -211,10 +234,28 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
     same papers' own bank rows fired at 0.35 under this projection and 0.13
     under the bank's. `numeral_text` is the bank's copy of the projection
     this detector reads.
+
+    A row of the exemplar bank without `numeral_text` is read on `text`, the
+    `[math]` projection, and the reference then holds fewer numerals for it
+    than the manuscript side would count. Each bucket of the artifact records
+    the count (`text_fallback_rows`) and this warns on stderr when any bucket
+    has one; the fix is to rebuild the bank with `extract_style`. None, and
+    nothing written, when no bank held a record.
     """
-    return reference.calibrate(
+    written = reference.calibrate(
         field_profile_dir, BASELINE_FILENAME, FEATURES, salience_features,
         reference.passage_banks(field_profile_dir), text_key=BANK_TEXT_KEY)
+    if written is None:
+        return None
+    mixed = {bucket: ref["text_fallback_rows"] for bucket, ref in written.items()
+             if ref["text_fallback_rows"]}
+    if mixed:
+        listed = ", ".join(f"{bucket}={count}" for bucket, count in sorted(mixed.items()))
+        print(f"[deai_salience] WARNING: exemplar rows without {BANK_TEXT_KEY!r} "
+              f"were read on 'text', the [math] projection, so the reference "
+              f"under-counts their numerals ({listed}); rebuild the bank with "
+              "extract_style.py", file=sys.stderr)
+    return written
 
 
 def _written(result: dict[str, Any], field_profile_dir: Path) -> str:
@@ -234,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
         summary=_written,
         report=lambda text, field_dir, path: feedback.build_report(
             path=path, findings=salience_findings(text, field_dir, path),
-            axes=[salience_axis_status(field_dir)]),
+            axes=[salience_axis_status(field_dir, text)]),
         render=feedback.render_text)
 
 

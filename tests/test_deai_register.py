@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -61,6 +60,16 @@ class TestMacroTerms(unittest.TestCase):
     def test_superscript_decoration_is_not_a_term(self):
         self.assertEqual(
             register.macro_terms("\\newcommand{\\Kref}{K^\\mathrm{ref}}"), {})
+
+    def test_a_starred_definition_is_read(self):
+        # `\newcommand*` expanded to nothing: neither counted nor audited.
+        for command in ("newcommand*", "renewcommand*", "providecommand*"):
+            self.assertEqual(
+                register.macro_terms(f"\\{command}{{\\AUC}}{{\\mathrm{{AUC}}}}"),
+                {"AUC": "AUC"}, command)
+        document = ("\\newcommand*{\\AUC}{\\mathrm{AUC}}\n\\section{Validation}\n"
+                    "We report \\AUC and \\AUC here.\n")
+        self.assertEqual(register.manuscript_terms(document)["auc"]["count"], 2)
 
 
 class TestCompoundFrequency(unittest.TestCase):
@@ -355,6 +364,20 @@ class BodyProjectionTest(unittest.TestCase):
                     "The convergence is measured.\n")
         self.assertEqual(register.manuscript_terms(document)["convergence"]["line"], 4)
 
+    def test_the_skip_sections_can_be_kept_for_a_reader_that_needs_them(self) -> None:
+        # The vocabulary comparison drops them because the corpus did; an
+        # editing-mark scan keeps them, since a TODO in an appendix is as
+        # left behind as one in a paragraph.
+        document = ("\\title{T}\n\\section{Methods}\nThe shear is measured.\n"
+                    "\\section{Appendix}\nTODO fix this later.\n"
+                    "\\begin{thebibliography}{}\n\\bibitem{a} Blain.\n"
+                    "\\end{thebibliography}\n")
+        kept = register.body_lines(document, drop_skip=False)
+        self.assertEqual(kept.splitlines()[0], "")   # the preamble stays out
+        self.assertEqual(kept.splitlines()[4], "TODO fix this later.")
+        self.assertNotIn("Blain", kept)              # and so does the bibliography
+        self.assertEqual(register.body_lines(document).splitlines()[4], "")
+
     def test_a_subsection_under_a_skip_section_is_dropped_with_it(self) -> None:
         document = ("\\section{Methods}\nThe shear catalog is measured.\n"
                     "\\section{Acknowledgments}\n\\subsection{Special thanks}\n"
@@ -391,6 +414,13 @@ class DefinitionScopeTest(unittest.TestCase):
 
     def test_a_sentence_that_defines_nothing_exempts_nothing(self) -> None:
         self.assertEqual(register.defined_terms("The catalog is rescored."), set())
+
+
+class EmptyBankTest(unittest.TestCase):
+    def test_no_passage_means_no_lexicon_written(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="register-") as raw:
+            self.assertIsNone(register.calibrate(Path(raw)))
+            self.assertFalse((Path(raw) / register.LEXICON_FILENAME).exists())
 
 
 class BankResolutionTest(unittest.TestCase):

@@ -168,6 +168,47 @@ class FindingTests(unittest.TestCase):
             self.assertIn("document novel-pair fraction", status["reason"])
             self.assertIn("not a percentile", status["reason"])
 
+    def test_a_document_of_unknown_units_is_degraded_not_measured(self):
+        # No heading (or a topic heading) puts a paragraph in `unknown`, a
+        # bucket no bank holds, so the axis skips it; the status used to say
+        # `measured` over a document it had skipped whole.
+        untitled = NOVEL.split("\n", 1)[1]
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            status = collocation.collocation_axis_status(profile, untitled)
+            self.assertEqual(status["status"], "degraded")
+            self.assertIn("1 of 1 paragraph units carry no calibrated bucket",
+                          status["reason"])
+            self.assertEqual(collocation.collocation_findings(untitled, profile), [])
+
+    def test_a_reference_built_at_another_unit_is_refused_and_named(self):
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            path = profile / collocation.BASELINE_FILENAME
+            baseline = json.loads(path.read_text("utf-8"))
+            baseline["method"]["unit"] = "paragraph"
+            path.write_text(json.dumps(baseline), encoding="utf-8")
+            status = collocation.collocation_axis_status(profile, NOVEL)
+            self.assertEqual(status["status"], "degraded")
+            self.assertIn("method (paragraph)", status["reason"])
+            self.assertEqual(collocation.collocation_findings(NOVEL, profile), [])
+
+    def test_a_sentence_finding_carries_the_sentence_s_own_line(self):
+        novel_sentence = NOVEL.split("\n")[1]
+        text = ("\\section{Methods}\nThe aperture mass is measured on the shear "
+                "catalog around each cluster.\n" + novel_sentence + "\nThe tangential "
+                "shear is convolved with a compensated filter.\n")
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            (finding,) = collocation.collocation_findings(text, profile)
+            self.assertEqual((finding["location"]["start_line"],
+                              finding["location"]["end_line"]), (3, 3))
+
+    def test_no_passage_means_nothing_calibrated(self):
+        with tempfile.TemporaryDirectory(prefix="colloc-") as raw:
+            self.assertIsNone(collocation.calibrate(Path(raw)))
+            self.assertEqual(list(Path(raw).iterdir()), [])
+
 
 class CliTests(unittest.TestCase):
     def test_the_report_is_the_shared_schema(self):
@@ -182,6 +223,36 @@ class CliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("axis L2.collocation: measured", result.stdout)
             self.assertIn("collocation-novel:method", result.stdout)
+
+    def test_a_single_field_resolves_without_the_flag(self):
+        # `--help` has always promised auto-detection; the axis tools ran with
+        # no profile at all when `--field` was omitted.
+        with tempfile.TemporaryDirectory(prefix="colloc-") as raw:
+            root = Path(raw) / "profiles"
+            profile = root / "fld"
+            profile.mkdir(parents=True)
+            fixture.write_bank(profile, records())
+            collocation.calibrate(profile)
+            target = Path(raw) / "draft.tex"
+            target.write_text(NOVEL, encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(TOOLS / "deai_collocation.py"), str(target),
+                 "--profile-root", str(root)],
+                text=True, capture_output=True, encoding="utf-8")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("axis L2.collocation: measured", result.stdout)
+
+    def test_calibrating_an_empty_field_is_exit_two_with_nothing_written(self):
+        with tempfile.TemporaryDirectory(prefix="colloc-") as raw:
+            field = Path(raw) / "fld"
+            field.mkdir()
+            result = subprocess.run(
+                [sys.executable, str(TOOLS / "deai_collocation.py"), "--calibrate",
+                 "--field", "fld", "--profile-root", raw],
+                text=True, capture_output=True, encoding="utf-8")
+            self.assertEqual(result.returncode, 2, result.stdout)
+            self.assertIn("read no reference records", result.stderr)
+            self.assertEqual(list(field.iterdir()), [])
 
 
 class GlossaryTests(unittest.TestCase):
@@ -220,6 +291,73 @@ class GlossaryTests(unittest.TestCase):
             collocation.calibrate(profile)
             (finding,) = collocation.glossary_findings(self.DEFINED, profile)
             self.assertTrue(finding["observed"]["glossed_at_first_use"])
+
+    def test_the_cue_must_follow_the_pair(self):
+        # A `(Fig. 1)` or a `, the` elsewhere in the sentence marked a pair as
+        # defined; only a cue in the words after the pair, or a parenthesis
+        # opening right after it, glosses it.
+        pair = ("shear", "threshold")
+        self.assertTrue(collocation.glossed(
+            "The shear threshold, which we call the floor, sets the map.", pair))
+        self.assertTrue(collocation.glossed(
+            "The shear threshold (hereafter the floor) sets the map.", pair))
+        self.assertFalse(collocation.glossed(
+            "The shear threshold sets the map (Fig. 1).", pair))
+        self.assertFalse(collocation.glossed(
+            "The shear threshold sets the map, the floor of it.", pair))
+        self.assertFalse(collocation.glossed(
+            "We call the floor the shear threshold of the map.", pair))
+        text = ("\\section{Methods}\nThe shear threshold sets the floor (Fig. 1). "
+                "The shear threshold is measured again.\n")
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            (finding,) = collocation.glossary_findings(text, profile)
+            self.assertFalse(finding["observed"]["glossed_at_first_use"])
+
+    def test_uses_count_every_occurrence(self):
+        text = ("\\section{Methods}\nThe shear threshold sets the shear threshold "
+                "of the map.\n")
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            (finding,) = collocation.glossary_findings(text, profile)
+            self.assertEqual(finding["observed"]["uses"], 2)
+            self.assertIn("joined 2 times", finding["message"])
+
+    def test_the_glossary_status_depends_on_the_bank_alone(self):
+        # The reading takes no percentile, so the sentence reference and its
+        # floor cannot degrade it; `collocation_axis_status` put "unmeasured"
+        # beside a list measured against every passage of the bank.
+        self.assertEqual(collocation.glossary_axis_status(None)["status"], "unmeasured")
+        with fixture.temp_profile(records()) as profile:
+            collocation.calibrate(profile)
+            (profile / collocation.BASELINE_FILENAME).unlink()
+            self.assertEqual(collocation.collocation_axis_status(profile)["status"],
+                             "unmeasured")
+            status = collocation.glossary_axis_status(profile)
+            self.assertEqual(status["status"], "measured")
+            self.assertIn("glossary reading", status["reason"])
+            target = profile / "draft.tex"
+            target.write_text(self.RECURRING, encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(TOOLS / "deai_collocation.py"), str(target),
+                 "--field", profile.name, "--profile-root", str(profile.parent),
+                 "--glossary"],
+                text=True, capture_output=True, encoding="utf-8")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("axis L2.collocation: measured: glossary reading", result.stdout)
+
+    def test_glossary_and_calibrate_are_refused_together(self):
+        # `--glossary` used to be stripped from argv by hand and rode silently
+        # beside `--calibrate`.
+        with fixture.temp_profile(records()) as profile:
+            result = subprocess.run(
+                [sys.executable, str(TOOLS / "deai_collocation.py"), "--calibrate",
+                 "--glossary", "--field", profile.name, "--profile-root",
+                 str(profile.parent)],
+                text=True, capture_output=True, encoding="utf-8")
+            self.assertEqual(result.returncode, 2, result.stdout)
+            self.assertIn("--glossary", result.stderr)
+            self.assertFalse((profile / collocation.BANK_FILENAME).exists())
 
     def test_no_bank_lists_nothing_and_the_cli_mode_lists_the_candidates(self):
         with tempfile.TemporaryDirectory(prefix="colloc-") as raw:

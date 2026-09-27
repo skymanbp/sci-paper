@@ -59,6 +59,15 @@ class SelfHistoryTests(unittest.TestCase):
                            "for galaxy clusters.\n")
         self.assertEqual(found, {})
 
+    def test_a_sentence_finding_carries_the_sentence_s_own_lines(self):
+        # The finding pointed at the paragraph's line range; the sentence sits
+        # on line 3 of a unit that starts on line 2.
+        text = ("\\section{Methods}\nClean prose here.\nWe no longer use a wider "
+                "filter.\nMore prose here.\n")
+        (finding,) = residue.self_history_findings(text)
+        self.assertEqual((finding["location"]["start_line"], finding["location"]["end_line"]),
+                         (3, 3))
+
     def test_the_action_never_says_delete_the_negation(self):
         for action in (residue.HISTORY_ACTION, residue.NEGATIVE_LABEL_ACTION,
                        residue.EDIT_META_ACTION):
@@ -141,6 +150,22 @@ class EditMetaTests(unittest.TestCase):
         found = residue.residue_findings("\\newcommand{\\TODO}{x}\n\\section{Results}\nClean.\n")
         self.assertEqual([f for f in found if f["rule"] == "residue-edit-meta"], [])
 
+    def test_a_mark_in_a_skip_section_is_visible(self):
+        # An appendix is a `skip` bucket for the vocabulary comparison, since
+        # the corpus never held one; an editing mark left there is as left
+        # behind as one in a paragraph, and the strong gate returned 0 on it.
+        text = ("\\section{Results}\nClean prose.\n\\section{Appendix}\n"
+                "TODO fix this later. The slope (removed) is negative.\n")
+        marks = [(f["observed"]["mark"], f["location"]["start_line"])
+                 for f in residue.residue_findings(text) if f["rule"] == "residue-edit-meta"]
+        self.assertEqual(marks, [("TODO", 4), ("(removed)", 4)])
+        self.assertEqual(run_residue(text).returncode, 1)
+        # The bibliography stays out: a bibitem's `TODO` key is not prose.
+        text = ("\\section{Results}\nClean prose.\n\\begin{thebibliography}{}\n"
+                "\\bibitem{TODO} Blain, A.\n\\end{thebibliography}\n")
+        self.assertEqual([f for f in residue.residue_findings(text)
+                          if f["rule"] == "residue-edit-meta"], [])
+
     def test_a_phrase_mark_wrapped_at_a_line_break_is_one_mark(self):
         text = "\\section{Results}\nAs noted in the revised\nversion, the slope is negative.\n"
         found = residue.edit_meta_findings(text)
@@ -199,6 +224,44 @@ class NegativeLabelTests(unittest.TestCase):
         found = residue.negative_label_findings(text)
         self.assertEqual([f["observed"]["negated_object"] for f in found],
                          ["compensating kernel"])
+
+    def test_a_space_before_the_brace_or_a_short_title_is_still_a_label(self):
+        # LaTeX allows `\section {X}` and `\caption[short]{X}`; both were
+        # invisible to the label rule (audit A9 of 2026-09-04, not landed here).
+        self.assertEqual([label for _line, label in residue._labels(
+            "\\section {No saddle}\n\\caption [short] {Without the dip}")],
+            ["No saddle", "Without the dip"])
+        text = long_body("\\begin{figure}\\caption {Peak counts without the saddle "
+                         "correction.}\\end{figure}")
+        self.assertEqual([f["observed"]["negated_object"]
+                          for f in residue.negative_label_findings(text)],
+                         ["the saddle correction"])
+
+    def test_an_object_named_in_an_appendix_is_not_absent(self):
+        # Labels are read from the whole text, so the object is looked for in
+        # the whole paper too: an appendix caption negating what the appendix
+        # explains three lines above it was reported absent from the body.
+        appendix = ("\\section{Appendix}\nThe saddle correction is applied to every "
+                    "map in this appendix.\n\\begin{figure}\\caption{Peak counts "
+                    "without the saddle correction.}\\end{figure}\n")
+        self.assertEqual(residue.negative_label_findings(long_body() + appendix), [])
+        body_caption = long_body("\\begin{figure}\\caption{Peak counts without the "
+                                 "saddle correction.}\\end{figure}")
+        self.assertEqual(len(residue.negative_label_findings(body_caption)), 1)
+        self.assertEqual(residue.negative_label_findings(
+            body_caption + "\\section{Appendix}\nThe saddle correction is "
+                           "described here.\n"), [])
+
+    def test_the_ation_family_reduces_to_one_root(self):
+        # One suffix off left `truncation` as `trunc` and `truncated` as
+        # `truncat`, so a caption "without truncation" never found the body.
+        self.assertEqual({residue.stem(w) for w in
+                          ("truncation", "truncated", "truncating", "truncates")},
+                         {"trunc"})
+        text = long_body("The catalog is truncated at the survey edge. "
+                         "\\begin{figure}\\caption{Peak counts without "
+                         "truncation.}\\end{figure}")
+        self.assertEqual(residue.negative_label_findings(text), [])
 
 
 class NegativeLabelAddedTests(unittest.TestCase):
@@ -264,6 +327,14 @@ class CliTests(unittest.TestCase):
             [sys.executable, str(RESIDUE_CLI), "no-such-file.tex"],
             text=True, capture_output=True, encoding="utf-8")
         self.assertEqual(result.returncode, 2)
+
+    def test_an_unwritable_output_is_configuration_failure_not_a_strong_finding(self):
+        with tempfile.TemporaryDirectory() as raw:
+            target = Path(raw) / "no-such-dir" / "report.json"
+            result = run_residue("\\section{Methods}\nThe filter scale is fixed.\n",
+                                 "--output", str(target))
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("cannot write", result.stderr)
 
 
 class ValidatorHookTests(unittest.TestCase):

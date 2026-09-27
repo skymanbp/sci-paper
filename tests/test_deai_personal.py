@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import sys
 import unittest
-from pathlib import Path
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 

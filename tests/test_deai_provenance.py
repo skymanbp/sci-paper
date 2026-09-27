@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -78,6 +80,34 @@ class ProvenanceTests(unittest.TestCase):
         self.assertTrue(findings)
         self.assertEqual(findings[0]["location"]["start_line"], 3)
         self.assertIsNotNone(findings[0]["location"]["end_line"])
+
+    def test_a_title_block_is_not_a_ledger_paragraph(self):
+        # The ledger cut the raw text on blank lines, so an `\\author` and
+        # `\\affiliation` block of twelve words was an `ai_untouched` span; the
+        # shared sweep drops the preamble and a `skip` section, and keeps the
+        # abstract.
+        front = ("\\title{A Study of Everything}\n\\author{Someone With A Very Long "
+                 "Name From A Faraway Institute Of Science}\n\\affiliation{Department "
+                 "of Physics, University of Somewhere, Some Street, Some Town}\n\n")
+        body = ("\\begin{abstract}\n" + ANCESTOR.split("\n\n")[0] + "\n\\end{abstract}\n"
+                "\\section{Methods}\n" + ANCESTOR.split("\n\n")[1] + "\n\n"
+                "\\section{Acknowledgments}\nWe thank the many colleagues who read "
+                "an early version of this manuscript closely.\n")
+        result = prov.document_provenance(front + body, front + body)
+        # The abstract unit spans its environment, so it starts on the
+        # `\\begin{abstract}` line; the Methods paragraph is on line 9.
+        self.assertEqual([entry["start_line"] for entry in result["ledger"]], [5, 9])
+
+    def test_the_text_output_lists_the_label_counts_once(self):
+        with tempfile.TemporaryDirectory() as raw:
+            draft = Path(raw) / "draft.tex"
+            draft.write_text(ANCESTOR, encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(TOOLS / "deai_provenance.py"), str(draft),
+                 "--ai-ancestor", str(draft)],
+                text=True, capture_output=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.count("ai_untouched: 3"), 1)
 
     def test_git_unreadable_reason_is_distinguished(self):
         # supplied-but-unreadable ref must not be reported as "none supplied".

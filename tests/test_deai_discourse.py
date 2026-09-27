@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -87,8 +88,8 @@ def levels_for(documents: int) -> list[int]:
     holding level 1 would tie with the fully POOR document the tests submit
     instead of sitting above it. And the lowest level gets about a twentieth of
     the mass rather than an even share, because the tenth percentile of N units
-    is the (N // 10)-th smallest: a bank whose minimum occupies a tenth or more
-    has p10 == p0, and the reference then correctly refuses to resolve.
+    is the ceil(N / 10)-th smallest: a bank whose minimum occupies a tenth or
+    more has p10 == p0, and the reference then correctly refuses to resolve.
     """
     rare = max(1, documents // 20)
     return [2] * rare + [3 + index % (LEVELS - 2)
@@ -168,6 +169,36 @@ class TestUnitsAreNotInterchangeable(unittest.TestCase):
             self.assertEqual(result["cohesion"]["intro"]["unit"], "paragraph")
             self.assertEqual(result["hedging"]["intro"]["unit"], "section")
 
+    def test_a_reference_built_at_another_unit_is_refused_and_named(self):
+        # The artifact recorded its unit and nothing read it back: a hedging
+        # reference rebuilt at paragraph unit was read against sections.
+        with fixture.temp_profile(graded_bank(), prefix="discourse-") as profile:
+            discourse.calibrate(profile)
+            path = profile / discourse.AXES["hedging"]["baseline"]
+            baseline = json.loads(path.read_text("utf-8"))
+            baseline["intro"]["unit"] = "paragraph"
+            path.write_text(json.dumps(baseline), encoding="utf-8")
+            self.assertEqual(discourse.live_buckets("hedging", profile), [])
+            status = {s["axis"]: s for s in discourse.discourse_axis_status(profile)}
+            self.assertEqual(status["L2.hedging"]["status"], "degraded")
+            self.assertIn("intro (paragraph)", status["L2.hedging"]["reason"])
+            self.assertEqual(status["L2.cohesion"]["status"], "measured")
+            rules = {f["rule"] for f in discourse.discourse_findings(document(POOR), profile)}
+            self.assertNotIn("discourse-hedging:intro", rules)
+            self.assertIn("discourse-cohesion:intro", rules)
+
+    def test_a_section_split_over_subsections_is_measured_once(self):
+        # The reference pools a paper's intro paragraphs into one section, so
+        # the manuscript's subsections are one unit too: three POOR paragraphs
+        # under three subsections are one section of three paragraphs' words.
+        text = ("\\section{Introduction}\n"
+                + "\n".join(f"\\subsection{{Part {i}}}\n{p}" for i, p in enumerate(POOR))
+                + "\n")
+        units = [(bucket, discourse.hedging_features(block)["n_words"])
+                 for _s, _e, bucket, block in reference.sections(text)]
+        pooled = discourse.hedging_features("\n\n".join(POOR))["n_words"]
+        self.assertEqual(units, [("intro", pooled)])
+
     def test_a_record_with_no_source_cannot_form_a_section(self):
         # Pooling unattributable paragraphs would join prose from unrelated
         # papers into a section no author ever wrote.
@@ -239,6 +270,29 @@ class TestFindingsAndCalibration(unittest.TestCase):
             statuses = {s["axis"]: s["status"]
                         for s in discourse.discourse_axis_status(profile)}
             self.assertEqual(statuses["L2.hedging"], "degraded")
+
+    def test_a_document_of_unknown_units_is_degraded_not_measured(self):
+        # Untitled prose lands in `unknown`, which no bank holds; the status
+        # used to be computed from the profile alone and said `measured`.
+        with fixture.temp_profile(graded_bank(), prefix="discourse-") as profile:
+            discourse.calibrate(profile)
+            statuses = {s["axis"]: s for s in
+                        discourse.discourse_axis_status(profile, "\n\n".join(POOR) + "\n")}
+            self.assertEqual(statuses["L2.cohesion"]["status"], "degraded")
+            self.assertIn("3 of 3 paragraph units carry no calibrated bucket",
+                          statuses["L2.cohesion"]["reason"])
+            self.assertEqual(statuses["L2.hedging"]["status"], "degraded")
+            self.assertIn("1 of 1 section units carry no calibrated bucket",
+                          statuses["L2.hedging"]["reason"])
+            titled = {s["axis"]: s["status"] for s in
+                      discourse.discourse_axis_status(profile, document(POOR))}
+            self.assertEqual(titled, {"L2.cohesion": "measured", "L2.hedging": "measured"})
+
+    def test_no_bank_at_all_means_nothing_calibrated(self):
+        with fixture.temp_profile([], prefix="discourse-") as profile:
+            self.assertIsNone(discourse.calibrate(profile))
+            self.assertEqual(sorted(p.name for p in profile.iterdir()),
+                             ["exemplar_paragraphs.jsonl"])
 
 
 class TestBucketRestriction(unittest.TestCase):

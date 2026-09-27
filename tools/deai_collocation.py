@@ -4,10 +4,12 @@
 whether two words that each belong to the field have ever been put next to
 each other by it. The two questions have opposite evidence, and that is why
 they are two axes: refereed papers carry MORE unattested single words than
-machine drafts (rank AUC 0.242, EVALUATION §23), because a real paper names
-real instruments, coins real terms and cites real people; but they carry FEWER
-unattested pairs of common words (AUC 0.855, length-controlled), because a
-writer who has read the field reaches for the field's own phrases. A machine
+machine drafts (rank AUC 0.174 under the v0.36.2 projection, EVALUATION
+§23.1), because a real paper names real instruments, coins real terms and
+cites real people; but they carry FEWER unattested pairs of common words
+(document novel-pair fraction, machine over held-out AUC 0.704, §23.2),
+because a writer who has read the field reaches for the field's own phrases.
+A machine
 draft assembles field words into combinations the field does not use --
 `calibrated blur`, `controlled grid`, `physical cells`, `detector axes` -- and
 the advisor who read such a draft wrote "I don't know what this means" at
@@ -57,6 +59,7 @@ import cli_common  # noqa: E402 because the sibling resolves only once TOOLS_DIR
 BANK_FILENAME = "collocation_bank.json"
 BASELINE_FILENAME = "collocation_baseline.json"
 FEATURE = "novel_fraction"
+UNIT = "sentence"
 ADVISORY_PERCENTILE = 0.90
 STRONG_PERCENTILE = 0.95
 MIN_REFERENCE_N = reference.MIN_REFERENCE_N
@@ -177,6 +180,13 @@ def document_novelty(text: str, bank: dict[str, Any]) -> dict[str, Any]:
 
 def collocation_axis_status(field_profile_dir: Path | None,
                             text: str | None = None) -> dict[str, Any]:
+    """The axis status, `degraded` with its reasons where it did not measure.
+
+    `text` is what makes the status about THIS document: a paragraph in the
+    `unknown` bucket (no heading, or a topic heading) has no reference and is
+    skipped, and without the text the status could only describe the profile
+    and reported `measured` over a document it had skipped whole.
+    """
     bank = load_bank(field_profile_dir)
     baseline = load_baseline(field_profile_dir)
     if bank is None or baseline is None:
@@ -184,23 +194,24 @@ def collocation_axis_status(field_profile_dir: Path | None,
         return feedback.axis_status(
             "L2.collocation", "unmeasured",
             reason=f"{missing} is unavailable", detector="deai_collocation")
-    usable = reference.usable_buckets(baseline, FEATURE, ADVISORY_PERCENTILE, high=True)
+    usable = reference.usable_buckets(baseline, FEATURE, ADVISORY_PERCENTILE,
+                                      high=True, unit=UNIT)
+    reasons = [None if usable else
+               (f"no section bucket reaches the {MIN_REFERENCE_N}-sentence "
+                "reference floor with spread above the gate"),
+               reference.unit_reason(baseline, UNIT)]
     evidence = None
     if text is not None:
+        reasons.append(reference.unbucketed_reason(reference.units(text), "paragraph"))
         whole = document_novelty(text, bank)
         if whole[FEATURE] is not None:
             evidence = (f"document novel-pair fraction {whole[FEATURE]:.3f} over "
                         f"{whole['judged_pairs']} judged pairs (evidence, not a "
                         "percentile: the reference is per sentence)")
-    if not usable:
-        floor = (f"no section bucket reaches the {MIN_REFERENCE_N}-sentence "
-                 "reference floor with spread above the gate")
-        return feedback.axis_status(
-            "L2.collocation", "degraded",
-            reason="; ".join(part for part in (floor, evidence) if part),
-            detector="deai_collocation")
-    return feedback.axis_status("L2.collocation", "measured", reason=evidence,
-                                detector="deai_collocation")
+    return feedback.axis_status(
+        "L2.collocation", "degraded" if any(reasons) else "measured",
+        reason="; ".join(part for part in (*reasons, evidence) if part) or None,
+        detector="deai_collocation")
 
 
 def _weighed(novel: list[tuple[str, str]], bank: dict[str, Any]) -> list[dict[str, Any]]:
@@ -219,6 +230,7 @@ def _sentence_finding(sentence: str, verdict: dict[str, Any], percentile: float,
                       bank: dict[str, Any], bucket: str, ref: dict[str, Any],
                       span: tuple[int, int], path: str | Path | None,
                       field_profile_dir: Path | None) -> dict[str, Any]:
+    """One sentence's finding; `span` is the sentence's own line range."""
     reference_n = int(ref.get("n", 0))
     measured = reference_n >= MIN_REFERENCE_N
     strong = bool(measured and percentile > STRONG_PERCENTILE)
@@ -226,12 +238,12 @@ def _sentence_finding(sentence: str, verdict: dict[str, Any], percentile: float,
     pairs = _weighed(verdict["novel"], bank)
     excerpt = " ".join(sentence.split())
     frame = dict(kind="advisory", layer="L2", scope="sentence",
-                 calibration_unit="sentence", detector="deai_collocation",
+                 calibration_unit=UNIT, detector="deai_collocation",
                  rule=f"collocation-novel:{bucket}", section=bucket, path=path,
                  line=span[0], end_line=span[1],
                  strength="strong" if strong else "ordinary",
                  measurement_status="measured" if measured else "degraded")
-    policy = dict(provenance=BASELINE_FILENAME, unit="sentence",
+    policy = dict(provenance=BASELINE_FILENAME, unit=UNIT,
                   n_passages=n_passages, common_rate=COMMON_RATE,
                   advisory_percentile=ADVISORY_PERCENTILE,
                   strong_percentile=STRONG_PERCENTILE)
@@ -267,9 +279,11 @@ def collocation_findings(text: str, field_profile_dir: Path | None,
     if bank is None or baseline is None:
         return []
     findings: list[dict[str, Any]] = []
-    for start, end, bucket, block in reference.units(text):
+    for start, _end, bucket, block in reference.units(text):
         ref = baseline.get(bucket)
-        if not isinstance(ref, dict):
+        # A bucket under the sample floor still speaks, as a degraded finding;
+        # one built at another unit does not speak at all (the status says why).
+        if not isinstance(ref, dict) or not reference.unit_matches(ref, UNIT):
             continue
         if not reference.resolves_gate(ref, FEATURE, ADVISORY_PERCENTILE, high=True):
             continue
@@ -282,18 +296,24 @@ def collocation_findings(text: str, field_profile_dir: Path | None,
                 continue
             findings.append(_sentence_finding(
                 sentence, verdict, percentile, bank=bank, bucket=bucket, ref=ref,
-                span=(start, end), path=path, field_profile_dir=field_profile_dir))
+                span=reference.sentence_lines(block, start, sentence), path=path,
+                field_profile_dir=field_profile_dir))
     return findings
 
 
 # ---- the glossary reading (document scope) ----------------------------------
 GLOSSARY_MIN_USES = 2
 GLOSSARY_RULE = "collocation-glossary"
-# A definition cue in the first-use sentence: the term is introduced there.
+# A definition cue is read only in the words AFTER the pair, or as a
+# parenthesis opening right after it: `the shear threshold, which we call the
+# floor` and `the shear threshold (hereafter ...)` gloss the pair, while a
+# `(Fig. 1)` or a `, the` anywhere else in the sentence does not -- read over
+# the whole sentence, those marked one pair in six as defined on the Letter.
 RE_GLOSS_CUE = re.compile(
     r"\b(?:we call|called|which we call|define[sd]? as|defined|denote[sd]?|"
-    r"that is|which is|i\.e\.|namely|meaning)\b|\(|, the |, that |, those ",
+    r"that is|which is|i\.e\.|namely|meaning|hereafter)\b",
     re.IGNORECASE)
+GLOSS_WINDOW_WORDS = 8
 GLOSSARY_ACTION = (
     "A pair the field never joins that this manuscript uses more than once is "
     "most likely its own term, not a slip: the advisor's 'this is jargon and "
@@ -301,6 +321,11 @@ GLOSSARY_ACTION = (
     "manuscript's term, give it its definition (or a plain gloss) where it is "
     "first used, or replace it by the field's own word; if it is ordinary "
     "phrasing that the corpus happens to lack, leave it.")
+
+
+def _pair_pattern(pair: tuple[str, str]) -> str:
+    """The pair as written: each stem with any suffix, the first with its 's."""
+    return rf"\b{re.escape(pair[0])}(?:'s)?\w*\s+{re.escape(pair[1])}\w*"
 
 
 def _line_of_pair(block: str, start: int, pair: tuple[str, str]) -> int:
@@ -311,8 +336,45 @@ def _line_of_pair(block: str, start: int, pair: tuple[str, str]) -> int:
     may carry its 's; the fallback keeps the finding anchored to the unit
     when a macro or a line break sits between the words in the source.
     """
-    hit = re.search(rf"\b{re.escape(pair[0])}(?:'s)?\w*\s+{re.escape(pair[1])}\w*", block, re.IGNORECASE)
+    hit = re.search(_pair_pattern(pair), block, re.IGNORECASE)
     return start + block[:hit.start()].count("\n") if hit else start
+
+
+def glossed(sentence: str, pair: tuple[str, str]) -> bool:
+    """Whether the sentence defines the pair where it uses it.
+
+    A parenthesis opening right after the pair, or a cue among the
+    `GLOSS_WINDOW_WORDS` words that follow it; a cue before the pair or later
+    in the sentence is about something else.
+    """
+    hit = re.search(_pair_pattern(pair), sentence, re.IGNORECASE)
+    if hit is None:
+        return False
+    after = sentence[hit.end():]
+    if re.match(r"\s*\(", after):
+        return True
+    window = " ".join(after.split()[:GLOSS_WINDOW_WORDS])
+    return bool(RE_GLOSS_CUE.search(window))
+
+
+def glossary_axis_status(field_profile_dir: Path | None) -> dict[str, Any]:
+    """The status of the glossary reading: it needs the bank and nothing else.
+
+    No percentile is read, so the sentence reference is not consulted and
+    its floor cannot degrade this reading; reporting `collocation_axis_status`
+    beside a glossary list put "unmeasured" next to findings that had been
+    measured against every passage of the bank.
+    """
+    bank = load_bank(field_profile_dir)
+    if bank is None:
+        return feedback.axis_status(
+            "L2.collocation", "unmeasured",
+            reason=f"{BANK_FILENAME} is unavailable", detector="deai_collocation")
+    return feedback.axis_status(
+        "L2.collocation", "measured",
+        reason=(f"glossary reading: pairs unattested in {int(bank['n_passages']):,} "
+                "passages, document scope, no percentile"),
+        detector="deai_collocation")
 
 
 def glossary_findings(text: str, field_profile_dir: Path | None,
@@ -323,9 +385,10 @@ def glossary_findings(text: str, field_profile_dir: Path | None,
     stumbles. This reading aggregates every judged sentence of the document
     and lists the pairs the field never joins that the manuscript uses at
     least GLOSSARY_MIN_USES times: a coinage recurs, a figure of speech does
-    not. Each candidate carries its uses, the sections it appears in, its
-    first-use line (the pair's first appearance in the raw unit, else the unit's
-    start) and whether that sentence carries a definition cue, so the
+    not. Each candidate carries its uses (every occurrence, a sentence that
+    joins the pair twice counting twice), the sections it appears in, its first-use
+    line (the pair's first appearance in the raw unit, else the unit's start)
+    and whether that sentence glosses it where it uses it (`glossed`), so the
     author can add the definition at first use or choose the field's word.
     No sentence-level gate and no percentile: this is a list to walk, not a
     verdict, and it is off by default in the unified linter.
@@ -337,7 +400,8 @@ def glossary_findings(text: str, field_profile_dir: Path | None,
     for start, _end, bucket, block in reference.units(text):
         for sentence in es.sentences(es.latex_to_plain(block)):
             excerpt = " ".join(sentence.split())
-            for pair in _judged(dict.fromkeys(content_pairs(sentence)), bank):
+            occurrences = Counter(content_pairs(sentence))
+            for pair in _judged(occurrences, bank):
                 if _attestations(pair, bank) != 0:
                     continue
                 key = f"{pair[0]} {pair[1]}"
@@ -348,10 +412,10 @@ def glossary_findings(text: str, field_profile_dir: Path | None,
                         "first_line": _line_of_pair(block, start, pair),
                         "first_section": bucket,
                         "first_sentence": excerpt[:160],
-                        "glossed_at_first_use": bool(RE_GLOSS_CUE.search(excerpt)),
+                        "glossed_at_first_use": glossed(excerpt, pair),
                         "expected_copresent_passages": round(
                             expected_cooccurrence(pair, bank), 2)}
-                item["uses"] += 1
+                item["uses"] += occurrences[pair]
                 if bucket not in item["sections"]:
                     item["sections"].append(bucket)
     n_passages = int(bank["n_passages"])
@@ -359,8 +423,8 @@ def glossary_findings(text: str, field_profile_dir: Path | None,
     for key, item in sorted(seen.items(), key=lambda kv: (-kv[1]["uses"], kv[0])):
         if item["uses"] < GLOSSARY_MIN_USES:
             continue
-        cue = ("a definition cue in that sentence" if item["glossed_at_first_use"]
-               else "no definition cue in that sentence")
+        cue = ("a definition cue follows it there" if item["glossed_at_first_use"]
+               else "no definition cue follows it there")
         message = (f"'{key}' is joined {item['uses']} times in the manuscript "
                    f"({', '.join(item['sections'])}) and in none of the field's "
                    f"{n_passages:,} passages; first use at line {item['first_line']}, {cue}.")
@@ -416,9 +480,15 @@ def build_bank(field_profile_dir: Path) -> dict[str, Any]:
             "pair_df": dict(sorted(pair_df.items()))}
 
 
-def calibrate(field_profile_dir: Path) -> dict[str, Any]:
-    """Write the pair bank, then the per-bucket sentence reference (leave-one-out)."""
+def calibrate(field_profile_dir: Path) -> dict[str, Any] | None:
+    """Write the pair bank, then the per-bucket sentence reference (leave-one-out).
+
+    None, with nothing written, when the banks hold no passage: an empty pair
+    bank is not a calibration, and `axis_main` reports exit 2.
+    """
     bank = build_bank(field_profile_dir)
+    if not bank["n_passages"]:
+        return None
     (field_profile_dir / BANK_FILENAME).write_text(
         json.dumps(bank, separators=(",", ":"), sort_keys=True), encoding="utf-8")
     collected: dict[str, list[float]] = {}
@@ -427,7 +497,7 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any]:
             verdict = judge_sentence(sentence, bank, own_passage=True)
             if verdict is not None:
                 collected.setdefault(bucket, []).append(verdict[FEATURE])
-    baseline = {bucket: {"n": len(values), "unit": "sentence",
+    baseline = {bucket: {"n": len(values), "unit": UNIT,
                          "sources": ["leave-one-out over the passage banks"],
                          "percentiles": {FEATURE: reference.quantiles(values)}}
                 for bucket, values in collected.items()}
@@ -456,18 +526,22 @@ def _report(text: str, field_dir: Path | None, path: str | Path) -> dict[str, An
 
 def _glossary_report(text: str, field_dir: Path | None, path: str | Path) -> dict[str, Any]:
     findings = glossary_findings(text, field_dir, path)
-    status = collocation_axis_status(field_dir, text)
-    return feedback.build_report(path=path, findings=findings, axes=[status])
+    return feedback.build_report(path=path, findings=findings,
+                                 axes=[glossary_axis_status(field_dir)])
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = list(sys.argv[1:] if argv is None else argv)
-    glossary = "--glossary" in args
-    args = [arg for arg in args if arg != "--glossary"]
-    return cli_common.axis_main(__doc__, args, tool="deai_collocation",
-                                calibrate=calibrate, summary=_written,
-                                report=_glossary_report if glossary else _report,
-                                render=feedback.render_text)
+    return cli_common.axis_main(
+        __doc__, argv, tool="deai_collocation", calibrate=calibrate,
+        summary=_written, report=_report, render=feedback.render_text,
+        extra_arguments=lambda parser: parser.add_argument(
+            "--glossary", action="store_true",
+            help="list the recurring unattested pairs (document scope) instead "
+                 "of the per-sentence findings"),
+        check=lambda args: ("--glossary reads a document; it cannot be combined "
+                            "with --calibrate" if args.glossary and args.calibrate
+                            else None),
+        report_for=lambda args: _glossary_report if args.glossary else _report)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,13 @@ its reason. This test would have failed on that tree.
 
 from __future__ import annotations
 
+import contextlib
+import io
+import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 
@@ -62,6 +68,63 @@ class UidFindingsTests(unittest.TestCase):
     def test_short_paragraphs_are_skipped_not_scored(self):
         oracle.token_surprisals = lambda text, model_name: [3.0] * (oracle.MIN_TOKENS - 1)
         self.assertEqual(oracle.uid_findings(TEXT, None), [])
+
+    def test_calibrate_skips_a_blank_or_undecodable_bank_line(self):
+        # `json.loads` on a blank line aborted an hour-long calibration.
+        oracle.token_surprisals = lambda text, model_name: [3.0 + (i % 2) for i in range(30)]
+        with tempfile.TemporaryDirectory(prefix="oracle-") as raw:
+            bank = Path(raw) / "exemplar_paragraphs.jsonl"
+            bank.write_text("\n".join([json.dumps({"section": "intro", "text": "one"}),
+                                       "", "not json {", "   ",
+                                       json.dumps({"section": "intro", "text": "two"})]) + "\n",
+                            encoding="utf-8")
+            baseline = oracle.calibrate(Path(raw), "stub")
+        self.assertEqual(baseline["n_paragraphs_used"], 2)
+
+
+class FailureMessageTests(unittest.TestCase):
+    def test_an_exception_with_no_message_has_a_first_line(self):
+        # The CUDA fallback handler read `str(exc).splitlines()[0]` and died
+        # on the way to the fallback when the message was empty.
+        self.assertEqual(oracle._first_line(Exception("")), "?")
+        self.assertEqual(oracle._first_line(Exception("first\nsecond")), "first")
+
+
+class FieldResolutionTests(unittest.TestCase):
+    """`--field` resolves through `cli_common.optional_field_dir`: none is
+    exit 2 with the message the tool always printed, one resolves on its own,
+    and `profile_root / None` is no longer a TypeError. `deai_voice`, the
+    other tool that cannot run without a profile, has the same case in
+    `test_deai_voice.py`."""
+
+    def test_oracle_needs_a_profile_and_finds_a_single_one(self):
+        with tempfile.TemporaryDirectory(prefix="oracle-") as raw:
+            draft = Path(raw) / "draft.tex"
+            draft.write_text(TEXT, encoding="utf-8")
+            profiles = Path(raw) / "profiles"
+            profiles.mkdir()
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                self.assertEqual(oracle.main([str(draft), "--profile-root", str(profiles)]), 2)
+            self.assertIn("need --field", stderr.getvalue())
+            (profiles / "fld").mkdir()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(oracle.main([str(draft), "--profile-root", str(profiles)]), 0)
+            self.assertIn("axis L1.uid: unmeasured", stdout.getvalue())
+
+    def test_calibrating_a_field_without_a_bank_is_exit_two(self):
+        # With the runtime present, `calibrate` raised FileNotFoundError out
+        # of `main` (a traceback, exit 1) for a --field that has no bank.
+        with tempfile.TemporaryDirectory(prefix="oracle-") as raw:
+            (Path(raw) / "fld").mkdir()
+            stderr = io.StringIO()
+            with mock.patch.object(oracle, "model_runtime_available",
+                                   return_value=(True, "")), \
+                    contextlib.redirect_stderr(stderr):
+                code = oracle.main(["--calibrate", "--field", "fld", "--profile-root", raw])
+            self.assertEqual(code, 2)
+            self.assertIn("no exemplar_paragraphs.jsonl", stderr.getvalue())
 
 
 if __name__ == "__main__":

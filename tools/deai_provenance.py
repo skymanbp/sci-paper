@@ -26,7 +26,6 @@ Lib:
 """
 from __future__ import annotations
 
-import argparse
 import difflib
 import subprocess
 import sys
@@ -37,6 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import extract_style as es       # noqa: E402  resolves only after the sys.path insert
 import deai_feedback as feedback  # noqa: E402  shared finding contract
+import deai_reference as reference  # noqa: E402  the shared paragraph sweep
 
 MIN_WORDS = 12                 # ignore trivial fragments (titles, stray lines)
 # Similarity (difflib token ratio, in [0, 1]) buckets. Higher similarity to the
@@ -50,27 +50,17 @@ DEPTH = {"ai_untouched": 0.0, "lightly_edited": 0.4,
 
 
 def _paragraphs(text: str) -> list[tuple[int, int, str]]:
-    """(start_line, end_line, block) per blank-line paragraph with enough prose
-    words to carry a claim; line numbers are 1-based source lines so a finding's
-    location points at the real paragraph, matching the sibling detectors."""
-    lines = text.splitlines()
-    out: list[tuple[int, int, str]] = []
-    index = 0
-    while index < len(lines):
-        while index < len(lines) and not lines[index].strip():
-            index += 1
-        if index >= len(lines):
-            break
-        start = index + 1                       # 1-based first line of the block
-        block_lines = []
-        while index < len(lines) and lines[index].strip():
-            block_lines.append(lines[index])
-            index += 1
-        end = index                             # 1-based last non-blank line
-        block = "\n".join(block_lines).strip()
-        if block and len(es.words(es.latex_to_plain(block))) >= MIN_WORDS:
-            out.append((start, end, block))
-    return out
+    """(start_line, end_line, block) per prose paragraph with enough words to
+    carry a claim, from the sweep every paragraph axis reads
+    (`deai_reference.paragraphs`): the preamble is not a paragraph, so a
+    `\\author{...}\\affiliation{...}` block no longer enters the ledger as an
+    `ai_untouched` span, and a `skip` section (acknowledgments, appendix) is
+    not prose the author has to own. Line numbers are 1-based source lines, so
+    a finding's location points at the real paragraph."""
+    return [(start, end, block)
+            for start, end, _label, bucket, block in reference.paragraphs(text)
+            if bucket != "skip"
+            and len(es.words(es.latex_to_plain(block))) >= MIN_WORDS]
 
 
 def _tokens(text: str) -> list[str]:
@@ -190,7 +180,8 @@ def git_file_at(path: Path, ref: str) -> str | None:
 
 def document_findings(current_text: str, path: str | Path | None,
                       ancestor_text: str | None,
-                      no_ancestor_reason: str | None = None
+                      no_ancestor_reason: str | None = None,
+                      result: dict[str, Any] | None = None,
                       ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Findings + axis status for the provenance ledger.
 
@@ -200,6 +191,8 @@ def document_findings(current_text: str, path: str | Path | None,
     so paragraph-unit findings here are not capped. With no ancestor the axis is
     ``unmeasured`` and no finding is emitted; ``no_ancestor_reason`` lets the
     caller distinguish "none supplied" from "supplied but unreadable at that ref".
+    ``result`` is a ledger the caller already built with ``document_provenance``
+    for the same pair, so the CLI's text output does not build it twice.
     """
     axis_name = "L4.editing_provenance"
     if ancestor_text is None:
@@ -208,7 +201,8 @@ def document_findings(current_text: str, path: str | Path | None,
             reason=(no_ancestor_reason
                     or "no AI-draft ancestor supplied (--ai-ancestor / --git-ai-ref)"),
             detector="deai_provenance")]
-    result = document_provenance(current_text, ancestor_text)
+    if result is None:
+        result = document_provenance(current_text, ancestor_text)
     if result["status"] != "measured":
         return [], [feedback.axis_status(axis_name, "unmeasured",
                                          reason=result["reason"],
@@ -273,8 +267,10 @@ def main(argv: list[str] | None = None) -> int:
                                   f"untracked for this file")
             print(f"[deai_provenance] could not read {args.file} at git ref "
                   f"{args.git_ai_ref}; provenance is unmeasured", file=sys.stderr)
+    result = document_provenance(current, ancestor) if ancestor is not None else None
     findings, axes = document_findings(current, args.file, ancestor,
-                                       no_ancestor_reason=no_ancestor_reason)
+                                       no_ancestor_reason=no_ancestor_reason,
+                                       result=result)
     if args.format == "json":
         report = feedback.build_report(path=args.file, findings=findings, axes=axes)
         print(feedback.dump_report(report), end="")
@@ -282,11 +278,9 @@ def main(argv: list[str] | None = None) -> int:
     for axis in axes:
         detail = f": {axis['reason']}" if axis.get("reason") else ""
         print(f"axis {axis['axis']}: {axis['status']}{detail}")
-    if ancestor is not None:
-        result = document_provenance(current, ancestor)
-        if result["status"] == "measured":
-            for label, count in result["summary"]["label_counts"].items():
-                print(f"  {label}: {count}")
+    if result is not None and result["status"] == "measured":
+        for label, count in result["summary"]["label_counts"].items():
+            print(f"  {label}: {count}")
     return 0
 
 
