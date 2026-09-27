@@ -8,7 +8,7 @@ is surfaced as rank-based triage (lowest-scoring paragraphs), never through a
 universal probability cutoff.
 
   voice_score(text, field_dir) -> compatibility score in [0, 1], or None
-      without a bundle or without the surprisal runtime the features need
+      without a bundle or without an input it reads (`scoring_reason`)
   paragraph_hits(text, field_dir) -> compatibility tuple advisories
 
 The score is never a paper gate or detector-evasion objective. Rewrite candidates
@@ -113,16 +113,55 @@ def runtime_reason() -> str | None:
             "paragraph can be scored")
 
 
+def reads_corpus_cos(bundle) -> bool:
+    """Whether the bundle can respond to `corpus_cos` at all.
+
+    A bundle trained while the embedder was missing saw corpus_cos = 0.0 on
+    every row: its scaler records zero variance there, the classifier learned
+    nothing from the column, and scoring needs no centroid. A bundle with no
+    fitted scaler variances to read is taken to read it.
+    """
+    variances = getattr(bundle.get("scaler"), "var_", None)
+    if variances is None:
+        return True
+    return float(variances[df.FEATURE_NAMES.index("corpus_cos")]) > 0.0
+
+
+def scoring_reason(bundle, field_profile_dir: Path | None,
+                   centroid=None) -> str | None:
+    """Why `bundle` cannot score a paragraph here, or None when it can.
+
+    The surprisal runtime first (`runtime_reason`); then, for a bundle that
+    reads `corpus_cos`, the embedder and the field's exemplar-embedding
+    centroid. Without either, `paragraph_features` writes the placeholder 0.0,
+    which a scaler fit on real cosines reads as several standard deviations
+    from its mean: until 2026-09-27 that score, moved by an absent input,
+    entered the findings and the rewrite ranking as a measured one.
+    """
+    reason = runtime_reason()
+    if reason is not None or not reads_corpus_cos(bundle):
+        return reason
+    if not df.embedder_available():
+        return ("sentence-transformers is not installed and the bundle reads "
+                "corpus_cos, so no paragraph can be scored")
+    if centroid is None and (field_profile_dir is None
+                             or df.corpus_centroid(field_profile_dir) is None):
+        return (f"exemplar_embeddings_{df.EMBED_MODEL}.npy is missing and the "
+                "bundle reads corpus_cos; build it with build_profile (without "
+                "--no-warm)")
+    return None
+
+
 def voice_score(text: str, field_profile_dir: Path | None,
                 model_name: str | None = None, centroid=None) -> float | None:
     """Return a field-similarity compatibility score, or None if unavailable.
 
-    None without a bundle and None without the surprisal runtime: the caller's
-    status names which (`voice_axis_status`), and a rewrite ranker reading
-    None weighs the term at nothing rather than at a nominal 0.0.
+    None without a bundle and None without an input the bundle reads: the
+    caller's status names which (`voice_axis_status`), and a rewrite ranker
+    reading None weighs the term at nothing rather than at a nominal 0.0.
     """
     bundle = load_voice_model(field_profile_dir)
-    if bundle is None or runtime_reason() is not None:
+    if bundle is None or scoring_reason(bundle, field_profile_dir, centroid) is not None:
         return None
     model_name = model_name or bundle.get("model", do.DEFAULT_MODEL)
     if centroid is None and field_profile_dir is not None:
@@ -138,7 +177,7 @@ def voice_axis_status(field_profile_dir: Path | None) -> dict:
         return feedback.axis_status(
             "L3.voice", "unmeasured", reason="voice_model.joblib is unavailable",
             detector="deai_voice")
-    reason = runtime_reason()
+    reason = scoring_reason(bundle, field_profile_dir)
     if reason is not None:
         return feedback.axis_status("L3.voice", "unmeasured", reason=reason,
                                     detector="deai_voice")
@@ -196,7 +235,7 @@ def voice_findings(text: str, field_profile_dir: Path | None,
     probability cutoff is invented.
     """
     bundle = load_voice_model(field_profile_dir)
-    if bundle is None or runtime_reason() is not None:
+    if bundle is None or scoring_reason(bundle, field_profile_dir) is not None:
         return []
     calibrated = bundle_measured(bundle)
     model_name = bundle.get("model", do.DEFAULT_MODEL)

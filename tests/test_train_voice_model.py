@@ -340,12 +340,15 @@ class VoiceAuditHelperTests(unittest.TestCase):
         self.assertEqual(aggregated["overall"]["f1_positive"]["mean"], 1.0)
 
     def test_voice_axis_requires_measured_operating_point(self):
-        # The status under test is the bundle's, so the surprisal runtime the
-        # feature vector needs is pinned as present: without it the axis is
+        # The status under test is the bundle's, so every input the feature
+        # vector needs is pinned as present -- the surprisal runtime, the
+        # embedder and the exemplar centroid: without one the axis is
         # `unmeasured` whatever the bundle says (tests/test_deai_voice.py).
         with tempfile.TemporaryDirectory() as temporary, \
                 mock.patch.object(voice.do, "model_runtime_available",
-                                  return_value=(True, "")):
+                                  return_value=(True, "")), \
+                mock.patch.object(voice.df, "embedder_available", return_value=True), \
+                mock.patch.object(voice.df, "corpus_centroid", return_value=object()):
             profile = Path(temporary)
             key = str(profile)
             try:

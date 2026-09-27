@@ -43,7 +43,7 @@ than thresholded away:
 * **Subscripts.** `\\newcommand{\\Kraw}{S_\\mathrm{raw}}` renders a subscript,
   not a word. Reading macro bodies without checking for a preceding `_` or `^`
   turns every symbol decoration into a fake foreign term.
-* **Possessives.** `sub-halo's` and `sub-halo` are one term.
+* **Possessives.** `point-source's` and `point-source` are one term.
 
 Macro definitions are read as well as prose, because a term bound to a macro is
 by construction one the author uses repeatedly, and the reduction that feeds
@@ -91,7 +91,7 @@ RE_BIB_ENV = re.compile(r"\\begin\{thebibliography\}.*?\\end\{thebibliography\}"
 # projection replaces every math span with `[math]` before counting words.
 # Detection ran `latex_to_plain` one LINE at a time, so a `$...$` or an
 # `equation` environment that crossed a line boundary was invisible to it and
-# the macro names inside surfaced as words with df 0 (`\dsep`, `\rmain`). The
+# the macro names inside surfaced as words with df 0. The
 # third instance of the calibration/detection projection asymmetry, after the
 # preamble (§17.4) and citation commands (§18.1); this time the seam is the line.
 RE_MATH_SPAN = re.compile(
@@ -100,7 +100,7 @@ RE_MATH_SPAN = re.compile(
     r"|\\\[.*?\\\]|\$\$.*?\$\$|\$[^$]+\$|\\\(.*?\\\)", re.DOTALL)
 # Float placement options, bibliography commands and code spans render no
 # prose either; each leaked one token as a term (`htb`, `aasjournalv7`,
-# `cw_mscale`). The float pattern keeps its `\begin{...}` so the environment
+# a `\texttt` identifier). The float pattern keeps its `\begin{...}` so the environment
 # stripper downstream still sees it.
 RE_FLOAT_OPTION = re.compile(r"(\\begin\{[A-Za-z*]+\})\[[^\]\n]*\]")
 # Length settings and table-note commands outside a float render no prose.
@@ -109,7 +109,7 @@ RE_FLOAT_OPTION = re.compile(r"(\\begin\{[A-Za-z*]+\})\[[^\]\n]*\]")
 # `\begin{table}...\end{table}` with a placeholder in one pass over the
 # passage, detection projected one LINE at a time, so a `tabular*` column
 # specification and a caption's words counted on this side only --
-# `filllll`, `crimson`, `isosurfaces` at df 0,
+# `filllll` and caption words at df 0,
 # 14 of 90 zero-hit terms on one manuscript (2026-09-04).
 RE_LENGTH_CMD = re.compile(
     r"\\(?:setlength|addtolength|tabletypesize|tablewidth|tablenotemark"
@@ -129,7 +129,7 @@ RE_DEFINING = re.compile(
     r"|(?:is|are) defined as|defined as|denoted?|which we call|referred to as)\b",
     re.I)
 # A derived form of a native word is reported against its stem rather than as
-# foreign: the field writes `resolvable`, the manuscript `resolvability`.
+# foreign: a manuscript's `shearing` is judged by the field's `shear`.
 # Suffix stripping, longest first, with the -e / -y / doubled-consonant
 # restorations; deliberately small, because a stemmer that reaches too far
 # turns a genuinely foreign word into a false native.
@@ -408,7 +408,7 @@ def corpus_document_frequency(term: str, table: dict[str, Any]) -> tuple[int, st
     string itself would call `aperture-mass` foreign to weak lensing.
     """
     parts = [part for part in term.split("-") if len(part) >= 3]
-    # `no-dip` has one part long enough to carry meaning; judging the whole
+    # `no-mass` has one part long enough to carry meaning; judging the whole
     # string instead called every `no-X` / `in-X` compound absent at floor 1.
     if parts and "-" in term:
         rarest = min(parts, key=lambda part: int(table.get(part, 0)))
@@ -632,6 +632,24 @@ def register_findings(text: str, field_profile_dir: Path | None,
     return findings
 
 
+def passage_terms(passage: str) -> set[str]:
+    """The terms one bank passage adds to the document frequency.
+
+    A normalized word of three or more characters, and each such part of a
+    hyphenated one, so a compound can be judged by parts the corpus writes as
+    separate words. One owner for the lexicon and for the paper side of
+    `eval_findings.leakage_paired`, which matched raw substrings (`halo` in
+    `halos`) over blocks that included the bibliography.
+    """
+    seen: set[str] = set()
+    for word in RE_WORD.findall(es.latex_to_plain(passage)):
+        key = normalize(word)
+        if len(key) >= 3:
+            seen.add(key)
+            seen.update(part for part in key.split("-") if len(part) >= 3)
+    return seen
+
+
 def calibrate(field_profile_dir: Path) -> dict[str, Any] | None:
     """Count per-term document frequency across the field's own passage banks.
 
@@ -655,18 +673,7 @@ def calibrate(field_profile_dir: Path) -> dict[str, Any] | None:
                 if not passage.strip():
                     continue
                 n_passages += 1
-                seen: set[str] = set()
-                for word in RE_WORD.findall(es.latex_to_plain(passage)):
-                    key = normalize(word)
-                    if len(key) < 3:
-                        continue
-                    seen.add(key)
-                    # Index the parts too, so a compound in the manuscript can
-                    # be judged by parts the corpus writes as separate words.
-                    for part in key.split("-"):
-                        if len(part) >= 3:
-                            seen.add(part)
-                document_frequency.update(seen)
+                document_frequency.update(passage_terms(passage))
 
     if not n_passages:
         return None

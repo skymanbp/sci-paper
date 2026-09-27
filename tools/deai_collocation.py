@@ -11,9 +11,9 @@ cites real people; but they carry FEWER unattested pairs of common words
 because a writer who has read the field reaches for the field's own phrases.
 A machine
 draft assembles field words into combinations the field does not use --
-`calibrated blur`, `controlled grid`, `physical cells`, `detector axes` -- and
-the advisor who read such a draft wrote "I don't know what this means" at
-exactly those places. This axis finds them.
+`binned kernel`, `smoothed boundary`, say -- and the advisor who read such a
+draft wrote "I don't know what this means" at exactly such places. This axis
+finds them.
 
 The unit is the SENTENCE. A single novel pair is ordinary (a human sentence
 carries one in four judged pairs at the median); a sentence whose novel
@@ -196,13 +196,14 @@ def collocation_axis_status(field_profile_dir: Path | None,
             reason=f"{missing} is unavailable", detector="deai_collocation")
     usable = reference.usable_buckets(baseline, FEATURE, ADVISORY_PERCENTILE,
                                       high=True, unit=UNIT)
+    spans = None if text is None else reference.units(text)
     reasons = [None if usable else
                (f"no section bucket reaches the {MIN_REFERENCE_N}-sentence "
                 "reference floor with spread above the gate"),
-               reference.unit_reason(baseline, UNIT)]
+               reference.unit_reason(baseline, UNIT, spans)]
     evidence = None
     if text is not None:
-        reasons.append(reference.unbucketed_reason(reference.units(text), "paragraph"))
+        reasons.append(reference.unbucketed_reason(spans, "paragraph"))
         whole = document_novelty(text, bank)
         if whole[FEATURE] is not None:
             evidence = (f"document novel-pair fraction {whole[FEATURE]:.3f} over "
@@ -308,7 +309,8 @@ GLOSSARY_RULE = "collocation-glossary"
 # parenthesis opening right after it: `the shear threshold, which we call the
 # floor` and `the shear threshold (hereafter ...)` gloss the pair, while a
 # `(Fig. 1)` or a `, the` anywhere else in the sentence does not -- read over
-# the whole sentence, those marked one pair in six as defined on the Letter.
+# the whole sentence, those marked one pair in six as defined in a manuscript
+# under review.
 RE_GLOSS_CUE = re.compile(
     r"\b(?:we call|called|which we call|define[sd]? as|defined|denote[sd]?|"
     r"that is|which is|i\.e\.|namely|meaning|hereafter)\b",

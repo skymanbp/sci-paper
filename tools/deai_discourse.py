@@ -254,13 +254,14 @@ def discourse_axis_status(field_profile_dir: Path | None,
                 detector="deai_discourse"))
             continue
         live = live_buckets(feature, field_profile_dir)
+        spans = None if text is None else axis["spans"](text)
         reasons = [None if live else
                    (f"no calibrated {axis['unit']} bucket both reaches the "
                     f"{MIN_REFERENCE_N}-unit floor and has spread below the "
                     "advisory gate"),
-                   reference.unit_reason(baseline, axis["unit"])]
-        if text is not None:
-            reasons.append(reference.unbucketed_reason(axis["spans"](text), axis["unit"]))
+                   reference.unit_reason(baseline, axis["unit"], spans, axis["buckets"])]
+        if spans is not None:
+            reasons.append(reference.unbucketed_reason(spans, axis["unit"]))
         if any(reasons):
             statuses.append(feedback.axis_status(
                 name, "degraded", reason="; ".join(part for part in reasons if part),

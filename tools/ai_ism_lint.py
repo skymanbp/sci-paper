@@ -64,6 +64,14 @@ TIER_B_PATTERN = re.compile(
     r"utilize|utilized|leverage|importantly|interestingly|notably|"
     r"intricate|foster(?:s|ing|ed)?)\b"
 )
+# `robust` naming a method of robust statistics is that method's name, not the
+# filler adjective the cap is for: a Methods section describing one robust
+# estimator could never exit 0, and the skill forbids trading accuracy for the
+# count. The list is closed; `robust estimate` stays counted, being as often "a
+# reliable estimate" as an estimator's output. Matched on the whole source, so
+# a line break inside the compound does not decide whether it counts.
+TIER_B_TERM_OF_ART_PATTERN = re.compile(
+    r"(?i)\brobust(?=\s+(?:estimators?|estimation|statistics?|regression)\b)")
 STUBBORN_REPLACE_PATTERN = re.compile(
     r"(?i)\b(?:in order to|aim to|facilitate|serves as)\b")
 THREE_PARALLEL_PATTERN = re.compile(
@@ -233,16 +241,20 @@ def lexical_findings(text: str, path: Path,
     """Return lexical findings and axis statuses.
 
     Tier B is measured everywhere but only occurrences beyond the per-section,
-    per-word cap become L0 targets.
+    per-word cap become L0 targets; `robust` inside a statistics term of art
+    (`TIER_B_TERM_OF_ART_PATTERN`) is not a Tier B occurrence.
     """
     lines = text.splitlines()
-    scan_lines = es.blank_preserving(text, *ARGUMENT_SPAN_PATTERNS).splitlines()
+    scan_text = es.blank_preserving(text, *ARGUMENT_SPAN_PATTERNS)
+    scan_lines = scan_text.splitlines()
+    tier_b_lines = es.blank_preserving(scan_text, TIER_B_TERM_OF_ART_PATTERN).splitlines()
     ranges = section_ranges(text)
     firsts = _paragraph_first_prose_lines(text)
     findings: list[dict[str, Any]] = []
     tier_b: dict[tuple[str, str], list[tuple[int, str]]] = defaultdict(list)
 
-    for line_no, (line, scan) in enumerate(zip(lines, scan_lines), start=1):
+    for line_no, (line, scan, tier_b_scan) in enumerate(
+            zip(lines, scan_lines, tier_b_lines), start=1):
         section = section_for_line(line_no, ranges)
         excerpt = line.strip()
         # Resolved before the Tier A/B scans because one paragraph-initial
@@ -290,7 +302,7 @@ def lexical_findings(text: str, path: Path,
                 message=f"Paragraph-initial connector {word!r} is an L0 target.",
                 action="Remove the roadmap connector and let the argument carry the transition.",
             ))
-        for match in TIER_B_PATTERN.finditer(scan):
+        for match in TIER_B_PATTERN.finditer(tier_b_scan):
             if connector and match.start() < connector.end():
                 continue
             word = match.group(0).lower()

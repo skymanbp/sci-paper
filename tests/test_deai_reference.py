@@ -4,10 +4,10 @@ Headings and floats are blanked in place so every unit keeps its line
 number, and blanking a `\\section{...}\\label{...}` line leaves the label
 and a run of spaces behind; a comment-only block never had prose at all.
 Until v0.36.3 both reached every per-paragraph axis as units of their own:
-GPT-2 tokenises forty-eight spaces into more than the UID minimum, so the
-Letter's four heading lines were reported as paragraphs of near-zero
-surprisal variance (z = -7), and a `% SCOPE:` comment block counted as a
-unit of the removal map.
+GPT-2 tokenises forty-eight spaces into more than the UID minimum, so four
+heading lines of a manuscript under review were reported as paragraphs of
+near-zero surprisal variance (z = -7), and a `% SCOPE:` comment block
+counted as a unit of the removal map.
 """
 
 from __future__ import annotations
@@ -129,6 +129,15 @@ class ArtifactUnitTests(unittest.TestCase):
         self.assertIn("method (paragraph)", reason)
         self.assertIn("recalibrate", reason)
         self.assertIsNone(reference.unit_reason({"intro": self.BASELINE["intro"]}, "section"))
+
+    def test_only_the_buckets_the_axis_would_read_count(self):
+        intro = [(1, 3, "intro", "prose")]
+        self.assertIsNone(reference.unit_reason(self.BASELINE, "section", intro))
+        reason = reference.unit_reason(self.BASELINE, "section",
+                                       intro + [(4, 6, "method", "prose")])
+        self.assertIn("method (paragraph)", reason)
+        self.assertNotIn("data", reason)
+        self.assertIsNone(reference.unit_reason(self.BASELINE, "section", allowed=("intro",)))
 
 
 class UnbucketedUnitsTests(unittest.TestCase):

@@ -14,7 +14,7 @@ none touches the L0 exit status.
   1.7 times per 5,000-word paper on prose nobody would change. The first tier
   is strong; the second is an ordinary advisory.
 - `residue-negative-label` -- a heading or caption defined by what it is NOT
-  (`without the saddle correction`, `non-compensated`), where the negated
+  (`without the dust correction`, `non-weighted`), where the negated
   thing appears nowhere else in the paper. A label like that was written
   against a variant the loop later deleted; the reader meets a comparison
   with one side missing.
@@ -22,9 +22,10 @@ none touches the L0 exit status.
   `\\textcolor{red}`, `in the revised version`. Comments are blanked before the
   scan, so a note the author keeps for themselves is not a finding.
 - `residue-absence` -- a sentence that defines the paper's own object by what
-  it never does or has (`the head never participates in the decision`, `the
-  reference carries no quoted number`): the prose form of the negative label,
-  a menu line reading "no braised pork". The reader meets an absence in place
+  it never does or has (`the photometric catalog never enters the shape
+  measurement`, `the comparison sample carries no redshift estimate`): the
+  prose form of the negative label, a menu line reading "no braised pork".
+  The reader meets an absence in place
   of the thing; the fix says what the object does. Two tiers, set on the
   held-out refereed corpus (442 files, 1.90 million prose words): `never`
   and the `nothing is` / `none sees` / `no ... is applied` forms occur 0.008
@@ -95,7 +96,7 @@ CITATION_TOKEN = "[CITE]"
 # Rule 4. The absence families (see the module docstring for the corpus
 # rates behind the tiers). `no ... is applied` is a template: `no` and an
 # object of one to three words, then a passive of the listed verbs. A
-# hyphenated compound (`never-touched controls`) is a name, not a predicate,
+# hyphenated compound (`never-masked tiles`) is a name, not a predicate,
 # and is excluded from the `never` match.
 ABSENCE_STRONG = ("never", "nothing is", "nothing was", "none sees", "none enters",
                   "no ... is applied")
@@ -382,7 +383,7 @@ def paper_prose(text: str) -> str:
     Labels are read from the whole text, appendix captions included, so the
     object has to be looked for in the whole paper too: with the vocabulary
     projection (which drops `skip` for the corpus's sake) an appendix figure
-    "without the saddle correction" was reported absent from the body while
+    "without the dust correction" was reported absent from the body while
     the appendix explained the correction three lines above it. The preamble
     and the bibliography stay out -- neither is prose the reader meets."""
     return register.body_only(text, drop_skip=False)
@@ -420,7 +421,7 @@ def negative_label_added_findings(before: str, after: str,
     """Rule 5: a negation new in this edit whose WHOLE object was in the body
     before and is not now.
 
-    Whole object, not any stem: `Without the saddle correction` added while
+    Whole object, not any stem: `Without the dust correction` added while
     `correction` alone left the body is a label about something the paper
     never had, and reporting it as a patched absence charged the edit with a
     removal it did not make. A negation the old labels already carried is not

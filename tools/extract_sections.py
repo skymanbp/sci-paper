@@ -140,7 +140,7 @@ RE_TEX_TILDE = re.compile(r"(?<![\\])~")
 # Used only by latex_to_numeral_text below: strip a command name without
 # consuming its argument, so the digits inside survive.
 RE_TEX_MATH_CMD = re.compile(r"\\[a-zA-Z]+\*?")
-# LaTeX writes a thousands separator as 14{,}850; collapsing it first keeps
+# LaTeX writes a thousands separator as 1{,}250; collapsing it first keeps
 # that one quantity one numeral instead of three.
 RE_TEX_THIN_COMMA = re.compile(r"\{\s*,\s*\}")
 

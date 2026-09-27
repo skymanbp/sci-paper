@@ -62,15 +62,19 @@ class AnchoringTests(unittest.TestCase):
             "This was argued by \\cite{Smith2020} convincingly."
             .replace("\\cite{Smith2020}", "")))
 
-    def test_section_classification(self):
-        self.assertEqual(anchoring.classify_section("Introduction"), "intro")
-        self.assertEqual(anchoring.classify_section("Data and Methods"),
-                         "methods")
-        self.assertEqual(anchoring.classify_section("Results"), "results")
-        self.assertEqual(anchoring.classify_section("Summary and outlook"),
-                         "conclusions")
-        self.assertEqual(anchoring.classify_section("Lensing formalism"),
-                         "other")
+    def test_the_class_is_the_shared_bucket(self):
+        # One heading table: `Lensing formalism` names a method, a topic
+        # subsection inherits Methods, and `Comparison with simulations` is
+        # discussion -- the module's own table said other, other, methods.
+        result = anchoring.document_anchoring(
+            "\\section{Lensing formalism}\n" + ANCHORED + "\n"
+            "\\section{Methods}\n\\subsection{Weak lensing}\n" + ANCHORED + "\n"
+            "\\section{Comparison with simulations}\n" + ANCHORED + "\n"
+            "\\section{Summary and outlook}\n" + ANCHORED + "\n")
+        self.assertEqual([row["class"] for row in result["sections"]],
+                         ["methods", "methods", "discussion", "conclusions"])
+        self.assertEqual(anchoring.section_class("data"), "methods")
+        self.assertEqual(anchoring.section_class("unknown"), "other")
 
     def test_unanchored_results_flag_and_anchored_do_not(self):
         with tempfile.TemporaryDirectory() as temporary:

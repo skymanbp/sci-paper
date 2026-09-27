@@ -149,7 +149,7 @@ deleting its hedges has been damaged.
    - 高精度（strong）：`previous draft`、`earlier draft`、`previous version`、`earlier version`、`supersedes`、`superseded`、`no longer`、`we tried`、`we switched`、`we abandoned`、`we replaced`、`we moved away from`
    - 普通（ordinary，常见科学用词，只提示；`initially`/`originally`/`at first` 在已发表论文里多是流程顺序而非改稿史）：`initially`、`originally`、`at first`、`now`、`currently`、`earlier`、`previously`、`corrected`、`revised`、`updated`
    <!-- residue-family:end -->
-5. 是否有句子**用缺席来描述本文自己的对象**（菜单上写"番茄炒蛋（无东坡肉）"）？"The head never participates in the decision" / "the reference carries no quoted number" / "no support threshold is applied, because …" 说的都是对象**不做**什么，读者看到的是一个空位而不是那件东西；改成它**做**什么："The head runs downstream of the decision" / "a labeled reference only"。先删后写：结合上下文判断，相邻句子已经说了对象做什么的，整句或该分句直接删（"downstream of detection" 在一篇稿子里出现五次，就是只改写不删的后果）；只有页面上还没有的信息才改写成正向陈述。删掉的否定词会被 `rewrite_reward` 的 §6 否定不变量报为 missing，按同一 disposition 记录。物理事实、范围限制、让步性局限（"the B-mode map carries no lensing signal"、"shear alone cannot break the mass-sheet degeneracy"）是承重的，保留并记录 disposition；检测端 `residue-absence` 对同句带引用的对照不报。词族与 `tools/deai_residue.py` 同源，`validate_plugin` 比对两处；分档依据 442 篇 held-out 已发表全文（190 万词）：strong 档在其中每千词 0.008 次，ordinary 档 0.02–0.05 次且多为流程语句：
+5. 是否有句子**用缺席来描述本文自己的对象**（菜单上写"番茄炒蛋（无东坡肉）"）？"The photometric catalog never enters the shape measurement" / "the comparison sample carries no redshift estimate" / "no colour cut is applied, because …" 说的都是对象**不做**什么，读者看到的是一个空位而不是那件东西；改成它**做**什么："The shapes are measured on the images alone" / "a photometry-only comparison sample"。先删后写：结合上下文判断，相邻句子已经说了对象做什么的，整句或该分句直接删（同一个限定短语在一篇稿子里出现五次，就是只改写不删的后果）；只有页面上还没有的信息才改写成正向陈述。删掉的否定词会被 `rewrite_reward` 的 §6 否定不变量报为 missing，按同一 disposition 记录。物理事实、范围限制、让步性局限（"the B-mode map carries no lensing signal"、"shear alone cannot break the mass-sheet degeneracy"）是承重的，保留并记录 disposition；检测端 `residue-absence` 对同句带引用的对照不报。词族与 `tools/deai_residue.py` 同源，`validate_plugin` 比对两处；分档依据 442 篇 held-out 已发表全文（190 万词）：strong 档在其中每千词 0.008 次，ordinary 档 0.02–0.05 次且多为流程语句：
    <!-- absence-family:start -->
    - strong：`never`、`nothing is`、`nothing was`、`none sees`、`none enters`、`no ... is applied`（模板：以 no 开头，接一到三个词的对象，再接 is/are/was/were + applied/used/combined/quoted/imposed）
    - ordinary：`carries no`、`carry no`、`carrying no`、`holds no`、`touches no`、`sees no`、`enters no`、`makes no`、`is not applied`、`are not applied`、`is not used`、`are not used`、`is not quoted`、`is not combined`、`is not treated`、`are not treated`、`is not reproduced`、`does not participate`、`do not participate`、`does not enter`、`does not claim`、`does not see`、`do not see`
@@ -298,6 +298,9 @@ Tier B 可以使用，但同一个 Tier B 词在同一 heading 单元（`\sectio
 `foster/fosters/fostering/fostered`（后两组 2026-07-16 加入；curated corpus
 各有 1 次出现，非零故不入 Tier A）。经验频率只从当前 profile 读取，不在
 本文件复制。优先用直接陈述或可验证数字，但不要为了避词而损害准确性。
+`robust` 紧接 `estimator(s)` / `estimation` / `statistic(s)` / `regression`
+时是 robust statistics 的方法名，不计入 Tier B（跨行也算）；`robust estimate`
+仍计入，因为它同样常指"可靠的估计"。
 
 **模糊量化 / 修饰词**
 - `a wide range of`, `a variety of`, `a number of`, `several`, `numerous`,

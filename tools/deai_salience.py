@@ -120,12 +120,13 @@ def salience_axis_status(field_profile_dir: Path | None,
             detector="deai_salience",
         )
     live = live_buckets(baseline)
+    spans = None if text is None else _units(text)
     reasons = [None if live else
                (f"no calibrated {UNIT} bucket both reaches the {MIN_REFERENCE_N}-unit "
                 "floor and has spread above the advisory gate"),
-               reference.unit_reason(baseline, UNIT)]
-    if text is not None:
-        reasons.append(reference.unbucketed_reason(_units(text), UNIT))
+               reference.unit_reason(baseline, UNIT, spans)]
+    if spans is not None:
+        reasons.append(reference.unbucketed_reason(spans, UNIT))
     if any(reasons):
         return feedback.axis_status(
             "L2.salience_hierarchy", "degraded",

@@ -14,10 +14,13 @@ import contextlib
 import http.client
 import io
 import json
+import os
 import tempfile
 import unittest
+import urllib.error
 import urllib.request
 from pathlib import Path
+from unittest import mock
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 
@@ -308,6 +311,57 @@ class VerifyTests(unittest.TestCase):
                 vr.fetch(vr.CROSSREF + "10.1093/x")
         finally:
             urllib.request.urlopen = real
+
+    def serve(self, *answers):
+        """A urlopen playing `answers` in order: bytes are a 200 body, an int an
+        HTTP error, a (code, Retry-After) pair an error naming its wait."""
+        seen = []
+
+        class Response(io.BytesIO):
+            status = 200
+
+        def urlopen(request, timeout=30):
+            seen.append(request)
+            answer = answers[len(seen) - 1]
+            if isinstance(answer, bytes):
+                return Response(answer)
+            code, wait = answer if isinstance(answer, tuple) else (answer, None)
+            headers = http.client.HTTPMessage()
+            if wait is not None:
+                headers["Retry-After"] = wait
+            raise urllib.error.HTTPError(request.full_url, code, "error", headers, None)
+        return seen, mock.patch.object(urllib.request, "urlopen", urlopen)
+
+    def test_a_transient_answer_is_asked_once_more(self):
+        # F22: one 503 left the entry unmeasured and the axis degraded.
+        seen, patched = self.serve(503, b"{}")
+        with patched, mock.patch.object(vr.time, "sleep") as sleep:
+            self.assertEqual(vr.fetch(vr.CROSSREF + "10.1/x"), (200, b"{}"))
+        self.assertEqual(len(seen), 2)
+        sleep.assert_called_once_with(vr.RETRY_WAIT_DEFAULT)
+
+    def test_a_second_rate_limit_is_an_outage_after_a_capped_wait(self):
+        seen, patched = self.serve((429, "120"), (429, "1"))
+        with patched, mock.patch.object(vr.time, "sleep") as sleep:
+            with self.assertRaises(vr.RegistryUnavailable):
+                vr.fetch(vr.CROSSREF + "10.1/x")
+        self.assertEqual(len(seen), 2)
+        sleep.assert_called_once_with(vr.RETRY_WAIT_CAP)
+        seen, patched = self.serve(400)
+        with patched, mock.patch.object(vr.time, "sleep") as sleep:
+            with self.assertRaises(vr.RegistryUnavailable):
+                vr.fetch(vr.CROSSREF + "10.1/x")
+        sleep.assert_not_called()
+
+    def test_a_contact_address_rides_in_the_user_agent(self):
+        seen, patched = self.serve(b"{}", b"{}")
+        with patched:
+            with mock.patch.dict(os.environ, {vr.MAILTO_ENV: "me@example.org"}):
+                vr.fetch(vr.CROSSREF + "10.1/x")
+            with mock.patch.dict(os.environ, {vr.MAILTO_ENV: ""}):
+                vr.fetch(vr.CROSSREF + "10.1/x")
+        self.assertEqual([request.get_header("User-agent") for request in seen],
+                         [f"{vr.USER_AGENT} (mailto:me@example.org)", vr.USER_AGENT])
 
     def test_an_unreadable_registry_answer_leaves_the_entry_unmeasured(self):
         fetch = self.registries(**{vr.CROSSREF + "10.1093": (200, b'{"no": "message"}'),

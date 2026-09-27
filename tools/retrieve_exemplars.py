@@ -7,7 +7,7 @@ that are most similar to the user's topic, as positive style anchors for
 
 Default retrieval: sentence-transformers cosine on `all-MiniLM-L6-v2`
 embeddings, with a per-corpus `.npy` cache (rebuilt automatically when
-the JSONL mtime is newer than the cache).
+the bank's content fingerprint differs from the `.json` sidecar beside it).
 
 Fallback (`--allow-fallback`): if sentence-transformers is unavailable,
 fall back to naive topic-keyword overlap. This works without ML deps but
@@ -82,50 +82,51 @@ def _build_or_load_embeddings(
     profile_dir: Path,
     model_name: str,
 ):
-    """Returns (embeddings ndarray L2-normalized, model). Builds cache on first
-    call or when JSONL is newer than cache.
+    """Returns (embeddings ndarray L2-normalized, model).
+
+    The cache is reused only when the sidecar beside it records this bank's
+    content (SHA-1), row count and model. Judged by mtime order and row count,
+    a bank rebuilt with the same number of rows under an older-looking mtime
+    (a restore, a copy, a checkout) kept its old vectors, each now standing
+    for a different paragraph; `voice_dataset` already fingerprinted its own
+    cache this way.
 
     Raises ImportError if sentence-transformers is not installed.
     """
+    import hashlib
     import numpy as np  # numpy is a dep of sentence-transformers anyway
     from sentence_transformers import SentenceTransformer
 
     cache = _emb_cache_path(profile_dir, model_name)
-    needs_rebuild = (
-        not cache.exists()
-        or cache.stat().st_mtime < jsonl_path.stat().st_mtime
-    )
+    sidecar = cache.with_suffix(".json")
+    fingerprint = {"bank_sha1": hashlib.sha1(jsonl_path.read_bytes()).hexdigest(),
+                   "n_rows": len(records), "model": model_name}
+    try:
+        recorded = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        recorded = None  # because a missing or unreadable sidecar means "rebuild"
 
     model = SentenceTransformer(model_name)
-
-    if needs_rebuild:
-        print(
-            f"[retrieve_exemplars] Building embedding cache "
-            f"({len(records)} paragraphs, model={model_name}) — "
-            f"first run downloads the model (~80 MB).",
-            file=sys.stderr,
-        )
-        texts = [r["text"] for r in records]
-        embs = model.encode(
-            texts,
-            convert_to_numpy=True,
-            show_progress_bar=True,
-            normalize_embeddings=True,
-        ).astype("float32")
-        np.save(cache, embs)
-        print(f"[retrieve_exemplars] Cached → {cache}", file=sys.stderr)
-    else:
+    if cache.exists() and recorded == fingerprint:
         embs = np.load(cache)
-        if embs.shape[0] != len(records):
-            print(
-                f"[retrieve_exemplars] Cache size mismatch "
-                f"(cache N={embs.shape[0]} vs jsonl N={len(records)}); "
-                f"rebuilding.",
-                file=sys.stderr,
-            )
-            cache.unlink(missing_ok=True)
-            return _build_or_load_embeddings(records, jsonl_path, profile_dir, model_name)
-
+        if embs.shape[0] == len(records):
+            return embs, model
+    print(
+        f"[retrieve_exemplars] Building embedding cache "
+        f"({len(records)} paragraphs, model={model_name}) — "
+        f"first run downloads the model (~80 MB).",
+        file=sys.stderr,
+    )
+    texts = [r["text"] for r in records]
+    embs = model.encode(
+        texts,
+        convert_to_numpy=True,
+        show_progress_bar=True,
+        normalize_embeddings=True,
+    ).astype("float32")
+    np.save(cache, embs)
+    sidecar.write_text(json.dumps(fingerprint), encoding="utf-8")
+    print(f"[retrieve_exemplars] Cached → {cache}", file=sys.stderr)
     return embs, model
 
 

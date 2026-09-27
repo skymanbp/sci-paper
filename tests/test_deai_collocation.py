@@ -23,9 +23,9 @@ SHARED = (
     "The tangential shear is convolved with a compensated filter of fixed scale. "
     "The detection threshold is set by the noise of the aperture mass map. "
     "The shape noise of the source galaxies sets the detection floor.")
-MODIFIERS = ("calibrated", "controlled", "empty", "physical", "deployed",
+MODIFIERS = ("calibrated", "smoothed", "empty", "binned", "deployed",
              "clamped", "rescored", "strict")
-NOUNS = ("filter", "grid", "saddle", "cell", "boundary", "catalog", "map", "floor")
+NOUNS = ("filter", "grid", "kernel", "cell", "boundary", "catalog", "map", "floor")
 # Pseudo-words that occur in exactly one passage each (letters only: the word
 # regex admits no digits).
 COINED = ["".join(letters) for letters in itertools.product("bcdfgh", repeat=3)]
@@ -53,7 +53,7 @@ ATTESTED = ("\\section{Methods}\nThe aperture mass is measured on the shear "
             "catalog around each cluster. The tangential shear is convolved with "
             "a compensated filter of fixed scale.\n")
 # Every word below is common in the bank; none of the pairs is written by it.
-NOVEL = ("\\section{Methods}\nThe calibrated saddle deployed a physical floor "
+NOVEL = ("\\section{Methods}\nThe calibrated kernel deployed a binned floor "
          "grid catalog for the empty threshold filter response map.\n")
 
 
@@ -64,9 +64,9 @@ class ContentPairTests(unittest.TestCase):
         self.assertNotIn(("the", "shear"), pairs)
 
     def test_adjacent_content_words_pair_in_order(self):
-        pairs = collocation.content_pairs("The calibrated blur sets the floor.")
-        self.assertIn(("calibrated", "blur"), pairs)
-        self.assertNotIn(("blur", "calibrated"), pairs)
+        pairs = collocation.content_pairs("The binned kernel sets the floor.")
+        self.assertIn(("binned", "kernel"), pairs)
+        self.assertNotIn(("kernel", "binned"), pairs)
 
     def test_punctuation_and_placeholders_break_a_pair(self):
         pairs = collocation.content_pairs(

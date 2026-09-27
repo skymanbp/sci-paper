@@ -58,6 +58,7 @@ from __future__ import annotations
 
 import statistics
 import sys
+from collections import ChainMap, Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -66,6 +67,7 @@ import deai_collocation  # noqa: E402 -- because of that same sys.path insert
 import deai_register  # noqa: E402 -- because of that same sys.path insert
 import deai_salience  # noqa: E402 -- because of that same sys.path insert
 import extract_sections as es  # noqa: E402 -- because of that same sys.path insert
+import extract_style  # noqa: E402 -- because of that same sys.path insert
 # One AUC implementation and one document floor for both evaluators, so a rate
 # that is `unmeasured` here at n < 20 cannot be a rate there.
 from eval_docscale import MIN_DOCUMENTS, rank_auc  # noqa: E402 -- same reason
@@ -203,13 +205,28 @@ def leakage_paired(text: str, field_dir: Path, path: str) -> tuple[int, int]:
     ratio by a computable amount -- its own passages containing the term, and
     its own passage count. No rebuild is needed and no second population is
     involved, so nothing but membership differs.
+
+    "Its own passages" are the ones the bank would hold: the paragraphs
+    `extract_style.bank_paragraphs` admits from each bucketed section, indexed
+    by `deai_register.passage_terms`, and a compound is re-judged by its rarest
+    part with the paper counted in. Blank-line blocks of the raw source, matched
+    by substring, counted the preamble and the bibliography and found `halo`
+    inside `halos`, which overstated `suppressed_by_own_membership`. The table
+    is the one the findings were judged against (`resolving_lexicon`).
     """
-    lexicon = deai_register.load_lexicon(field_dir)
+    lexicon, _source = deai_register.resolving_lexicon(field_dir)
     if lexicon is None:
         return (0, 0)
     n_passages = int(lexicon.get("n_passages", 0))
     table = lexicon["document_frequency"]
-    own = [block for block in text.split("\n\n") if len(block.split()) >= 5]
+    own = [paragraph for bucket, section in es.split_into_sections(text).items()
+           if bucket != es.DEFAULT_SECTION_BUCKET
+           for _index, paragraph, _words in extract_style.bank_paragraphs(
+               es.latex_to_plain(section))]
+    own_df = Counter(term for passage in own
+                     for term in deai_register.passage_terms(passage))
+    with_own = ChainMap({term: int(table.get(term, 0)) + count
+                         for term, count in own_df.items()}, table)
     flagged = survives = 0
     for finding in deai_register.register_findings(text, field_dir, path):
         # The zero-hit audit is suppressed by own membership by construction
@@ -218,11 +235,9 @@ def leakage_paired(text: str, field_dir: Path, path: str) -> tuple[int, int]:
         if not str(finding["rule"]).startswith("register-foreign:"):
             continue
         term = deai_register.normalize(finding["observed"]["term"])
-        df, _ = deai_register.corpus_document_frequency(term, table)
-        own_df = sum(1 for block in own if term.lower() in block.lower())
+        df, _ = deai_register.corpus_document_frequency(term, with_own)
         flagged += 1
-        if ((df + own_df) / (n_passages + len(own))
-                < deai_register.RARE_DF_RATE):
+        if df / (n_passages + len(own)) < deai_register.RARE_DF_RATE:
             survives += 1
     return (flagged, survives)
 

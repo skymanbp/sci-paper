@@ -24,7 +24,8 @@ a blocker is present, 2 means invalid input or execution failure. `--cache`
 keeps fetched records in a JSON file so a repeated review round does not
 re-query the registries; a registry miss is never cached, so an identifier
 the registries are late to index is asked again next round, and a finding
-built from a cached record says so (`observed.cached`).
+built from a cached record says so (`observed.cached`). A 429 or 5xx answer
+is asked once more; `SCI_PAPER_MAILTO` names a contact in the User-Agent.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ import difflib
 import html
 import http.client
 import json
+import os
 import re
 import sys
 import time
@@ -51,6 +53,10 @@ import deai_feedback as feedback  # noqa: E402  shared finding contract
 import tex_assembly  # noqa: E402  the assembled document and comment pattern for --tex
 
 USER_AGENT = "sci-paper-verify-references/1.0"
+MAILTO_ENV = "SCI_PAPER_MAILTO"  # contact address for CrossRef's polite pool
+RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+RETRY_WAIT_DEFAULT = 2.0  # seconds, when the registry names no Retry-After
+RETRY_WAIT_CAP = 30.0     # seconds; a longer Retry-After is waited out only this long
 CROSSREF = "https://api.crossref.org/works/"
 DATACITE = "https://api.datacite.org/dois/"
 ARXIV = "https://export.arxiv.org/api/query?id_list="
@@ -296,25 +302,50 @@ class RegistryUnavailable(RuntimeError):
     a body the record readers cannot use; the entry stays unmeasured."""
 
 
-def fetch(url: str, timeout: int = 30) -> tuple[int, bytes]:
-    """(HTTP status, body). 404 is an answer, not an error; the rest raise.
+def _retry_wait(error: urllib.error.HTTPError) -> float | None:
+    """Seconds before the one retry a transient answer earns, or None.
 
-    Known gap (audit F22): no retry or back-off on 429/5xx, and no `mailto:`
-    in the User-Agent for CrossRef's polite pool.
+    A 429 or a 5xx says nothing about the identifier, and without a retry one
+    rate-limit blip left an entry unmeasured and the axis `degraded`. The
+    registry's Retry-After is honoured up to RETRY_WAIT_CAP seconds.
     """
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT,
-                                                   "Accept": "application/json"})
+    if error.code not in RETRY_STATUSES:
+        return None
+    header = error.headers.get("Retry-After") if error.headers else None
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return response.status, response.read()
-    except urllib.error.HTTPError as error:
-        if error.code == 404:
-            return 404, b""
-        raise RegistryUnavailable(f"HTTP {error.code} from {url.split('?')[0]}") from error
-    except (http.client.HTTPException, OSError) as error:
-        # URLError and TimeoutError are OSError subclasses; IncompleteRead,
-        # BadStatusLine and RemoteDisconnected are HTTPException and are not.
-        raise RegistryUnavailable(f"{error} ({url.split('?')[0]})") from error
+        wait = float(header) if header else RETRY_WAIT_DEFAULT
+    except ValueError:  # because an HTTP-date Retry-After is legal; wait the default
+        wait = RETRY_WAIT_DEFAULT
+    return min(max(wait, 0.0), RETRY_WAIT_CAP)
+
+
+def fetch(url: str, timeout: int = 30) -> tuple[int, bytes]:
+    """(HTTP status, body). 404 is an answer, not an error; the rest raise,
+    a 429 or 5xx after one retry (`_retry_wait`). A contact address in
+    SCI_PAPER_MAILTO rides in the User-Agent, which CrossRef routes to its
+    polite pool."""
+    mailto = os.environ.get(MAILTO_ENV, "").strip()
+    agent = f"{USER_AGENT} (mailto:{mailto})" if mailto else USER_AGENT
+    request = urllib.request.Request(url, headers={"User-Agent": agent,
+                                                   "Accept": "application/json"})
+    retried = False
+    while True:
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.status, response.read()
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return 404, b""
+            wait = None if retried else _retry_wait(error)
+            if wait is None:
+                raise RegistryUnavailable(
+                    f"HTTP {error.code} from {url.split('?')[0]}") from error
+            retried = True
+            time.sleep(wait)  # because the registry asked for the pause, or a 5xx is transient
+        except (http.client.HTTPException, OSError) as error:
+            # URLError and TimeoutError are OSError subclasses; IncompleteRead,
+            # BadStatusLine and RemoteDisconnected are HTTPException and are not.
+            raise RegistryUnavailable(f"{error} ({url.split('?')[0]})") from error
 
 
 def _first(value: Any, default: Any = "") -> Any:

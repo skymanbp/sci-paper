@@ -26,13 +26,13 @@ import tex_macros
 
 class ExpandNumericTests(unittest.TestCase):
     def test_a_use_of_a_numeric_macro_becomes_its_number(self):
-        text = r"\newcommand{\Nfields}{63}" "\n" r"We scored \Nfields{} fields."
-        self.assertIn("63 fields", tex_macros.expand_numeric(text))
+        text = r"\newcommand{\Nsamples}{12}" "\n" r"We drew \Nsamples{} samples."
+        self.assertIn("12 samples", tex_macros.expand_numeric(text))
 
     def test_the_definition_stops_contributing_its_digits(self):
         """The second half of the bug: an unexpanded definition leaked once."""
-        out = tex_macros.expand_numeric(r"\newcommand{\Nf}{63}" "\nNo uses here.")
-        self.assertNotIn("63", out)
+        out = tex_macros.expand_numeric(r"\newcommand{\Ns}{12}" "\nNo uses here.")
+        self.assertNotIn("12", out)
 
     def test_a_symbolic_macro_is_left_alone(self):
         text = r"\newcommand{\Msun}{M_\odot}" "\n" r"a mass of \Msun today"
@@ -47,16 +47,27 @@ class ExpandNumericTests(unittest.TestCase):
         self.assertEqual(tex_macros.expand_numeric(text), text)
 
     def test_a_commented_out_definition_is_not_a_definition(self):
-        text = (r"% \newcommand{\Nf}{63}" "\n" r"\newcommand{\Nf}{7}" "\n"
-                r"We use \Nf{} fields.")
-        self.assertIn("We use 7 fields.", tex_macros.expand_numeric(text))
-        alone = r"% \newcommand{\Nf}{63}" "\n" r"We use \Nf{} fields."
+        text = (r"% \newcommand{\Ns}{12}" "\n" r"\newcommand{\Ns}{7}" "\n"
+                r"We use \Ns{} samples.")
+        self.assertIn("We use 7 samples.", tex_macros.expand_numeric(text))
+        alone = r"% \newcommand{\Ns}{12}" "\n" r"We use \Ns{} samples."
         self.assertEqual(tex_macros.expand_numeric(alone), alone)
 
+    def test_a_use_inside_a_comment_is_left_as_written(self):
+        text = r"\newcommand{\Ns}{7}" "\n" r"We use \Ns{} samples. % was \Ns before the cut"
+        self.assertEqual(tex_macros.expand_numeric(text).splitlines()[1],
+                         r"We use 7 samples. % was \Ns before the cut")
+
+    def test_a_definition_across_lines_moves_no_later_line(self):
+        text = "\\newcommand{\\Ns}{%\n  12}\nWe use \\Ns{} samples.\n"
+        out = tex_macros.expand_numeric(text)
+        self.assertEqual(out.count("\n"), text.count("\n"))
+        self.assertEqual(out.splitlines()[2], "We use 12 samples.")
+
     def test_a_shorter_name_does_not_fire_inside_a_longer_one(self):
-        text = (r"\newcommand{\Nf}{7}" "\n" r"\newcommand{\Nfields}{63}" "\n"
-                r"\Nf and \Nfields")
-        self.assertIn("7 and 63", tex_macros.expand_numeric(text))
+        text = (r"\newcommand{\Ns}{7}" "\n" r"\newcommand{\Nsamples}{12}" "\n"
+                r"\Ns and \Nsamples")
+        self.assertIn("7 and 12", tex_macros.expand_numeric(text))
 
     def test_plain_tex_def_and_renewcommand_are_recognised(self):
         self.assertIn("5", tex_macros.expand_numeric(r"\def\Na{5}" "\n" r"\Na"))
@@ -80,19 +91,19 @@ class AssembledDocumentTests(unittest.TestCase):
 
     def test_a_definition_in_the_root_reaches_a_use_in_an_included_file(self):
         root = self._document(
-            r"\newcommand{\Nfields}{63}" "\n" r"\begin{document}"
+            r"\newcommand{\Nsamples}{12}" "\n" r"\begin{document}"
             "\n" r"\input{child}" "\n" r"\end{document}",
-            r"We scored \Nfields{} fields in total.")
-        self.assertIn("63 fields", sec.read_tex_document(root))
+            r"We drew \Nsamples{} samples in total.")
+        self.assertIn("12 samples", sec.read_tex_document(root))
 
     def test_the_numeral_projection_now_sees_that_number(self):
         """The end the fix exists for: `latex_to_numeral_text` counts it."""
         root = self._document(
-            r"\newcommand{\Nfields}{63}" "\n" r"\begin{document}"
+            r"\newcommand{\Nsamples}{12}" "\n" r"\begin{document}"
             "\n" r"\input{child}" "\n" r"\end{document}",
-            r"We scored \Nfields{} fields in total.")
+            r"We drew \Nsamples{} samples in total.")
         projected = sec.latex_to_numeral_text(sec.read_tex_document(root))
-        self.assertIn("63", projected)
+        self.assertIn("12", projected)
 
 
 if __name__ == "__main__":

@@ -377,6 +377,22 @@ class LeakageIsMeasuredPairedTest(unittest.TestCase):
             ef.leakage_paired("word " * 60, Path("no-such-profile-dir"), "x"),
             (0, 0))
 
+    def test_the_paper_is_counted_as_the_bank_would_hold_it(self) -> None:
+        # One body paragraph holds `halo`; `halos` is another word, and the
+        # reference list is no prose the bank keeps. Matched by substring over
+        # raw blocks, all three were the paper's own `halo` passages: df 2 + 3
+        # of 40,004 cleared the gate and the finding read as suppressed.
+        import json
+        with tempfile.TemporaryDirectory() as raw:
+            field = pathlib.Path(raw)
+            (field / ef.deai_register.LEXICON_FILENAME).write_text(json.dumps(
+                {"n_passages": 40000, "document_frequency": {"halo": 2}}),
+                encoding="utf-8")
+            text = ("\\section{Introduction}\n" + "halo mass " * 16 + "\n\n"
+                    + "halos differ " * 16 + "\n\n\\section{References}\n"
+                    + "halo catalog " * 16 + "\n")
+            self.assertEqual(ef.leakage_paired(text, field, "x"), (1, 1))
+
 
 if __name__ == "__main__":
     unittest.main()

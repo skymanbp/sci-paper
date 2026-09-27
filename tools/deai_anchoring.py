@@ -66,26 +66,22 @@ _BIBLIOGRAPHY_RE = re.compile(
     r"\\begin\{thebibliography\}.*?\\end\{thebibliography\}"
     r"|\\bibliography(?:style)?\s*\{[^}]*\}", re.DOTALL)
 
-# section-title keyword -> class; first match wins, unmatched -> "other"
-SECTION_CLASSES = (
-    ("introduction", "intro"),
-    ("conclusion", "conclusions"), ("summary", "conclusions"),
-    ("discussion", "discussion"),
-    ("result", "results"), ("measurement", "results"),
-    ("constraint", "results"),
-    ("data", "methods"), ("method", "methods"), ("model", "methods"),
-    ("simulat", "methods"), ("analysis", "methods"), ("observ", "methods"),
-    ("appendix", "other"), ("acknowledg", "other"),
-)
+# The shared bucket (`extract_sections.classify_section`, inherited by a
+# subsection as the corpus inherits it) folded onto this axis's coarser
+# classes; any other bucket is "other". Until 2026-09-27 the module matched
+# titles against a third keyword table, which disagreed with the curated one
+# where the curation is deliberate: `Shear measurement`, which that table
+# leaves `unknown` because the word names no role here, read as results;
+# `Comparison with simulations` read as methods; and a topic-titled subsection
+# under Methods read as other.
+CLASS_OF_BUCKET = {"intro": "intro", "method": "methods", "data": "methods",
+                   "results": "results", "discussion": "discussion",
+                   "conclusion": "conclusions"}
 STRONG_CLASSES = {"methods", "results"}  # unanchored claims here matter most
 
 
-def classify_section(label: str) -> str:
-    lowered = label.lower()
-    for keyword, cls in SECTION_CLASSES:
-        if keyword in lowered:
-            return cls
-    return "other"
+def section_class(bucket: str) -> str:
+    return CLASS_OF_BUCKET.get(bucket, "other")
 
 
 def sentence_is_anchored(source_sentence: str) -> bool:
@@ -125,8 +121,7 @@ def document_anchoring(text: str) -> dict[str, Any]:
     section glued to its final sentence and anchored it with every year in
     the reference list (a Conclusions rate of 0.0 read as 0.2). An anchoring
     baseline built before the change must be rebuilt: its rates were measured
-    on the raw text. The class still comes from the raw section title,
-    through this module's own keyword table.
+    on the raw text. The class is the unit's shared bucket (`section_class`).
     """
     lines = text.splitlines()
     per_class: dict[str, list[float]] = {}
@@ -141,7 +136,7 @@ def document_anchoring(text: str) -> dict[str, Any]:
         if measured is None:
             continue
         rate, n_sentences = measured
-        cls = classify_section(label)
+        cls = section_class(bucket)
         per_class.setdefault(cls, []).append(rate)
         section_rows.append({"label": label, "class": cls, "line": start,
                              "rate": rate, "n_sentences": n_sentences})

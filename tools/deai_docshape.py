@@ -662,7 +662,9 @@ def calibrate(documents: Iterable[tuple[str, str] | Path], field_profile_dir: Pa
     manifold = fit_dispersion_manifold([manifold_row(r) for r in train_records])
     baseline["dispersion_manifold"] = manifold
 
-    lengths = sorted(record["n_paragraphs"] for record in records)
+    # Edges from the training split only: fit on every document they also read
+    # the calibration papers, which the exchangeability behind p breaks (B17).
+    lengths = sorted(record["n_paragraphs"] for record in train_records)
     strata_edges = [
         _quantile([float(v) for v in lengths], k / CONFORMAL_STRATA)
         for k in range(1, CONFORMAL_STRATA)

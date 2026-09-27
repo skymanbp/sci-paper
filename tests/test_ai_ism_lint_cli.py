@@ -73,6 +73,19 @@ class LinterCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("tier-b-excess:robust", result.stdout)
 
+    def test_a_robust_statistics_term_is_not_tier_b(self):
+        # The method's name, wrapped or not, leaves the cap to the adjective.
+        methods = ("\\section{Methods}\nWe adopt a robust estimator of the mean.\n"
+                   "The robust\nestimator down-weights outliers.\n"
+                   "The fit is robust to the prior.\n")
+        result = self.run_lint(methods, *self.isolated)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("L0=0", result.stdout)
+        result = self.run_lint(methods + "A robust estimate of the mass follows.\n",
+                               *self.isolated)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("tier-b-excess:robust", result.stdout)
+
     def test_explicit_unavailable_field_is_configuration_failure(self):
         with tempfile.TemporaryDirectory() as temporary:
             profile_root = Path(temporary)

@@ -38,17 +38,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import extract_style as es      # noqa: E402  resolves only after the sys.path insert
 import deai_oracle as do        # noqa: E402  same reason
+import deai_reference as reference  # noqa: E402  same reason; the shared paragraph sweep
 from deai_metrics import CONNECTIVE_OPENERS  # noqa: E402  same reason
 
 EMBED_MODEL = "all-MiniLM-L6-v2"
 FEATURE_SCHEMA_VERSION = "sci-paper.voice-features.v1"
 
-_MATH_MARKER_RE = re.compile(
+# Every math marker, counted for a density; `deai_docshape._MATH_MARKER_RE`,
+# which shared this name until 2026-09-27, answers only "is there math here".
+_MATH_DENSITY_RE = re.compile(
     r"\[MATH\]|\[math\]|\$[^$]+\$|\\\(.+?\\\)|"
     r"\\begin\{(?:equation|align|gather|eqnarray|displaymath|multline)\*?\}",
     re.DOTALL,
 )
-_PLACEHOLDER_RE = re.compile(r"\[(?:MATH|math|CITE|FIGURE-OR-TABLE)\]")
 
 EQUIVOCAL = frozenset({
     "but", "however", "although", "though", "whereas", "yet",
@@ -143,7 +145,7 @@ def distributional_features(plain: str) -> dict:
 
 
 def _prose_words(text: str) -> list[str]:
-    plain = _PLACEHOLDER_RE.sub(" ", es.latex_to_plain(text))
+    plain = es.without_placeholders(es.latex_to_plain(text))
     return [word.lower() for word in es.words(plain)]
 
 
@@ -158,7 +160,7 @@ def math_marker_density(text: str) -> float:
     n_words = len(_prose_words(text))
     if n_words == 0:
         return 0.0
-    return 100.0 * len(_MATH_MARKER_RE.findall(text)) / n_words
+    return 100.0 * len(_MATH_DENSITY_RE.findall(text)) / n_words
 
 
 def lexicon_density(text: str, lexicon: set[str] | frozenset[str]) -> float:
@@ -198,11 +200,14 @@ def paragraph_features(
             feats.update({"mean_surprisal": 0.0, "global_uid": 0.0, "local_uid": 0.0})
         else:
             feats.update({k: uid[k] for k in ("mean_surprisal", "global_uid", "local_uid")})
-    # semantic distance to corpus centroid
+    # Semantic distance to the corpus centroid. Without the embedder or the
+    # centroid it is the 0.0 a training row without them carries: a placeholder,
+    # not a measurement, which `deai_voice.scoring_reason` refuses to score a
+    # bundle on when that bundle learned from real cosines.
     cos = 0.0
     if centroid is None and field_profile_dir is not None:
         centroid = corpus_centroid(field_profile_dir)
-    if centroid is not None:
+    if centroid is not None and embedder_available():
         import numpy as np
         e = _embedder().encode([plain], normalize_embeddings=True)[0]
         cos = float(np.dot(e, centroid))
@@ -417,13 +422,17 @@ def main(argv: list[str] | None = None) -> int:
     field_dir = cli_common.optional_field_dir(args, tool="deai_features")
     text = args.file.read_text(encoding="utf-8", errors="replace")
     centroid = corpus_centroid(field_dir) if field_dir else None
-    # split into blank-line paragraphs and dump features
-    blocks = [b for b in re.split(r"\n\s*\n", text) if b.strip()]
+    if centroid is None or not embedder_available():
+        print("[deai_features] corpus_cos is the 0.0 placeholder: no "
+              f"exemplar_embeddings_{EMBED_MODEL}.npy or no sentence-transformers",
+              file=sys.stderr)
+    # The sweep every axis reads, keyed by source lines, so a row can be matched
+    # to a finding; a blank-line split numbered paragraphs no finding used.
     print("feature order:", ", ".join(FEATURE_NAMES))
-    for i, b in enumerate(blocks):
-        v = features_vector(b, field_profile_dir=field_dir, model_name=args.model,
+    for start, end, _label, _bucket, block in reference.paragraphs(text):
+        v = features_vector(block, field_profile_dir=field_dir, model_name=args.model,
                             centroid=centroid)
-        print(f"para[{i}] " + " ".join(f"{x:.2f}" for x in v))
+        print(f"L{start}-{end} " + " ".join(f"{x:.2f}" for x in v))
     return 0
 
 

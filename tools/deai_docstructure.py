@@ -7,6 +7,7 @@ paragraph-level pseudoreplication.
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -44,6 +45,27 @@ from deai_docshape import (  # noqa: F401 -- re-export, unused here by design
 load_baseline = reference.baseline_loader(BASELINE_NAME)
 
 
+def tail_floor(probability: float) -> int:
+    """Reference documents an in-sample quantile at `probability` needs.
+
+    Below 1/min(p, 1-p) documents no reference value lies beyond the tail: the
+    threshold is interpolated between the extremes and its false-flag rate is
+    not the nominal one. The calibration minimum is 3 documents, and with no
+    manifold every per-feature band finding was `strong` on such a baseline
+    (audit B18). `round` absorbs 1/(1-0.9) = 10.000000000000002.
+    """
+    return math.ceil(round(1.0 / min(probability, 1.0 - probability), 9))
+
+
+def baseline_tail_floor(baseline: dict[str, Any]) -> int:
+    """The strictest `tail_floor` over the in-sample percentiles `baseline` flags at."""
+    return max(tail_floor(float(p)) for p in (
+        baseline.get("strong_percentile", 0.95),
+        baseline.get("dispersion_low_percentile", DISPERSION_LOW_PERCENTILE),
+        baseline.get("dispersion_high_percentile", DISPERSION_HIGH_PERCENTILE),
+        (baseline.get("role_coupling") or {}).get("low_percentile", ROLE_LOW_PERCENTILE)))
+
+
 def docstructure_axis_status(text: str, field_profile_dir: Path | None
                             ) -> dict[str, Any]:
     shape = document_shape(text)
@@ -51,12 +73,21 @@ def docstructure_axis_status(text: str, field_profile_dir: Path | None
         return feedback.axis_status("L2.document_structure", "unmeasured",
                                     reason=shape["reason"],
                                     detector="deai_docstructure")
-    if load_baseline(field_profile_dir) is None:
+    baseline = load_baseline(field_profile_dir)
+    if baseline is None:
         return feedback.axis_status(
             "L2.document_structure", "unmeasured",
             reason="docstructure_baseline.json is unavailable",
             detector="deai_docstructure",
         )
+    n_documents, floor = int(baseline.get("n_documents", 0)), baseline_tail_floor(baseline)
+    if n_documents < floor:
+        return feedback.axis_status(
+            "L2.document_structure", "degraded",
+            reason=(f"the reference holds {n_documents} complete documents and a "
+                    f"tail percentile needs {floor}; its in-sample findings are "
+                    "ordinary context"),
+            detector="deai_docstructure")
     return feedback.axis_status("L2.document_structure", "measured",
                                 detector="deai_docstructure")
 
@@ -69,6 +100,8 @@ def document_findings(text: str, field_profile_dir: Path | None,
         return []
     findings = []
     section_label = "(document)"
+    # In-sample tails the reference cannot resolve stay ordinary and degraded.
+    n_documents = int(baseline.get("n_documents", 0))
     for metric_name in METRIC_NAMES:
         observed = shape["metrics"].get(metric_name)
         reference = baseline.get("metrics", {}).get(metric_name, {})
@@ -91,11 +124,13 @@ def document_findings(text: str, field_profile_dir: Path | None,
         if value <= threshold:
             continue
         percentile = _percentile(values, value)
+        resolved = n_documents >= tail_floor(operating_point)
         findings.append(feedback.make_finding(
             kind="advisory", layer="L2", rule=f"document-shape:{metric_name}",
             scope="document", calibration_unit="document", line=1, section=section_label, path=path,
-            detector="deai_docstructure", measurement_status="measured",
-            strength="strong", strong_advisory=True,
+            detector="deai_docstructure",
+            measurement_status="measured" if resolved else "degraded",
+            strength="strong" if resolved else "ordinary",
             observed={"value": observed, "empirical_percentile": percentile,
                       "n_sections": shape["n_sections"],
                       "n_paragraphs": shape["n_paragraphs"]},
@@ -131,10 +166,16 @@ def document_findings(text: str, field_profile_dir: Path | None,
     flat_row = {name: dispersion[name][DISPERSION_STAT]
                 for name in dispersion
                 if dispersion.get(name, {}).get(DISPERSION_STAT) is not None}
-    per_feature_strength = "ordinary"
+    per_feature_strength, per_feature_status = "ordinary", "measured"
     conformal = baseline.get("conformal")
     if not manifold:
-        per_feature_strength = "strong"
+        band_floor = max(tail_floor(float(baseline.get(key, default))) for key, default in (
+            ("dispersion_low_percentile", DISPERSION_LOW_PERCENTILE),
+            ("dispersion_high_percentile", DISPERSION_HIGH_PERCENTILE)))
+        if n_documents >= band_floor:
+            per_feature_strength = "strong"
+        else:
+            per_feature_status = "degraded"
     else:
         operating = manifold_operating_point(baseline, flat_row,
                                              shape["n_paragraphs"])
@@ -229,7 +270,7 @@ def document_findings(text: str, field_profile_dir: Path | None,
         if (role_axis and role_axis.get("scoring_factors")
                 != list(ROLE_SCORING_FACTORS)):
             role_axis = None
-        flagged = False
+        flagged, role_resolved = False, True
         if role["score"] is not None:
             score = float(role["score"])
             if role_axis and role_axis.get("calibration"):
@@ -259,6 +300,8 @@ def document_findings(text: str, field_profile_dir: Path | None,
                 op_observed_extra = {"conformal_p": p_value}
             elif low_threshold is not None and role_values:
                 flagged = score < float(low_threshold)
+                role_resolved = len(role_values) >= tail_floor(float(
+                    role_reference.get("low_percentile") or ROLE_LOW_PERCENTILE))
                 percentile = _percentile(role_values, score)
                 op_reference = {"operating_point": "in-sample percentile",
                                 "n_documents": len(role_values),
@@ -292,7 +335,8 @@ def document_findings(text: str, field_profile_dir: Path | None,
                     detector="deai_docstructure",
                     detector_version="sci-paper.docstructure-baseline.v2",
                     calibration_asset=BASELINE_NAME,
-                    measurement_status="measured", strength="strong",
+                    measurement_status="measured" if role_resolved else "degraded",
+                    strength="strong" if role_resolved else "ordinary",
                     observed={"role_coupling_z": role["score"],
                               "factors": role["factors"],
                               "n_sections": shape["n_sections"],
@@ -348,7 +392,7 @@ def document_findings(text: str, field_profile_dir: Path | None,
             detector="deai_docstructure",
             detector_version="sci-paper.docstructure-baseline.v2",
             calibration_asset=BASELINE_NAME,
-            measurement_status="measured", strength=per_feature_strength,
+            measurement_status=per_feature_status, strength=per_feature_strength,
             observed={"dispersion_std": observed,
                       "empirical_percentile": percentile,
                       "band_tail": tail,

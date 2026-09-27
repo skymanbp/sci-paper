@@ -11,30 +11,29 @@ import deai_structure as structure
 
 
 ANTITHESIS_HEAVY = (
-    "The error budget is measured rather than assumed, and every threshold "
-    "derives from injections rather than from a tuned cutoff. The detector "
-    "reports negatives instead of burying them, so the reader sees the "
-    "boundary the grid quantifies. Each claim is stated with its reason "
-    "attached, and the pipeline was frozen before the labeled sample was "
-    "consumed at scoring time."
+    "The error budget is measured rather than assumed, and every correction "
+    "is taken from simulations rather than from a tuned cutoff. The catalog "
+    "reports failed fits instead of dropping them, so the reader sees how "
+    "often the shape measurement breaks. Each claim is stated with its "
+    "reason attached, and the selection was fixed before the shear was "
+    "measured."
 )
 
 REVERSAL_BEAT = (
-    "One might expect that raising the minimum configuration support would "
-    "cheaply remove the residual noise detections from the shortlist. "
-    "It would not. The support distribution of injected structure overlaps "
-    "the noise support distribution across the calibrated range, so any cut "
-    "strong enough to matter removes real detections at the same rate and "
-    "leaves the purity of the final catalog unchanged."
+    "One might expect that doubling the exposure time would double the "
+    "number of usable source galaxies behind each cluster. "
+    "It would not. The added galaxies are faint and small, so most of them "
+    "fail the size cut applied before the shapes are measured, and the "
+    "source density rises by far less than the exposure time does."
 )
 
 PLAIN_PROSE = (
-    "The aperture-mass map is evaluated on a regular grid in catalog "
-    "coordinates. Each configuration pairs a filter scale with a truncation "
-    "radius, and the resulting family covers the range of subhalo sizes the "
-    "injection grid samples. Peaks are aggregated across configurations "
-    "before any ranking statistic is computed, which keeps the candidate "
-    "list independent of any single filter choice."
+    "The aperture-mass map is evaluated on a regular grid across each "
+    "field. Each smoothing scale is matched to the angular size of a typical "
+    "cluster at the median lens redshift, and the resulting maps are combined "
+    "after their noise levels are equalised. Peaks are counted on the "
+    "combined map before any cosmological model is compared with the counts, "
+    "which keeps the measurement independent of the model."
 )
 
 
@@ -71,7 +70,7 @@ class AuxiliaryFamilyTests(unittest.TestCase):
         self.assertNotIn("antithesis-cluster", values["templates"])
 
     def test_paper_as_agent_detected(self):
-        text = ("This Letter asks whether the filter response can separate the "
+        text = ("This study asks whether the filter response can separate the "
                 "two populations at the depth of the survey.")
         values = structure.paragraph_structure(text)
         self.assertEqual(values["paper_agent_count"], 1)
@@ -85,25 +84,25 @@ class AuxiliaryFamilyTests(unittest.TestCase):
         self.assertEqual(values["paper_agent_count"], 0)
 
     def test_wh_cleft_detected(self):
-        text = ("What it can conclude is limited by the noise of the map. "
+        text = ("What matters here is the noise of the map. "
                 "The remaining sentences describe the aperture mass filter.")
         values = structure.paragraph_structure(text)
         self.assertEqual(values["wh_cleft_count"], 1)
         self.assertIn("wh-cleft", values["auxiliary_templates"])
 
     def test_a_plain_wh_question_word_is_not_a_cleft(self):
-        text = ("How the filter responds depends on the truncation radius, so "
-                "the radius is fixed before any peak is counted.")
+        text = ("How the filter responds depends on the smoothing scale, so "
+                "the scale is fixed before any peak is counted.")
         values = structure.paragraph_structure(text)
         self.assertEqual(values["wh_cleft_count"], 0)
 
     def test_the_gap_below_a_heading_does_not_decide_a_family(self):
         # One newline or two between the heading and the paragraph: the same
         # paragraph. Left in place the heading fused with the opener (`Methods
-        # What it can conclude is`) and the family went unreported.
-        paragraph = ("What it can conclude is limited by the noise of the map, "
-                     "which the aperture mass filter carries into every peak count "
-                     "and every configuration of the calibrated grid we adopt here.")
+        # What matters here is`) and the family went unreported.
+        paragraph = ("What matters here is the noise of the map, which the aperture "
+                     "mass filter carries into every peak count and into every "
+                     "scale of the smoothing family that we adopt in this section.")
         counts = []
         for gap in ("\n", "\n\n"):
             findings = structure.structure_findings("\\section{Methods}" + gap + paragraph, None)
@@ -113,21 +112,21 @@ class AuxiliaryFamilyTests(unittest.TestCase):
 
     def test_modifier_stack_detected(self):
         stacks = structure.modifier_stacks(
-            "We adopt a per-map empirical B-mode null for every configuration.")
-        self.assertEqual(stacks, ["per-map empirical B-mode null"])
+            "We adopt a per-band smoothed star-galaxy classifier for every exposure.")
+        self.assertEqual(stacks, ["per-band smoothed star-galaxy classifier"])
         stacks = structure.modifier_stacks(
-            "The non-compensated 500-configuration subfamily fails the test.")
-        self.assertEqual(stacks, ["non-compensated 500-configuration subfamily"])
+            "The non-weighted 200-image stack fails the test.")
+        self.assertEqual(stacks, ["non-weighted 200-image stack"])
 
     def test_ordinary_compound_noun_phrases_are_not_stacks(self):
         self.assertEqual(structure.modifier_stacks(
             "The weak-lensing mass map is smoothed, and the [math] peak is kept."), [])
         self.assertEqual(structure.modifier_stacks(
-            "We use 500 configurations of the aperture-mass filter."), [])
+            "We use 200 maps of the aperture-mass filter."), [])
 
     def test_advisor_families_stay_out_of_template_score(self):
-        text = ("This Letter asks whether a per-map empirical B-mode null holds. "
-                "What it can conclude is limited by the noise of the map.")
+        text = ("This study asks whether a per-band smoothed star-galaxy classifier "
+                "suffices. What matters here is the noise of the map.")
         values = structure.paragraph_structure(text)
         self.assertEqual(values["template_score"], 0)
         for family in ("paper-agent", "wh-cleft", "modifier-stack"):

@@ -124,10 +124,10 @@ def sentences(text: str) -> list[str]:
     return [s for s in RE_SENTENCE_END.split(text) if s.strip()]
 
 
-# A word is a run of letters in any script: the ASCII class split `naïve` into
-# `na` and `ve` and `Poincaré` into `Poincar`, and the fragments entered the
-# lexicon and the word counts, the same class of defect as the PDF ligatures.
-RE_WORD_TOKEN = re.compile(r"[^\W\d_][^\W\d_'\-]*")
+# A word is a letter in any script, continued by letters, `-` and `'` as the
+# ASCII class was (`N-body`, `O'Brien's`): that class split `naïve` into `na`
+# and `ve`, and a class that dropped `-` and `'` split every compound in two.
+RE_WORD_TOKEN = re.compile(r"[^\W\d_](?:[^\W\d_]|['\-])*")
 
 
 def words(text: str) -> list[str]:
@@ -424,6 +424,15 @@ EXEMPLAR_MIN_WORDS = 30
 EXEMPLAR_MAX_WORDS = 400
 
 
+def bank_paragraphs(plain: str):
+    """(index, paragraph, prose words) per paragraph of a section's plain text
+    the bank admits; `eval_findings.leakage_paired` models the bank with it."""
+    for idx, para in enumerate(RE_PARAGRAPH_BREAK.split(plain)):
+        n_w = len(words(without_placeholders(para)))
+        if EXEMPLAR_MIN_WORDS <= n_w <= EXEMPLAR_MAX_WORDS:
+            yield idx, para.strip(), n_w
+
+
 def write_exemplar_bank(per_paper: list[tuple[float, dict]],
                         profile_dir: Path) -> int:
     """Emit one JSONL row per qualifying paragraph in `exemplar_paragraphs.jsonl`.
@@ -431,9 +440,9 @@ def write_exemplar_bank(per_paper: list[tuple[float, dict]],
     Each row: {id, section, tier, source, n_words, text, numeral_text}. The
     id carries the bucket, because a per-bucket index made `paper.tex:p0`
     the id of two rows. Section is the normalized bucket from
-    classify_section(); rows in the 'unknown' bucket and rows whose
-    paragraphs are pure placeholders are excluded, and `n_words` counts the
-    prose without its placeholders. Returns the number of rows written.
+    classify_section(); the 'unknown' bucket is excluded, admission is
+    `bank_paragraphs`, and `n_words` counts the prose without its
+    placeholders. Returns the number of rows written.
 
     `numeral_text` is the same paragraph under `latex_to_numeral_text`, paired
     by `paired_paragraphs`. A section it could not pair is reported and
@@ -453,25 +462,12 @@ def write_exemplar_bank(per_paper: list[tuple[float, dict]],
                 plain = st.get("plain_text", "")
                 if not plain:
                     continue
-                paragraphs = RE_PARAGRAPH_BREAK.split(plain)
                 numeral = st.get("numeral_paragraphs") or []
                 if not numeral:
                     unaligned.append(f"{source}:{sec}")
-                for idx, para in enumerate(paragraphs):
-                    para = para.strip()
-                    if not without_placeholders(para).strip():
-                        continue
-                    n_w = len(words(without_placeholders(para)))
-                    if n_w < EXEMPLAR_MIN_WORDS or n_w > EXEMPLAR_MAX_WORDS:
-                        continue
-                    rec = {
-                        "id": f"{source}:{sec}:p{idx}",
-                        "section": sec,
-                        "tier": tier,
-                        "source": source,
-                        "n_words": n_w,
-                        "text": para,
-                    }
+                for idx, para, n_w in bank_paragraphs(plain):
+                    rec = {"id": f"{source}:{sec}:p{idx}", "section": sec, "tier": tier,
+                           "source": source, "n_words": n_w, "text": para}
                     if numeral:
                         rec["numeral_text"] = numeral[idx].strip()
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")

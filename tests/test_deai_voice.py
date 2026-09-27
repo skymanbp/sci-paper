@@ -8,6 +8,8 @@ already `unmeasured`; without the runtime `features_vector` raises, and until
 findings, the axis status and `--scores`. These tests pin that path to
 `unmeasured` with the runtime's reason, check that a present runtime still
 scores, and hold the `--field` resolution that once divided a path by None.
+A bundle that reads `corpus_cos` also needs the embedder and the exemplar
+centroid; without them the feature is a 0.0 placeholder and the axis says so.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from __future__ import annotations
 import contextlib
 import io
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -41,6 +44,20 @@ def fake_bundle() -> dict:
             "feature_schema": df.FEATURE_SCHEMA_VERSION,
             "measurement_status": "measured", "operating_point": 0.5,
             "model": "stub"}
+
+
+@contextlib.contextmanager
+def scoring_inputs(*, embedder: bool = True, centroid: bool = True):
+    """The runtime present, the vector and classifier stubbed; the embedder and
+    the exemplar centroid as the test states them."""
+    with mock.patch.object(oracle, "model_runtime_available", return_value=(True, "")), \
+            mock.patch.object(df, "embedder_available", return_value=embedder), \
+            mock.patch.object(df, "corpus_centroid",
+                              return_value=object() if centroid else None), \
+            mock.patch.object(df, "features_vector",
+                              return_value=[0.0] * len(df.FEATURE_NAMES)), \
+            mock.patch.object(voice, "_positive_class_probability", return_value=0.25):
+        yield
 
 
 class RuntimeProbeTests(unittest.TestCase):
@@ -83,11 +100,7 @@ class RuntimeProbeTests(unittest.TestCase):
         draft = Path(self.raw.name) / "draft.tex"
         draft.write_text(TEXT, encoding="utf-8")
         stdout = io.StringIO()
-        with mock.patch.object(oracle, "model_runtime_available", return_value=(True, "")), \
-                mock.patch.object(df, "features_vector",
-                                  return_value=[0.0] * len(df.FEATURE_NAMES)), \
-                mock.patch.object(voice, "_positive_class_probability", return_value=0.25), \
-                contextlib.redirect_stdout(stdout):
+        with scoring_inputs(), contextlib.redirect_stdout(stdout):
             code = voice.main([str(draft), "--field", "fld", "--profile-root",
                                str(self.root), "--scores"])
         self.assertEqual(code, 0)
@@ -97,16 +110,51 @@ class RuntimeProbeTests(unittest.TestCase):
     def test_with_the_runtime_the_bundle_scores_and_flags(self):
         # The probe must not block a present runtime: the vector and the
         # classifier are stubbed, the rest of the path is real.
-        with mock.patch.object(oracle, "model_runtime_available", return_value=(True, "")), \
-                mock.patch.object(df, "features_vector",
-                                  return_value=[0.0] * len(df.FEATURE_NAMES)), \
-                mock.patch.object(voice, "_positive_class_probability", return_value=0.25):
+        with scoring_inputs():
             self.assertEqual(voice.voice_score(TEXT, self.field), 0.25)
             self.assertEqual(voice.voice_axis_status(self.field)["status"], "measured")
             findings = voice.voice_findings(TEXT, self.field)
         self.assertEqual([f["rule"] for f in findings],
                          ["voice-distance:intro", "voice-distance:method"])
         self.assertEqual({f["measurement_status"] for f in findings}, {"measured"})
+
+
+class CorpusCosineInputTests(unittest.TestCase):
+    """E20: `corpus_cos` without its inputs is a placeholder, not a score."""
+
+    def setUp(self):
+        self.raw = tempfile.TemporaryDirectory(prefix="voice-")
+        self.addCleanup(self.raw.cleanup)
+        self.field = Path(self.raw.name)
+        self.addCleanup(voice._MODEL_CACHE.pop, str(self.field), None)
+        voice._MODEL_CACHE[str(self.field)] = fake_bundle()
+
+    def assert_unmeasured(self, fragment: str) -> None:
+        self.assertIsNone(voice.voice_score(TEXT, self.field))
+        self.assertEqual(voice.voice_findings(TEXT, self.field), [])
+        status = voice.voice_axis_status(self.field)
+        self.assertEqual(status["status"], "unmeasured")
+        self.assertIn(fragment, status["reason"])
+
+    def test_without_the_exemplar_centroid_the_axis_is_unmeasured(self):
+        with scoring_inputs(centroid=False):
+            self.assert_unmeasured(f"exemplar_embeddings_{df.EMBED_MODEL}.npy is missing")
+
+    def test_without_the_embedder_the_axis_is_unmeasured(self):
+        with scoring_inputs(embedder=False):
+            self.assert_unmeasured("sentence-transformers is not installed")
+
+    def test_a_bundle_that_never_saw_a_cosine_needs_neither(self):
+        # Zero training variance in the column: the classifier cannot respond
+        # to it, so the placeholder changes nothing and the bundle scores.
+        variances = [1.0] * len(df.FEATURE_NAMES)
+        variances[df.FEATURE_NAMES.index("corpus_cos")] = 0.0
+        bundle = dict(fake_bundle(), scaler=types.SimpleNamespace(var_=variances))
+        voice._MODEL_CACHE[str(self.field)] = bundle
+        self.assertFalse(voice.reads_corpus_cos(bundle))
+        with scoring_inputs(embedder=False, centroid=False):
+            self.assertEqual(voice.voice_score(TEXT, self.field), 0.25)
+            self.assertEqual(voice.voice_axis_status(self.field)["status"], "measured")
 
 
 class FieldResolutionTests(unittest.TestCase):

@@ -17,49 +17,49 @@ import extract_style as es
 # Eight sentences; the middle four each carry a measured quantity, so the
 # longest uninterrupted recital run is 4 of 8.
 RECITAL_HEAVY = (
-    "The detection step selects on the depth of the inter-peak dip. "
-    "We ran the grid over $500$ detector configurations. "
-    "The strict label holds for $34.6\\%$ of resolvable rows. "
-    "Configurations with no dip detect at $0.98\\%$. "
-    "The held-out split reaches $0.813$ to $0.843$. "
-    "The criterion transfers to unseen mass ratios. "
+    "The calibration step corrects each galaxy's shear for shape noise. "
+    "We simulated the survey with $200$ image realisations. "
+    "The multiplicative bias is $1.7\\%$ for bright galaxies. "
+    "Faint galaxies carry a bias of $4.2\\%$. "
+    "The additive term lies between $0.003$ and $0.006$. "
+    "The correction transfers to unseen seeing conditions. "
     "Its factors follow from the linearity of the estimator. "
-    "The catalog is therefore saddle-limited rather than mass-selected."
+    "The catalog is therefore noise-limited rather than depth-limited."
 )
 
 # Same eight sentences' worth of numbers, but interleaved with the statements
 # that give them consequence, so no run exceeds one.
 RANKED = (
-    "The detection step selects on the depth of the inter-peak dip. "
-    "Configurations whose map keeps no dip detect at $0.98\\%$. "
-    "That floor is set by the protocol alone, not by halo mass. "
-    "Resolvable configurations detect at $34.6\\%$ instead. "
-    "The gap is what makes the catalog saddle-limited. "
-    "A fit on half the cells transfers to the remainder. "
+    "The calibration step corrects each galaxy's shear for shape noise. "
+    "Bright galaxies carry a multiplicative bias of $1.7\\%$. "
+    "That bias is set by the pixel scale alone, not by galaxy size. "
+    "Faint galaxies carry $4.2\\%$ instead. "
+    "The gap is what makes the faint sample noise-limited. "
+    "A fit on half the images transfers to the remainder. "
     "Its factors follow from the linearity of the estimator. "
-    "The criterion is therefore computable before detection is run."
+    "The correction is therefore computable before the shear is measured."
 )
 
 NO_NUMBERS = (
-    "The aperture-mass map is a filter-weighted mean of tangential "
-    "ellipticity. Peaks are detected on the processed signal-to-noise map "
-    "after an empirical null. The convergence itself is never observed. "
-    "This Letter asks what physical quantity the detection step selects on."
+    "The aperture-mass map is a weighted sum of tangential "
+    "ellipticity. Peaks are counted on the signal-to-noise map of each "
+    "field. The convergence itself is never observed directly. "
+    "This study asks how the peak counts depend on the smoothing scale."
 )
 
 
 class TestNumeralPreservingReduction(unittest.TestCase):
     def test_inline_math_numerals_survive(self):
-        reduced = es.latex_to_numeral_text("We used $500$ configurations.")
-        self.assertIn("500", reduced)
+        reduced = es.latex_to_numeral_text("We used $200$ images.")
+        self.assertIn("200", reduced)
 
     def test_latex_to_plain_still_destroys_them(self):
         # The contrast is the reason this axis needs its own reduction; if
         # latex_to_plain ever kept numerals, the two projections would merge.
-        self.assertNotIn("500", es.latex_to_plain("We used $500$ configurations."))
+        self.assertNotIn("200", es.latex_to_plain("We used $200$ images."))
 
     def test_thousands_separator_is_one_numeral(self):
-        reduced = es.latex_to_numeral_text("The sample has $14{,}850{,}000$ rows.")
+        reduced = es.latex_to_numeral_text("The sample has $1{,}250{,}000$ rows.")
         self.assertEqual(len(salience.RE_NUMERAL.findall(reduced)), 1)
 
     def test_displayed_equations_are_dropped(self):
@@ -98,7 +98,7 @@ class TestPercentileReading(unittest.TestCase):
     def test_value_on_a_tie_plateau_reads_the_top_of_the_tie(self):
         # 0.5 is shared by the 0.90-0.94 band. Reading the plateau's lower edge
         # would report a passage as exactly typical whenever it lands on a
-        # common value, which is what suppressed the Letter's abstract.
+        # common value, which is what suppressed the abstract of a manuscript under review.
         found = salience.percentile_of(self.REFERENCE, "max_recital_run_frac", 0.5)
         self.assertEqual(found, 0.94)
 
@@ -267,6 +267,24 @@ class TestFindingsAndCalibration(unittest.TestCase):
             self.assertEqual(status["status"], "degraded")
             self.assertIn("abstract (section)", status["reason"])
 
+    def test_a_foreign_bucket_the_document_never_enters_does_not_degrade_it(self):
+        with tempfile.TemporaryDirectory(prefix="salience-") as raw:
+            profile = Path(raw)
+            graded_bank(profile)
+            salience.calibrate(profile)
+            path = profile / salience.BASELINE_FILENAME
+            baseline = json.loads(path.read_text("utf-8"))
+            baseline["method"] = dict(baseline["abstract"], unit="section")
+            path.write_text(json.dumps(baseline), encoding="utf-8")
+            abstract = "\\begin{abstract}\n" + RECITAL_HEAVY + "\n\\end{abstract}\n"
+            self.assertEqual(salience.salience_axis_status(profile, abstract)["status"],
+                             "measured")
+            status = salience.salience_axis_status(
+                profile, abstract + "\\section{Methods}\n" + RECITAL_HEAVY + "\n")
+            self.assertEqual(status["status"], "degraded")
+            self.assertIn("method (section)", status["reason"])
+            self.assertEqual(salience.salience_axis_status(profile)["status"], "degraded")
+
 
 class TestLocalReference(unittest.TestCase):
     """The axis on a real locally-built reference, when one is present.
@@ -299,10 +317,10 @@ class TestLocalReference(unittest.TestCase):
         # is the gate itself, not above it; a smoke check must not ride the
         # edge of the distribution it is checking.
         heavier = RECITAL_HEAVY.replace(
-            "The criterion transfers to unseen mass ratios. ",
-            "The criterion transfers to $3$ of $4$ unseen mass ratios. ").replace(
-            "The detection step selects on the depth of the inter-peak dip. ",
-            "The detection step selects on the depth of the inter-peak dip at $2$ pixels. ")
+            "The correction transfers to unseen seeing conditions. ",
+            "The correction transfers to $3$ of $4$ unseen seeing conditions. ").replace(
+            "The calibration step corrects each galaxy's shear for shape noise. ",
+            "The calibration step corrects each galaxy's shear above $2$ pixels. ")
         document = "\\begin{abstract}\n" + heavier + "\n\\end{abstract}\n"
         rules = {f["rule"] for f in salience.salience_findings(document, self.PROFILE)}
         self.assertIn("salience-recital:abstract", rules)

@@ -149,7 +149,8 @@ def unit_matches(reference: dict[str, Any], unit: str) -> bool:
     return reference.get("unit") == unit
 
 
-def foreign_units(baseline: dict[str, Any] | None, unit: str) -> dict[str, str]:
+def foreign_units(baseline: dict[str, Any] | None, unit: str,
+                  buckets: Iterable[str] | None = None) -> dict[str, str]:
     """bucket -> the unit its artifact records, for every bucket NOT built at `unit`.
 
     `calibrate` has written `unit` into every bucket since the module existed
@@ -157,16 +158,31 @@ def foreign_units(baseline: dict[str, Any] | None, unit: str) -> dict[str, str]:
     reference rebuilt at paragraph unit, say -- was read against section
     measurements without a word in the output. The invariant this module is
     for was a declaration until the reader checked it. An artifact with no
-    `unit` key predates the key and is reported as `unrecorded`.
+    `unit` key predates the key and is reported as `unrecorded`. `buckets`,
+    when given, limits the answer to those buckets.
     """
+    scope = None if buckets is None else set(buckets)
     return {bucket: str(reference.get("unit") or "unrecorded")
             for bucket, reference in (baseline or {}).items()
-            if isinstance(reference, dict) and not unit_matches(reference, unit)}
+            if isinstance(reference, dict) and not unit_matches(reference, unit)
+            and (scope is None or bucket in scope)}
 
 
-def unit_reason(baseline: dict[str, Any] | None, unit: str) -> str | None:
-    """The status text for buckets an axis refuses because of their unit, or None."""
-    foreign = foreign_units(baseline, unit)
+def unit_reason(baseline: dict[str, Any] | None, unit: str,
+                spans: Iterable[tuple[int, int, str, Any]] | None = None,
+                allowed: Iterable[str] | None = None) -> str | None:
+    """The status text for buckets an axis refuses because of their unit, or None.
+
+    Only buckets the axis would read count: those in `allowed` (None: every
+    bucket) and, given the document's `spans` (as `unbucketed_reason` takes
+    them), those the document reaches. Counted over the whole profile, one
+    stale `method` bucket marked an abstract-only document `degraded` and sent
+    its reader to recalibrate, though the axis had read every unit it held.
+    """
+    scope = set(baseline or {}) if allowed is None else set(allowed)
+    if spans is not None:
+        scope &= {bucket for _start, _end, bucket, _block in spans}
+    foreign = foreign_units(baseline, unit, scope)
     if not foreign:
         return None
     listed = ", ".join(f"{bucket} ({recorded})" for bucket, recorded in sorted(foreign.items()))
@@ -300,7 +316,7 @@ def has_prose(block: str) -> bool:
     The corpus side drops both before it splits paragraphs, so a unit made of
     them here was measured against a reference that holds none: GPT-2 read
     forty-eight spaces as more tokens than the UID minimum and scored four of
-    the Letter's heading lines as paragraphs of near-zero surprisal variance.
+    a manuscript's heading lines as paragraphs of near-zero surprisal variance.
     A display-equation-only paragraph projects to `[MATH]` and stays a unit
     here, although the corpus side writes no row for it (the bank writer drops
     a placeholder-only paragraph and anything under 30 words): the axes with

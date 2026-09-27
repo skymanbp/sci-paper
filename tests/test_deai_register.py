@@ -22,8 +22,9 @@ def build_profile(directory: Path, passages: list[str]) -> Path:
 NATIVE_PASSAGE = (
     "The aperture mass is measured on the shear catalog at each epoch, and "
     "the accuracy of the recovered convergence is quoted against the "
-    "injection grid. The sub-halo population is drawn from the same plane, "
-    "and the classifier used for the shortlist is held out from training."
+    "simulated maps. The sub-halo population is drawn from the same "
+    "simulation, and the classifier used for the galaxy selection is held "
+    "out from training."
 )
 
 
@@ -39,7 +40,7 @@ def foreign_document(term: str = "logit") -> str:
 
 class TestTermNormalisation(unittest.TestCase):
     def test_possessive_folds_onto_the_bare_term(self):
-        self.assertEqual(register.normalize("sub-halo's"), "sub-halo")
+        self.assertEqual(register.normalize("point-source's"), "point-source")
 
     def test_case_folds(self):
         self.assertEqual(register.normalize("AUC"), "auc")
@@ -89,7 +90,7 @@ class TestCompoundFrequency(unittest.TestCase):
                          (1, "auc"))
 
     def test_a_compound_with_one_short_part_is_judged_on_its_long_part(self):
-        # `no-dip`: "no" is too short to carry meaning, "dip" is the word.
+        # `no-mass`: "no" is too short to carry meaning, "mass" is the word.
         self.assertEqual(register.corpus_document_frequency("no-mass", self.TABLE),
                          (900, "mass"))
 
@@ -192,8 +193,8 @@ class ZeroHitJustificationTest(unittest.TestCase):
         self.assertEqual(finding["observed"]["justification"], "defined-here")
 
     def test_a_defining_sentence_marks_a_coined_term(self):
-        finding = self._one("We call this quantity the saddleness. "
-                            "The saddleness is measured.", "saddleness")
+        finding = self._one("We call this quantity the shearability. "
+                            "The shearability is measured.", "shearability")
         self.assertEqual(finding["observed"]["justification"], "defined-here")
         self.assertIn("definition precedes every use", finding["message"])
 
@@ -293,31 +294,31 @@ class BodyProjectionTest(unittest.TestCase):
         self.assertIn("auc", register.manuscript_terms(document))
 
     # Third instance of the asymmetry: the corpus side blanks every math span,
-    # detection blanked only what fit on one line. On the advisor-round Letter
-    # the macro names inside a multi-line equation (`\dsep`, `\rmain`), a float
+    # detection blanked only what fit on one line. On a manuscript under review
+    # the macro names inside a multi-line equation, a float
     # option (`htb`), a bibliography style and a `\texttt` identifier all
     # surfaced as zero-hit "words".
     def test_a_macro_inside_multi_line_math_is_not_a_word(self) -> None:
         document = ("\\section{Methods}\n"
                     "The convergence is\n"
                     "\\begin{equation}\n"
-                    "\\kappa = \\frac{\\kappa_\\rmain(\\dsep)}{2}\n"
+                    "\\kappa = \\frac{\\kappa_\\rbase(\\lagsep)}{2}\n"
                     "\\end{equation}\n"
-                    "and $\\dsep\n"
+                    "and $\\lagsep\n"
                     "/ r$ spans lines.\n")
         terms = register.manuscript_terms(document)
-        self.assertNotIn("rmain", terms)
-        self.assertNotIn("dsep", terms)
+        self.assertNotIn("rbase", terms)
+        self.assertNotIn("lagsep", terms)
         self.assertIn("convergence", terms)
         self.assertIn("spans", terms)
 
     def test_float_options_bibliography_commands_and_code_are_not_words(self) -> None:
         document = ("\\section{Methods}\n"
                     "\\begin{figure*}[!htb]\n\\end{figure*}\n"
-                    "The \\texttt{cw\\_mscale} mode is used.\n"
+                    "The \\texttt{run\\_nbins} mode is used.\n"
                     "\\bibliographystyle{aasjournalv7}\n")
         terms = register.manuscript_terms(document)
-        for leaked in ("htb", "mscale", "aasjournalv", "aasjournalv7"):
+        for leaked in ("htb", "nbins", "aasjournalv", "aasjournalv7"):
             self.assertNotIn(leaked, terms)
         self.assertIn("mode", terms)
         self.assertEqual(terms["mode"]["line"], 4)
@@ -328,7 +329,7 @@ class BodyProjectionTest(unittest.TestCase):
         # and a caption's words counted here only (14 of 90 zero-hit terms on
         # one manuscript, 2026-09-04). A panel range `a--c` is not a word.
         document = ("\\section{Methods}\n"
-                    "\\begin{table*}\n\\caption{Rates in crimson.}\n"
+                    "\\begin{table*}\n\\caption{Rates in ochre.}\n"
                     "\\begin{tabular*}{\\textwidth}{@{}l@{\\extracolsep{\\fill}}lll@{}}\n"
                     "a & b \\\\\n\\end{tabular*}\n\\end{table*}\n"
                     "\\begin{deluxetable*}{@{\\extracolsep{0pt plus 1filll}}lcl}\n"
@@ -337,7 +338,7 @@ class BodyProjectionTest(unittest.TestCase):
                     "\\setlength{\\tabcolsep}{2pt}\n"
                     "Figure~\\ref{fig:x}a--c draws the shear catalog.\n")
         terms = register.manuscript_terms(document)
-        for leaked in ("filllll", "filll", "crimson", "scriptsize", "atied",
+        for leaked in ("filllll", "filll", "ochre", "scriptsize", "atied",
                        "tabcolsep", "textwidth", "a--c"):
             self.assertNotIn(leaked, terms)
         self.assertIn("shear", terms)
@@ -399,14 +400,14 @@ class DefinitionScopeTest(unittest.TestCase):
     def test_the_object_after_a_defining_phrase(self) -> None:
         self.assertEqual(register.defined_terms("We define flux using quuxification."),
                          {"flux"})
-        found = register.defined_terms("We call this quantity the saddleness.")
-        self.assertIn("saddleness", found)
+        found = register.defined_terms("We call this quantity the shearability.")
+        self.assertIn("shearability", found)
         self.assertNotIn("quuxification", found)
 
     def test_the_object_before_a_defining_phrase(self) -> None:
         found = register.defined_terms(
-            "The saddleness is defined as the ratio of quuxification.")
-        self.assertIn("saddleness", found)
+            "The shearability is defined as the ratio of quuxification.")
+        self.assertIn("shearability", found)
         self.assertNotIn("quuxification", found)
         self.assertNotIn("ratio", found)
         self.assertEqual(register.defined_terms(

@@ -61,11 +61,11 @@ RE_REVERSAL = re.compile(
 # constructions an advisor marked as reading like a prompt or a machine, each
 # abstracted to its form; no sentence from that round is quoted anywhere in
 # this repository. Auxiliary like the two above: never in `template_score`.
-#   paper-agent    the paper as a thinking agent ("this Letter asks whether")
+#   paper-agent    the paper as a thinking agent ("this study asks whether")
 #   wh-cleft       a wh-clause as subject with the point in the predicate
-#                  ("what it can conclude is limited by")
+#                  ("what matters here is")
 #   modifier-stack a noun buried under a run of pre-modifiers, at least two of
-#                  them hyphenated or numeric ("per-map empirical B-mode null")
+#                  them hyphenated or numeric ("per-band smoothed star-galaxy classifier")
 RE_PAPER_AGENT = re.compile(
     r"\b(?:this|the present|our)\s+(?:paper|letter|work|study|article|analysis|"
     r"note|manuscript)\s+(?:asks?|answers?|argues?|wonders?|explores?|seeks?|"
@@ -97,7 +97,7 @@ def modifier_stacks(sentence: str) -> list[str]:
 
     A run of content tokens is cut at the head noun, the token after the last
     compound, because without a parser that is the only place a phrase can be
-    seen to end: `non-compensated 500-configuration subfamily fails` reports
+    seen to end: `non-weighted 200-image stack fails` reports
     the phrase, not the verb. `[math]`/`[CITE]` placeholders and every
     punctuation mark break a run, so a list of quantities is not a phrase.
     """
@@ -263,7 +263,7 @@ def structure_findings(text: str, field_profile_dir: Path | None,
     findings: list[dict[str, Any]] = []
     # The shared paragraph sweep blanks headings before splitting: left in
     # place, a heading one newline above a wh-cleft opener fused with it
-    # (`Methods What it can conclude is`) and the family was missed while the
+    # (`Methods What matters here is`) and the family was missed while the
     # same paragraph two newlines below the heading was reported.
     for paragraph_start, paragraph_end, raw_label, bucket, block in reference.paragraphs(text):
         if len(es.words(es.latex_to_plain(block))) < MIN_WORDS:

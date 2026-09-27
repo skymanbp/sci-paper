@@ -82,26 +82,26 @@ class AbsenceTests(unittest.TestCase):
         return residue.absence_findings(text)
 
     def test_never_is_strong(self):
-        found = self.found("\\section{Methods}\nThe characterization head never "
-                           "participates in the detection decision.\n")
+        found = self.found("\\section{Methods}\nThe photometric catalog never "
+                           "enters the shape measurement.\n")
         self.assertEqual([(f["rule"], f["strength"], f["observed"]["phrase"]) for f in found],
                          [("residue-absence", "strong", "never")])
 
     def test_the_template_form_is_strong(self):
-        found = self.found("\\section{Methods}\nNo minimum configuration support is "
-                           "applied at any layer.\n")
+        found = self.found("\\section{Methods}\nNo minimum magnitude cut is "
+                           "applied at any stage.\n")
         self.assertEqual([f["strength"] for f in found], ["strong"])
         self.assertEqual(found[0]["observed"]["phrase"],
-                         "no minimum configuration support is applied")
+                         "no minimum magnitude cut is applied")
 
     def test_carries_no_is_ordinary(self):
-        found = self.found("\\section{Data}\nThe reference stratum carries no quoted "
-                           "number.\n")
+        found = self.found("\\section{Data}\nThe comparison sample carries no redshift "
+                           "estimate.\n")
         self.assertEqual([(f["strength"], f["observed"]["phrase"]) for f in found],
                          [("ordinary", "carries no")])
 
     def test_a_hyphenated_compound_is_a_name(self):
-        self.assertEqual(self.found("\\section{Data}\nThe never-touched controls are "
+        self.assertEqual(self.found("\\section{Data}\nThe never-masked tiles are "
                                     "scored last.\n"), [])
 
     def test_a_citation_makes_it_a_baseline_contrast(self):
@@ -189,23 +189,23 @@ class EditMetaTests(unittest.TestCase):
 
 class NegativeLabelTests(unittest.TestCase):
     def test_a_caption_negating_something_the_body_never_names_is_ordinary(self):
-        text = long_body("\\begin{figure}\\caption{Peak counts without the saddle "
+        text = long_body("\\begin{figure}\\caption{Peak counts without the dust "
                          "correction.}\\end{figure}")
         found = residue.negative_label_findings(text)
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0]["rule"], "residue-negative-label")
         self.assertEqual(found[0]["strength"], "ordinary")
-        self.assertIn("saddle", found[0]["observed"]["absent_from_body"])
+        self.assertIn("dust", found[0]["observed"]["absent_from_body"])
 
     def test_a_negation_whose_object_the_body_names_is_fine(self):
-        text = long_body("The saddle correction is applied to every map. "
-                         "\\begin{figure}\\caption{Peak counts without the saddle "
+        text = long_body("The dust correction is applied to every map. "
+                         "\\begin{figure}\\caption{Peak counts without the dust "
                          "correction.}\\end{figure}")
         self.assertEqual(residue.negative_label_findings(text), [])
 
     def test_a_short_document_is_not_judged(self):
         text = ("\\section{Methods}\nShort.\n\\begin{figure}\\caption{Peak counts "
-                "without the saddle correction.}\\end{figure}\n")
+                "without the dust correction.}\\end{figure}\n")
         self.assertEqual(residue.negative_label_findings(text), [])
         self.assertIn("not applied", residue.residue_axis_status(text)["reason"])
 
@@ -229,27 +229,27 @@ class NegativeLabelTests(unittest.TestCase):
         # LaTeX allows `\section {X}` and `\caption[short]{X}`; both were
         # invisible to the label rule (audit A9 of 2026-09-04, not landed here).
         self.assertEqual([label for _line, label in residue._labels(
-            "\\section {No saddle}\n\\caption [short] {Without the dip}")],
-            ["No saddle", "Without the dip"])
-        text = long_body("\\begin{figure}\\caption {Peak counts without the saddle "
+            "\\section {No dust}\n\\caption [short] {Without the mask}")],
+            ["No dust", "Without the mask"])
+        text = long_body("\\begin{figure}\\caption {Peak counts without the dust "
                          "correction.}\\end{figure}")
         self.assertEqual([f["observed"]["negated_object"]
                           for f in residue.negative_label_findings(text)],
-                         ["the saddle correction"])
+                         ["the dust correction"])
 
     def test_an_object_named_in_an_appendix_is_not_absent(self):
         # Labels are read from the whole text, so the object is looked for in
         # the whole paper too: an appendix caption negating what the appendix
         # explains three lines above it was reported absent from the body.
-        appendix = ("\\section{Appendix}\nThe saddle correction is applied to every "
+        appendix = ("\\section{Appendix}\nThe dust correction is applied to every "
                     "map in this appendix.\n\\begin{figure}\\caption{Peak counts "
-                    "without the saddle correction.}\\end{figure}\n")
+                    "without the dust correction.}\\end{figure}\n")
         self.assertEqual(residue.negative_label_findings(long_body() + appendix), [])
         body_caption = long_body("\\begin{figure}\\caption{Peak counts without the "
-                                 "saddle correction.}\\end{figure}")
+                                 "dust correction.}\\end{figure}")
         self.assertEqual(len(residue.negative_label_findings(body_caption)), 1)
         self.assertEqual(residue.negative_label_findings(
-            body_caption + "\\section{Appendix}\nThe saddle correction is "
+            body_caption + "\\section{Appendix}\nThe dust correction is "
                            "described here.\n"), [])
 
     def test_the_ation_family_reduces_to_one_root(self):
@@ -266,32 +266,32 @@ class NegativeLabelTests(unittest.TestCase):
 
 class NegativeLabelAddedTests(unittest.TestCase):
     def test_a_patched_absence_is_strong(self):
-        before = long_body("The saddle correction is applied to every map.")
-        after = long_body("\\begin{figure}\\caption{Peak counts without the saddle "
+        before = long_body("The dust correction is applied to every map.")
+        after = long_body("\\begin{figure}\\caption{Peak counts without the dust "
                           "correction.}\\end{figure}")
         found = residue.negative_label_added_findings(before, after)
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0]["rule"], "residue-negative-label-added")
-        self.assertIn("saddle", found[0]["observed"]["removed_from_body"])
+        self.assertIn("dust", found[0]["observed"]["removed_from_body"])
 
     def test_a_label_already_present_before_is_not_new(self):
-        text = long_body("\\begin{figure}\\caption{Peak counts without the saddle "
+        text = long_body("\\begin{figure}\\caption{Peak counts without the dust "
                          "correction.}\\end{figure}")
         self.assertEqual(residue.negative_label_added_findings(text, text), [])
 
     def test_an_object_the_body_never_had_is_not_a_patched_absence(self):
-        # `correction` alone was in the body; `saddle correction` never was, so
+        # `correction` alone was in the body; `dust correction` never was, so
         # the new caption negates nothing the edit removed.
         before = long_body("The correction is applied.")
         after = long_body("The measurement is applied. \\begin{figure}\\caption{"
-                          "Without the saddle correction}\\end{figure}")
+                          "Without the dust correction}\\end{figure}")
         self.assertEqual(residue.negative_label_added_findings(before, after), [])
 
     def test_a_negation_the_old_caption_carried_is_not_new_when_the_caption_changes(self):
-        before = long_body("The saddle correction is applied. \\begin{figure}"
-                           "\\caption{Blue points, without the saddle correction.}"
+        before = long_body("The dust correction is applied. \\begin{figure}"
+                           "\\caption{Blue points, without the dust correction.}"
                            "\\end{figure}")
-        after = long_body("\\begin{figure}\\caption{Red points, without the saddle "
+        after = long_body("\\begin{figure}\\caption{Red points, without the dust "
                           "correction.}\\end{figure}")
         self.assertEqual(residue.negative_label_added_findings(before, after), [])
 
@@ -312,8 +312,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("axis L4.residue: measured", result.stdout)
 
     def test_the_diff_rule_runs_with_a_baseline(self):
-        before = long_body("The saddle correction is applied to every map.")
-        after = long_body("\\begin{figure}\\caption{Peak counts without the saddle "
+        before = long_body("The dust correction is applied to every map.")
+        after = long_body("\\begin{figure}\\caption{Peak counts without the dust "
                           "correction.}\\end{figure}")
         result = run_residue(after, "--format", "json", before=before)
         self.assertEqual(result.returncode, 1, result.stderr)

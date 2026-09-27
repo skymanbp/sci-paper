@@ -66,6 +66,12 @@ class ExtractorStatisticsTests(unittest.TestCase):
     def test_words_are_unicode_letters(self):
         self.assertEqual(es.words("naïve Poincaré"), ["naïve", "Poincaré"])
 
+    def test_a_compound_is_one_word(self):
+        # The Unicode class first shipped without `-` and `'`, so every
+        # compound counted twice in the bank's 30-400-word admission band.
+        self.assertEqual(es.words("N-body O'Brien's two-point naïve-looking 3-D"),
+                         ["N-body", "O'Brien's", "two-point", "naïve-looking", "D"])
+
     def test_bank_rows_count_prose_words_and_carry_unique_ids(self):
         prose = " ".join(f"word{i}" for i in range(EXEMPLAR_MIN))
         plain = f"[CITE] {prose}\n\n{prose}"
@@ -104,6 +110,51 @@ class FallbackRetrievalTests(unittest.TestCase):
         ranked = rx._retrieve_fallback(records, "results", "", 2, {"tier-1-top"})
         self.assertGreater(ranked[0][0], 0.0)
         self.assertIn("results section", ranked[0][1]["text"])
+
+
+class EmbeddingCacheTests(unittest.TestCase):
+    """The `.npy` cache is keyed by the bank's content, not by mtime (audit D20)."""
+
+    def test_a_same_size_rebuild_with_other_rows_is_re_encoded(self):
+        try:
+            import numpy as np
+        except ImportError:  # CI runs without optional dependencies
+            self.skipTest("numpy is unavailable")
+        import os
+        import sys
+        import types
+        from unittest import mock
+        import retrieve_exemplars as rx
+        calls = []
+
+        class FakeModel:
+            def __init__(self, _name):
+                pass
+
+            def encode(self, texts, **_options):
+                calls.append(list(texts))
+                return np.array([[float(len(text)), 1.0] for text in texts])
+
+        fake = types.SimpleNamespace(SentenceTransformer=FakeModel)
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.dict(sys.modules, {"sentence_transformers": fake}):
+            profile = pathlib.Path(tmp)
+            bank = profile / "exemplar_paragraphs.jsonl"
+
+            def write(texts):
+                bank.write_text("".join(json.dumps({"text": t}) + "\n" for t in texts),
+                                encoding="utf-8")
+                return rx._load_records(bank)
+
+            records = write(["aa", "bbbb"])
+            rx._build_or_load_embeddings(records, bank, profile, "m")
+            rx._build_or_load_embeddings(records, bank, profile, "m")
+            self.assertEqual(len(calls), 1)
+            records = write(["bbbb", "aa"])
+            os.utime(bank, (0, 0))  # older than the cache: the mtime rule kept it
+            embeddings, _model = rx._build_or_load_embeddings(records, bank, profile, "m")
+            self.assertEqual(len(calls), 2)
+            self.assertEqual(embeddings[:, 0].tolist(), [4.0, 2.0])
 
 
 

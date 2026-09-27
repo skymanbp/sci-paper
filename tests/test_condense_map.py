@@ -11,15 +11,15 @@ from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what p
 
 import condense_map as cm
 
-CLAIM = ("The aperture mass filter recovers the injected cluster signal at the "
-         "fiducial threshold for every configuration in the calibrated grid.")
+CLAIM = ("The aperture mass filter recovers the simulated cluster signal at the "
+         "fiducial threshold for every filter scale in the adopted range.")
 RESTATED = ("At the fiducial threshold the aperture mass filter recovers the "
-            "injected cluster signal for every calibrated grid configuration.")
+            "simulated cluster signal for every adopted filter scale in the range.")
 PARAGRAPH = ("The shear catalog is cut at a signal-to-noise ratio of ten, the "
              "tangential shear is convolved with a compensated filter of fixed "
              "scale, and the aperture mass map is evaluated on a regular grid "
-             "in catalog coordinates so that every peak has a position and a "
-             "height that the injection grid can reproduce exactly.")
+             "across the survey area so that every peak has a position and a "
+             "height that the simulated maps can reproduce exactly.")
 DOCUMENT = f"""\\newcommand{{\\unused}}{{x}}
 \\newcommand{{\\used}}{{y}}
 \\section{{Introduction}}
@@ -218,9 +218,9 @@ class CarveOutTests(unittest.TestCase):
 class GateAgreementTests(unittest.TestCase):
     """The map's words are the gate's words, or its target cannot be met."""
 
-    SENTENCE = ("The calibrated aperture mass filter recovers the injected cluster "
-                "signal at $\\nu = 3$ for every configuration \\citep{Ref} in the "
-                "grid of $N = 20$ fields.")
+    SENTENCE = ("The adopted aperture mass filter recovers the simulated cluster "
+                "signal at $\\nu = 3$ for every filter scale \\citep{Ref} in the "
+                "range of $N = 20$ fields.")
 
     def test_removable_words_exclude_projection_placeholders(self):
         import length_gate as lg

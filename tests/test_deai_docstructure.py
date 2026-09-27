@@ -297,6 +297,9 @@ class DocumentStructureTests(unittest.TestCase):
             uniformity_hits = [f for f in uniform
                                if f["rule"].startswith("document-uniformity:")]
             self.assertTrue(uniformity_hits, "over-uniform document should flag")
+            # Four documents resolve no 5% tail: context, not a strong finding.
+            self.assertEqual({(f["strength"], f["measurement_status"])
+                              for f in uniformity_hits}, {("ordinary", "degraded")})
             varied = docstructure.document_findings(document([
                 REPEATED_PARAGRAPH, SHORT_PARAGRAPH, LONG_PARAGRAPH,
                 SHORT_PARAGRAPH, LONG_PARAGRAPH, REPEATED_PARAGRAPH,
@@ -448,6 +451,27 @@ class SweepAndOperatingPointTests(unittest.TestCase):
                                finding["reference"]["strong_threshold"])
             self.assertAlmostEqual(finding["normalized_distance"], 0.35 - 0.34)
             self.assertIn("threshold 0.340", finding["message"])
+
+    def test_a_tail_the_reference_cannot_resolve_is_not_strong(self):
+        # Four documents place no value beyond a 0.8 quantile (floor 5); a
+        # 5% band tail needs 20 (audit B18).
+        self.assertEqual([docstructure.tail_floor(p) for p in (0.95, 0.05, 0.9, 0.8)],
+                         [20, 20, 10, 5])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for values, expected in (([0.1, 0.2, 0.3, 0.4], ("ordinary", "degraded")),
+                                     ([0.01 * i for i in range(20)], ("strong", "measured"))):
+                self._baseline(root, values, 0.8)
+                with mock.patch.object(docstructure, "document_shape",
+                                       return_value=self._shape(0.35)):
+                    finding, = docstructure.document_findings("x", root)
+                    status = docstructure.docstructure_axis_status("x", root)
+                self.assertEqual((finding["strength"], finding["measurement_status"]), expected)
+                self.assertEqual(status["status"], expected[1])
+            self._baseline(root, [0.1, 0.2, 0.3, 0.4], 0.8)
+            with mock.patch.object(docstructure, "document_shape",
+                                   return_value=self._shape(0.35)):
+                self.assertIn("needs 20", docstructure.docstructure_axis_status("x", root)["reason"])
 
 
 class FeatureRuntimeTests(unittest.TestCase):

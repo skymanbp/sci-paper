@@ -43,6 +43,13 @@ CONNECTIVE_OPENERS = frozenset({
 
 # Compatibility defaults used only when a profile has no explicit
 # deai_policy.json. Such findings are marked degraded and never strong.
+# The burstiness ratio divides ONE section's sentence-length CV by the bucket
+# CV pooled across papers, which also carries between-paper variance, so the
+# ratio runs low on human prose too: its human median sits well below 1
+# (EVALUATION §16). The bias is left in, not calibrated away per (paper,
+# bucket): §16 refuted the statistic as a detector on other grounds -- it
+# reverses sign on adversarial prose -- so deai_policy.json is never written
+# and these findings stay ordinary advisories (audit B16).
 DEFAULT_BURSTINESS_RATIO = 0.60
 DEFAULT_SIGNPOST_FRAC = 0.20
 MIN_SENTENCES = 5
