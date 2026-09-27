@@ -77,6 +77,23 @@ class RuntimeProbeTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn(f"axis L3.voice: unmeasured: {MISSING}", stdout.getvalue())
 
+    def test_scores_with_the_runtime_lists_each_paragraph_by_source_line(self):
+        # A blank-line split of the raw text numbered paragraphs the findings
+        # never used; the listing now carries the sweep's source lines.
+        draft = Path(self.raw.name) / "draft.tex"
+        draft.write_text(TEXT, encoding="utf-8")
+        stdout = io.StringIO()
+        with mock.patch.object(oracle, "model_runtime_available", return_value=(True, "")), \
+                mock.patch.object(df, "features_vector",
+                                  return_value=[0.0] * len(df.FEATURE_NAMES)), \
+                mock.patch.object(voice, "_positive_class_probability", return_value=0.25), \
+                contextlib.redirect_stdout(stdout):
+            code = voice.main([str(draft), "--field", "fld", "--profile-root",
+                               str(self.root), "--scores"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue().splitlines(),
+                         ["  L2-2 field_similarity=0.250", "  L5-5 field_similarity=0.250"])
+
     def test_with_the_runtime_the_bundle_scores_and_flags(self):
         # The probe must not block a present runtime: the vector and the
         # classifier are stubbed, the rest of the path is real.
