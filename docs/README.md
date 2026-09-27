@@ -63,7 +63,7 @@ universal paper PASS/FAIL.
 | Per-version history | [../CHANGELOG.md](../CHANGELOG.md) · [../CHANGELOG-ARCHIVE-v0.33-v0.34.md](../CHANGELOG-ARCHIVE-v0.33-v0.34.md) (v0.33.0-v0.34.0) · [../CHANGELOG-ARCHIVE-RECENT.md](../CHANGELOG-ARCHIVE-RECENT.md) (v0.27.1-v0.32.0) · [../CHANGELOG-ARCHIVE.md](../CHANGELOG-ARCHIVE.md) (v0.22.0-v0.27.0) · [../CHANGELOG-ARCHIVE-EARLY.md](../CHANGELOG-ARCHIVE-EARLY.md) (v0.1.0-v0.21.0) |
 | Working rules for this repository | [../CLAUDE.md](../CLAUDE.md) |
 | Adapted-material attribution and adoption boundaries | [../ACKNOWLEDGMENTS.md](../ACKNOWLEDGMENTS.md) |
-| External review records (findings, first-party verification, disposition) | [audits/codex-review-2026-09-04.md](audits/codex-review-2026-09-04.md) |
+| External and full-repository review records (findings, first-party verification, disposition) | [audits/codex-review-2026-09-04.md](audits/codex-review-2026-09-04.md) · [audits/full-review-2026-09-27.md](audits/full-review-2026-09-27.md) |
 
 ## Conventions this directory is held to
 
