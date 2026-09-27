@@ -378,7 +378,7 @@
 
 ## 10. 落地记录（v0.39.0，2026-09-27）
 
-§8 第一梯队与其耦合的第二梯队已在 v0.39.0 落地，提交按范围列出；每个提交正文写明它覆盖的条目号。
+§1–§7 的每个条目都已在 v0.39.0 落地或附理由关闭，提交按范围列出；每个提交正文写明它覆盖的条目号。前十行属 PR #1，其后是合并前的收尾提交。
 
 | 范围 | 条目 | 提交 |
 |---|---|---|
@@ -386,14 +386,27 @@
 | 装配、投影与宏；length_gate 与 condense_map；ai_ism_lint 与 validate_plugin；extract_style 与 retrieve_exemplars | A1–A20、A28，F3/F4/F7/F9/F12/F14/F16–F20/F25/F27/F28/F33，D6–D11/D14/D16/D19，M2/M3 | `5ce670c` |
 | verify_references | F1/F2/F5/F6/F8/F10/F11/F13/F21/F23/F24/F32 | `46cf4ce` |
 | 文档级轴：docshape、docstructure、metrics、structure、features、partition、anchoring | B1–B15、B19–B21、B23、B28，E20 的 features 侧 | `1c9736d`、`f211ece`、`2d2685d` |
-| rewrite_reward | E1–E4、E12、E30，H1 | `116f074` |
+| rewrite_reward | E1–E4、E12、E30、E32，H1 | `116f074` |
 | eval_findings、eval_docscale、label_findings、voice_dataset、voice_audit、train_voice_model、train_ai_ism_classifier | E5–E8、E10/E11、E13–E16、E18/E19、E21/E22、E28、E31、E33，M5 | `9b30c47`、`e47d250` |
 | fetch_arxiv_abstracts | D1–D5、D12/D13、D24、D26 | `41a29a8` |
-| 逐 bucket 轴：reference、collocation、discourse、salience、register、residue、oracle、provenance、personal、voice | C1–C19、C21、C22（C20 属 deai_structure，未动），E20 的 voice 侧；ai_ism_lint 把带文本的状态接入统一报告 | `95c988f`、`3e13594`、`7daf3e9` 及本节所在提交 |
-| 文档与元数据：§6.2 全部数字（I1–I20、G14–G25）、H3–H6/H12/H13/H36 的 skill 补丁、I21/I25/I36、I22/I31–I34、I38、G11、G27、D15（改为"记录权重，未应用"）、H31（标准 v3.9）及各部分的 registry 行、发布说明与记录的测试数 | | `1ad6ed7`、`de925a9`、`470290d`、`b25f4cd` 及本节所在提交 |
+| 逐 bucket 轴：reference、collocation、discourse、salience、register、residue、oracle、provenance、personal、voice | C1–C19、C21、C22（C20 见 `d42ef14` 行），E20 的 voice 侧；ai_ism_lint 把带文本的状态接入统一报告 | `95c988f`、`3e13594`、`7daf3e9`、`04ae5b0` |
+| 文档与元数据：§6.2 全部数字（I1–I20、G14–G25）、H3–H6/H12/H13/H36 的 skill 补丁、I21/I25/I36、I22/I31–I34、I38、G11、G27、D15（改为"记录权重，未应用"）、H31（标准 v3.9）及各部分的 registry 行、发布说明与记录的测试数 | | `1ad6ed7`、`de925a9`、`470290d`、`b25f4cd`、`e5f69c4`、`04ae5b0` |
+| 上面各行未列号、PR #1 已修的条目（收尾前逐条复核为已修） | A21、A26、A27、A29、A30、A32，B26，E34，F34，G1–G3、G5、G7、G8、G10、G13、G33、G35、G36，H7、H9–H11、H19、H20、H38、H41、H43、H44，I23、I24、I30、I39 | PR #1（`6107991..04ae5b0`） |
+| §8.3 的待核实项与 PR 自身的回归 | B16（关闭，理由写在 `DEFAULT_BURSTINESS_RATIO` 旁）、B17、B18、B23 余项、C20（注释例句换成检测器命中的一类）、D20、E17、E20 余项、F22、F26；复合词分词、`unit_reason` 的范围、注释里的 `\newcommand` 三处回归；代码侧取自在审手稿的例子换成虚构例子 | `d42ef14` |
+| 文档与记录里取自在审手稿的例子 | 换成同类虚构例子或工具报出的计数，不改任何测量 | `bbd355a` |
+| 代码余项 | A22–A25，B22、B24、B30，D17、D18、D21、D23、D25 的代码侧、D27–D29，E23–E26、E29，F29–F31、F37、F38，H8 的 validator 镜像检查；hedging 按 2026-09-27 的重测扩到 `method` | `6aaf9f3` |
+| skill 余项 | H14（作者裁定 skill 服从标准 §4：四处人工判断的 strong 改为排在最前的普通 advisory），H15–H18、H22、H32、H33、H37、H39、H40、H42，F15 的 skill 侧，H45–H51（skill 内去重） | `2c70054` |
+| 文档余项与重建后的重测 | G4、G6、G12、G28–G31、G34，H34、H35，E27，F15 与 F35 的文档侧，I26–I29、I37，M3/I35，B24/B25 的文档侧，R1–R10，M4/G19（删除 `latency.json`）；重建后 EVALUATION、两份 README 与 examples 的数字全部重取 | `4dfa9a4` |
+| 本节 | 落地记录的收尾 | 本节所在提交 |
 
-未落地（§8.3 及本轮范围之外）：
+附理由关闭、不改的条目：
 
-- §5 的去重（R1–R10、H23–H30/H45–H51）；待核实项 B16/B17/B18/E17/E32/F22/F26/D20；G19（`latency.json`）；M3/I35 的 disposition 列。A31/D26/E33/B28 的 `__main__` 位置已随各自文件修复。
-- 需重建的制品：`structure_baseline` 与 `docstructure_baseline`（B12/B15）、`anchoring_baseline`（B13）；逐 bucket 轴的制品需重新校准才采用最近秩分位网格（C12）。重建前，EVALUATION 中据旧制品测得的比率沿用旧值，各处已注明测得日期。
-- 抓取器的内置查询集、关键词过滤与期刊表标为 `[WGL]`，其他领域改用 `--query`（D24）；`TIER_WEIGHTS` 仍只记录不应用（D15 按第二梯队的"改措辞"落地）。
+- G26：`plugin.json` 与 `marketplace.json` 的描述由不同的消费方读取（插件加载器与 marketplace 列表），validator 的 manifest 检查要求两者一致，逐字相同是它守护的状态，不是漂移。
+- M6：标准 §0.1 对 advisory 工具只要求配置失败时非零退出；这些工具没有 finding 退出码，exit 1 不会与 finding 语义混淆。
+- H21：brainstorm 的 NEEDS-MORE-INFO 是临时 verdict，收敛判据禁止它留到终态（§6 第 1 条，终报的节点分布里为 0），与 paper-review 的要求一致。
+- H23–H30：跨 skill 的重复保留（作者裁定）：每个 skill 单独加载，不跟随指针。
+- A31/D26/E33/B28 的 `__main__` 位置已随各自文件修复；D24 的内置查询集、关键词过滤与期刊表标为 `[WGL]`，其他领域用 `--query`；`TIER_WEIGHTS` 只记录不应用（D15 按第二梯队的"改措辞"落地）。
+
+重建与重取：2026-09-27 按本版全部语料侧修复重建 `wgl` profile（exemplar bank、lexicon、register、collocation、cohesion、hedging、salience、structure、anchoring、UID 与 docstructure），并重训 L3；B22 落地后 docstructure 再校准一次。逐 bucket 轴的制品随重建采用最近秩分位网格（C12）。EVALUATION、两份 README 与 examples 的数字随之重取，没重取的行写明取数所在的构建。
+
+已知性质（记录备查，不是缺陷，2026-09-27 测）：留出集 200 个 bundle 读出 203 篇文档，因为三个 bundle 各有第二个根文件被选为独立文档（`AuthorList_P13_CIB_Lensing_cpp.tex`、`Planck_bib.tex`、`aa.tex`）；203 篇里有 15 篇去掉注释后未转义的 `$` 个数为奇数，简单配对下至少有一个 `$` 落单。
