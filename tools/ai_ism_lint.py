@@ -462,19 +462,19 @@ def collect_feedback(path: Path, field_profile_dir: Path | None, *,
         # its axis entry rides along when the sentence axis did not add it
         findings.extend(deai_collocation.glossary_findings(text, field_profile_dir, path))
         if not collocation:
-            axes.append(deai_collocation.collocation_axis_status(field_profile_dir, text))
+            axes.append(deai_collocation.glossary_axis_status(field_profile_dir))
     if residue:
         findings.extend(deai_residue.residue_findings(text, path))
         axes.append(deai_residue.residue_axis_status(text))
     if salience:
         findings.extend(deai_salience.salience_findings(text, field_profile_dir, path))
-        axes.append(deai_salience.salience_axis_status(field_profile_dir))
+        axes.append(deai_salience.salience_axis_status(field_profile_dir, text))
     if discourse:
         findings.extend(deai_discourse.discourse_findings(text, field_profile_dir, path))
         # extend, not append: this detector reports one status PER FEATURE,
         # because cohesion and hedging calibrate at different units and a
         # field can support one and not the other.
-        axes.extend(deai_discourse.discourse_axis_status(field_profile_dir))
+        axes.extend(deai_discourse.discourse_axis_status(field_profile_dir, text))
     if distribution:
         findings.extend(deai_metrics.distribution_findings(text, field_profile_dir, path))
         axes.append(deai_metrics.distribution_axis_status(field_profile_dir))

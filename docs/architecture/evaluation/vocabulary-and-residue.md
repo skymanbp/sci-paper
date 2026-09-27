@@ -156,6 +156,16 @@ revision, because the synthetic paper repeats its own coined parameter and the
 cohesion fix carried a noun into a new neighbourhood — the axis's stated
 exception at work, recorded in [`examples/README.md`](../../../examples/README.md).
 
+**Two limits recorded on 2026-09-27.** The bank keeps rows of 30–400 words
+and the manuscript side has no such band, so a manuscript paragraph outside it
+is measured against a reference that holds none of its length (audit C17, open).
+Each artifact bucket now records `text_key` (the projection its rows were read
+on) and `text_fallback_rows` (how many fell back to `text`), and the quantile
+grid is stored at nearest rank; the gates quoted above were measured on the
+earlier grid, one order statistic high, and move only when the artifact is
+recalibrated and the rate re-measured.
+
+
 ## 23.3 Three structure families from the mentor's margin
 
 The remaining comments that named a *sentence shape* rather than a phrase fell

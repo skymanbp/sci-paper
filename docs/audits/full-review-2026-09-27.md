@@ -389,7 +389,7 @@
 | rewrite_reward | E1–E4、E12、E30，H1 | `116f074` |
 | eval_findings、eval_docscale、label_findings、voice_dataset、voice_audit、train_voice_model、train_ai_ism_classifier | E5–E8、E10/E11、E13–E16、E18/E19、E21/E22、E28、E31、E33，M5 | `9b30c47`、`e47d250` |
 | fetch_arxiv_abstracts | D1–D5、D12/D13、D24、D26 | `41a29a8` |
-| 逐 bucket 轴：reference、collocation、discourse、salience、register、residue、oracle、provenance、personal、voice | C1–C19、C21、C22（C20 属 deai_structure，未动），E20 的 voice 侧 | `95c988f`、`3e13594` |
+| 逐 bucket 轴：reference、collocation、discourse、salience、register、residue、oracle、provenance、personal、voice | C1–C19、C21、C22（C20 属 deai_structure，未动），E20 的 voice 侧；ai_ism_lint 把带文本的状态接入统一报告 | `95c988f`、`3e13594`、`7daf3e9` 及本节所在提交 |
 | 文档与元数据：§6.2 全部数字（I1–I20、G14–G25）、H3–H6/H12/H13/H36 的 skill 补丁、I21/I25/I36、I22/I31–I34、I38、G11、G27、D15（改为"记录权重，未应用"）、H31（标准 v3.9）及各部分的 registry 行、发布说明与记录的测试数 | | `1ad6ed7`、`de925a9`、`470290d`、`b25f4cd` 及本节所在提交 |
 
 未落地（§8.3 及本轮范围之外）：

@@ -5,13 +5,13 @@
 [![Version](https://img.shields.io/badge/version-0.39.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-763%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-764%20passing-success.svg)](tests/)
 
 **一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
 每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
-**12 个 skill · 40 个工具 · 763 个测试 · 一份规范 · 零作者身份判决。**
+**12 个 skill · 40 个工具 · 764 个测试 · 一份规范 · 零作者身份判决。**
 
 [English](README.md) — [它做什么](#它做什么) · [怎么做到的](#怎么做到的) ·
 [实际效果](#实际效果) · [Benchmark 面板](#benchmark-面板) · [安装](#安装) ·
@@ -448,7 +448,7 @@ LaTeX include 组装而成。标准库的每一行都重测了：解释器地板
 | `+ --oracle`（GPT-2-large token surprisal） | 33.8 s（2026-08-27） | `transformers` + `torch` |
 | `+ --voice`（学习型 L3 分诊） | 37.2 s（2026-08-27） | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` —— **11/11 通过** | 2.24 s | 标准库 |
-| 完整测试套件 —— **763 通过**，32 个文件（计时取自 2026-09-05 对当时套件的一次运行，3 次取中位数，落在 49.8 – 51.7 s；此后未重测） | 51.5 s | 标准库 |
+| 完整测试套件 —— **764 通过**，32 个文件（计时取自 2026-09-05 对当时套件的一次运行，3 次取中位数，落在 49.8 – 51.7 s；此后未重测） | 51.5 s | 标准库 |
 
 一句话：**一份 5,084 词的稿子跑完全部 model-free 通道，在解释器地板之上约花 1.0 s**，
 且不需要任何可选依赖——其中 0.6 s 是加载 collocation 词对库（计时所用的 2026-09-04 库有 530,677 对，v0.36.3 重建后为 530,504 对），
@@ -662,7 +662,7 @@ sci-paper/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
 ├── skills/<name>/SKILL.md   12 个 skill
 ├── tools/                   40 个产品工具 + 仓库 validator
-├── tests/                   32 个测试文件、763 个测试
+├── tests/                   32 个测试文件、764 个测试
 ├── style-corpus/<field>/    用户提供的只读语料（gitignore）
 ├── style-profile/<field>/   生成与标定的证据（gitignore）
 ├── ACKNOWLEDGMENTS.md       改编来源的致谢与采纳边界
@@ -673,7 +673,7 @@ sci-paper/
 ## 开发与发布
 
 `python tools/validate_plugin.py` 跑 11 项契约检查，
-`python -m unittest discover -s tests -v` 跑 763 个测试；发布前两者都必须通过。
+`python -m unittest discover -s tests -v` 跑 764 个测试；发布前两者都必须通过。
 Validator 覆盖发布元数据、skill frontmatter、规范引用、文档权威边界与索引完整性、
 记录的测试规模与真实发现的一致性、过期契约标记、产品注册表、Python 语法、
 运行时 import、CLI 入口、schema 字段、linter 退出语义、Tier B 行为、测试与 CI 接线 ——

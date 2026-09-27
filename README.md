@@ -5,14 +5,14 @@
 [![Version](https://img.shields.io/badge/version-0.39.0-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
-[![Tests](https://img.shields.io/badge/tests-763%20passing-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-764%20passing-success.svg)](tests/)
 
 **A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
 manuscripts for top-tier journals — under one typed standard, with every claim
 traced to a source and every unavailable measurement labelled as unavailable.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
-**12 skills · 40 tools · 763 tests · one normative contract · zero authorship verdicts.**
+**12 skills · 40 tools · 764 tests · one normative contract · zero authorship verdicts.**
 
 [中文文档](README.zh-CN.md) — [What it does](#what-it-does) · [How it works](#how-it-works) ·
 [See it work](#see-it-work) · [Benchmarks](#benchmark-dashboard) · [Install](#install) ·
@@ -474,7 +474,7 @@ at 100%, and a number taken under that describes the contention, not the axis. V
 | `+ --oracle` (GPT-2-large token surprisal) | 33.8 s (2026-08-27) | `transformers` + `torch` |
 | `+ --voice` (learned L3 triage) | 37.2 s (2026-08-27) | `scikit-learn` + `sentence-transformers` |
 | `validate_plugin.py` — **11/11 checks pass** | 2.24 s | stdlib |
-| Full test suite — **763 passing**, 32 files (timing from the 2026-09-05 run of the suite as it then stood, median of 3 spanning 49.8 – 51.7 s; not re-taken since) | 51.5 s | stdlib |
+| Full test suite — **764 passing**, 32 files (timing from the 2026-09-05 run of the suite as it then stood, median of 3 spanning 49.8 – 51.7 s; not re-taken since) | 51.5 s | stdlib |
 
 The headline: **a complete model-free pass over a 5,084-word manuscript costs ~1.0 s above the interpreter
 floor**, with no optional dependency installed — and 0.6 s of that is loading the collocation bank (530,677
@@ -677,14 +677,14 @@ sci-paper/
 │   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.8)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
-├── skills/<name>/SKILL.md   12 skills         ├── tests/     32 files, 763 tests
+├── skills/<name>/SKILL.md   12 skills         ├── tests/     32 files, 764 tests
 ├── tools/                   40 product tools  ├── CHANGELOG.md · ACKNOWLEDGMENTS.md
 ├── style-corpus/<field>/    user-supplied read-only corpus (gitignored)
 └── style-profile/<field>/   generated and calibrated evidence (gitignored)
 ```
 
 `python tools/validate_plugin.py` runs 11 contract checks and `python -m unittest discover -s tests -v` runs the
-763-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
+764-test suite; both must pass before a release. The validator covers release metadata, skill frontmatter,
 standard references, documentation boundaries and index completeness, in-page anchors, recorded suite sizes
 against real discovery, product registries, syntax, runtime imports, CLI entry points, schema fields, and linter
 exit semantics — `tools/validate_plugin.py` itself is the authoritative list. A release also requires

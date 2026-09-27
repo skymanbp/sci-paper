@@ -315,7 +315,7 @@ high-confidence AI verdict.
 ### L4: residue, and the removal map
 
 [`../tools/deai_residue.py`](../../tools/deai_residue.py) reads the trace an edit
-leaves rather than the prose it produced. Five rules, all deterministic:
+leaves rather than the prose it produced. Four static rules and one diff rule, all deterministic:
 `residue-self-history:<word>` (a drafting-history term — `initially`, `no
 longer`, `we switched` — in a first-person sentence with no citation, so a
 history *of the literature* is not one of the paper); `residue-absence` (a

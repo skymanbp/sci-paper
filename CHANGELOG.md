@@ -164,7 +164,7 @@ The voice axis is `unmeasured` without the surprisal runtime instead of a
 RuntimeError, `--scores` lists paragraphs by source line, and every one of
 these tools resolves `--field` through the shared resolver.
 
-The suite is 763 tests in 32 files (v0.38.0: 529 in 27); the validator runs
+The suite is 764 tests in 32 files (v0.38.0: 529 in 27); the validator runs
 11 checks and passes.
 
 ## v0.38.0 — 2026-09-16
