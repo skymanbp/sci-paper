@@ -7,7 +7,8 @@ an explicit calibrated operating point is degraded evidence, and degraded eviden
 is surfaced as rank-based triage (lowest-scoring paragraphs), never through a
 universal probability cutoff.
 
-  voice_score(text, field_dir) -> compatibility score in [0, 1]
+  voice_score(text, field_dir) -> compatibility score in [0, 1], or None
+      without a bundle or without the surprisal runtime the features need
   paragraph_hits(text, field_dir) -> compatibility tuple advisories
 
 The score is never a paper gate or detector-evasion objective. Rewrite candidates
@@ -18,8 +19,6 @@ CLI:  python tools/deai_voice.py draft.tex --field wgl
 
 from __future__ import annotations
 
-import argparse
-import re
 import sys
 from pathlib import Path
 
@@ -27,11 +26,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cli_common  # noqa: E402 -- because the sys.path insert above must run first
 import deai_features as df   # noqa: E402  resolves only after the sys.path insert
 import deai_feedback as feedback  # noqa: E402  shared finding contract
+import deai_oracle as do  # noqa: E402  the surprisal runtime probe
 import deai_reference as reference  # noqa: E402  the shared paragraph sweep
 import extract_style as es   # noqa: E402  same reason
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_PROFILE_ROOT = REPO_ROOT / "style-profile"
 TRIAGE_RANK_COUNT = 3    # degraded mode surfaces this many lowest-ranked paragraphs
 _MODEL_CACHE: dict = {}
 
@@ -98,13 +96,35 @@ def _positive_class_probability(bundle, feats_vec) -> float:
     return float(clf.predict_proba(x)[0, column])
 
 
+def runtime_reason() -> str | None:
+    """Why no paragraph can be scored, or None when the runtime is present.
+
+    The feature vector the bundle reads carries three token-surprisal entries,
+    and `deai_features.features_vector` raises when the optional
+    transformers/torch runtime that produces them is missing. Every entry
+    point here probes first, so the L3 axis reports `unmeasured` with this
+    reason instead of propagating that RuntimeError into the linter, the
+    rewrite ranker or `--scores`.
+    """
+    available, reason = do.model_runtime_available()
+    if available:
+        return None
+    return (f"{reason}; the bundle's features include token surprisal, so no "
+            "paragraph can be scored")
+
+
 def voice_score(text: str, field_profile_dir: Path | None,
                 model_name: str | None = None, centroid=None) -> float | None:
-    """Return a field-similarity compatibility score, or None if unavailable."""
+    """Return a field-similarity compatibility score, or None if unavailable.
+
+    None without a bundle and None without the surprisal runtime: the caller's
+    status names which (`voice_axis_status`), and a rewrite ranker reading
+    None weighs the term at nothing rather than at a nominal 0.0.
+    """
     bundle = load_voice_model(field_profile_dir)
-    if bundle is None:
+    if bundle is None or runtime_reason() is not None:
         return None
-    model_name = model_name or bundle.get("model", df.do.DEFAULT_MODEL)
+    model_name = model_name or bundle.get("model", do.DEFAULT_MODEL)
     if centroid is None and field_profile_dir is not None:
         centroid = df.corpus_centroid(field_profile_dir)
     vec = df.features_vector(text, field_profile_dir=field_profile_dir,
@@ -118,6 +138,10 @@ def voice_axis_status(field_profile_dir: Path | None) -> dict:
         return feedback.axis_status(
             "L3.voice", "unmeasured", reason="voice_model.joblib is unavailable",
             detector="deai_voice")
+    reason = runtime_reason()
+    if reason is not None:
+        return feedback.axis_status("L3.voice", "unmeasured", reason=reason,
+                                    detector="deai_voice")
     if not bundle_measured(bundle):
         return feedback.axis_status(
             "L3.voice", "degraded",
@@ -172,10 +196,10 @@ def voice_findings(text: str, field_profile_dir: Path | None,
     probability cutoff is invented.
     """
     bundle = load_voice_model(field_profile_dir)
-    if bundle is None:
+    if bundle is None or runtime_reason() is not None:
         return []
     calibrated = bundle_measured(bundle)
-    model_name = bundle.get("model", df.do.DEFAULT_MODEL)
+    model_name = bundle.get("model", do.DEFAULT_MODEL)
     centroid = df.corpus_centroid(field_profile_dir)
     scored: list[dict] = []
     for paragraph_start, paragraph_end, raw_label, bucket, block in reference.paragraphs(text):
@@ -244,19 +268,30 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--scores", action="store_true",
                    help="print the compatibility score for every paragraph")
     args = p.parse_args(argv)
-    field_dir = args.profile_root / args.field
-    if load_voice_model(field_dir) is None:
-        print(f"[deai_voice] no voice_model.joblib in {field_dir}; train with "
-              f"`python tools/train_voice_model.py --field {args.field}`.",
-              file=sys.stderr)
+    # No profile (no `--field` and not exactly one field) is the same exit 2
+    # as a profile without a bundle; `profile_root / None` was a TypeError.
+    field_dir = cli_common.optional_field_dir(args, tool="deai_voice")
+    if field_dir is None or load_voice_model(field_dir) is None:
+        print(f"[deai_voice] no voice_model.joblib in {field_dir or '<field>'}; "
+              "train with `python tools/train_voice_model.py --field "
+              f"{field_dir.name if field_dir else '<field>'}`.", file=sys.stderr)
         return 2
     text = args.file.read_text(encoding="utf-8", errors="replace")
     if args.scores:
+        status = voice_axis_status(field_dir)
+        if status["status"] == "unmeasured":
+            # The same line the report prints: without the surprisal runtime
+            # there is no score to list, and the reason is the output.
+            print(f"axis {status['axis']}: unmeasured: {status['reason']}")
+            return 0
+        # The same sweep the findings use, keyed by source lines, so a score
+        # can be matched to a finding; a blank-line split of the raw text
+        # numbered different paragraphs and its indices matched nothing.
         centroid = df.corpus_centroid(field_dir)
-        for i, b in enumerate(x for x in re.split(r"\n\s*\n", text) if x.strip()):
-            s = voice_score(b, field_dir, None, centroid)
-            if s is not None:
-                print(f"  para[{i}] field_similarity={s:.3f}")
+        for start, end, _label, _bucket, block in reference.paragraphs(text):
+            score = voice_score(block, field_dir, None, centroid)
+            if score is not None:
+                print(f"  L{start}-{end} field_similarity={score:.3f}")
         return 0
     report = feedback.build_report(
         path=args.file,

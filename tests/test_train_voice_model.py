@@ -9,6 +9,7 @@ import tempfile
 import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 
@@ -339,7 +340,12 @@ class VoiceAuditHelperTests(unittest.TestCase):
         self.assertEqual(aggregated["overall"]["f1_positive"]["mean"], 1.0)
 
     def test_voice_axis_requires_measured_operating_point(self):
-        with tempfile.TemporaryDirectory() as temporary:
+        # The status under test is the bundle's, so the surprisal runtime the
+        # feature vector needs is pinned as present: without it the axis is
+        # `unmeasured` whatever the bundle says (tests/test_deai_voice.py).
+        with tempfile.TemporaryDirectory() as temporary, \
+                mock.patch.object(voice.do, "model_runtime_available",
+                                  return_value=(True, "")):
             profile = Path(temporary)
             key = str(profile)
             try:
