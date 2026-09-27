@@ -3,6 +3,105 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.39.0 — 2026-09-27
+
+### The audit's first tier, fixed
+
+`docs/audits/full-review-2026-09-27.md` recorded a full-repository review of
+v0.38.0: nine parallel line-by-line reads of the tools, skills and documents,
+every high and medium finding reproduced first-party. This release acts on its
+first tier ("应修") and the documentation corrections that go with it. No
+consequence class changed; the standard is v3.9 (a fourth narrow exit
+contract, `verify_references.py`, and the residues and readings v0.37–v0.38 had
+added without a version stamp).
+
+**Gates no longer read missing evidence as a verdict.** An unreadable document
+root raises: `length_gate --before <mistyped path>` read a zero-word baseline
+and reported every section as growth (exit 1), and `ai_ism_lint dir.tex` read
+an empty document and exited 0, clean. A `--git-ref` baseline now resolves its
+`\input` children at the ref, so deleting a whole section file, the most
+decisive condense move, is counted; before, the child vanished from the
+baseline and the cut was understated. `\input{fig.tikz}` is read as written,
+a nested `\input` resolves against the document root, and
+`\includegraphics` is not an include.
+
+**The projection has one more display form.** `\[ ... \]`, `$$ ... $$` and
+`subequations` are display mathematics in both projections. `\[E=mc^2\]`
+counted as six words of prose in the gate and the map, and `$$` fell to the
+inline pattern, whose second dollar paired with the third and swallowed the
+prose up to the next formula in the plain view alone. A macro definition inside
+a comment is no longer harvested, and an argument-taking macro with a numeric
+body is left alone (`\foo{x}` became `42{x}`).
+
+**The condense map counts what the gate counts.** The abstract/conclusion
+carve-out applies to either side of a restatement pair — the abstract precedes
+the body, so with only the copy's bucket consulted every abstract claim made
+the body's own statement the removable one and named the abstract as its home.
+A copy whose negations or numbers differ from its home in either direction is
+not a restatement (dropping `not` was still one). `removable_words` excludes
+placeholders, the denominator excludes heading words, `7%` of 100 is 7 (the
+float ceiling asked for 8), `--require-shrink 0` means no cut required, a
+commented-out heading opens no section, any `\...ref` command keeps a float
+alive, `\caption*` and nested captions are read, and `(Gaussian)` is not an
+acronym.
+
+**The linter judges paragraphs, not lines.** A paragraph-initial connector is
+read on the paragraph's first prose line; in one-sentence-per-line LaTeX a
+sentence-initial `Notably,` mid-paragraph was an L0 target and the same text
+joined onto one line was not. Openers are read where a sentence starts.
+`paved` and `showcased` join Tier A (the skill's table and grep had them; the
+regex did not). Every em-dash on a line is a target with its own id;
+`\label`, `\ref`, `\cite` and `\url` arguments are blanked before the lexical
+scan; `not only ... but also ... Bland` is no longer a three-part parallel; an
+unparseable lexicon is exit 2; Markdown front matter is metadata; several
+profiles without `--field` say so.
+
+**One field resolver.** The shared `--field` option promised auto-detection
+while five tools divided the profile root by None and crashed with a
+TypeError, the axis tools never auto-detected, and two tools carried private
+loops. `cli_common.optional_field_dir` resolves it once; `axis_main` requires
+an existing field for `--calibrate` and refuses to write an empty artifact.
+
+**The extractor's statistics are prose statistics.** Multi-word openers can be
+observed (they were counted against a single-word counter and always read
+absent); placeholders are not words and do not drop a citation-led paragraph
+from the bank; words are Unicode letters; bank ids carry the bucket; the
+profile directory is created after the corpus check; skipped PDFs are counted
+in the summary; an empty `--topic` ranks by section in the keyword fallback.
+
+**The validator reads more.** Its shape regex accepts "N checks" and scans
+`tools/README.md` (two "10 checks" survived two releases that ran eleven), and
+a relative-link pass reports targets that do not exist — it found the sixteen
+local-path links in the 2026-09-04 audit note on its first run.
+
+**The bibliography checker reads what LaTeX reads.** A `\cite` inside a `%`
+comment raised an integrity blocker; `\nocite`, the biblatex commands and every
+group of `\cites{a}{b}` were invisible; `@string` names were compared literally;
+`#` concatenation and an escaped quote dropped every later field, DOI included;
+a first author agreed on any substring (`Li` for `Lin`, `Ma` for `Mandelbaum`);
+a registry miss was cached forever; `http.client` errors escaped as a traceback
+at exit 1. Each is fixed and pinned; a finding built from a cached record now
+says so, and any other execution failure is exit 2.
+
+**The document-level axes stop reporting `measured` where they cannot fire.**
+Anchoring's conformal p cannot fall below 1/(n+1), so at the 30-document
+class floor with two or more classes no finding was ever possible; the class is
+now skipped and the axis `degraded`, and calibration records the floor the
+Bonferroni share needs. A structure bucket the baseline lacks, and a
+`sentence_stats.json` with no classified bucket, are `degraded` too. The
+document-shape detector flagged by a rank rule while quoting a threshold and a
+leave-one-out rate computed by a quantile rule; one rule now does both, and the
+sweep drops the preamble and every `skip` unit on both sides. The partition
+tool compares candidate states by conformal p instead of distances from
+different manifolds, simulates a split on the original text (the joined text
+let a trailing `%` comment swallow half a paragraph), and treats every heading
+command as fixed. The tricolon wrap-up needs a wrap-up. `structure_baseline`,
+`docstructure_baseline` and `anchoring_baseline` must be rebuilt for these to
+take effect; the EVALUATION figures tied to them predate the rebuild and say so.
+
+Tests and counts are stated at the end of this entry once every part of the
+release has landed.
+
 ## v0.38.0 — 2026-09-16
 
 ### The recurring unattested pair is the manuscript's own term
