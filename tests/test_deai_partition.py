@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-import sys
+import contextlib
+import io
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _toolpath import TOOLS  # noqa: F401,E402 -- because importing it is what puts tools/ on sys.path
 
+import deai_docstructure as ds
 import deai_partition as partition
+import extract_style as es
 
 LENSING_A = (
     "The aperture mass statistic isolates the tangential shear signal around "
@@ -24,6 +29,22 @@ UNRELATED = (
     "a different telescope during the second observing season. Redshift "
     "completeness reached ninety per cent for the magnitude-limited sample."
 )
+# Four sentences of ~17 words: every half of a split stays above MIN_WORDS.
+FOUR_SENTENCES = (
+    "The aperture mass statistic isolates the tangential shear signal around "
+    "each candidate peak in the survey footprint. The same aperture mass "
+    "filter suppresses the large-scale shear gradient across the field of "
+    "view considered here. Both properties make the aperture mass estimator "
+    "suitable for substructure searches in the cluster outskirts we study. "
+    "We therefore weight the aperture mass filter by the inverse shear "
+    "variance in each cell of the map."
+)
+
+
+def uniform_document(paragraph: str, per_section: int = 3) -> str:
+    body = "\n\n".join([paragraph] * per_section)
+    return "\n\n".join(f"\\section{{{name}}}\n\n{body}"
+                       for name in ("Introduction", "Methods", "Results")) + "\n"
 
 
 class PartitionTests(unittest.TestCase):
@@ -41,7 +62,6 @@ class PartitionTests(unittest.TestCase):
         # paragraphs follow it
         self.assertTrue(sections[0]["blocks"][0]["fixed"])
         self.assertEqual(len(sections[0]["blocks"]), 3)
-        import extract_style as es
         words_before = sorted(
             w for s in sections for b in s["blocks"]
             for w in es.words(es.latex_to_plain(b["text"])))
@@ -74,6 +94,160 @@ class PartitionTests(unittest.TestCase):
         result = partition.suggest("\\section{A}\n\nshort\n",
                                    {"dispersion_manifold": None}, 3)
         self.assertEqual(result["status"], "unmeasured")
+
+
+class SplitFidelityTests(unittest.TestCase):
+    """A split is simulated on the ORIGINAL block text at the sentence
+    boundary's own offset, line breaks kept (audit 2026-09-27, B2)."""
+
+    BLOCK = ("Alpha one is measured here. Beta two follows there. % note kept\n"
+             "Gamma three continues the argument. Delta four closes the block.")
+
+    def test_split_keeps_the_prose_after_a_trailing_comment(self):
+        left, right = partition._split_at(self.BLOCK, 2)
+        self.assertEqual(right, "Delta four closes the block.")
+        self.assertIn("\n", left, "the line break inside the left half survives")
+        # re-joined with spaces the `% note kept` would comment out Gamma
+        self.assertIn("Gamma", es.latex_to_plain(left))
+        self.assertNotIn("Gamma", es.latex_to_plain(
+            " ".join(es.sentences(self.BLOCK)[:2])))
+        # the k-th boundary here is the k-th sentence end of es.sentences
+        self.assertEqual(len(es.sentences(self.BLOCK)), 3)
+        self.assertEqual(partition._split_at(self.BLOCK, 1)[0],
+                         "Alpha one is measured here.")
+
+    def test_apply_split_scores_and_locates_the_real_halves(self):
+        sections = [{"label": "Methods", "blocks": [
+            {"lines": (10, 11), "text": self.BLOCK}]}]
+        split = partition._apply(sections, {"kind": "split", "section": 0,
+                                            "block": 0, "cut": 2})
+        left, right = split[0]["blocks"]
+        self.assertEqual((left["lines"], right["lines"]), ((10, 11), (11, 11)))
+        plain_words = sorted(w for b in (left, right)
+                             for w in es.words(es.latex_to_plain(b["text"])))
+        self.assertEqual(plain_words,
+                         sorted(es.words(es.latex_to_plain(self.BLOCK))))
+        description = partition._describe(
+            {"kind": "split", "section": 0, "block": 0, "cut": 2, "overlap": 0.0},
+            sections)
+        self.assertIn("continues the argument", description)
+
+
+class FixedBlockTests(unittest.TestCase):
+    def test_any_heading_command_fixes_its_block(self):
+        # only `\section` used to be fixed; a `\subsection` block was offered
+        # as a merge partner (audit 2026-09-27, B3)
+        text = ("\\section{Methods}\n\n" + LENSING_A + "\n\n"
+                "\\subsection{Weighting}\n\n" + LENSING_B + "\n\n"
+                "\\subsection*{Details}\n" + UNRELATED + "\n\n"
+                "\\chapter{Next}\n\n" + LENSING_A + "\n")
+        fixed = {block["text"].splitlines()[0]: block["fixed"]
+                 for section in partition._parse(text)
+                 for block in section["blocks"]}
+        self.assertTrue(fixed["\\section{Methods}"])
+        self.assertTrue(fixed["\\subsection{Weighting}"])
+        self.assertTrue(fixed["\\subsection*{Details}"])
+        self.assertTrue(fixed["\\chapter{Next}"])
+        self.assertFalse(fixed[LENSING_A])
+        candidates = partition._merge_candidates(partition._parse(text), 0.0)
+        for op in candidates:
+            section = partition._parse(text)[op["section"]]
+            self.assertFalse(section["blocks"][op["block"]]["fixed"])
+            self.assertFalse(section["blocks"][op["block"] + 1]["fixed"])
+
+
+def fake_operating_point(p_by_n: dict, distance_by_n: dict):
+    """A stand-in for `manifold_operating_point` keyed by paragraph count,
+    with the length stratum switching at ten paragraphs."""
+    def operating(_baseline, _row, n_paragraphs):
+        return {"distance": distance_by_n[n_paragraphs],
+                "p_value": p_by_n[n_paragraphs], "alpha": 0.05,
+                "operating_point": "split-conformal, stratum manifold",
+                "calibration_basis": f"stratum {0 if n_paragraphs < 10 else 1} manifold",
+                "n_calibration": 40, "n_train": 60}
+    return operating
+
+
+class BandComparisonTests(unittest.TestCase):
+    """Candidate states are compared by conformal p; distance only breaks a
+    tie within one calibration basis (audit 2026-09-27, B10)."""
+
+    def test_improves_orders_by_p_then_by_distance_within_one_basis(self):
+        better_p = {"conformal_p": 0.3, "distance": 9.0, "calibration_basis": "stratum 1 manifold"}
+        worse_p = {"conformal_p": 0.1, "distance": 1.0, "calibration_basis": "stratum 0 manifold"}
+        self.assertTrue(partition._improves(better_p, worse_p))
+        self.assertFalse(partition._improves(worse_p, better_p))
+        same_basis_closer = {"conformal_p": 0.1, "distance": 0.5,
+                             "calibration_basis": "stratum 0 manifold"}
+        other_basis_closer = {"conformal_p": 0.1, "distance": 0.5,
+                              "calibration_basis": "stratum 1 manifold"}
+        self.assertTrue(partition._improves(same_basis_closer, worse_p))
+        self.assertFalse(partition._improves(other_basis_closer, worse_p))
+        # a legacy baseline (no conformal block) compares pooled distances
+        self.assertTrue(partition._improves({"distance": 1.0, "calibration_basis": "in-sample percentile"},
+                                            {"distance": 2.0, "calibration_basis": "in-sample percentile"}))
+
+    def test_plan_prefers_the_higher_p_and_records_the_basis(self):
+        text = uniform_document(FOUR_SENTENCES)
+        # start: 9 paragraphs; a merge gives 8, a split gives 10. The merge
+        # cuts the raw distance most, but the split moves the p up most and
+        # crosses the stratum edge; the plan must take the split and say so.
+        operating = fake_operating_point(
+            p_by_n={9: 0.01, 8: 0.02, 10: 0.04},
+            distance_by_n={9: 3.0, 8: 1.0, 10: 3.5})
+        with mock.patch.object(ds, "manifold_operating_point", operating):
+            result = partition.suggest(text, {"dispersion_manifold": {}}, 1)
+        self.assertEqual(result["status"], "measured")
+        self.assertEqual(result["start"]["n_paragraphs"], 9)
+        self.assertEqual(result["start"]["calibration_basis"], "stratum 0 manifold")
+        step = result["plan"][0]
+        self.assertEqual(step["kind"], "split")
+        self.assertEqual((step["conformal_p_before"], step["conformal_p_after"]),
+                         (0.01, 0.04))
+        self.assertEqual((step["calibration_basis_before"], step["calibration_basis_after"]),
+                         ("stratum 0 manifold", "stratum 1 manifold"))
+        self.assertEqual((step["distance_before"], step["distance_after"]), (3.0, 3.5))
+
+    def test_state_uses_the_document_shape_filter(self):
+        # a section below MIN_PARAGRAPHS_PER_SECTION or a document below
+        # MIN_SECTIONS is not measurable here either (audit B11)
+        text = uniform_document(FOUR_SENTENCES)
+        operating = fake_operating_point(p_by_n={9: 0.5}, distance_by_n={9: 1.0})
+        with mock.patch.object(ds, "manifold_operating_point", operating):
+            start = partition._state_statistics(partition._parse(text), {})
+            self.assertEqual(start["n_paragraphs"],
+                             ds.document_shape(text)["n_paragraphs"])
+            two_sections = "\n\n".join(text.split("\n\n\\section{Results}")[:1]) + "\n"
+            self.assertIsNone(partition._state_statistics(
+                partition._parse(two_sections), {}))
+            thin = uniform_document(FOUR_SENTENCES, per_section=1)
+            self.assertIsNone(partition._state_statistics(partition._parse(thin), {}))
+
+
+class CliContractTests(unittest.TestCase):
+    def run_main(self, argv: list[str]) -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = partition.main(argv)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_without_a_profile_the_tool_exits_2_with_a_message(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            draft = root / "draft.tex"
+            draft.write_text(uniform_document(FOUR_SENTENCES), encoding="utf-8")
+            empty = root / "profiles"
+            empty.mkdir()
+            code, _out, err = self.run_main([str(draft), "--profile-root", str(empty)])
+            self.assertEqual(code, 2)
+            self.assertIn("no calibrated dispersion manifold", err)
+            code, _out, err = self.run_main([str(draft), "--profile-root", str(empty),
+                                             "--field", "nope"])
+            self.assertEqual(code, 2)
+            self.assertIn("nope", err)
+            code, _out, err = self.run_main([str(root / "missing.tex"),
+                                             "--profile-root", str(empty)])
+            self.assertEqual((code, "file not found" in err), (2, True))
 
 
 if __name__ == "__main__":
