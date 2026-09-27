@@ -171,7 +171,7 @@ discipline's vocabulary. All measurements below use the `wgl` field profile.
 ### 14.1 The reduction defect that preceded both
 
 The first prototype measured `recital_frac = 0.0` on an abstract carrying
-`$500$`, `$14{,}850{,}000$`, `$62\%$`, `$0.98\%$`, `$34.6\%$`, `$\AUC=0.817$`
+`$200$`, `$1{,}250{,}000$`, `$57\%$`, `$0.884\%$`, `$23.9\%$`, `$\mathrm{AUC}=0.927$`
 and five more quantities. `extract_style.latex_to_plain` — the shared front end
 for every axis — replaces each math span with the token `[math]`, so **every
 numeral in a LaTeX manuscript is destroyed before any detector sees it**. That
@@ -184,7 +184,7 @@ set and differs in one decision: numerals inside *inline* math survive.
 Displayed equations are dropped by both, because their digits are the constants
 of a definition — counting the 3 in a volume formula as a reported quantity made
 every derivation paragraph read as a recital of measurements. The LaTeX
-thousands form `14{,}850{,}000` collapses to one numeral rather than three.
+thousands form `1{,}250{,}000` collapses to one numeral rather than three.
 `latex_to_plain` is untouched, so no existing calibration asset moved then.
 One did later, and in the other direction: the bank stored only the
 `latex_to_plain` text, so the salience reference was calibrated on paragraphs
@@ -281,15 +281,15 @@ test.
 
 ### 14.3 Salience on the case document
 
-`Letter/main.tex` (804 lines, read 2026-08-16) against the wgl reference:
+A manuscript under review (804 lines, read 2026-08-16) against the wgl reference:
 
 | Passage | `max_recital_run` | `run_frac` (pct) | `recital_frac` (pct) | `num/sent` (pct) |
 |---|---|---|---|---|
 | abstract | 4 of 8 | 0.50 (p91) | 0.50 (p78) | 1.38 (p79) |
-| grid definition (L137) | 2 of 5 | 0.40 (p90) | 0.60 (p91) | 8.20 (p100) |
-| source model (L179) | 4 of 4 | 1.00 (p100) | 1.00 (p100) | 4.00 (p99) |
-| detector block (L210) | 3 of 3 | 1.00 (p100) | 1.00 (p100) | 3.33 (p99) |
-| twin fit (L541) | 5 of 6 | 0.83 (p98) | 0.83 (p97) | 1.67 (p95) |
+| body paragraph (L137) | 2 of 5 | 0.40 (p90) | 0.60 (p91) | 8.20 (p100) |
+| body paragraph (L179) | 4 of 4 | 1.00 (p100) | 1.00 (p100) | 4.00 (p99) |
+| body paragraph (L210) | 3 of 3 | 1.00 (p100) | 1.00 (p100) | 3.33 (p99) |
+| body paragraph (L541) | 5 of 6 | 0.83 (p98) | 0.83 (p97) | 1.67 (p95) |
 
 Run length is the discriminating feature for the abstract (p91) while density is
 unremarkable (p78/p79). That is the intended behaviour: a quantitative abstract
@@ -331,7 +331,6 @@ Controls that must not fire:
 |---|---:|---|---:|---|
 | `accuracy` | 774 | itself | 5.0e-2 | not flagged |
 | `epoch` | 402 | itself | 2.6e-2 | not flagged |
-| `same-plane` | 536 | `plane` | 3.4e-2 | not flagged |
 | `aperture-mass` | 313 | `aperture` | 2.0e-2 | not flagged |
 | `training` | 155 | itself | 9.9e-3 | not flagged |
 | `benchmark` | 81 | itself | 5.2e-3 | not flagged |
@@ -371,11 +370,11 @@ threshold:
   corpus-rare: `aperture-mass`, this field's core observable, appears in 8
   passages as a string. Judging a compound by its rarest part fixes it while
   keeping `cross-validation` foreign via `validation`.
-- *Possessives.* `sub-halo's` and `campaign's` fold onto their bare terms.
+- *Possessives.* `point-source's` and `lens's` fold onto their bare terms.
 
 After the fix: 3 findings, all substantive.
 
-**Recall cost, stated.** `probit` (df 0) and `pooled` (df 0) are used 3 and 4
+**Recall cost, stated.** Two statistics terms at df 0 are used 3 and 4
 times, below the manuscript-use floor, and are not reported. The floor buys precision at
 the price of terms used a handful of times; below it the corpus's own sampling
 gaps dominate the comparison.
@@ -589,8 +588,8 @@ A 254-document corpus cannot express a non-zero rate below 1/254 = 3.94e-3,
 **39.4× coarser than the threshold**; a single occurrence lands at the
 threshold only at about 10,000 documents.
 
-The consequence is not hypothetical. Under the subfield reference `saddle` —
-the central concept of the case document — flips from native (16/13,642) to
+The consequence is not hypothetical. Under the subfield reference the central
+concept of the case document flips from native (16/13,642) to
 foreign (0/254), as do `classifier`, `recall`, and `ablation`, all on zero
 counts rather than on any property of the field's vocabulary. There are not
 10,000 weak-lensing ApJ/ApJL/A&A papers in the window, so the register

@@ -146,7 +146,7 @@ Axes and tools:
   exemption. A strong hit is answered by one of the §4.2 dispositions, never
   by silence.
 - **L2 collocation** (`deai_collocation`) — sentences that join common words
-  the field never joins (`physical cells`, `controlled grid`): the fraction of a
+  the field never joins (`binned kernel`, `smoothed boundary`): the fraction of a
   sentence's adjacent content-word pairs that no corpus passage attests, against
   a per-section leave-one-out reference. A pair the field writes by chance would
   have been seen; a pair it never wrote is a coinage or a figure of speech, and

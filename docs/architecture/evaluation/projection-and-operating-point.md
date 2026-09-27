@@ -307,11 +307,11 @@ dated (§18.7).
 §18.2 found the salience axis reading digits that were not quantities. This is
 the same class in the other direction: quantities the axis could not read.
 
-A manuscript that writes `\newcommand{\Nfields}{63}` in its preamble and
-`\Nfields{}` in its results has put a measured number where neither named
+A manuscript that writes `\newcommand{\Nsamples}{12}` in its preamble and
+`\Nsamples{}` in its results has put a measured number where neither named
 projection can see it. `RE_TEX_SIMPLE_CMD` reduces a command to its argument,
 so the *use* contributes nothing at all, while the *definition* contributes
-`63` once — in the preamble, attributed to no reported section. Two errors in
+`12` once — in the preamble, attributed to no reported section. Two errors in
 opposite directions, which is why the net was small enough to go unnoticed.
 
 Found by real-machine review of a manuscript under review that uses the habit

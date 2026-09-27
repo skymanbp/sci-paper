@@ -148,8 +148,8 @@ em-dash**，而全文级 dispersion 几乎没动 —— 0.47 → 0.49，人类�
 `accuracy`（df 774）分开，而不需要任何人去维护一张天文例外表。复合词按其最罕见的
 部分判定；`_` 或 `^` 后面的 `\mathrm{}` 是下标不是术语；所有格折叠。同一份语料还回答
 一个更钝的问题，而且是穷举的：**零命中审计**列出正文里每一个本领域从未写过的词，
-`deai_collocation.py` 列出每一句把本领域从不并置的常用词并置起来的句子（`physical
-cells`、`controlled grid`），每个词对都带着"按机会本该写出它的 passage 数"。两者都是
+`deai_collocation.py` 列出每一句把本领域从不并置的常用词并置起来的句子（`binned
+kernel`、`smoothed boundary`），每个词对都带着"按机会本该写出它的 passage 数"。两者都是
 带作者 disposition 的建议——本文自己定义的术语保留它的词和词对——都不是检测器：
 已发表论文里的零命中词反而比机器草稿多（[§23](docs/architecture/evaluation/vocabulary-and-residue.md)）。
 

@@ -157,7 +157,7 @@ frequency **in your field's own corpus** is below 1e-4 — no curated cross-disc
 what lets `AUC` (df 1) separate from `epoch` (df 402) and `accuracy` (df 774) with no hand-maintained
 astronomy exception list. The same corpus answers a blunter question exhaustively: the **zero-hit audit**
 lists every body word no passage of the field has ever written, and `deai_collocation.py` every sentence
-that joins common words the field never joins (`physical cells`, `controlled grid`), each pair with the
+that joins common words the field never joins (`binned kernel`, `smoothed boundary`), each pair with the
 number of passages that would have written it by chance. Both are advice with author dispositions — a
 term the paper defines keeps its word and its pair — and neither is a detector: refereed papers carry
 *more* zero-hit words than machine drafts ([§23](docs/architecture/evaluation/vocabulary-and-residue.md)).

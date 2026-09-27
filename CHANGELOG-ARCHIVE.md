@@ -395,7 +395,7 @@ repeats nothing — what it lacks is rank.
   subfields.
 - **The same bank must not become the register reference.** 254 documents
   cannot express a rate below 1/254 = 3.9e-3, 39.4× coarser than the 1e-4
-  threshold, so `saddle`, `classifier`, `recall`, and `ablation` flip to
+  threshold, so `classifier`, `recall`, and `ablation` flip to
   foreign on zero counts. A register reference needs of order 10,000
   documents. The bank is stored and wired to nothing.
 
@@ -462,8 +462,8 @@ the pre-2022 date filter turns out to bound less than it appears to.
 - **The same bank must NOT become the register reference.** `deai_register`
   calls a term foreign below a document-frequency rate of 1e-4, but 254
   documents cannot express a non-zero rate below 1/254 = 3.9e-3, 39x
-  coarser than the threshold. Under that reference `saddle` — the central
-  concept of one of this suite's manuscripts — flips from native to
+  coarser than the threshold. Under that reference the central concept
+  of one of this suite's manuscripts flips from native to
   foreign purely on zero counts, as do `classifier`, `recall`, and
   `ablation`. A register reference needs of order 10,000 documents for a
   single occurrence to land at the threshold, so the broad bank stays.

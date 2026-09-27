@@ -144,7 +144,7 @@ uncertainty、多重比较、prior）与**声明-证据纪律**（动词强度�
   阐释式冒号（linter `ing-tail` / `colon-elaboration`）是 advisory。
 - 词汇层两条证据来自语料而非词表：`register-zero:<term>`（全文逐词零命中审计，
   strong 除非是已证实词干的机械派生）与 `collocation-novel:<section>`（一句中相邻
-  常用词对在语料里从未同现的比例，如 `physical cells`）。零命中 strong 必须走
+  常用词对在语料里从未同现的比例，如 `binned kernel`）。零命中 strong 必须走
   de-ai §4.2 的三种 disposition 之一（本文定义 / 首次引入并引用 / 换成领域词）。
 - `deai_structure` 的 auxiliary 家族（paper-as-agent 主语、wh-cleft 开头、三词以上
   且含两个连字符复合的修饰堆）只命名句子，不进 template score；命中是 advisory。

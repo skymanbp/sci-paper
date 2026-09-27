@@ -93,7 +93,7 @@ Read-only review of `git diff 9f0b920..edd480c`; session `01a06ebe-b4c5-7802-bfe
    触发：`\section{Results TODO}\nClean prose.`，或 `\begin{figure}\n\caption{TODO}\n\end{figure}` 放在 Results 下，均没有 residue finding；正文独立 `TODO` 则 strong。建议：residue 的 edit-meta 扫描保留可见 headings、captions、table text；不要复用排除这些内容的词汇投影。另将跨行 `in the revised\nversion` 按规范化空白扫描，当前逐行 regex 漏报。`tools/deai_register.py:344`、`tools/deai_residue.py:204`
 
 8. **major · [tools/deai_residue.py:288](../../tools/deai_residue.py) · diff rule 检查的是任一消失的词干，不是完整对象。**
-   触发：before 为 `M + "The correction is applied."`；after 为 `M + "The measurement is applied.\n\\caption{Without the saddle correction}"`。得到 strong，虽然 `saddle correction` 从未在 before 出现。另把旧 caption 的 `Blue points` 改成 `Red points`，也会将原有 negation 当成新增。建议：比较 canonical negated object；确认完整对象 before 存在、after 缺失；对象新旧不能由整段 caption 字符串决定。`tools/deai_residue.py:280`、`tools/deai_residue.py:285`
+   触发：before 为 `M + "The correction is applied."`；after 为 `M + "The measurement is applied.\n\\caption{Without the dust correction}"`。得到 strong，虽然 `dust correction` 从未在 before 出现。另把旧 caption 的 `Blue points` 改成 `Red points`，也会将原有 negation 当成新增。建议：比较 canonical negated object；确认完整对象 before 存在、after 缺失；对象新旧不能由整段 caption 字符串决定。`tools/deai_residue.py:280`、`tools/deai_residue.py:285`
 
 9. **major · [tools/deai_reference.py:162](../../tools/deai_reference.py) · 无 section 的文档静默漏检。**
    触发：纯文本 `We no longer use this method.`，或前加 `\section {Methods}` / `\section[Short]{Methods}`，self-history 均无 finding；condense 的句子扫描同样为空。原因是 section regex 不接受这些合法形式，随后 `(document)` 被丢弃。建议：共享 section parser；无 heading 时保留 document unit，不能套用 bucket baseline 的轴明确标为 unavailable。`tools/deai_metrics.py:25`、`tools/deai_metrics.py:120`、`tools/condense_map.py:119`
@@ -198,7 +198,7 @@ Read-only review of `git diff 9f0b920..edd480c`; session `01a06ebe-b4c5-7802-bfe
 | `test_projection_parity_matrix` | 对 §3 每个构造比较实际 corpus pipeline 与 manuscript tokens；覆盖 multi-line cite/ref、unit macro、外置 tablenote、非星号 deluxetable、minipage、深层 braces。现有 float test 主要覆盖 star 环境和 manuscript 一侧。`tests/test_deai_register.py:316` |
 | `test_float_with_blank_lines_stays_excluded` | figure/table 内空行和 comment-only 行不能让 caption/cells 进入 collocation units。`tools/deai_reference.py:210` |
 | `test_edit_meta_in_visible_labels` | heading、caption、table cell 中的 `TODO` 和跨行 revision phrase 必须被正确扫描。当前 literal 测试没有这些上下文。`tests/test_deai_residue.py:72` |
-| `test_diff_matches_objects_not_shared_stems` | `correction → without saddle correction` 不得声称删除了 saddle object；旧 negation 仅改 caption 颜色不算新增 negation。`tests/test_deai_residue.py:128` |
+| `test_diff_matches_objects_not_shared_stems` | `correction → without dust correction` 不得声称删除了 dust object；旧 negation 仅改 caption 颜色不算新增 negation。`tests/test_deai_residue.py:128` |
 | `test_no_sections_and_empty_measurement` | sectionless history 能扫描；没有 eligible sentences 的 calibrated axis 不得返回无说明的 measured；LF/CRLF 结果一致。`tools/deai_reference.py:162`、`tools/deai_collocation.py:192` |
 | `test_offsets_survive_multiline_markup` | §2.12 分别断言 L5、L4；abstract 正文和 acronym 返回真实行；include finding 返回 child path/line。现有 line test 未覆盖这些场景。`tests/test_deai_register.py:271` |
 | `test_definition_only_exempts_defined_term` | `We define flux using quuxification` 不能给后者 defined-here；Unicode 名称不切成伪词。`tests/test_deai_register.py:185`、`tools/deai_register.py:76` |
@@ -215,7 +215,7 @@ Read-only review of `git diff 9f0b920..edd480c`; session `01a06ebe-b4c5-7802-bfe
 |---|---|
 | “The only mechanical exemption … formation of an attested stem”。`docs/architecture/evaluation/vocabulary-and-residue.md:19`；standard 同样只列 stem。`docs/SCIPAPER_STANDARD.md:160` | 还自动返回 `"defined-here"`、`"name"`。这符合本次用户给出的意图，应该修文档，同时收紧定义对象识别。`tools/deai_register.py:447` |
 | “This paper presents” 属于 paper-as-agent。`CHANGELOG.md:85`、`docs/SCIPAPER_STANDARD.md:181` | regex 没有 `presents`；测试明确名为 `test_paper_that_merely_presents_is_not_an_agent`。`tools/deai_structure.py:59`、`tests/test_deai_structure.py:79` |
-| “three-plus tokens **before a head noun**”。`docs/SCIPAPER_STANDARD.md:183` | `MODIFIER_STACK_RUN=3` 检查的是含 head 的 phrase 长度；`non-compensated 500-configuration subfamily` 仅两个 pre-modifiers 已足够。`tools/deai_structure.py:80`、`tools/deai_structure.py:113` |
+| “three-plus tokens **before a head noun**”。`docs/SCIPAPER_STANDARD.md:183` | `MODIFIER_STACK_RUN=3` 检查的是含 head 的 phrase 长度；`non-weighted 200-image stack` 仅两个 pre-modifiers 已足够。`tools/deai_structure.py:80`、`tools/deai_structure.py:113` |
 | restatement：“≥80% … another section (**or** ≥60% … one sentence)”。`skills/condense/SKILL.md:84` | 实际为 `union >= .80 and best >= .60`，且没有要求另一 section。`tools/condense_map.py:137`、`tools/condense_map.py:144` |
 | “outside the abstract/conclusion carve-out”。`docs/SCIPAPER_STANDARD.md:575` | zero-gain finding 不带 `genre_carve_out`，budget 将缺失值视为未豁免。`tools/condense_map.py:183`、`tools/condense_map.py:342` |
 | “Comments and mathematics do not count … rendered prose”。`docs/SCIPAPER_STANDARD.md:584` | `latex_to_plain(...).split()` 将 `[math]`、`[MATH]`、`[FIGURE-OR-TABLE]` 计为词。`tools/length_gate.py:45`、`tools/extract_sections.py:195` |

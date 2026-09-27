@@ -56,7 +56,7 @@
 | E7 | `parse_args(["--field","wgl","--corpus-root","/tmp/x","sample"])`（label_findings 的构造方式） | `field=None`，`corpus_root` 为默认值 | 子命令默认值覆盖根解析结果 |
 | C12 | `ref.quantiles(list(range(100)))["0.9"]`；n=30 | 90（P=0.91）；`q[0.1]`=3（P=0.133）、`q[0.9]`=27（P=0.933） | 网格偏一位 |
 | C3 | `\section{Appendix}\nTODO fix this later.` 经 `body_lines` 后 `edit_meta_findings` | `[]`；同文本放在 `\section{Data availability}` 下 → `['residue-edit-meta']` | `skip` 段落里的编辑标记不可见 |
-| C4 | `res.RE_LABEL.findall("\section {No saddle}")` | `[]` | 上次审计 A9 未落到 residue |
+| C4 | `res.RE_LABEL.findall("\section {No dust}")` | `[]` | 上次审计 A9 未落到 residue |
 | C13 | `ref.units("无标题散文")`、`ref.units("\section{Weak lensing}…")` | bucket 均为 `'unknown'` | 逐 bucket 轴无此 bucket，整篇跳过 |
 | D1 | 读 `fetch_arxiv_abstracts._candidate_ids` 本地捷径条件 | `if jsonl.exists() and not exclude and not args.author:`，不看 `journals` | `--journals` 静默失效 |
 | D2 | 读 `:399`/`:403` | `range(args.start_at, …)` 配 `min(args.page, args.per_query - start)` | `--start-at 2000` 请求 `max_results=-1600` |

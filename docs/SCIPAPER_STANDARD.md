@@ -181,7 +181,7 @@ A second, **auxiliary family class** covers rhetorical figures that are
 legitimate in isolation but machine-typical at density: **antithesis clusters**
 (two or more contrastive frames such as "X rather than Y" in one paragraph),
 **short reversal beats** ("It would not."), **paper-as-agent subjects** ("This
-Letter asks whether"), **wh-cleft openers** ("What matters is"), and **modifier
+study asks whether"), **wh-cleft openers** ("What matters is"), and **modifier
 stacks** (a noun phrase of three-plus tokens, head included, with two hyphenated compounds).
 Auxiliary families emit ordinary advisories under `structure-auxiliary` and are
 excluded from `template_score`, so the calibrated dispersion manifold is
@@ -194,7 +194,7 @@ rigor" closers — are a panel-advisory class in `EVALUATION.md`, not a detector
 A **collocation axis** (`L2.collocation`, `deai_collocation`) measures, per
 sentence, the fraction of adjacent common-word pairs no passage of the field's
 corpus attests, against a leave-one-out reference per section. A pair it never
-wrote is a coinage or a figure of speech ("physical cells"), weighted by the
+wrote is a coinage or a figure of speech ("binned kernel"), weighted by the
 co-presence of its words (a ranking aid, never a filter); the action names the relation it compresses.
 Advisory; a defined term keeps its pair, and no claim is changed to dissolve one. The same bank read document-wide (`--glossary`) lists the unattested pairs a manuscript uses twice or more, the terms it coined, with the line of first use and whether that sentence defines them.
 

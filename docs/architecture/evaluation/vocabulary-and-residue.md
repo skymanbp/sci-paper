@@ -8,8 +8,8 @@ raw source; none in any calibration bank), the 544 in-sample refereed papers,
 and the 173 `docval` machine documents of §16. Every per-1,000-word rate is per
 body prose word since v0.36.2 — the register projection with placeholders
 dropped — where it was per raw-source word, bibliography and preamble included.
-The private Letter that motivated the work is measured too; nothing from it is
-quoted beyond single words and the two-word phrases its mentor marked.
+A manuscript under review that motivated the work is measured too; nothing
+from it is quoted, and only the counts the tools report on it are given.
 
 ## 23.1 The zero-hit audit: every word the corpus never wrote
 
@@ -21,7 +21,7 @@ reason — the paper defines it, or it names a method the field has not used
 before. `deai_register` now carries that audit as `register-zero:<term>` beside
 the thresholded rule. The mechanical exemptions, reported ordinary, are a
 formation of an attested stem (`clears` from `clear`), a term the paper defines
-at first use, and a proper name (`benjamini--hochberg`); every other zero-hit
+at first use, and a proper name (`kruskal--wallis`); every other zero-hit
 word is strong and takes one of the §5.2 step-1b dispositions.
 
 **It is exhaustive, and it is not a detector.** Rates per 1,000 body prose
@@ -45,14 +45,13 @@ bank membership buys — a paper whose own vocabulary is in the denominator
 loses two thirds of its zero-hit words — and is not a leakage estimate, for the
 era reason §17.3 gives.
 
-**What it finds on the Letter** (re-measured on the current draft, 2026-09-04).
-Thirteen zero-hit words, ten strong. Three are statistics vocabulary the
-field's corpus does not use (`probit`, `deciles`, `exceedance`), three are this
-plugin's own software vocabulary that had leaked into an astronomy manuscript
-(`unmeasured`, `rescored`, `outranks`), one is a coinage the paper needs to
-define (`resolvability`), and the ordinary hits are stem formations (`clears`,
-`earns`) and a name (`benjamini--hochberg`). Every one of those is a decision
-the author can make in a second, which is the point of listing them all.
+**What it finds on the manuscript under review** (re-measured on the current
+draft, 2026-09-04). Thirteen zero-hit words, ten strong. Three are statistics
+vocabulary the field's corpus does not use, three are this plugin's own
+software vocabulary that had leaked into an astronomy manuscript, one is a
+coinage the paper needs to define, and the ordinary hits are two stem
+formations and a name. Every one of those is a decision the author can make
+in a second, which is the point of listing them all.
 
 **A third projection asymmetry.** Building the audit exposed the third
 instance of the class recorded in §17.4 and §18.1: section headings sat in the
@@ -80,13 +79,13 @@ table above is the re-taken one.
 
 ## 23.2 `L2.collocation`: sentences that join words the field never joins
 
-**What the mentor marked.** Of 25 margin comments on the Letter, eight were of
-one kind — "I don't know what this means", "this is jargon" — and each sat on a
-two-word phrase (`physical cells`, `controlled grid`, …) whose words are
-ordinary field vocabulary and whose *pair* no passage of the corpus has
-written. The register axis cannot see this: both words have healthy document
+**What the mentor marked.** Of 25 margin comments on the manuscript under
+review, eight were of one kind — "I don't know what this means", "this is
+jargon" — and each sat on a two-word phrase whose words are ordinary field
+vocabulary and whose *pair* no passage of the corpus has written (a pair of
+the kind, invented here: `binned kernel`). The register axis cannot see this: both words have healthy document
 frequency. A prototype on the first 1,500 words of each document, ranking
-documents by their novel-pair fraction, reached AUC 0.855 and put the Letter
+documents by their novel-pair fraction, reached AUC 0.855 and put that manuscript
 at 0.557 against a human p90 of 0.300; that prototype is superseded by the
 shipped axis below, which is judged per sentence and reports its document
 fraction as evidence only.
@@ -144,12 +143,12 @@ written (the §17.3 argument). And the in-sample row is the bank-membership
 effect at its largest — a paper's own pairs are attested by itself — so it is
 not a leakage estimate either.
 
-**The Letter** (re-measured on the current draft, 2026-09-04). 29 sentence
+**The manuscript under review** (re-measured on the current draft, 2026-09-04). 29 sentence
 findings, 22 strong, document novel-pair fraction 0.603 over 481 judged pairs.
 On the draft first measured, of the eight phrases the mentor marked two had
 already been rewritten out and **five** of the six present were in flagged
-sentences (`physical cells` and `controlled grid` among them). The current
-draft carries neither phrase, so the mentor-phrase check is closed on the
+sentences, the two phrases the comments quoted among them. The current
+draft carries neither of those two, so the mentor-phrase check is closed on the
 draft it was made on rather than repeatable: the phrases it would test are
 gone, which is the outcome the check exists to produce. On the shipped examples the axis rises from 2 findings to 3 across the
 revision, because the synthetic paper repeats its own coined parameter and the
@@ -169,9 +168,9 @@ recalibrated and the rate re-measured.
 ## 23.3 Three structure families from the mentor's margin
 
 The remaining comments that named a *sentence shape* rather than a phrase fell
-into three kinds: a paper-as-agent subject with a mental verb ("This Letter
-asks whether …" — "is it an AI prompt?"), a wh-cleft opener ("What it can
-conclude is limited by …" — "feels AI-ish"), and a modifier stack (three or
+into three kinds: a paper-as-agent subject with a mental verb (of the form
+"This study asks whether …" — "is it an AI prompt?"), a wh-cleft opener (of
+the form "What matters here is …" — "feels AI-ish"), and a modifier stack (three or
 more tokens before the head noun with at least two hyphenated compounds).
 `deai_structure` names them under `structure-auxiliary`, outside
 `template_score`, and `--calibrate` records their human fraction per bucket:
@@ -191,7 +190,7 @@ The `n` column is the v0.32.0 bank's; the v0.36.3 `structure_baseline.json` hold
 A first cut of the stack rule counted any run of non-function tokens and put
 15% of human method paragraphs in it; cutting the run at the head noun and
 requiring two hyphenated compounds brought the fraction to what the table
-shows. On the Letter the families name one paper-agent sentence, one wh-cleft
+shows. On the manuscript under review the families name one paper-agent sentence, one wh-cleft
 and nine stacks, and the two stacks the mentor marked are among the nine.
 
 ## 23.4 `L4.residue`: the trace an edit leaves
@@ -228,15 +227,15 @@ have added a paragraph`). What remains strong fires in 13% of refereed
 papers; 68 of the 69 edit-meta hits are `\textcolor{red}` inside tables, an
 author's emphasis that the disposition `kept` answers in a word. The static
 negative-label rule fires on 26% of refereed papers and is ordinary; only the
-diff rule gates. The Letter carries 0 residue findings.
+diff rule gates. The manuscript under review carries 0 residue findings.
 
 ### 23.4a `residue-absence`: the prose form of the negative label
 
 The author's name for the defect is a menu line reading "tomato and egg (no
 braised pork)": a sentence that tells the reader what the paper's own object
-never does or has, where the thing itself should stand (`the head never
-participates in the decision`, `the reference carries no quoted number`, `no
-support threshold is applied, because …`). The negative-label rule catches it
+never does or has, where the thing itself should stand (`the photometric
+catalog never enters the shape measurement`, `the comparison sample carries no
+redshift estimate`, `no colour cut is applied, because …`). The negative-label rule catches it
 in headings and captions; this rule reads body sentences, and a citation in
 the sentence exempts it as a baseline contrast. The families were tiered on
 the held-out full texts (442 files, 1,899,092 prose words), counting sentences
@@ -262,21 +261,21 @@ case`, `not a surprise`), the qualifier class §6 protects. On the author's
 pipeline paper before its sweep the rule found 15 strong and 17 ordinary
 sentences in 11,661 prose words, `never` alone at 0.94 per 1,000 words, 118
 times the refereed rate; after the sweep, 0 strong and 2 ordinary, both
-physics kept under a recorded disposition. The Letter went from 2 strong to
-0 strong and 1 ordinary.
+physics kept under a recorded disposition. The manuscript under review went
+from 2 strong to 0 strong and 1 ordinary.
 
 **Delete first (v0.37.1).** The first sweep rewrote every class-A sentence
 positively. Read in context, a share of those rewrites carried nothing the
-neighbouring sentences did not: `downstream of detection` had reached five
-occurrences in the pipeline paper, an appendix restated the method section's
-`catalog coordinates`, a one-line topic sentence repeated the sentence
-after it. The author's ruling, now the rule's action text, is
+neighbouring sentences did not: one qualifying phrase had reached five
+occurrences in the pipeline paper, an appendix restated a convention the
+method section had already given, a one-line topic sentence repeated the
+sentence after it. The author's ruling, now the rule's action text, is
 to delete the clause first and rewrite only what the page lacks; the second
-sweep cut 17 such clauses or sentences across the two manuscripts (Letter
-body 2235 → 2221 words). The §6 fidelity gate then reports what the ruling
+sweep cut 17 such clauses or sentences across the two manuscripts (the
+shorter one's body 2235 → 2221 words). The §6 fidelity gate then reports what the ruling
 implies: with the absence clause gone, its `not` / `no` / `never` is a
 missing negation invariant. On the final text `rewrite_reward` flagged
-4 of 7 changed Letter paragraphs and 38 of 54 changed
+4 of 7 changed paragraphs of the shorter manuscript and 38 of 54 changed
 pipeline-paper paragraphs, every flag the dropped absence marker or a token
 inside the deleted clause (`\ref`, `because`, a math symbol), plus one
 tokenizer artifact (`CDM-consistent` unpacked to `CDM`, read as a dropped

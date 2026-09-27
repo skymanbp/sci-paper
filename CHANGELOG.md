@@ -186,7 +186,7 @@ the line of its first appearance in the source, and whether that sentence
 carries a definition cue (`we call`, `defined as`, a parenthesis, an
 appositive). It is a list to walk, not a verdict: the action is to define the
 term at first use or replace it by the field's word, and to leave ordinary
-phrasing the corpus happens to lack. On the Letter the reading reduced the
+phrasing the corpus happens to lack. On a manuscript under review the reading reduced the
 252 distinct unattested pairs of the sentence gate to 42 candidates, 16 of
 them already defined where they first appear. The sentence gate is
 unchanged: on the same manuscript the default run reports the same 86
@@ -200,9 +200,9 @@ findings before and after (set difference zero). Six tests read the mode, one of
 v0.37.0 named the absence residue and told the writer to say what the
 object does instead. Applied to the author's two manuscripts, that action
 had a failure mode of its own: a positive rewrite that only restates what
-the neighbouring sentences already carry (`downstream of detection` reached
-five occurrences in one paper; a statistic "reads position in catalog
-coordinates" in an appendix whose method section had said so). The ruling
+the neighbouring sentences already carry (one qualifying phrase reached
+five occurrences in one paper; an appendix restated a coordinate convention
+its method section had already given). The ruling
 now in the rule's action, the `paper` skill's self-check, the `de-ai` skill's
 residue bullet, and the standard's L4 bullet: judge the sentence in context
 and delete the clause first; rewrite only what the page does not yet say;
@@ -210,7 +210,7 @@ keep a physical fact, a scope limit, or a conceded limitation as it stands.
 The second sweep over the two manuscripts cut 17 such clauses or sentences
 that the first sweep had rewritten, and the Pass-3 gate of `rewrite_reward`
 then did what §6 says it does: the dropped negation marker is a `missing`
-invariant, reported on 4 of 7 changed Letter paragraphs and
+invariant, reported on 4 of 7 changed paragraphs of the shorter manuscript and
 38 of 54 pipeline-paper paragraphs, every one the absence clause
 itself or its companion (`\ref`, `because`, a math token inside the deleted
 clause), and one tokenizer artifact (`CDM-` read as an acronym). The action
@@ -225,14 +225,14 @@ action. 523 tests in 27 files.
 The negative-label rule of v0.36.0 read headings and captions; the same
 defect in body prose had no detector and no name in the standard. The
 author's name for it is a menu line reading "tomato and egg (no braised
-pork)": the head `never participates in the detection decision`, the
-reference stratum `carries no quoted number`, `no support threshold is
+pork)": the photometric catalog `never enters the shape measurement`, the
+comparison sample `carries no redshift estimate`, `no colour cut is
 applied, because …`. Each tells the reader what the thing is not, in the
 place where the thing should stand, and each is what a revision leaves when
 an ingredient was taken out and its absence written in. `residue-absence`
 (`deai_residue.py`, rule 6) reads body sentences for the families, exempts a
 sentence that cites (a contrast with published work is a baseline, not a
-tombstone), and skips a hyphenated compound (`never-touched controls` is a
+tombstone), and skips a hyphenated compound (`never-masked tiles` is a
 name). Strengths were tiered on the held-out refereed full texts, 442 files
 and 1,899,092 prose words: `never` and the `nothing is` / `none sees` / `no …
 is applied` forms occur 0.008 times per 1,000 words there (15 `never`
@@ -366,7 +366,7 @@ checklists were evaluated and not adopted.
 
 The human-labelling half of "half closed by provenance" is the author's act,
 not a repository item (`DISPOSITIONS.md`); the mentor-phrase check on the
-Letter is closed on the draft it was made on, since the phrases it would test
+manuscript under review is closed on the draft it was made on, since the phrases it would test
 are gone (§23.2); the five v0.14.0 "evidence still required" statuses each
 name the section that states them (`DEAI_SUBSYSTEM.md` §11). The v0.33.0 and
 v0.34.0 entries move to `CHANGELOG-ARCHIVE-v0.33-v0.34.md`. 516 tests in 27
@@ -468,9 +468,9 @@ defects, none of them in the manuscript.
 `\begin{table*}…\end{table*}` spanning lines was never blanked the way the
 corpus side blanks it in one pass over a passage. A `tabular*` column
 specification (`@{\extracolsep{\fill}}lll`), `\tabletypesize{\scriptsize}`,
-`\tablenotetext{a}{Tied…}` and every caption's words counted on the manuscript
+`\tablenotetext{a}{…}` and every caption's words counted on the manuscript
 side only: 23 of 90 zero-hit terms on one paper were `filllll`, `tabcolsep`,
-`aTied`, `crimson`, `isosurfaces`. `body_only` now blanks floats and
+a note letter fused to its first word, and caption words. `body_only` now blanks floats and
 length/table-note commands across lines beside the math spans of §23.1; the
 shared float pattern names `deluxetable*`, `longtable` and a bare `tabular*`
 as tables on both sides; a token with fewer than three letters (`a--c`, a
@@ -480,7 +480,7 @@ papers, rank AUC 0.221 → 0.246; the thresholded rule 81 → **57** findings,
 0.0351 → 0.0247 per 1,000, 30.0% → 22.2% of documents, AUC 0.352 → 0.392,
 own-membership 98.2% of 57. Salience and collocation lose the passages that
 were table cells (held-out 1.2025 → 1.1925 and 2.044 → 2.031 per 1,000, AUCs
-0.770 → 0.774 and 0.688 → 0.691); every machine row and the Letter figure
+0.770 → 0.774 and 0.688 → 0.691); every machine row and the manuscript figure
 §23.1 quotes (14 words, 11 strong) are unchanged.
 
 ### A negated object stops at the sentence end
@@ -523,20 +523,20 @@ moved with it on the same 203 papers: 196 findings → 81, 0.0858 → 0.0351 per
 
 ### `L2.collocation`: words the field never joins
 
-`physical cells` is two ordinary words and a pair no passage of 41,710 has
+`binned kernel` is two ordinary words and a pair no corpus passage has
 written. `tools/deai_collocation.py` judges each sentence by the fraction of
 its distinct adjacent common-word pairs the bank does not attest, against a
 leave-one-out reference per bucket at sentence unit — at calibration a pair
 seen in exactly one passage is that passage's own. Only common words are
 judged as partners (11,286 of them), pairs break at punctuation, placeholders
 and dashes, and each flagged pair carries its expected co-occurrence and
-e^−λ. On the private Letter it flags five of the six mentor-marked phrases
+e^−λ. On a manuscript under review it flags five of the six mentor-marked phrases
 still present; on held-out papers the document novel-pair fraction separates
 machine text at AUC 0.688.
 
 ### Three structure families from the mentor's margin
 
-Paper-as-agent subjects ("This Letter asks whether"), wh-cleft openers ("What
+Paper-as-agent subjects ("This study asks whether"), wh-cleft openers ("What
 matters is") and modifier stacks (a three-plus-token noun phrase, head
 included, with two hyphenated compounds) join `deai_structure`'s auxiliary class: named on
 the sentence, never in `template_score`, with per-bucket human fractions in
@@ -646,8 +646,8 @@ instead of a real one.
 
 ### Numbers held in macros were invisible, in both directions
 
-A manuscript that writes `\newcommand{\Nfields}{63}` in its preamble and
-`\Nfields{}` in its results put a measured quantity where neither named text
+A manuscript that writes `\newcommand{\Nsamples}{12}` in its preamble and
+`\Nsamples{}` in its results put a measured quantity where neither named text
 projection could read it. `RE_TEX_SIMPLE_CMD` reduces a command to its
 argument, so the use site contributed nothing while the definition site
 contributed the digits once, in the preamble, attributed to no reported

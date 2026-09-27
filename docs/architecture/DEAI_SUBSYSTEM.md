@@ -160,12 +160,12 @@ structural patterns that keyword replacement cannot repair:
 - repeated paragraph templates.
 
 An auxiliary class — antithesis clusters, short reversal beats, paper-as-agent
-subjects ("This Letter asks whether"), wh-cleft openers ("What matters is") and
+subjects ("This study asks whether"), wh-cleft openers ("What matters is") and
 modifier stacks (a run of three or more tokens before a head noun carrying at
 least two hyphenated compounds) — is reported under `structure-auxiliary` and
 never enters `template_score`, so the calibrated manifold does not move when a
-family is added. The last three came from a mentor's margin comments on a real
-Letter; their human baseline fractions per bucket are in the structure baseline
+family is added. The last three came from a mentor's margin comments on a
+manuscript under review; their human baseline fractions per bucket are in the structure baseline
 (`paper_agent_frac`, `wh_cleft_frac`, `modifier_stack_frac`).
 
 These are advisories. A detector match identifies a construction to inspect; it does
