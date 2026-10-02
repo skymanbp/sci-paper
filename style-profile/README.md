@@ -44,11 +44,13 @@ style-profile/
         └── deai_hardset_LABEL_ME.csv        # user-authored difficult-case labels
 ```
 
-Two fields are populated locally as of 2026-08-25: `wgl` (the full asset set
+Two fields are populated locally as of 2026-10-02: `wgl` (the full asset set
 above, built from 19 curated papers plus the 500-paper `fulltext-arxiv/` breadth
-corpus) and `wgl-letter` (descriptive subset —
-lexicon, sentence stats, transitions, exemplars, dossier — built from the
-11-paper Letter-register corpus for `--field wgl-letter`).
+corpus) and `wgl-letter` (13 artifacts rebuilt 2026-09-27 — lexicon, register
+lexicon, sentence stats, transitions, exemplars, dossier, the structure, cohesion,
+hedging, salience, anchoring and docstructure baselines, and the legacy classifier;
+no voice model or hard set — from a corpus of 11 curated Letter-register papers
+plus 28 `fulltext-arxiv/` letters, for `--field wgl-letter`).
 
 An absent artifact remains absent evidence. The corresponding axis must report
 `unmeasured` or `degraded`; tools must not convert absence into zero findings.

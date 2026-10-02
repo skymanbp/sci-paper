@@ -234,10 +234,12 @@ enforced only at the section/paragraph level.
 > **Vintage:** the figures below are measured on the **507**-paper reference against the
 > **pooled** manifold. The headline length confound was re-measured post-rebuild against
 > the **shipped** scorer, which routes each document to its own length-stratum manifold:
-> `r(distance, paragraph count)` falls from **0.353** to **−0.080** over 493 papers, with
-> median distances 2.481 / 2.099 / 2.186 across the three strata. In other words the
-> confound this section identifies is real, and the Mondrian stratification introduced in
-> §9.5 in response to it has largely removed it from the shipped path. The role axis's
+> on the 2026-09-27 rebuild (measured 2026-10-02) `r(distance, paragraph count)` falls from
+> **0.353** to **−0.164** over 504 papers, with median distances 2.412 / 2.291 / 2.125
+> across the three strata (edges at 49 and 78 paragraphs). In other words the confound
+> this section identifies is real, and the Mondrian stratification introduced in §9.5 in
+> response to it has cut it by more than half on the shipped path without removing it
+> (§9.4b: the residue sits in the shortest stratum). The role axis's
 > operating characteristics were re-measured and are unchanged to the digit (§9.5), so
 > the mechanism described here stands.
 
@@ -408,7 +410,8 @@ Re-measured 2026-08-25 against the rebuilt baseline, one observation per documen
 **The mechanism is real and is now quantified.** Inside stratum 0 — the short papers,
 where tail power is weakest — human manifold distance still correlates with paragraph
 count at **r = −0.414** (n = 170). Stratum 1 is clean (+0.060) and stratum 2 is mild
-(−0.187). Tercile stratification removed the pooled confound (§9.4: 0.353 → −0.113) but
+(−0.187). Tercile stratification cut the pooled confound (§9.4: 0.353 → −0.164 on the
+2026-09-27 rebuild, where the three strata read −0.350 (n = 197), −0.075 and −0.215) but
 left a strong one inside the shortest bin, exactly as the refinement predicted. Fixing
 the bundle-assembly order did not touch it (−0.418 → −0.414), which is what an
 estimator-noise effect should do: it is not a corpus defect.

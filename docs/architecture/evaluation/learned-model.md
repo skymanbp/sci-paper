@@ -197,7 +197,8 @@ loads under local scikit-learn 1.8.0 with no warnings.
 `train_ai_ism_classifier.py` cross-validates grouped by source paper
 (`StratifiedGroupKFold`), because paragraphs from one paper are not independent. On
 `wgl` grouped F1 read 0.823 against 0.876 ungrouped when the grouping was introduced,
-and 0.822 ± 0.116 on the 2026-09-27 rebuild. The output is degraded L3 advisory
+and 0.838 ± 0.149 on the 2026-09-27 rebuild (re-measured 2026-10-02: 28,444 corpus
+paragraphs against 20 handcrafted negatives, the same value on two runs). The output is degraded L3 advisory
 evidence, never authorship evidence or an L0 gate.
 
 ## 8. Rewrite eligibility

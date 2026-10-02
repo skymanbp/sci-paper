@@ -47,6 +47,11 @@ Per rule:
 | `salience-recital` | 4 | **3** | fell, and the two strong ones changed kind — see below |
 | `collocation-novel` | 3 | 3 | the same count, not the same pairs — see below |
 
+The rows do not add up to the totals because three rules are not listed: the
+remaining 3 advisories before and 2 after are `document-overdispersion` (1 / 1),
+`document-dispersion-manifold` (1 / 1) and `burstiness-low` (1 / 0). Re-run on
+2026-10-02 against the same profile: every count above reproduced.
+
 ## Nothing was deleted to make a finding go away
 
 Every measured value in the original survives in the revision, and the header
