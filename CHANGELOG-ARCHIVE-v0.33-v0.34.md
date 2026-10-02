@@ -1,6 +1,6 @@
 # Changelog archive — v0.33.0 through v0.34.0
 
-Entries moved out of [CHANGELOG.md](CHANGELOG.md) on 2026-09-04 (v0.36.3) when
+Entries moved out of [CHANGELOG.md](CHANGELOG.md) on 2026-09-05 (v0.36.3) when
 the live changelog passed the repository's 750-line budget and every older
 archive was within 65 lines of it. Nothing here is edited; the history is
 verbatim.

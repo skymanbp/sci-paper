@@ -209,10 +209,6 @@ class LatexProjectionTests(unittest.TestCase):
                              es.words(row["numeral_text"])[:5])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class CorpusGatheringTests(unittest.TestCase):
     """`gather_corpus_files` must return its dict.
 

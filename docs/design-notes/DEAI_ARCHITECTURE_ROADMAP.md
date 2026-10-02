@@ -50,8 +50,8 @@ the resolution of the paragraph unit itself.
 Verified on disk at the time of writing: the whole-document human corpus already exists
 (`style-corpus/wgl/`, dozens of `.tex` sources across tiers), and no
 `docstructure_baseline.json` was present. The keystone is a wiring-and-calibration
-gap, not a data-collection project. (Closed 2026-07-13: the baseline is now calibrated
-over 14 complete papers and rebuilt per field — EVALUATION §9.)
+gap, not a data-collection project. (Closed 2026-07-13: the baseline was first calibrated
+over 14 complete papers and is rebuilt per field — EVALUATION §9.)
 
 ## 3. What to keep (do not touch)
 
@@ -77,7 +77,7 @@ over 14 complete papers and rebuilt per field — EVALUATION §9.)
 ## 4. Roadmap (ranked by leverage)
 
 Every step must survive the existing confound audit before earning a `measured`
-status, and must keep the ~38 tests green.
+status, and must keep the suite green (~38 tests at the time of writing).
 
 **Rank 1 (keystone) — Document-scale detector via cross-paragraph dispersion.**
 Reuse the existing per-paragraph 14-dim descriptor unchanged. For each complete
