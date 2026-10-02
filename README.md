@@ -122,9 +122,9 @@ Anyone can ship a banned-word list. These are the parts that took evidence.
 equation, uppercase acronym, semantic LaTeX macro, comparison direction, negation, or causal-direction marker
 scores `-inf`, whatever the style score. The tokenizer boundaries are themselves regression-tested, because the
 naive versions rejected faithful rewrites — a greedy numeral pattern made dropping an Oxford comma read as
-simultaneously *missing* `2400,` and *inventing* `2400` ([`rewrite_reward.py:33`](tools/rewrite_reward.py#L33));
+simultaneously *missing* `2400,` and *inventing* `2400` ([`rewrite_reward.py:51`](tools/rewrite_reward.py#L51));
 a permissive unit pattern made `"in 2020 we found"` yield the unit `we`
-([`rewrite_reward.py:56`](tools/rewrite_reward.py#L56)). See [demo
+([`rewrite_reward.py:98`](tools/rewrite_reward.py#L98)). See [demo
 3](#3-the-fidelity-gate-rejects-the-best-scoring-candidate).
 
 **2 · Document-scale detection, because paragraph-scale de-AI does not fix it.**
@@ -667,7 +667,7 @@ sci-paper/
 ├── .claude-plugin/          plugin.json · marketplace.json
 ├── .github/workflows/       ci.yml — validator + test suite on push to main and PR
 ├── docs/                    ← index + authority order at docs/README.md
-│   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.8)
+│   ├── SCIPAPER_STANDARD.md      the single normative contract (v3.9)
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md (hub) + evaluation/
 │   └── design-notes/             frozen, dated reasoning records (not status)
 ├── skills/<name>/SKILL.md   12 skills         ├── tests/     32 files, 802 tests
@@ -686,7 +686,7 @@ also requires independent review, clean-checkout verification, and green hosted 
 
 Current: **v0.39.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
-**Normative core:** `docs/SCIPAPER_STANDARD.md` v3.8 — the complete de-AI
+**Normative core:** `docs/SCIPAPER_STANDARD.md` v3.9 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative
 layer and residue axis, the `calibration_unit` confidence cap, the §5.2 de-AI-ization procedure,
 the §5.3 condense-not-accumulate rule with three mechanical enforcement points, and the §5.4

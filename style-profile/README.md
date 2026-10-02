@@ -93,8 +93,9 @@ python tools/deai_collocation.py --field <name> --calibrate
 # Cohesion (paragraph unit) and hedging (section unit) references (L2.cohesion / L2.hedging)
 python tools/deai_discourse.py --field <name> --calibrate
 
-# Section-class claim-anchoring band (L2.claim_anchoring)
-python tools/deai_anchoring.py --field <name> --calibrate
+# Section-class claim-anchoring band (L2.claim_anchoring); same complete-document rule
+python tools/deai_anchoring.py --field <name> --calibrate \
+  --corpus-dir <private-complete-document-directory>
 
 # Optional learned field-similarity model; still degraded until the recorded
 # confound audit and operating point justify stronger use

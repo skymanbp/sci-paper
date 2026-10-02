@@ -234,7 +234,7 @@ stays unbuilt until a second, independently produced AI bank answers it.
 - **`corpus_cos` ablation.** Not run, and now withdrawn as an item rather than
   deferred: `confound_audit` bins on record metadata the feature cache does not
   carry, so an ablation runnable from the cache would compute a different
-  statistic from the four recorded retrains (§7.0a) and could not be compared
+  statistic from the five recorded retrains (§7.0a) and could not be compared
   with them. Its only consumer is a `degraded`, audit-only classifier with no
   shipped operating point, whose status rests on independently refuted grounds,
   so no ablation result could change shipped behaviour.

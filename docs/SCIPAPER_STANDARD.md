@@ -152,8 +152,8 @@ A second lexical axis, `L0.register` (`deai_register`), sits at this layer
 without joining the to-zero set. It measures whether the draft speaks its own
 field's vocabulary, by comparing terms the manuscript leans on against document
 frequency in the field's own corpus. The evidence must be corpus frequency and
-never a curated list of another discipline's words: in the astronomy reference
-`AUC` appears in 1 passage of 15,599 while `epoch` appears in 402 and
+never a curated list of another discipline's words: in the v0.26.0 astronomy
+reference `AUC` appeared in 1 passage of 15,599 while `epoch` appeared in 402 and
 `accuracy` in 774, so a hand-written "ML vocabulary" list flags all three. A
 hyphenated compound is judged by its rarest part, because hyphenation is an
 open construction and every compound is corpus-rare. Register findings are
@@ -286,7 +286,7 @@ Removing tells is insufficient. A faithful rewrite should add or strengthen:
 - section-appropriate variation in sentence and paragraph shape;
 - forward narrative that describes the current scientific state rather than
   the history of drafting or failed internal approaches, and says what an
-  object does rather than what it never does, deleting the absence outright where the context already carries the positive statement (the absence residue of §5.3).
+  object does rather than what it never does, deleting the absence outright where the context already carries the positive statement (the absence residue, `L4.residue` below).
 
 Every added number, citation, entity, unit, causal claim, and qualifier must be
 traceable to a source. Specificity never licenses invention.
@@ -301,8 +301,9 @@ author supplies that history. Their binding rows are in the §8 annex.
 
 L4 further owns the **residue axis** (`L4.residue`, `deai_residue`): the trace
 an edit leaves behind — drafting history told in the first person ("we
-initially", "no longer"), edit-meta text (`TODO`, "see previous version"), and a
-heading or caption promising what the body never delivers. With a pre-edit
+initially", "no longer"), a body sentence defining the paper's own object
+by what it never does or has, edit-meta text (`TODO`, "see previous version"),
+and a heading or caption promising what the body never delivers. With a pre-edit
 snapshot the diff rule reports a label the edit added and the body does not
 earn, and a strong finding exits 1 (§0.1). The repair is the current state of
 the science in one sentence, never an explanation of how it got there.
@@ -343,7 +344,7 @@ kind                    integrity_blocker | l0_target | advisory
 layer                    L0 | L1 | L2 | L3 | L4 | QD
 rule
 scope                    document | section | paragraph | sentence | figure | table | equation | citation
-calibration_unit         paragraph | section | document | null; the granularity at which the evidence was calibrated
+calibration_unit         sentence | paragraph | section | document | null; the granularity at which the evidence was calibrated
 location                 path, start_line, optional end_line and section
 message
 observed                 value, unit, optional raw evidence
@@ -365,8 +366,8 @@ objects. A tool must never reconstruct JSON by parsing its printed prose.
 
 `calibration_unit` records the granularity at which a finding's evidence was
 calibrated. Because a single paragraph is near-unjudgeable for AI-ness,
-**paragraph-unit findings are structurally capped at 0.5 confidence** in the
-finding contract itself, not left to each detector. Section- and document-unit
+**sentence- and paragraph-unit findings are structurally capped at 0.5
+confidence** in the finding contract itself, not left to each detector. Section- and document-unit
 findings are not capped; deterministic evidence (an edit ratio) is exempt. A
 `null` unit makes no granularity claim and is uncapped, preserving every legacy
 caller.

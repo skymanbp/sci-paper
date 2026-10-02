@@ -116,9 +116,9 @@ sci-paper 把一个 Claude Code 会话变成一张论文工作台，由唯一一
 大写缩写、语义 LaTeX 宏、比较方向、否定、因果方向标记 → `-inf`，风格分数再高也没用。
 分词边界本身有回归测试，因为朴素实现会误杀忠实改写 —— 贪婪的数字模式让"少了一个
 牛津逗号"被读成同时*丢失* `2400,` 又*凭空加上* `2400`
-（[`rewrite_reward.py:33`](tools/rewrite_reward.py#L33)）；过宽的单位模式让
+（[`rewrite_reward.py:51`](tools/rewrite_reward.py#L51)）；过宽的单位模式让
 `"in 2020 we found"` 产出单位 `we`
-（[`rewrite_reward.py:56`](tools/rewrite_reward.py#L56)）。
+（[`rewrite_reward.py:98`](tools/rewrite_reward.py#L98)）。
 见 [demo 3](#3-保真门枪毙了风格分最高的候选)。
 
 **二 · 全文尺度检测，因为段落尺度的去 AI 根本没用。** 本仓库最关键的一次测量：
@@ -154,7 +154,7 @@ kernel`、`smoothed boundary`），每个词对都带着"按机会本该写出�
 已发表论文里的零命中词反而比机器草稿多（[§23](docs/architecture/evaluation/vocabulary-and-residue.md)）。
 
 **五 · 沉默永远不等于干净。** 每个轴报告 `measured` / `degraded` / `unmeasured` /
-`not_applicable` 之一，最终报告四种状态全列 —— 下面每个 demo 里都能看到：
+`not_applicable` 之一，最终报告四种状态全列 —— 下面的 demo 里能看到：
 `L1.distribution` 始终是 `degraded`，因为 `deai_policy.json` 不存在，
 而不是报告零个 finding。缺依赖就让那个轴保持 `unmeasured`。
 这是预期行为，不是一个"装个包就好了"的降级模式。
@@ -163,7 +163,10 @@ kernel`、`smoothed boundary`），每个词对都带着"按机会本该写出�
 全部被构建、测量并**证伪**；该规则以*不带检测器的写作规则*形式发布，规范明文禁止
 在它上面建阈值。claim-anchoring 这条 tell 对强模型生成同样被证伪，所以
 `deai_anchoring.py` 明确标为**写作质量轴，不是 AI 判别轴**。Hypotaxis ratio：否决。
-惰性从句串与推理连接词率：否决。一个坏重采样器产生的零宽置信区间：发现、修复、
+惰性从句串与推理连接词率：否决。`L1.distribution` 的操作点：**2026-08-25 证伪** ——
+burstiness 在对抗文本上符号反转（AUC 0.181），signposting 低于随机（0.247），所以
+`deai_policy.json` 那条路线图条目被撤回而不是发布
+（[§16](docs/architecture/evaluation/lexical-structure-uid.md)）。一个坏重采样器产生的零宽置信区间：发现、修复、
 基线重建。全部记录在 [EVALUATION.md](docs/architecture/EVALUATION.md) 里，
 连同杀死它们的那些数字。**一个被证伪的检测器也是证据，它留在记录里。**
 
@@ -172,7 +175,7 @@ kernel`、`smoothed boundary`），每个词对都带着"按机会本该写出�
 ## 实际效果
 
 demo 1 是 **2026-08-26** 在 v0.32.0、`wgl` 参照 profile 上重跑的；demo 2 是 v0.28.0 的
-带期记录，其草稿未留存。两个 demo 都早于语篇、collocation 与 residue 轴 —— 加 `--no-discourse --no-collocation --no-residue` 才复现得出上面的计数。没有一处是示意。全新 clone **不带**任何 profile（[为什么](#按-field-组织的证据)），
+带期记录，其草稿未留存。两个 demo 都早于语篇、collocation 与 residue 轴 —— 加 `--no-discourse --no-collocation --no-residue` 才复现得出它们的计数。没有一处是示意。全新 clone **不带**任何 profile（[为什么](#按-field-组织的证据)），
 所以 `measured` 的轴需要你先用自己的论文建一份 profile。
 
 ### 1. 同一个段落的三种处理
@@ -370,7 +373,8 @@ advisory 必须有明确 disposition，而普通 advisory 与不可用的轴保�
 ## Benchmark 面板
 
 两类数字，不能互换：**判别力与标定**，读自评估记录；**延迟**，为这份 README
-第一手实测。
+第一手实测。下面的全文尺度表与 L3 数字都在 **2026-09-27** 对重建后的 profile
+走发布路径重测，不是沿用旧值。
 
 ### 全文尺度的判别力与假阳控制
 
@@ -405,7 +409,7 @@ AUC 是长度公平的：每份文档只跟**自己那个长度层**的人类论
 2026-09-27 用 45,153 条记录重训。
 来源：[§7](docs/architecture/evaluation/learned-model.md)。
 
-| 指标 | 值 | 95% 切分区间 | 上一版语料 |
+| 指标 | 值 | 95% 切分区间 | 17,299 条记录的库 |
 |---|---:|---|---:|
 | 分组切分 AUC（20 次切分，整篇论文留出） | **0.9487** | 0.9392 – 0.9587 | 0.9320 |
 | 匹配层 AUC（section × 长度 × 数学 × 领域词） | **0.9250** | 0.9058 – 0.9495 | 0.9236 |
@@ -524,7 +528,7 @@ profile 构建，`eval` 可复现的证据。逐工具细节见 [tools/README.md
 |---|---|---|
 | `tools/deai_feedback.py` | core | 实现 `sci-paper.feedback.v1`：稳定 ID、后果类别、measurement state、disposition、排序、汇总、渲染。纯标准库。 |
 | `tools/ai_ism_lint.py` | core | 统一 CLI。把 L0 与全部 advisory 轴聚合成一份排序过的 text/JSON 报告。退出码 `0` = 无 L0 target，`1` = 有 L0 target，`2` = 输入非法或执行失败。 |
-| `tools/length_gate.py` | core | 按 section 的散文长度预算增量门（规范 §5.3）。两个版本之间存在无理由净增长、或净删减未达 `--require-shrink` 目标则 exit 1；`--allow` 记录理由。 |
+| `tools/length_gate.py` | core | 按 section 的散文长度预算增量门（规范 §5.3）。两个版本之间存在无理由净增长、或净删减未达 `--require-shrink` 目标则 exit 1；文档或基线不可读则 exit 2，从不作为判决；`--allow` 记录理由。 |
 | `tools/verify_references.py` | core | 把 bibliography 逐条对到其标识符所指的登记库（CrossRef、DataCite、arXiv）：DOI / arXiv 号在任何登记库都解析不到、或正文引用了没有条目的 key，是 integrity blocker；第一作者、年份、标题与记录不符是 strong advisory；期刊、卷、页差异是 ordinary。网络没答复的条目保持 `unmeasured`。有 blocker 则 exit 1。 |
 | `tools/condense_map.py` | core | `/sci-paper:condense` 背后的可删图：复述（带 canonical home）、零信息句、死 figure/table/label/macro/缩写、冗长构式、重复符号释义、跨节重复段——每条带可释放词数，汇总成删减目标。它自己不删任何东西。 |
 | `tools/deai_residue.py` | core | 编辑留下的痕迹：第一人称的研究旅程、用"它从不做什么"来描述对象的句子、编辑元文本、正文兑现不了的标题或 caption，以及加 `--before` 后本次编辑新增的标签。有 strong finding 则 exit 1。 |
@@ -552,8 +556,8 @@ profile 构建，`eval` 可复现的证据。逐工具细节见 [tools/README.md
 | `tools/eval_findings.py` | eval | 用**出处**当标签来测 register（阈值与零命中）、salience 与 collocation，而不是靠人工标注：在**留出**的 ApJ/ApJL/A&A 已发表论文、同体裁但参与过标定的论文（泄漏对照）、以及 `docval` 机器 tier 上各自的命中率，外加机器对留出人类的秩 AUC。register 那行是误报率；salience 那行不是——它的门是百分位，非零命中率是设计值，测的是标定迁移。 |
 | `tools/eval_docscale.py` | eval | 复现 §9 的全文尺度表 —— 人类误标率与逐 tier 尾部功效 —— 把语料与每个 `docval` tier 都送进 finding 用的同一个操作点。 |
 | `tools/build_profile.py` | build | 构建基础 field profile：抽取、可选的旧版分类器、范例缓存预热。 |
-| `tools/cli_common.py` | build | 共享的命令行前置：UTF-8 stdout，以及每个 field 感知工具都要的 `--field` / `--profile-root` 选项。不持有任何策略。 |
-| `tools/extract_style.py` | build | 抽取词表、句子统计、转折词、描述性 dossier 和按 section 分类的范例库。 |
+| `tools/cli_common.py` | build | 共享的命令行前置与 field 解析（只有一个 profile 时自动解析；有多个时不带 profile 运行并说明），39 个 Python 工具中有 30 个使用。不持有任何策略：除两个根目录外不设默认值，不读 profile，不产 finding。 |
+| `tools/extract_style.py` | build | 抽取词表、句子统计、转折词、描述性 dossier 和按 section 分类的范例库。重导出 `extract_sections.py` 的全部公共名。 |
 | `tools/extract_sections.py` | build | 源文本投影与分节层：section 词表与分类器、两条命名 LaTeX 投影、PDF 标题启发式。section 桶是 profile 里每一条按 section 参照分布的键，所以改这里就要重建 profile。 |
 | `tools/tex_assembly.py` | build | 从根文件装配整篇 LaTeX 文档：`\input`/`\include` 子文件原位拼接（行中调用保留前后文字，重复调用再拼一次，循环即停），既可读文件系统也可读 git ref，所以 `--git-ref` 基线就是该 ref 下装配好的文档。注释与 include 模式的唯一所有者。 |
 | `tools/tex_macros.py` | build | 在装配好的文档根上一次性展开纯数值 `\newcommand` 宏，使作者写成宏的测量量能被计数数字的投影看见。保守策略：符号宏与带参数宏一律不动。 |
@@ -589,6 +593,7 @@ profile 构建，`eval` 可复现的证据。逐工具细节见 [tools/README.md
 一个 *field* 是 `style-corpus/` 下的一个子目录，加上 `style-profile/` 下同名的目录。
 只有一个 field 时工具自动识别；有多个时必须显式传 `--field <name>`。
 **代码里不假设任何特定 field 存在** —— 包括这份 README 通篇用到的 `wgl`。
+[`calibrate`](skills/calibrate/SKILL.md) 走完整条链。
 
 ```
 style-corpus/<field>/tier-1-top/        顶刊范例
@@ -609,7 +614,7 @@ style-profile/<field>/                  生成的证据（gitignore）
 | `structure_baseline.json` | method 9,654 · results 4,065 · data 3,953 · intro 3,848 · discussion 3,739 · conclusion 2,747 · abstract 433 |
 | `salience_baseline.json` | abstract 13,970 · method 7,209 · results 3,337 · intro 3,280 · data 3,098 · discussion 3,051 · conclusion 2,018 |
 | `docstructure_baseline.json` | 504 篇完整文档 · conformal α 0.05 · 长度分层 [49, 78] |
-| `anchoring_baseline.json` | 517 篇文档 · 六个 section 类全部高于 30 篇下限 |
+| `anchoring_baseline.json` | 517 篇文档 · 六个 section 类全部高于 30 篇保留下限，也高于六类 Bonferroni 份额要求的 119 篇下限 |
 | `voice_model.joblib` | 45,153 条记录 · 14 个特征 · **无操作点**，`degraded` |
 
 每个桶都过了 30 passage 下限，没有一个是"仅排序" —— 这在 2026-08-25 之前并不成立：
@@ -650,7 +655,7 @@ sci-paper/
 ├── .claude-plugin/          plugin.json · marketplace.json
 ├── .github/workflows/       ci.yml —— 推到 main 的 push 与 PR 跑 validator + 测试
 ├── docs/                    ← 索引与权威顺序在 docs/README.md
-│   ├── SCIPAPER_STANDARD.md      唯一规范契约（v3.8）
+│   ├── SCIPAPER_STANDARD.md      唯一规范契约（v3.9）
 │   ├── architecture/             DEAI_SUBSYSTEM.md · EVALUATION.md（hub）+ evaluation/
 │   └── design-notes/             冻结的、带日期的设计记录（不是现状文档）
 ├── skills/<name>/SKILL.md   12 个 skill
@@ -675,7 +680,7 @@ sci-paper/
 
 当前版本：**v0.39.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE-v0.35.md](CHANGELOG-ARCHIVE-v0.35.md)（v0.35.0–v0.35.1）、[CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)（v0.33.0–v0.34.0）、[CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)（v0.27.1–v0.32.0）、[CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
 
-**规范核心：** `docs/SCIPAPER_STANDARD.md` v3.8 —— 完整的去 AI 标准全在这一个文件里
+**规范核心：** `docs/SCIPAPER_STANDARD.md` v3.9 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层与 residue 轴、`calibration_unit` 置信度封顶、§5.2 去 AI 化
 步骤、§5.3 改写删减而非堆叠及其三处机械执行、以及刻意**不带检测器**发布的 §5.4 文章主旨）。
 不存在单独的去 AI 标准文档。
@@ -685,9 +690,8 @@ sci-paper/
 | 限制 | 当前状态 |
 |---|---|
 | **没有学习型模型的操作点** | L3 以 `degraded` 发布。文档级 surprisal 路径已被*测量证明*给不出操作点（0.757 vs model-free 流形的 0.881）。 |
-| **尾部功效数字是单次抽样** | 流形各 tier 的逐 seed 标准差是 0.04–0.18，比记录里几处曾被读作"提升"的差还大。`tools/eval_docscale.py` 用来重跑，而不是引用。 |
 | **领域主题假阳** | 在领域主题与术语密集 AI 文字上 29–42%。**已以决定收口**：跨 2.6 倍语料区间的五次重训一致表明混淆在特征集里，因此这套特征拿不到对领域主题稳健的操作点。 |
-| **短文档尾部功效** | 流形对短的自然 AI 文档，12 个 seed 平均 **0.170 ± 0.110**（2026-08-26），当时长度公平排序是 0.933；2026-09-27 的单次抽样是 0.071，排序 0.893。三条修法都做了、都失败：距离归一化（已否决）、更细分层、显式估计噪声协方差。 |
+| **短文档尾部功效，且它是单次 seed 抽样** | 流形对短的自然 AI 文档，12 个 seed 平均 **0.170 ± 0.110**（2026-08-26），当时长度公平排序是 0.933；2026-09-27 的单次抽样是 0.071，排序 0.893；逐 tier 离散度最高到 0.18，比记录里几处曾被读作"提升"的差还大。三条修法都做了、都失败：距离归一化（已否决）、更细分层、显式估计噪声协方差。`tools/eval_docscale.py` 用来重跑，而不是引用。 |
 | **长文生成抓不到** | α = 0.05 下流形对长文 AI 的尾部功效是 **0.000** —— 在 2 种度量 × 4 种标定切分 × 12 个 seed 下都稳定。长度公平排序 AUC 是 0.840（2026-09-27），说明信号在，操作点够不着。 |
 | **协作层工具** | `deai_provenance` 与 `deai_personal` 在作者提供自己的草稿历史或 ≥ 3 篇既往论文之前，诚实地保持 `unmeasured`。 |
 | **`L1.distribution` / `L2.sentence_structure`** | `degraded` —— 现在是有*测量依据*的。burstiness 在对抗文本上符号反转（AUC 0.181），signposting 低于随机（0.247），根本写不出一个操作点。 |
@@ -697,6 +701,7 @@ sci-paper/
 | **建议质量仍未被标注** | 出处只能回答「它是否在已发表文字上开火」，回答不了「这条建议对不对」。salience 的 p90 门在 203 篇留出已审稿论文上逐 passage 开火 **0.201**，低于三门并集上界 0.271（[§17.5](docs/architecture/evaluation/held-out-labels.md)）；建议本身的精确率与召回率仍需 `tools/label_findings.py`，跑不跑是作者自己的事。 |
 | **hedging 只对引言和方法说话** | 认知情态轴只管 `intro` 和 `method` —— 在 203 篇留出的已审稿论文上，它的 p10 门在这两个桶的开火率是 9.09% 和 9.62%，六套生成流程都分得开；在 `data`、`conclusion`、`results` 上是 12–14%（那是审稿人已经接受的文字），`discussion` 上有一套生成流程落到随机以下（[§19](docs/architecture/evaluation/discourse-and-citation.md)）。cohesion 不需要这条限制（七个桶 6.8–14.9%）。 |
 | **两条词汇审计是建议，且要加载词对库** | 零命中审计列出语料从未写过的每一个词，而已发表论文里这种词反而比机器草稿多（每千正文词 3.34 个，203 篇留出论文篇篇都有，秩 AUC 0.177）；collocation 轴每次运行都要加载 535,517 个词对的库，model-free 那一行延迟上升的 0.6 s 就是它。两者都不是检测器；`--no-collocation` 可以跳过词对库（[§23](docs/architecture/evaluation/vocabulary-and-residue.md)）。 |
+| **两条轴可能要相反的东西** | cohesion 要求一句复用上一句的名词；recital 数的是带数字的句子。在数字密集的段落里，值得带到下一句的名词正是数字所描述的那个，所以满足一条轴就要付出另一条的代价，没有哪种改写能同时满足两者（[`examples/`](examples/README.md)：修订稿把 `bias` 带进带数字的句子并复述了头条那对数值，两条 strong recital finding 由 p96 与 p99 的数字密度而不是连续串长领头）。两条 finding 都成立；契约之所以是 advisory，正因为这个取舍属于作者。 |
 | **全新 clone 什么都测不出来** | 全部 profile 制品都 gitignore。在你用自己的论文建出 profile 之前，每条语料参照的轴都是 `unmeasured`。 |
 
 ### 路线图

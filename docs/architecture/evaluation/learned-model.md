@@ -172,10 +172,11 @@ L3 stays `degraded` with **no operating point** — but for the well-powered rea
 the hard-set perception metric:
 
 1. the field-topic and field-jargon-dense negative controls (§7.2, n=170/47 in the
-   primary split) show a 31–43% false-positive rate on exactly the AI prose a manuscript
+   primary split) show a 29–42% false-positive rate on exactly the AI prose a manuscript
    pass must catch;
 2. AI-ness in scientific writing is substantially a document- and cross-paragraph
-   property, and no document-level calibration set exists yet (§9).
+   property, and at document scale the surprisal path is measured weaker than the
+   model-free manifold and adds nothing to it (§9.8).
 
 The provenance result (0.94) shows the model is a useful field-similarity triage signal,
 not that it is a calibrated AI detector. [`tools/deai_voice.py`](../../../tools/deai_voice.py)

@@ -372,16 +372,16 @@ re-proposed as an obvious gap.
 
 ### 14.6 Limits
 
-One field, one case document. Every non-abstract bucket rests on 1,999–6,967
+One field, one case document. Every non-abstract bucket rests on 2,018–7,209
 reference passages, so **all seven clear the 30-passage floor** and none is
-rank-only. `abstract` (13,971) is still the largest by a factor of 2.0, but it no
+rank-only. `abstract` (13,970) is still the largest by a factor of 1.9, but it no
 longer dwarfs the body buckets by two orders of magnitude, and `method` is
 second-largest on method prose rather than on residue. The counts are the
-v0.36.3 rebuild's, the column §14.2's table leads with.
+v0.39.0 rebuild's, the column §14.2's table leads with.
 
 The reference-size limitation recorded here from v0.26 through v0.27.1 is therefore
 closed. What remains is narrower and should not be read as the same caveat: register
-document frequency still inherits the corpus's composition — 35% abstracts — so a term
+document frequency still inherits the corpus's composition — 33% abstracts (§14.4) — so a term
 common in body text but absent from abstracts is still slightly over-flagged, and the
 manuscript-use floor still bounds recall. Neither axis has a human-judgement
 validation set. Both are calibrated distance statements against a human reference, in
