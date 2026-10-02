@@ -447,19 +447,6 @@ and successful tag/push/release operations.
 
 ## 11. Evidence the record states (the v0.14.0 open items, each closed)
 
-The implementation can ship with explicit unavailable axes, but it must not imply
-that missing evidence exists. v0.14.0 listed five statuses the evaluation record
-had to state before release; each now has a section that states it, and none is
-open:
-
-1. a real introduction rewrite with before/after structural findings and protected
-   invariant verification — EVALUATION §11 and §13;
-2. learned-model audits for mathematics, jargon, section, length, and source-paper
-   confounds — §7;
-3. complete-document calibration — §9, measured over the field's complete papers;
-4. UID and learned-model operating points — both `degraded` by measurement, §6
-   and §7, with the refutations that keep them so in
-   [`DISPOSITIONS.md`](DISPOSITIONS.md);
-5. author labels and editorial dispositions — external human inputs by design;
-   the labelling harness ships (`tools/label_findings.py`) and running it is the
-   author's act, not a repository item ([`DISPOSITIONS.md`](DISPOSITIONS.md)).
+The five statuses v0.14.0 required the evaluation record to state, and the
+section that now states each, are listed in
+[EVALUATION §12](EVALUATION.md#12-release-evidence-boundary).

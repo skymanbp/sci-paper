@@ -397,6 +397,7 @@
 | 代码余项 | A22–A25，B22、B24、B30，D17、D18、D21、D23、D25 的代码侧、D27–D29，E23–E26、E29，F29–F31、F37、F38，H8 的 validator 镜像检查；hedging 按 2026-09-27 的重测扩到 `method` | `6aaf9f3` |
 | skill 余项 | H14（作者裁定 skill 服从标准 §4：四处人工判断的 strong 改为排在最前的普通 advisory），H15–H18、H22、H32、H33、H37、H39、H40、H42，F15 的 skill 侧，H45–H51（skill 内去重） | `2c70054` |
 | 文档余项与重建后的重测 | G4、G6、G12、G28–G31、G34，H34、H35，E27，F15 与 F35 的文档侧，I26–I29、I37，M3/I35，B24/B25 的文档侧，R1–R10，M4/G19（删除 `latency.json`）；重建后 EVALUATION、两份 README 与 examples 的数字全部重取 | `4dfa9a4` |
+| 2026-10-02 文档全量复核 | A31 的 `__main__` 实际在此才删（上方关闭说明此前不实）；I38 余项（`tools/README` 的评估数字移入 EVALUATION）；R5–R10、I29 余项（R8：v0.14.0 五项清单移入 EVALUATION §12）；需要本地 profile 的核对交接给 [`local-handoff-2026-10-02.md`](local-handoff-2026-10-02.md) | `df59140`、`ee51edd`、`ad44b7a`、本行所在提交 |
 | 本节 | 落地记录的收尾 | 本节所在提交 |
 | 合并前复审 | B22 在 `deai_partition` 的余项：内聚下限只取相邻段落对，标题与浮动体不再把它拉低 | 本行所在提交 |
 

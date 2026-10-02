@@ -112,6 +112,21 @@ Earlier releases' gates are recorded with each release in the CHANGELOG and its
 archives (v0.14.0's, the first set, in
 [`CHANGELOG-ARCHIVE-EARLY.md`](../../CHANGELOG-ARCHIVE-EARLY.md)).
 
+v0.14.0 also listed five statuses this record had to state before release; each
+now has a section that states it, and none is open:
+
+1. a real introduction rewrite with before/after structural findings and protected
+   invariant verification — §11 and §13;
+2. learned-model audits for mathematics, jargon, section, length, and source-paper
+   confounds — §7;
+3. complete-document calibration — §9, measured over the field's complete papers;
+4. UID and learned-model operating points — both `degraded` by measurement, §6
+   and §7, with the refutations that keep them so in
+   [`DISPOSITIONS.md`](DISPOSITIONS.md);
+5. author labels and editorial dispositions — external human inputs by design;
+   the labelling harness ships (`tools/label_findings.py`) and running it is the
+   author's act, not a repository item ([`DISPOSITIONS.md`](DISPOSITIONS.md)).
+
 Author decisions outside this record, which do not block a release: accepting or
 rejecting the §11 rewrite proposal ([DISPOSITIONS](DISPOSITIONS.md)). The L3
 operating point is decided, not open: not obtainable from this feature set (§7.0a).

@@ -64,7 +64,7 @@ universal paper PASS/FAIL.
 | Worked example: a synthetic manuscript before and after acting on the findings | [../examples/README.md](../examples/README.md) |
 | Working rules for this repository | [../CLAUDE.md](../CLAUDE.md) |
 | Adapted-material attribution and adoption boundaries | [../ACKNOWLEDGMENTS.md](../ACKNOWLEDGMENTS.md) |
-| External and full-repository review records (findings, first-party verification, disposition) | [audits/codex-review-2026-09-04.md](audits/codex-review-2026-09-04.md) · [audits/full-review-2026-09-27.md](audits/full-review-2026-09-27.md) |
+| External and full-repository review records (findings, first-party verification, disposition) | [audits/codex-review-2026-09-04.md](audits/codex-review-2026-09-04.md) · [audits/full-review-2026-09-27.md](audits/full-review-2026-09-27.md) · [audits/local-handoff-2026-10-02.md](audits/local-handoff-2026-10-02.md) (checks that need the local `wgl` profile) |
 
 ## Conventions this directory is held to
 
