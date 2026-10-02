@@ -31,13 +31,8 @@ overrides the standard.
 | `logic` | Measurement primitive. Claim graph, empirical statistical methodology, and the review side of claim-evidence discipline: verb strength may not exceed evidence strength. Emit findings only; never mark register by word list. |
 | `proposal-polish` | Funding-proposal register (vision plus feasibility): keep backed ambition, enforce claim-feasibility matching, apply the L0 policy and §6 rewrite invariants unchanged; never fabricate support. |
 
-`docs/architecture/DEAI_SUBSYSTEM.md` documents architecture. `EVALUATION.md` records
-empirical evidence. Neither overrides this standard.
-
-All of the above except `brainstorm` are normative implementers and must
-reference this standard (enforced by `validate_plugin.py` `NORMATIVE_SKILLS`).
-`brainstorm` operates before manuscript prose exists; its role row binds its
-scope, not a standard-reference obligation.
+The standard-reference obligation, and `brainstorm`'s exemption from it, are
+stated in the standard's §§7-8.
 
 ---
 
@@ -60,7 +55,7 @@ scope, not a standard-reference obligation.
 | `deai_anchoring.py` | L2 | Emit the section-class claim-anchoring band as a writing-quality axis, never an AI-discrimination axis. |
 | `deai_voice.py` | L3 | Emit calibrated similarity evidence, model metadata, and confound status without authorship claims; degraded, offline audit instrument. `unmeasured`, with the reason, when the surprisal runtime the feature vector needs is absent. |
 | `deai_feedback.py` | shared | Validate schema (incl. `calibration_unit` cap), attach actions, rank findings, summarize statuses, and serialize output. |
-| `rewrite_reward.py` | L3-L4 | Exclude unfaithful candidates before ranking eligible rewrites; rank by L0 advisory reduction and fidelity. |
+| `rewrite_reward.py` | L3-L4 | Exclude unfaithful candidates, and with `--original` candidates over the §5.3 length budget, before ranking eligible rewrites; rank by L0 advisory reduction and fidelity. |
 | `retrieve_exemplars.py` | L4 | Supply author-voice evidence without copying unsupported scientific content. |
 | `length_gate.py` | QD (§5.3) | Compare per-section rendered-prose word counts between two document versions; strong advisory and exit 1 on unjustified growth; record `--allow` justifications in the report; with `--require-shrink`, a strong `length-shrink-short` finding and exit 1 when the net cut falls short of the target. |
 | `deai_partition.py` | L4 | Suggest fidelity-free merge/split operations toward the human dispersion band; zero-token, suggest-only. |
@@ -69,11 +64,7 @@ scope, not a standard-reference obligation.
 | `eval_findings.py` | evidence | Score the register axis (thresholded and zero-hit), salience and collocation (the last on its document novel-pair fraction, because its reference is per sentence) on a **held-out** refereed corpus that fed no calibration bank, and report the same-genre in-sample population beside it so the leakage gap stays visible. Never present the salience rate as a false-positive rate — its gate is a percentile, so a non-zero rate is its design point — and never present either rate as precision for the advice itself. Added 2026-08-27: the axes' precision had stood at `unmeasured` pending hand labels, while a refereed paper's provenance was already a label for half of the question. |
 | `eval_docscale.py` | evidence | Reproduce the EVALUATION §9 table through the same `manifold_operating_point` that findings use — never a private scoring path. Label the human rate **in-sample** wherever it includes the manifold's own train and calibration documents, and never present a single-seed tail-power figure as an estimate. Added 2026-08-26: nothing bound the evidence-producing path before, and §9 accumulated headline figures produced by a 95th-percentile cut rather than by the shipped conformal rule. Report `unmeasured` for any row under the 20-document floor it shares with `eval_findings`, decide each flag by the operating point's own alpha, and name that operating point per row. |
 | `verify_references.py` | QD (dimension F) | Verify every bibliography entry against the registries (CrossRef, DataCite for the prefixes CrossRef does not register, arXiv) and, with `--tex`, the assembled document's `\cite` keys against the entries; an unresolvable identifier or a cited key with no entry is an `integrity_blocker` and exit 1 (§0.1); a registry outage marks the entry `unmeasured` and the axis `degraded`, never clean; relevance is the reviewer's, not measured here. |
-| `label_findings.py` | evidence | Sample findings from every finding-emitting axis into a labelling sheet, re-serve a blind subset, and score precision, pooled recall and intra-rater agreement; any stratum under 20 labels is `unmeasured`; nothing here enters calibration or creates an operating point. |
-
-Compatibility tuple APIs may remain temporarily, but new orchestration consumes
-structured finding APIs. Adapters project from structured findings, not the
-reverse.
+| `label_findings.py` | evidence | Sample findings from the five corpus-referenced axes (register, salience, collocation, cohesion, hedging) into a labelling sheet, re-serve a blind subset, and score precision, pooled recall and intra-rater agreement; any stratum under 20 labels is `unmeasured`; nothing here enters calibration or creates an operating point. |
 
 ---
 

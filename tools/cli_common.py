@@ -9,8 +9,8 @@ error strings.
 
 This module is deliberately small and holds no policy: it decides no default
 beyond the two roots, reads no profile, and emits no findings. 21 of the 30
-tools were retrofitted onto it on 2026-08-26; the rest are library modules with
-no CLI, plus the two divergences below.
+tools then in the suite were retrofitted onto it on 2026-08-26; the rest were
+library modules with no CLI, plus the two divergences below.
 
 Two divergences are kept on purpose rather than folded in:
 

@@ -274,8 +274,9 @@ field, which is worth telling an author, and is not evidence about who wrote it.
 - `cross_section_similarity`;
 - `section_arc_similarity`.
 
-Since the 2026-07-13 keystone it also carries the detection core that the axis actually
-scores on: cross-paragraph dispersion as a joint Mahalanobis manifold fit pooled and per
+Since the 2026-07-13 keystone it also scores on a detection core, which
+[`../tools/deai_docshape.py`](../../tools/deai_docshape.py) has held since 2026-08-25
+(`deai_docstructure` re-exports it): cross-paragraph dispersion as a joint Mahalanobis manifold fit pooled and per
 length stratum (`fit_dispersion_manifold`, `manifold_distance`), role-coupled dispersion
 (`document_role_coupling`), and split-conformal (Mondrian) operating points.
 
@@ -307,8 +308,8 @@ product detector one calibration away from an operating point**: the paragraph
 unit is near-unjudgeable for AI-ness (EVALUATION §7, §13), and the document-level
 surprisal path is now measured (EVALUATION.md §9.8) to be weaker than the
 model-free manifold and to add nothing to it. Accordingly, `make_finding` carries
-a `calibration_unit` (paragraph|section|document) that structurally caps
-paragraph-unit findings at 0.5 confidence; `deai_voice` emits at paragraph unit
+a `calibration_unit` (sentence|paragraph|section|document) that structurally caps
+sentence- and paragraph-unit findings at 0.5 confidence; `deai_voice` emits at paragraph unit
 and is capped by construction, so a per-paragraph score can never present as a
 high-confidence AI verdict.
 
@@ -334,7 +335,8 @@ stems never occur in the body, on documents of 400 words or more — ordinary,
 because refereed papers carry it routinely, EVALUATION §23.4); and, given
 `--before` or `--git-ref`,
 `residue-negative-label-added` (a label the edit introduced and the body does
-not earn — strong). The literal and label rules read `deai_register.body_only`,
+not earn — strong). The literal rule reads `deai_register.body_lines` and the label rule
+`body_only`, both with the `skip` sections kept,
 because a `\newcommand{\TODO}` in a preamble and a bibliography title are not
 prose an edit left. The history and absence families are defined once
 in the tool and mirrored between markers in `skills/paper/SKILL.md`;

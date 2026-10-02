@@ -30,7 +30,7 @@ style-profile/
     ├── collocation_baseline.json           # per-section leave-one-out novel-pair reference, sentence unit
     ├── cohesion_baseline.json              # given/new linkage reference, paragraph unit (deai_discourse.py --calibrate)
     ├── hedging_baseline.json               # epistemic-marker reference, section unit (same command)
-    ├── deai_policy.json                    # optional calibrated operating points
+    ├── deai_policy.json                    # withdrawn: no tool writes it; read if present
     ├── voice_model.joblib                  # optional learned field-similarity model
     ├── voice_features_cache.npz            # learned-model feature cache
     ├── voice_model_evaluation.json         # learned-model audit record (train_voice_model.py)

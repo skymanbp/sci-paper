@@ -61,12 +61,8 @@ create an authorship verdict or a separate paper gate.
 Python ≥ 3.11 on PATH (developed against 3.13; nothing in `tools/` uses
 3.12-only syntax).
 
-Optional capabilities are listed in `requirements.txt`:
-- `pymupdf` — PDF corpus extraction and compiled-page inspection
-- `sentence-transformers` — exemplar retrieval and embedding features
-- `scikit-learn` + `joblib` — legacy and learned field-similarity models
-- `transformers` + `torch` — optional token-surprisal / UID measurement
-- `numpy` — learned feature, cache, and rewrite-score utilities
+Optional capabilities, and the package each needs, are listed once in
+`requirements.txt`.
 
 The shared schema, deterministic L0 linter, model-free L1/L2 axes, and validator
 remain standard-library paths. Missing optional dependencies must stay visible as
