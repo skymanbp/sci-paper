@@ -193,17 +193,15 @@ abstains rather than reporting an ordinary passage as the 100th percentile.
 
 This detector is the only one that reads
 [`extract_sections.latex_to_numeral_text`](../../tools/extract_sections.py), the second
-LaTeX projection (`rewrite_reward` reads numbers through it too, and the bank
-stores each paragraph's `numeral_text` under the same projection through
-`extract_style.paired_paragraphs`). `latex_to_plain` replaces every math span with `[math]`, which
+LaTeX projection (`rewrite_reward` reads numbers through it too).
+`latex_to_plain` replaces every math span with `[math]`, which
 is right for lexical and shape statistics and zeroes every numeral signal on
 `.tex` input; the numeral-preserving projection shares the same pattern set and
 differs only in what happens inside an inline math span. Displayed equations are
 dropped by both. The reference is built from the same projection: every bank
 row carries `numeral_text` beside `text`, paired paragraph by paragraph by
-`extract_style.paired_paragraphs`, and the calibration reads that field. Until
-v0.36.3 it read `text`, so the reference held no numeral inside math while the
-manuscript did (EVALUATION §17.5).
+`extract_style.paired_paragraphs`, and the calibration reads that field (the
+seam this closed is EVALUATION §17.5).
 
 ### L2: collocation
 
@@ -274,8 +272,8 @@ field, which is worth telling an author, and is not evidence about who wrote it.
 - `cross_section_similarity`;
 - `section_arc_similarity`.
 
-Since the 2026-07-13 keystone it also scores on a detection core, which
-[`../tools/deai_docshape.py`](../../tools/deai_docshape.py) has held since 2026-08-25
+It also scores on a detection core held in
+[`../tools/deai_docshape.py`](../../tools/deai_docshape.py)
 (`deai_docstructure` re-exports it): cross-paragraph dispersion as a joint Mahalanobis manifold fit pooled and per
 length stratum (`fit_dispersion_manifold`, `manifold_distance`), role-coupled dispersion
 (`document_role_coupling`), and split-conformal (Mondrian) operating points.
@@ -285,8 +283,8 @@ uncertainty, leave-one-document-out human flag behavior, and empirical percentil
 The sweep drops the preamble and every `skip` unit (acknowledgements, appendices,
 references) on both sides, and a document-shape metric is strong when it exceeds the
 quoted quantile threshold. If the corpus does not contain enough complete and
-measurable papers, the axis is `unmeasured`; the `wgl` figures in EVALUATION §9
-were re-measured on the rebuilt reference on 2026-09-27. The implementation must not synthesize a
+measurable papers, the axis is `unmeasured`; the `wgl` figures and their build
+date are EVALUATION §9. The implementation must not synthesize a
 document baseline from paragraph exemplars.
 
 ### L3: learned field similarity
@@ -316,35 +314,29 @@ high-confidence AI verdict.
 ### L4: residue, and the removal map
 
 [`../tools/deai_residue.py`](../../tools/deai_residue.py) reads the trace an edit
-leaves rather than the prose it produced. Four static rules and one diff rule, all deterministic:
-`residue-self-history:<word>` (a drafting-history term — `initially`, `no
-longer`, `we switched` — in a first-person sentence with no citation, so a
-history *of the literature* is not one of the paper); `residue-absence` (a
-sentence defining the paper's own object by what it never does or has, the
-prose form of the negative label, deleted outright where the neighbouring
-sentences already carry the positive statement and rewritten only where they
-do not: `never` and the `nothing is` / `none sees` /
-`no … is applied` forms are strong, being rare in refereed prose; `carries no`,
-`is not applied`, `does not participate` are ordinary, being common there and
-mostly procedure (EVALUATION §23.4a); a citation in the sentence makes it a
-baseline contrast and exempts it); `residue-edit-meta`
-(`TODO`, `see previous version`, case-sensitive for the upper-case markers;
-`we have added` only with a document object, since in refereed prose it is a
-procedure); `residue-negative-label` (a heading or caption whose object head
-stems never occur in the body, on documents of 400 words or more — ordinary,
-because refereed papers carry it routinely, EVALUATION §23.4); and, given
-`--before` or `--git-ref`,
-`residue-negative-label-added` (a label the edit introduced and the body does
-not earn — strong). The literal rule reads `deai_register.body_lines` and the label rule
-`body_only`, both with the `skip` sections kept,
-because a `\newcommand{\TODO}` in a preamble and a bibliography title are not
-prose an edit left. The history and absence families are defined once
-in the tool and mirrored between markers in `skills/paper/SKILL.md`;
-`validate_plugin` calls the tool's own `validator_check`, which proves the mirror
-and scans both READMEs, the standard and every skill for the edit-meta literals.
-A strong finding
-exits 1, one of the four narrow exit contracts the standard's §0.1 registers
-(with `length_gate`, `rewrite_reward` and `verify_references`).
+leaves rather than the prose it produced. Four static rules and one diff rule, all
+deterministic, each family's strength fixed in the tool:
+`residue-self-history:<word>` (a drafting-history term in a first-person sentence
+with no citation; strong and ordinary families), `residue-absence` (a body
+sentence defining the paper's own object by what it never does or has; strong
+and ordinary families, a citation exempting it; the action deletes the clause
+first and rewrites only what the neighbouring sentences do not already say),
+`residue-edit-meta` (literal
+editing marks; strong), `residue-negative-label` (a heading or caption whose
+object never occurs in the body, on documents of 400 words or more; ordinary)
+and, given `--before` or `--git-ref`, `residue-negative-label-added` (a label
+the edit introduced and the body does not earn; strong). Why each family sits
+in its tier is measured in EVALUATION §23.4 and §23.4a. The static rules also
+run inside `ai_ism_lint` (axis `L4.residue`, on by default) without touching
+its L0 exit. The literal rule reads `deai_register.body_lines` and the label
+rule `body_only`, both with the `skip` sections kept, because a preamble macro
+and a bibliography title are not prose an edit left. The history and absence
+families are defined once in the tool and mirrored between markers in
+`skills/paper/SKILL.md`; `validate_plugin` calls the tool's own
+`validator_check`, which proves the mirror and scans both READMEs, the standard
+and every skill for the edit-meta literals. A strong finding exits 1, one of the
+four narrow exit contracts the standard's §0.1 registers (with `length_gate`,
+`rewrite_reward` and `verify_references`).
 
 [`../tools/condense_map.py`](../../tools/condense_map.py) is the measurement
 behind `/sci-paper:condense`: six scans (restatement with its canonical home,

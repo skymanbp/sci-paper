@@ -45,6 +45,8 @@ replace `\cmd{arg}` with `arg`. So the bibliography key became a word:
 Leaking occurrences in the corpus: **8,835 across 565 of 1,490 `.tex` files** —
 8,100 optional-argument forms, 357 `\citealp`, 173 `\citeyear`, 135
 `\citeauthor`, 60 `\citenum`, 10 `\citeyearpar`.
+Before the fix, 64 of the 887 held-out register findings (7.2%) were leaked
+surnames.
 
 The replacement matches **by shape, not by name**: any command whose name
 carries `cite`, with any number of optional arguments, followed by a brace
