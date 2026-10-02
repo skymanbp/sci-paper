@@ -3,6 +3,31 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.39.1 — 2026-10-02
+
+### The documentation, checked against the code; no behaviour change
+
+A full documentation review (2026-10-02) re-read every skill, the standard,
+the architecture and evaluation records, both READMEs and the examples against
+the v0.39.0 code, and corrected what had drifted: skill commands now run as
+written and cite current evidence and the standard's own section pointers; the
+standard's schema and residue list match the tools; each evaluation figure has
+one owner and the architecture records point to it; the Chinese README is level
+with the English one. Code changed only in comments.
+
+**Four figures re-measured on the 2026-09-27 `wgl` rebuild.** Document-scale
+§9.4 and §9.4b disagreed on the shipped-path length confound (0.353 → −0.080
+over 493 papers, and 0.353 → −0.113); it is **−0.164** over 504 papers, with
+in-stratum r −0.350 / −0.075 / −0.215, so stratification more than halves the
+confound without removing it. The legacy word-ngram classifier's grouped F1 is
+**0.838 ± 0.149**, not 0.822 ± 0.116. The worked example's counts reproduce
+exactly (22 → 17 advisories), and its table now names the three rules it does
+not list. `wgl-letter` is no longer a descriptive subset: 13 artifacts from 11
+curated papers plus 28 full-text letters.
+
+Gates: `validate_plugin.py` all checks pass; 802 tests OK with 0 skipped (the
+17 profile-gated figure tests ran locally and passed).
+
 ## v0.39.0 — 2026-09-27
 
 ### The audit's first tier, fixed

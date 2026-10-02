@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.39.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.39.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
 [![Tests](https://img.shields.io/badge/tests-802%20passing-success.svg)](tests/)
@@ -678,7 +678,7 @@ sci-paper/
 
 ## 现状、已知限制与路线图
 
-当前版本：**v0.39.0**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE-v0.35.md](CHANGELOG-ARCHIVE-v0.35.md)（v0.35.0–v0.35.1）、[CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)（v0.33.0–v0.34.0）、[CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)（v0.27.1–v0.32.0）、[CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
+当前版本：**v0.39.1**。完整逐版本历史见 [CHANGELOG.md](CHANGELOG.md)，更早的条目见 [CHANGELOG-ARCHIVE-v0.35.md](CHANGELOG-ARCHIVE-v0.35.md)（v0.35.0–v0.35.1）、[CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)（v0.33.0–v0.34.0）、[CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)（v0.27.1–v0.32.0）、[CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md)（v0.22.0–v0.27.0）与 [CHANGELOG-ARCHIVE-EARLY.md](CHANGELOG-ARCHIVE-EARLY.md)（v0.1.0–v0.21.0）。
 
 **规范核心：** `docs/SCIPAPER_STANDARD.md` v3.9 —— 完整的去 AI 标准全在这一个文件里
 （分层模型、全文尺度检测核心、协作层与 residue 轴、`calibration_unit` 置信度封顶、§5.2 去 AI 化

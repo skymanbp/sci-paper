@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml/badge.svg)](https://github.com/skymanbp/sci-paper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.39.0-informational.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.39.1-informational.svg)](CHANGELOG.md)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A5CF6.svg)](https://docs.claude.com/en/docs/claude-code/plugins)
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
 [![Tests](https://img.shields.io/badge/tests-802%20passing-success.svg)](tests/)
@@ -684,7 +684,7 @@ also requires independent review, clean-checkout verification, and green hosted 
 
 ## Status, known limitations, and roadmap
 
-Current: **v0.39.0**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
+Current: **v0.39.1**. Full per-version history in [CHANGELOG.md](CHANGELOG.md).
 
 **Normative core:** `docs/SCIPAPER_STANDARD.md` v3.9 — the complete de-AI
 standard in one file (layered model, document-scale detection core, cooperative

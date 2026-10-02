@@ -412,3 +412,5 @@
 重建与重取：2026-09-27 按本版全部语料侧修复重建 `wgl` profile（exemplar bank、lexicon、register、collocation、cohesion、hedging、salience、structure、anchoring、UID 与 docstructure），并重训 L3；B22 落地后 docstructure 再校准一次。逐 bucket 轴的制品随重建采用最近秩分位网格（C12）。EVALUATION、两份 README 与 examples 的数字随之重取，没重取的行写明取数所在的构建。
 
 已知性质（记录备查，不是缺陷，2026-09-27 测）：留出集 200 个 bundle 读出 203 篇文档，因为三个 bundle 各有第二个根文件被选为独立文档（`AuthorList_P13_CIB_Lensing_cpp.tex`、`Planck_bib.tex`、`aa.tex`）；203 篇里有 15 篇去掉注释后未转义的 `$` 个数为奇数，简单配对下至少有一个 `$` 落单。
+
+本地交接（2026-10-02）：云端复核留下的四项需要 `wgl` profile 的核对已在本地完成，逐项结果与提交见 [`local-handoff-2026-10-02.md`](local-handoff-2026-10-02.md)「完成记录」（`e87748f`，随 v0.39.1 发布）。
