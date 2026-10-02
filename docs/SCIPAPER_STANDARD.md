@@ -637,7 +637,8 @@ against strong-model generations (EVALUATION §9.6), the hypotaxis ratio
 propositions around it, not a surface property of the clause, so surface
 statistics do not see it. Nothing in this section may be turned into a
 threshold, an exit code, or an advisory count without new evidence, and a
-later session proposing one of the three refuted features must read §14 first.
+later session proposing one of the three refuted features must read those
+three EVALUATION sections first.
 
 ---
 

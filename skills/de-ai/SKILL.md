@@ -134,7 +134,8 @@ Axes and tools:
   field's own corpus does not carry: the tell of a paper written in a
   neighbouring discipline's vocabulary. Evidence is corpus document frequency,
   never a curated list of another field's words, because a list cannot separate
-  `AUC` (1 astronomy passage in 15,599) from `epoch` (402) and `accuracy` (774).
+  `AUC`, which the astronomy corpus almost never carries, from `epoch` and
+  `accuracy`, which it carries routinely.
   Advisories only; a corpus-rare term may be a borrowed method's accepted name
   or the concept the paper introduces. The same tool's **zero-hit audit**
   (`register-zero:<term>`) is exhaustive rather than thresholded: every body
@@ -164,9 +165,13 @@ Axes and tools:
   This is the only axis that reads the numeral-preserving LaTeX projection; the
   others read `latex_to_plain`, which replaces math with `[math]` and therefore
   measures zero numerals on any `.tex` file.
+- **L2 discourse texture** (`deai_discourse`) — given/new cohesion per
+  paragraph and hedging per section, each flagged on the low tail of the
+  field's own reference; hedging is restricted to `intro` and `method`.
+  Advisory.
 - **L1 distribution** (`deai_metrics`, `deai_oracle`) — burstiness,
-  connective openers, surprisal/UID. Degraded without a field operating
-  point; rank-only.
+  connective openers, surprisal/UID. Degraded and rank-only: the
+  distribution operating point is refuted (EVALUATION §16) and UID has none.
 - **L2 sentence structure** (`deai_structure`) — template families
   (announced enumeration, ordinal runs, setup-list-wrap, repeated
   modal/anaphoric frames, symmetric closers) plus the auxiliary families
@@ -566,7 +571,8 @@ extraction plus every `--calibrate` axis); `extract_style` and
   reviewer.
 - Tools: `ai_ism_lint` (L0 hub + aggregation), `deai_metrics`,
   `deai_oracle`, `deai_structure`, `deai_salience`, `deai_register`,
-  `deai_collocation`, `deai_residue`, `deai_docstructure`, `deai_anchoring`,
+  `deai_collocation`, `deai_discourse`, `deai_residue`, `deai_docstructure`,
+  `deai_anchoring`,
   `deai_voice`, `deai_partition`, `deai_provenance`, `deai_personal`,
   `rewrite_reward` (fidelity + length gate), `retrieve_exemplars`,
   `extract_style`, `build_profile`, `deai_feedback` (schema + ranking).

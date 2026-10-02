@@ -337,7 +337,7 @@ unique or free of every possible reviewer objection.
 - Requiring the narrative-spine protocol (paper-review dimension E) to find exactly one
   contribution thread.
 - Letting the de-ai auditor edit the manuscript instead of returning findings.
-- Adding condense as a fifth review lane (its detection surface is paper-review dimension I).
+- Adding condense as another review lane (its detection surface is paper-review dimension I).
 - Calling missing calibration a clean result.
 - Resetting or dropping inconvenient findings during deduplication.
 - Declaring completion because all numeric issue counts are zero while axes were skipped.

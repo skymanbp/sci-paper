@@ -263,7 +263,7 @@ python tools/ai_ism_lint.py <file> --field <field> \
 
 **Tier A — L0 target**
 
-正文命中必须重写。规范词表是 `tools/ai_ism_lint.py` 的 `TIER_A_PATTERN`（段首套话对应 `TIER_A_OPENER_PATTERN` 与 `TIER_A_PARAGRAPH_CONNECTOR_PATTERN`），下表是它的人读镜像：
+正文命中必须重写。规范词表是 `tools/ai_ism_lint.py` 的 `TIER_A_PATTERN`（段首套话对应 `TIER_A_OPENER_PATTERN`，任一句首即判，与 `TIER_A_PARAGRAPH_CONNECTOR_PATTERN`，只判段落首行），下表是它的人读镜像：
 
 | 类别 | 词 |
 |---|---|

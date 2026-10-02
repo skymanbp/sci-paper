@@ -174,7 +174,7 @@ Net length delta: <words, per section and total>; length_gate --require-shrink: 
 - <content> : canonical home <loc>; copies removed <locs>; evidence <grep>
 
 ## Compressed spans
-- <loc>: <before-words> -> <after-words>; eligibility PASS
+- <loc>: <before-words> -> <after-words>; eligible
 
 ## Gate findings
 - <length-growth / length-shrink-short / residue findings and their recorded justifications>

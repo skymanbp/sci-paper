@@ -60,8 +60,8 @@ Pinsker / Fano / Cramér-Rao / DPI 的适用条件）归 `/sci-paper:physics` P4
 `/sci-paper:paper` "声明-证据纪律"的审查端：
 
 - 每个经验声明有**正文内**数字 / 图 / 表 / 引用支撑；
-- **动词强度不超过证据强度** —— `demonstrates` / `establishes` / `proves` 各自
-  需要什么级别的证据，由标准定义；
+- **动词强度不超过证据强度** —— `demonstrates` / `establishes` / `proves` 只用在
+  正文证据确实达到该强度处（标准 QD：claim-evidence defect 是 `integrity_blocker`）；
 - 模糊量级写成**有归属的数字或区间**，而不是 "substantially" / "much larger"；
 - `significantly` 出现时必须伴随检验或数字，否则是 claim 缺陷。
 

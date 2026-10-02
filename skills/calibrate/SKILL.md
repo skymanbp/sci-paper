@@ -112,8 +112,9 @@ Run these after every corpus change. Each prints its own floors; read them.
 python tools/deai_salience.py      --calibrate --field <field>
 python tools/deai_structure.py     --calibrate --field <field>
 python tools/deai_register.py      --calibrate --field <field>
-python tools/deai_anchoring.py     --calibrate --field <field>
-python tools/deai_docstructure.py  --calibrate --field <field>
+python tools/deai_collocation.py   --calibrate --field <field>
+python tools/deai_anchoring.py     --calibrate --field <field> --corpus-dir style-corpus/<field>
+python tools/deai_docstructure.py  --calibrate --field <field> --corpus-dir style-corpus/<field>
 python tools/deai_discourse.py     --calibrate --field <field>
 ```
 
@@ -122,13 +123,15 @@ python tools/deai_discourse.py     --calibrate --field <field>
 | `L2.salience_hierarchy` | ≥ 30 reference passages per section bucket; passages ≥ 30 words and ≥ 3 sentences | that bucket is `degraded`; a reference with no spread above the p90 gate abstains rather than flagging |
 | `L2.sentence_structure` | per-section reference fractions | `measured` for deterministic matches, `degraded` for strength — there is no calibrated strong-advisory operating point |
 | `L0.register` | ≥ 500 corpus passages, and enough of them to resolve a 1e-4 document-frequency rate | under 500 the axis is silent; unable to resolve the rate it is `degraded`, or borrows `<field>`'s bank and says so |
+| `L2.collocation` | the pair bank plus ≥ 30 reference sentences per section bucket | a bucket below the floor is skipped; with no usable bucket the axis is `degraded`, and without the bank or its baseline it is `unmeasured` |
 | `L2.claim_anchoring` | ≥ 30 documents per section class | classes below the floor are omitted from the band, honestly, rather than estimated |
 | `L2.document_structure` | ≥ 3 complete documents, each ≥ 3 sections with ≥ 2 substantial paragraphs | `unmeasured`; under the 20 documents a 5% tail needs, `degraded`; a manifold without a conformal block is left unscored and the axis `degraded` until `--calibrate` is rerun |
 | `L2.cohesion` | ≥ 30 reference paragraphs per bucket, each ≥ 3 sentences and ≥ 40 words | that bucket abstains; a reference with no spread *below* the p10 gate reports nothing rather than everything |
 | `L2.hedging` | ≥ 30 reference **sections** per bucket, each ≥ 150 words — and the bucket must be one the axis is calibrated for | `degraded`. It ships restricted to `intro` and `method`, the buckets where its gate was shown both to transfer and to separate (EVALUATION §19.3–19.4); a thin profile is `degraded` there too |
 
-If you point `--corpus-dir` anywhere, point it at the field root or at
-`fulltext-arxiv/`. Aimed at the field root it collects the calibration corpus
+`deai_anchoring` and `deai_docstructure` read complete documents, so their
+`--calibrate` requires `--corpus-dir` (exit 2 without it). Point it at the field
+root or at `fulltext-arxiv/`. Aimed at the field root it collects the calibration corpus
 and **refuses** every other `fulltext-*` directory, which is what keeps a
 held-out set held out.
 
@@ -191,8 +194,9 @@ Four things about the sheet decide whether the effort is worth anything:
   modelling myself on" and "does it misfire on published work" are different
   questions with different answers, so each `--population NAME=DIR` is sampled
   and scored on its own. Whichever population you name, it must sit **outside**
-  the calibration banks: on an in-sample paper ~94% of register flags are
-  suppressed by that paper's own bank membership (§17.3). Measured here — the
+  the calibration banks: on an in-sample paper most register flags are
+  suppressed by that paper's own bank membership (87.5% of the held-out set's,
+  the last row of the §17.4 table). Measured here — the
   same axis yields 1 finding across three in-calibration papers and 8 across
   fifteen held out. `published` is added for you from the held-out set unless
   you name your own.

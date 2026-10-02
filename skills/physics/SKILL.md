@@ -12,7 +12,7 @@ argument-hint: "<file_path> [--field <name>]"
 > 评级表，不产生 paper 级 PASS/FAIL，也不要求 advisory 归零。
 
 **这是测量原件：只产 finding，不改稿。** 修复动作由调用它的组合 skill
-（`/sci-paper:paper-review`）按标准 §6 路由；单独运行时把 finding 交还作者。
+（`/sci-paper:paper-review`）按标准 §5 路由；单独运行时把 finding 交还作者。
 
 ## 0. 取证纪律
 
