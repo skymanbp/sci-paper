@@ -321,7 +321,11 @@ population it changed nothing at three decimals — 11 records are 0.026% of
 41,721 passages and none of the five crossed the threshold. **Every figure
 published in §18.4 reproduces after the removal**, which is the useful half of a
 null result: the leak was real, it was worth measuring, and it was not load-
-bearing for anything already published.
+bearing for anything already published. The effect of a paper's own text in the
+denominator, measured on one author's papers (v0.34.0): the register axis yields 1
+finding across three in-calibration papers against 8 across fifteen held out, which
+is why `fetch_arxiv_abstracts.py --author` refuses to write into the
+calibration-breadth directory.
 
 ### 21.4 Register is not a detector — replicated on an independent population
 

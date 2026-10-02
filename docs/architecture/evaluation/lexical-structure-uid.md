@@ -60,8 +60,10 @@ corpus-layer history; every section-keyed count elsewhere is read against it.
 - **v0.28.0 (2026-08-25), two rounds of corpus-layer defects.** Section labels:
   `classify_section` matched titles in the singular only, so
   `Results`/`Conclusions`/`Systematics` fell to `method`; `method` was the default
-  bucket and absorbed every unnamed heading; PDF table cells were accepted as
-  headings and PDF "paragraphs" were line fragments. An unrecognised heading is now
+  bucket and absorbed every unnamed heading (the bank held 1,671 "method" passages
+  against 10 "results"); PDF table cells were accepted as
+  headings (305 of 325 detected headings were cells such as "S", "RA", "NFW",
+  "S/N") and PDF "paragraphs" were line fragments. An unrecognised heading is now
   `unknown` and is dropped rather than guessed. What counts as a paper: `\include`
   fragments counted as separate papers (one review entered every distribution
   twelve times); selecting the root instead lost the body it includes (72 words in

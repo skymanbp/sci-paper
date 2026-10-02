@@ -156,6 +156,11 @@ revision, because the synthetic paper repeats its own coined parameter and the
 cohesion fix carried a noun into a new neighbourhood — the axis's stated
 exception at work, recorded in [`examples/README.md`](../../../examples/README.md).
 
+**The document-scope glossary reading** (`--glossary`, v0.38.0) on the same
+manuscript: 252 distinct unattested pairs, 42 used twice or more, 16 with a
+definition cue at first use; the default run's finding set is unchanged (86 before
+and after, set difference 0).
+
 **Two limits recorded on 2026-09-27.** The bank keeps rows of 30–400 words
 and the manuscript side has no such band, so a manuscript paragraph outside it
 is measured against a reference that holds none of its length. Recording the

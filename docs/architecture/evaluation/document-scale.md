@@ -77,10 +77,9 @@ per-paragraph feature, the cross-paragraph dispersion of a complete document
 below the human low tail. The axis was first calibrated one-observation-per-paper over 14
 complete human `wgl` papers (multi-file papers concatenated to avoid pseudoreplication);
 the current reference is **504** complete papers, and `L2.document_structure` is
-`measured`. On the 493-paper reference the in-sample percentile thresholds flagged
-0.091 / 0.077 / 0.087 of human papers per stratum under leave-one-paper-out, above the
-nominal 0.05 — which is why the manifold scores only at the split-conformal operating
-points of §9.5, whose leave-one-out human rate was 0.040. The `docstructure_baseline.json` artifact is gitignored and rebuilt per field.
+`measured`. In-sample percentile thresholds over-flag human papers, which is why the
+manifold scores only at the split-conformal operating points of §9.5 (both human rates
+are there). The `docstructure_baseline.json` artifact is gitignored and rebuilt per field.
 
 ### 9.1 Validation against AI documents, including an adversarial de-AI tier
 
@@ -305,10 +304,10 @@ axes cover each other's evasion; (b) one field, one generator family; (c) the
 length bias quantified above; (f) 1 of 507 reference papers has only one defined
 scoring factor (its score pools a different null spread) — measured and negligible.
 
-Length-fair correction (section 9.5): against same-length-stratum humans only, the
-role AUCs above shrink to natural 0.703, de-AI'd 0.752, adversarial 0.819, and the
-skeleton tier collapses to 0.516 — the skeleton clones' apparent role signal was a
-length artifact, while the adversarial complementarity survives length matching.
+Length-fair correction (§9.5, the `role, pre-rebuild` row): against same-length-stratum
+humans only, the role AUCs above shrink and the skeleton tier collapses to near chance — the
+skeleton clones' apparent role signal was a length artifact, while the adversarial
+complementarity survives length matching.
 
 ### 9.5 Split-conformal operating points (frontier idea 8) and the length confound
 
@@ -350,16 +349,10 @@ which is the control — the role z needs no fit, so a refit cannot move it, and
 reproduction is what licenses attributing the manifold change to the refit rather than to
 the measurement pipeline.
 
-> **⚠️ Correction (2026-08-26, §9.4c).** The manifold row above is a single-seed draw
-> from a distribution whose standard deviation is **0.11 to 0.18**, and the
-> 0.071 → 0.214 change this passage attributes to the refit is *smaller than that
-> spread*. The role row's exact reproduction licenses attributing the change to the
-> refit rather than the pipeline, but it does not establish that the change is
-> larger than seed noise, and it is not. Averaged over 12 seeds at the shipped
-> split, the manifold rates are **0.170 ± 0.110 / 0.261 ± 0.114 / 0.237 ± 0.184 /
-> 0.274 ± 0.043**. Treat any single-seed tail-power figure in this section — before
-> or after the rebuild — as one draw, not as an estimate. `tools/eval_docscale.py`
-> reproduces the table on demand.
+> **⚠️ Correction (2026-08-26).** The manifold row above is a single-seed draw, and
+> the 0.071 → 0.214 change this passage attributes to the refit is smaller than the
+> per-seed spread; the 12-seed means and that spread are §9.4c's. Treat any
+> single-seed tail-power figure in this section as one draw, not as an estimate.
 
 A three-way replication on an independent split of the 507-paper reference (train 253 /
 calibration 152 / test 102 humans, seed distinct from the shipped one) gave human test

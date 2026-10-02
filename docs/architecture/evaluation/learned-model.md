@@ -128,13 +128,8 @@ The negative-control false-positive rates, per retrain and with their split rang
 are the §7.0a table. Generic public AI prose is easy (5.7% FPR), but AI text written in
 the field's topic and jargon fools the model 29–42% of the time. The learned score
 partly measures field register, so it is unreliable on the exact distribution —
-field-topic AI prose — that a manuscript de-AI pass must catch.
-
-**Neither the corpus growth nor the two profile rebuilds fixed this**: across five
-retrains every step of every control lies inside the split-to-split range (§7.0a). The
-confound is a property of the feature set, not of any one training bank — which is the
-measured reason L3 ships `degraded` and will keep doing so until a feature set
-separates field register from provenance.
+field-topic AI prose — that a manuscript de-AI pass must catch. Why neither the corpus
+growth nor the profile rebuilds fixed this, and the decision it forces, is §7.0a.
 
 ### 7.3 Author hard set — true provenance is the yardstick, perception is not
 
@@ -196,6 +191,14 @@ The earlier cloud bundle was trained with scikit-learn 1.4.2 and emitted an
 unpickle-version warning when loaded under a newer local scikit-learn. The 2026-08-17
 local retrain resolves it by the mechanism this section predicted: the rebuilt bundle
 loads under local scikit-learn 1.8.0 with no warnings.
+
+### 7.6 The legacy word-ngram classifier
+
+`train_ai_ism_classifier.py` cross-validates grouped by source paper
+(`StratifiedGroupKFold`), because paragraphs from one paper are not independent. On
+`wgl` grouped F1 read 0.823 against 0.876 ungrouped when the grouping was introduced,
+and 0.822 ± 0.116 on the 2026-09-27 rebuild. The output is degraded L3 advisory
+evidence, never authorship evidence or an L0 gate.
 
 ## 8. Rewrite eligibility
 
