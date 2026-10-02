@@ -5,6 +5,11 @@ changelog stays readable, and split in two on 2026-08-26 when this file passed
 the repository's 750-line budget. Nothing here is edited; the history is
 verbatim.
 
+Commit hashes quoted below that no longer resolve (`67a6b55`, `6886679`,
+`475f632`) predate the
+repository's retained history, which begins at `0beb8e5` (2026-08-27, v0.34.0);
+the text around each still names what changed.
+
 - Current releases: [CHANGELOG.md](CHANGELOG.md)
 - **v0.35.0 through v0.35.1**: [CHANGELOG-ARCHIVE-v0.35.md](CHANGELOG-ARCHIVE-v0.35.md)
 - **v0.33.0 through v0.34.0**: [CHANGELOG-ARCHIVE-v0.33-v0.34.md](CHANGELOG-ARCHIVE-v0.33-v0.34.md)

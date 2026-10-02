@@ -5,6 +5,10 @@ the live changelog passed the repository's 750-line budget and every older
 archive was within 65 lines of it. Nothing here is edited; the history is
 verbatim.
 
+Commit hashes quoted below that no longer resolve (`1024d0f`) predate the
+repository's retained history, which begins at `0beb8e5` (2026-08-27, v0.34.0);
+the text around each still names what changed.
+
 - Current releases: [CHANGELOG.md](CHANGELOG.md)
 - **v0.35.0 through v0.35.1**: [CHANGELOG-ARCHIVE-v0.35.md](CHANGELOG-ARCHIVE-v0.35.md)
 - **v0.27.1 through v0.32.0**: [CHANGELOG-ARCHIVE-RECENT.md](CHANGELOG-ARCHIVE-RECENT.md)

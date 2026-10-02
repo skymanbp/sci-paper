@@ -1,4 +1,4 @@
-# EVALUATION — Learned field similarity, rewrite eligibility, and the author hard set · `sci-paper` v0.32.0
+# EVALUATION — Learned field similarity, rewrite eligibility, and the author hard set · split off in `sci-paper` v0.32.0, current to v0.39.0
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the

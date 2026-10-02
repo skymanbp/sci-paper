@@ -1,4 +1,4 @@
-# EVALUATION — Held-out papers as labels · `sci-paper` v0.32.0 and v0.34.0
+# EVALUATION — Held-out papers as labels · split off in `sci-paper` v0.32.0 (extended v0.34.0), current to v0.39.0
 
 Part of the evaluation record. The hub — evaluation contract, current
 axis status, repository verification, release evidence boundary, and the

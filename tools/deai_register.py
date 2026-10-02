@@ -6,9 +6,9 @@ use: a weak-lensing paper that reports `AUC` is speaking machine learning to
 an audience that says completeness and purity.
 
 The judgement cannot come from a hand-written list of "ML words", and the
-corpus says why. In the 15,599-passage astronomy reference, `AUC` appears in 1
-passage, but `epoch` appears in 415 and `accuracy` in 835 -- because an epoch
-is an observation time and accuracy is ordinary English. Any curated
+corpus says why. The astronomy reference almost never carries `AUC`, but it
+carries `epoch` and `accuracy` routinely -- because an epoch is an observation
+time and accuracy is ordinary English. Any curated
 cross-discipline blacklist flags all three. Document frequency in the field's
 own corpus separates them, needs no maintenance, and re-derives itself for any
 new field (guardrail 7 of the standard).
