@@ -7,8 +7,7 @@
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
 [![Tests](https://img.shields.io/badge/tests-802%20passing-success.svg)](tests/)
 
-**一个 Claude Code 插件：在同一套 typed 标准下完成科研论文的写作、审查、去 AI 化与精简。
-每条结论都可溯源，每个测不出来的轴都如实标为测不出来。**
+**sci-paper 按期刊标准写作、审查并去 AI 化科研论文，每条结论都可溯源。**
 
 面向 ApJ / MNRAS / PRD / JCAP 级别的论文，以及 NSF / NIH 基金申请书。
 **12 个 skill · 40 个工具 · 802 个测试 · 一份规范 · 零作者身份判决。**

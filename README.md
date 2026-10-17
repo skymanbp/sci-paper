@@ -7,9 +7,7 @@
 [![Python](https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB.svg)](requirements.txt)
 [![Tests](https://img.shields.io/badge/tests-802%20passing-success.svg)](tests/)
 
-**A Claude Code plugin that writes, reviews, de-AIs, and condenses scientific
-manuscripts for top-tier journals — under one typed standard, with every claim
-traced to a source and every unavailable measurement labelled as unavailable.**
+**sci-paper writes, reviews and de-AIs a scientific manuscript to a journal's standard, every claim traced to its source.**
 
 Built for ApJ / MNRAS / PRD / JCAP-class papers and NSF / NIH proposals.
 **12 skills · 40 tools · 802 tests · one normative contract · zero authorship verdicts.**
