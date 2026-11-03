@@ -1,6 +1,6 @@
 ---
 name: physics
-description: 物理第一原则核查（测量原件，只产 finding，不改稿）：量纲一致性、渐近极限、对称性/宇称/守恒律、信息论与统计不等式的前提、代数再推导、数值溯源、基础引用真实性、编译与交叉引用完整性。findings 走 sci-paper.feedback.v1 的后果类别与 measurement state；拿不到证据报 unmeasured 或 not_applicable，绝不记成零 finding。可单独运行，也是 /sci-paper:paper-review 维度 K 的唯一来源。Use for: 物理正确性核查, 量纲检查, 守恒律与宇称, 渐近极限, 数值溯源, physics check, 物理第一原则审查。
+description: "物理第一原则核查（测量原件，只产 finding，不改稿）：量纲一致性、渐近极限、对称性/宇称/守恒律、信息论与统计不等式的前提、代数再推导、数值溯源、基础引用真实性、编译与交叉引用完整性。findings 走 sci-paper.feedback.v1 的后果类别与 measurement state；拿不到证据报 unmeasured 或 not_applicable，绝不记成零 finding。可单独运行，也是 /sci-paper:paper-review 维度 K 的唯一来源。Use for: 物理正确性核查, 量纲检查, 守恒律与宇称, 渐近极限, 数值溯源, physics check, 物理第一原则审查。"
 disable-model-invocation: false
 argument-hint: "<file_path> [--field <name>]"
 ---

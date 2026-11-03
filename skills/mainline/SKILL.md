@@ -1,6 +1,6 @@
 ---
 name: mainline
-description: 叙事主线核查（测量原件，只产 finding，不改稿）：建 paper-level purpose record 与 contribution graph，再按 cold reader 回答八问，定位读者需要回溯、补隐藏上下文或在竞争解读间抉择的地方。findings 走 sci-paper.feedback.v1；不假设三幕模板，多贡献论文可有多个明确相关的分支，但都从属于唯一的 thesis line。可单独运行，也是 /sci-paper:paper-review 维度 E 的唯一来源。Use for: 叙事主线, 主线检查, contribution graph, 冷读八问, narrative spine, 文章结构是否讲得通, 读者会不会卡住。
+description: "叙事主线核查（测量原件，只产 finding，不改稿）：建 paper-level purpose record 与 contribution graph，再按 cold reader 回答八问，定位读者需要回溯、补隐藏上下文或在竞争解读间抉择的地方。findings 走 sci-paper.feedback.v1；不假设三幕模板，多贡献论文可有多个明确相关的分支，但都从属于唯一的 thesis line。可单独运行，也是 /sci-paper:paper-review 维度 E 的唯一来源。Use for: 叙事主线, 主线检查, contribution graph, 冷读八问, narrative spine, 文章结构是否讲得通, 读者会不会卡住。"
 disable-model-invocation: false
 argument-hint: "<file_path> [--field <name>]"
 ---

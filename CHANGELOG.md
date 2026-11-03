@@ -3,6 +3,27 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.39.2 — 2026-11-03
+
+### Ten skill headers Claude Code could not read; no behaviour change in the tools
+
+The `description` line of ten of the twelve `SKILL.md` files (every skill but
+`paper` and `proposal-polish`) was a bare YAML scalar containing `: `, which a
+YAML parser reads as a nested mapping.  Claude Code parses the frontmatter with
+a real YAML parser, so since at least 2026-09-05 those ten skills loaded with
+empty metadata: `claude plugin validate` reported `YAML frontmatter failed to
+parse` for each, and a session's skill listing showed only the two that
+parsed.  Each of the ten lines is now a double-quoted scalar with the same
+text; no description changed.
+
+`tools/validate_plugin.py` did not catch it because its frontmatter reader
+split each line on the first colon.  It now refuses a bare value that YAML
+cannot read (`: `, ` #`, a trailing `:` or a leading indicator character) and
+names the file and key, so the class cannot recur.
+
+Gates: `validate_plugin.py` all checks pass; `claude plugin validate .` 0
+errors on all 12 skills.
+
 ## v0.39.1 — 2026-10-02
 
 ### The documentation, checked against the code; no behaviour change

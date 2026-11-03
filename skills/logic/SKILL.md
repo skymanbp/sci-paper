@@ -1,6 +1,6 @@
 ---
 name: logic
-description: 逻辑与统计核查（测量原件，只产 finding，不改稿）：claim graph 的循环论证、断链、偷换条件、充分/必要条件错误、未声明假设；样本与 split、CV/grouping、泄漏防护、metric、uncertainty、多重比较、prior 的可复现性；以及声明-证据纪律的审查端——动词强度不得超过证据强度。findings 走 sci-paper.feedback.v1。可单独运行，也是 /sci-paper:paper-review 维度 C 的唯一来源。Use for: 逻辑检查, 论证是否成立, 统计方法学, 数据泄漏, 多重比较, 声明证据纪律, claim-evidence, over-claim 检查。
+description: "逻辑与统计核查（测量原件，只产 finding，不改稿）：claim graph 的循环论证、断链、偷换条件、充分/必要条件错误、未声明假设；样本与 split、CV/grouping、泄漏防护、metric、uncertainty、多重比较、prior 的可复现性；以及声明-证据纪律的审查端——动词强度不得超过证据强度。findings 走 sci-paper.feedback.v1。可单独运行，也是 /sci-paper:paper-review 维度 C 的唯一来源。Use for: 逻辑检查, 论证是否成立, 统计方法学, 数据泄漏, 多重比较, 声明证据纪律, claim-evidence, over-claim 检查。"
 disable-model-invocation: false
 argument-hint: "<file_path> [--field <name>]"
 ---

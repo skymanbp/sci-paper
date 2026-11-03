@@ -1,4 +1,4 @@
-# EVALUATION: de-AI subsystem for `sci-paper` v0.39.1
+# EVALUATION: de-AI subsystem for `sci-paper` v0.39.2
 
 First recorded 2026-07-12. The profile-dependent figures in §2 were re-taken on the
 `wgl` profile rebuilt on 2026-09-27; a row that was not re-taken names the build it

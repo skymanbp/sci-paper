@@ -164,7 +164,16 @@ def check_manifests() -> str:
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
-def parse_frontmatter(text: str) -> dict[str, str] | None:
+# Characters a YAML parser reads as structure when a bare (unquoted) scalar
+# starts with them.  A bare value that contains ": " or " #" is a mapping or a
+# comment to YAML, not text.  Claude Code parses the frontmatter with a real
+# YAML parser and loads the skill with EMPTY metadata when it fails; ten of the
+# twelve skills shipped that way from v0.35 to v0.39.1 because this parser
+# split on the first colon and never noticed.
+YAML_INDICATORS = "[]{}&*!|>%@`,"
+
+
+def parse_frontmatter(text: str, where: str = "frontmatter") -> dict[str, str] | None:
     match = FRONTMATTER_RE.match(text)
     if not match:
         return None
@@ -173,7 +182,13 @@ def parse_frontmatter(text: str) -> dict[str, str] | None:
         if not line.strip() or line.lstrip().startswith("#") or ":" not in line:
             continue
         key, _, value = line.partition(":")
-        frontmatter[key.strip()] = value.strip().strip('"').strip("'")
+        value = value.strip()
+        if value[:1] not in ("\"", "'"):
+            require(": " not in value and " #" not in value
+                    and not value.endswith(":") and value[:1] not in YAML_INDICATORS,
+                    f"{where}: {key.strip()!r} is a bare scalar YAML cannot read "
+                    "(': ', ' #', a trailing ':' or a leading indicator); quote it")
+        frontmatter[key.strip()] = value.strip('"').strip("'")
     return frontmatter
 
 
@@ -184,7 +199,7 @@ def skill_documents() -> dict[str, str]:
         skill_path = directory / "SKILL.md"
         require(skill_path.is_file(), f"{skill_path.relative_to(REPO)} missing")
         text = read_text(skill_path)
-        frontmatter = parse_frontmatter(text)
+        frontmatter = parse_frontmatter(text, str(skill_path.relative_to(REPO)))
         require(frontmatter is not None,
                 f"{skill_path.relative_to(REPO)} has no YAML frontmatter")
         for key in ("name", "description"):
