@@ -3,6 +3,21 @@
 All notable changes to the `sci-paper` plugin. Versions follow the
 `plugin.json` / `marketplace.json` `version` field.
 
+## v0.39.3 — 2026-11-03
+
+### The validator back under its own line budget; v0.39.2's gate claim corrected
+
+v0.39.2 shipped `tools/validate_plugin.py` at 765 lines against the 750-line
+cap the validator enforces on every tracked file, so the validator failed on
+itself and CI was red; the release note said all checks passed because the
+local run's exit code was not read. The new frontmatter check is now four
+lines (one regex, one `require`) and two older comment blocks are shortened
+without losing content: 750 lines. The check still refuses the v0.39.1
+`de-ai` header. No skill, tool or document changed otherwise.
+
+Gates: `validate_plugin.py` exit 0, all checks pass; `claude plugin validate .`
+0 errors on all 12 skills; 802 tests OK.
+
 ## v0.39.2 — 2026-11-03
 
 ### Ten skill headers Claude Code could not read; no behaviour change in the tools
@@ -21,8 +36,10 @@ split each line on the first colon.  It now refuses a bare value that YAML
 cannot read (`: `, ` #`, a trailing `:` or a leading indicator character) and
 names the file and key, so the class cannot recur.
 
-Gates: `validate_plugin.py` all checks pass; `claude plugin validate .` 0
-errors on all 12 skills.
+Gates as shipped: `claude plugin validate .` 0 errors on all 12 skills and 802
+tests OK, but `validate_plugin.py` FAILED its own 750-line budget (765 lines)
+and CI went red; the release note's claim that all checks passed was wrong.
+Fixed in v0.39.3.
 
 ## v0.39.1 — 2026-10-02
 

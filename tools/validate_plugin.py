@@ -164,15 +164,6 @@ def check_manifests() -> str:
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
-# Characters a YAML parser reads as structure when a bare (unquoted) scalar
-# starts with them.  A bare value that contains ": " or " #" is a mapping or a
-# comment to YAML, not text.  Claude Code parses the frontmatter with a real
-# YAML parser and loads the skill with EMPTY metadata when it fails; ten of the
-# twelve skills shipped that way from v0.35 to v0.39.1 because this parser
-# split on the first colon and never noticed.
-YAML_INDICATORS = "[]{}&*!|>%@`,"
-
-
 def parse_frontmatter(text: str, where: str = "frontmatter") -> dict[str, str] | None:
     match = FRONTMATTER_RE.match(text)
     if not match:
@@ -183,11 +174,9 @@ def parse_frontmatter(text: str, where: str = "frontmatter") -> dict[str, str] |
             continue
         key, _, value = line.partition(":")
         value = value.strip()
-        if value[:1] not in ("\"", "'"):
-            require(": " not in value and " #" not in value
-                    and not value.endswith(":") and value[:1] not in YAML_INDICATORS,
-                    f"{where}: {key.strip()!r} is a bare scalar YAML cannot read "
-                    "(': ', ' #', a trailing ':' or a leading indicator); quote it")
+        # Claude Code loads a skill with EMPTY metadata when real YAML rejects a bare value.
+        require(value[:1] in "\"'" or not re.search(r": | #|:$|^[\[\]{}&*!|>%@`,]", value),
+                f"{where}: {key.strip()!r} is a bare scalar YAML cannot read; quote it")
         frontmatter[key.strip()] = value.strip('"').strip("'")
     return frontmatter
 
@@ -371,10 +360,8 @@ def _sections_out_of_order(path: Path) -> list[str]:
 
 
 def check_documentation_boundaries() -> str:
-    # v0.21.0 made docs/EVALUATION.md the single canonical evaluation record;
-    # v0.27.0 categorized docs/ and moved it under architecture/. A copy left
-    # at any former location is the stub-plus-canonical accumulation pattern
-    # both moves eliminated.
+    # v0.21.0 made docs/EVALUATION.md the single canonical record, v0.27.0 moved it under
+    # architecture/; a copy at a former location is the accumulation both moves eliminated.
     evaluation = read_text(REPO / EVALUATION_DOC)
     require("(../SCIPAPER_STANDARD.md)" in evaluation,
             f"{EVALUATION_DOC} must link the normative standard by path "
@@ -517,11 +504,9 @@ def parse_declared_count(text: str, heading: str) -> int:
 HEADLINE_EN_RE = re.compile(r"\*\*(\d+) skills · (\d+) tools · (\d+) tests")
 HEADLINE_ZH_RE = re.compile(r"\*\*(\d+) 个 skill · (\d+) 个工具 · (\d+) 个测试")
 
-# Every way the two READMEs spell a repository-shape number, paired with the
-# quantity it claims. One regex per spelling was tried and failed four times --
-# the headline, the ASCII tree and the release paragraph each drifted on their
-# own, and the translation drifted furthest because nothing read it at all. The
-# rule is now the table: a shape number is checked wherever it is written.
+# Every way the two READMEs spell a repository-shape number, paired with the quantity
+# it claims. One regex per spelling drifted four times (headline, ASCII tree, release
+# paragraph, translation), so the rule is the table: checked wherever it is written.
 SHAPE_CLAIMS = (
     (re.compile(r"(\d+) skills\b"), ("skills",)),
     (re.compile(r"(\d+) product tools\b"), ("tools",)),
